@@ -57,5 +57,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" />
+    <PackageReference Include="Tomlyn" />
+    <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 </Project>

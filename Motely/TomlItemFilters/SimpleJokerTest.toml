@@ -1,0 +1,10 @@
+name = "Simple Joker Test"
+description = "Find any Jolly Joker in shops"
+
+[[must]]
+type = "Joker"
+value = "JollyJoker"
+antes = [1]
+
+[must.sources]
+shopSlots = [0, 1, 2]

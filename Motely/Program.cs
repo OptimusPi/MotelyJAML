@@ -22,6 +22,8 @@ namespace Motely
 
             // Core options
             var jsonOption = app.Option<string>("-j|--json <JSON>", "JSON config file (JsonItemFilters/)", CommandOptionType.SingleValue);
+            var tomlOption = app.Option<string>("--toml <TOML>", "TOML config file (TomlItemFilters/)", CommandOptionType.SingleValue);
+            var yamlOption = app.Option<string>("--yaml <YAML>", "YAML config file (YamlItemFilters/)", CommandOptionType.SingleValue);
             var analyzeOption = app.Option<string>("--analyze <SEED>", "Analyze a specific seed", CommandOptionType.SingleValue);
             var nativeOption = app.Option<string>("-n|--native <FILTER>", "Run built-in native filter", CommandOptionType.SingleValue);
             var scoreOption = app.Option<string>("--score <JSON>", "Add JSON scoring to native filter", CommandOptionType.SingleValue);
@@ -178,13 +180,33 @@ namespace Motely
                 }
                 else
                 {
-                    // JSON config mode
+                    // Config file mode (JSON/TOML/YAML)
                     var cutoffStr = cutoffOption.Value() ?? "0";
                     bool autoCutoff = cutoffStr.ToLowerInvariant() == "auto";
                     parameters.Cutoff = autoCutoff ? 0 : (int.TryParse(cutoffStr, out var c) ? c : 0);
                     parameters.AutoCutoff = autoCutoff;
 
-                    var executor = new JsonSearchExecutor(jsonOption.Value()!, parameters);
+                    // Determine which config format
+                    string? configName = null;
+                    string? configFormat = null;
+
+                    if (tomlOption.HasValue())
+                    {
+                        configName = tomlOption.Value();
+                        configFormat = "toml";
+                    }
+                    else if (yamlOption.HasValue())
+                    {
+                        configName = yamlOption.Value();
+                        configFormat = "yaml";
+                    }
+                    else
+                    {
+                        configName = jsonOption.Value();
+                        configFormat = "json";
+                    }
+
+                    var executor = new JsonSearchExecutor(configName!, parameters, configFormat);
                     return executor.Execute();
                 }
             });

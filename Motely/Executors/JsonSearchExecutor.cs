@@ -6,10 +6,11 @@ namespace Motely.Executors
     /// <summary>
     /// Executes JSON-based filter searches with specialized vectorized filters
     /// </summary>
-    public sealed class JsonSearchExecutor(string configPath, JsonSearchParams parameters)
+    public sealed class JsonSearchExecutor(string configPath, JsonSearchParams parameters, string format = "json")
     {
         private readonly string _configPath = configPath;
         private readonly JsonSearchParams _params = parameters;
+        private readonly string _format = format;
         private bool _cancelled = false;
 
         public int Execute()
@@ -157,32 +158,46 @@ namespace Motely.Executors
         private MotelyJsonConfig LoadConfig()
         {
             string configPath;
+            string extension = _format == "toml" ? ".toml" : _format == "yaml" ? ".yaml" : ".json";
+            string filterDir = _format == "toml" ? "TomlItemFilters" : _format == "yaml" ? "YamlItemFilters" : "JsonItemFilters";
 
             // If the caller passed a rooted or path-containing config, use it directly
-            // (but append .json only when no extension is present). Otherwise treat
-            // the value as a filter name under JsonItemFilters and append .json.
+            // (but append extension only when no extension is present). Otherwise treat
+            // the value as a filter name under the appropriate ItemFilters directory.
             bool hasDirectory = !string.IsNullOrEmpty(Path.GetDirectoryName(_configPath));
             if (Path.IsPathRooted(_configPath) || hasDirectory)
             {
                 configPath = _configPath;
                 if (string.IsNullOrEmpty(Path.GetExtension(configPath)))
-                    configPath = configPath + ".json";
+                    configPath = configPath + extension;
             }
             else
             {
-                configPath = Path.Combine("JsonItemFilters", _configPath + ".json");
+                configPath = Path.Combine(filterDir, _configPath + extension);
             }
 
             if (!File.Exists(configPath))
-                throw new FileNotFoundException($"Could not find JSON config file: {configPath}");
+                throw new FileNotFoundException($"Could not find {_format.ToUpper()} config file: {configPath}");
 
-            if (
-                !MotelyJsonConfig.TryLoadFromJsonFile(
-                    configPath,
-                    out MotelyJsonConfig? config,
-                    out string? error
-                )
-            )
+            // Load based on format
+            MotelyJsonConfig? config;
+            string? error;
+            bool success;
+
+            if (_format == "toml")
+            {
+                success = TomlConfigLoader.TryLoadFromToml(configPath, out config, out error);
+            }
+            else if (_format == "yaml")
+            {
+                success = YamlConfigLoader.TryLoadFromYaml(configPath, out config, out error);
+            }
+            else
+            {
+                success = MotelyJsonConfig.TryLoadFromJsonFile(configPath, out config, out error);
+            }
+
+            if (!success || config == null)
                 throw new Exception($"Failed to load config from {configPath}: {error}");
 
             return config;

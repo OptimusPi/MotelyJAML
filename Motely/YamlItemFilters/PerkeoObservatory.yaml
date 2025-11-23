@@ -1,0 +1,32 @@
+name: Perkeo Observatory
+description: Perkeo with the Telescope and Observatory Vouchers.
+author: tacodiva
+dateCreated: 2025-01-01T05:46:12.6691000Z
+must:
+  - type: Voucher
+    value: Telescope
+    antes: [1, 2, 3]
+  - type: Voucher
+    value: Observatory
+    antes: [1, 2, 3]
+  - type: souljoker
+    edition: Negative
+    value: Perkeo
+    antes: [1]
+should:
+  - type: souljoker
+    value: Perkeo
+    label: Perkeo (Ante 1)
+    antes: [1]
+  - type: souljoker
+    value: Perkeo
+    antes: [2]
+  - type: souljoker
+    value: Perkeo
+    antes: [3]
+  - type: Joker
+    value: Blueprint
+    antes: [1]
+    sources:
+      packSlots: [0]
+mustNot: []
