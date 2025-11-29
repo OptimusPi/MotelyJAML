@@ -1,39 +1,67 @@
 # Motely
 
-The fastest Balatro seed searcher with JSON, YAML support and an interactive TUI.
+The fastest Balatro seed searcher with JSON, JAML support and an interactive TUI.
 
-Based on [@tacodiva](https://github.com/tacodiva)'s incredible [Motely](https://github.com/tacodiva/Motely) - a blazing-fast SIMD-powered seed searcher. This fork extends it with multiple configuration formats (JSON, YAML) and a Terminal User Interface for easy filter creation.
+Based on [@tacodiva](https://github.com/tacodiva)'s incredible [Motely](https://github.com/tacodiva/Motely) - a blazing-fast SIMD-powered seed searcher. This fork extends it with multiple configuration formats (JSON, JAML) and a Terminal User Interface for easy filter creation.
+
+## Installation
+
+### Quick Install (Linux/macOS)
+```bash
+# Download and extract latest release
+curl -fsSL https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-linux-x64.tar.gz | tar -xz
+
+# Or for macOS
+curl -fsSL https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-osx-x64.tar.gz | tar -xz
+
+# Run it
+./Motely
+```
+
+### Quick Install (Windows PowerShell)
+```powershell
+# Download latest release
+Invoke-WebRequest -Uri "https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-win-x64.zip" -OutFile "Motely.zip"
+Expand-Archive -Path "Motely.zip" -DestinationPath "."
+
+# Run it
+.\Motely.exe
+```
+
+### Build from Source
+```bash
+git clone https://github.com/YOUR_USERNAME/Motely.git
+cd Motely
+dotnet run
+```
 
 ## Quick Start
 
 ### Launch the TUI (Terminal User Interface)
 ```bash
 # Launch interactive TUI (default when no arguments provided)
-dotnet run -c Release
-
-# Or explicitly specify TUI mode
-dotnet run -c Release -- --tui
+dotnet run
 ```
 
 The TUI provides an interactive menu for:
 - Building custom filters visually
 - Quick search with predefined filters
 - Loading config files
-- Starting the API server (coming soon)
+- Starting the API server
 
 ### Command Line Usage
 ```bash
 # Search with a JSON filter
-dotnet run -c Release -- --json PerkeoObservatory --threads 16 --cutoff 2
+dotnet run -- --json PerkeoObservatory --threads 16 --cutoff 2
 
-# Search with a YAML filter
-dotnet run -c Release -- --yaml MyFilter --threads 16 --cutoff 2
+# Search with a JAML filter
+dotnet run -- --jaml MyFilter --threads 16 --cutoff 2
 
 # Use a native filter
-dotnet run -c Release -- --native PerkeoObservatory --threads 16
+dotnet run -- --native PerkeoObservatory --threads 16
 
 # Analyze a specific seed
-dotnet run -c Release -- --analyze ALEEB
+dotnet run -- --analyze ALEEB
 ```
 
 ## Command Line Options
@@ -41,7 +69,7 @@ dotnet run -c Release -- --analyze ALEEB
 ### Core Options
 - `--tui`: Launch Terminal User Interface (default if no args provided)
 - `--json <filename>`: JSON config from JsonItemFilters/ (without .json extension)
-- `--yaml <filename>`: YAML config from YamlItemFilters/ (without .yaml extension)
+- `--jaml <filename>`: JAML config from JamlFilters/ (without .jaml extension)
 - `--native <filter name>`: Built-in native filter (without .cs extension)
 - `--analyze <SEED>`: Analyze specific seed
 
@@ -77,12 +105,12 @@ Create in `JsonItemFilters/`:
 }
 ```
 
-### YAML Filter Format
+### JAML Filter Format
 
-Create in `YamlItemFilters/`:
-```yaml
+Create in `JamlFilters/`:
+```
 name: Example
-description: Example filter using YAML
+description: Example filter using JAML
 author: YourName
 dateCreated: 2025-01-01T00:00:00Z
 
@@ -99,6 +127,42 @@ should:
 ```
 
 Both formats support the same filter logic - choose whichever you prefer!
+
+### Using Defaults in JAML
+
+Configure defaults for your filter to avoid repetition:
+
+```
+name: My Filter
+defaults:
+  # Default antes (1-8)
+  antes: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  # Default pack/shop slots (auto-adjusted for ante 1)
+  packSlots: [0, 1, 2, 3, 4, 5]
+  shopSlots: [0, 1, 2, 3, 4, 5]
+
+  # Default score
+  score: 1
+
+must:
+  # Uses defaults.antes automatically
+  - voucher: Telescope
+
+  # Override with specific antes
+  - voucher: Observatory
+    antes: [2, 3]
+
+should:
+  # Uses defaults.score = 1
+  - joker: Blueprint
+
+  # Override score
+  - joker: Brainstorm
+    score: 50
+```
+
+**Note:** Ante 1 automatically limits pack slots to [0-3] and shop slots to [0-3] (4 slots max in ante 1).
 
 ## Native Filters
 - `negativecopy`: Showman + copy jokers with negatives

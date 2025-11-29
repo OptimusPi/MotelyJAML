@@ -249,7 +249,7 @@ public class SearchWindow : Window
                         result == 0
                             ? "Search completed successfully!"
                             : $"Search exited with code {result}";
-                    _stopButton.Text = "Bac_k";
+                    _stopButton.Text = "Back";
                     _searchRunning = false;
                 });
             }
@@ -264,7 +264,7 @@ public class SearchWindow : Window
                 App?.Invoke(() =>
                 {
                     _statusLabel.Text = "Search cancelled";
-                    _stopButton.Text = "Bac_k";
+                    _stopButton.Text = "Back";
                     _searchRunning = false;
                 });
             }
@@ -280,7 +280,7 @@ public class SearchWindow : Window
                 {
                     _outputView.Text += $"\n\nError: {ex.Message}\n{ex.StackTrace}";
                     _statusLabel.Text = "Search failed!";
-                    _stopButton.Text = "Bac_k";
+                    _stopButton.Text = "Back";
                     _searchRunning = false;
                 });
             }
@@ -305,7 +305,7 @@ public class SearchWindow : Window
             _executor?.Cancel();
             _searchRunning = false;
             _statusLabel.Text = "Search stopped by user";
-            _stopButton.Text = "Bac_k";
+            _stopButton.Text = "Back";
             _stopButton.Enabled = true;
 
             try
@@ -347,7 +347,7 @@ public class SearchWindow : Window
             {
                 X = 1,
                 Y = Pos.AnchorEnd(1),
-                Text = "Bac_k",
+                Text = "Back",
                 Width = Dim.Fill() - 2,
                 TextAlignment = Alignment.Center,
             };
@@ -423,7 +423,7 @@ public class SearchWindow : Window
                 {
                     X = 1,
                     Y = Pos.AnchorEnd(1),
-                    Text = "Bac_k",
+                    Text = "Back",
                     Width = Dim.Fill() - 2,
                     TextAlignment = Alignment.Center,
                 };
@@ -471,7 +471,7 @@ public class SearchWindow : Window
                 {
                     X = 1,
                     Y = Pos.AnchorEnd(1),
-                    Text = "Bac_k",
+                    Text = "Back",
                     Width = Dim.Fill() - 2,
                     TextAlignment = Alignment.Center,
                 };
@@ -503,7 +503,7 @@ public class SearchWindow : Window
                 {
                     X = 1,
                     Y = Pos.AnchorEnd(1),
-                    Text = "Bac_k",
+                    Text = "Back",
                     Width = Dim.Fill() - 2,
                     TextAlignment = Alignment.Center,
                 };
@@ -553,7 +553,7 @@ public class SearchWindow : Window
             var successDialog = new Dialog()
             {
                 Title = "Blueprint URL Copied!",
-                Width = Math.Min(80, url.Length + 10),
+                Width = Math.Min(120, url.Length + 10),  // Wider to fit full URLs
                 Height = 12,
             };
             successDialog.SetScheme(BalatroTheme.Window);
@@ -569,7 +569,7 @@ public class SearchWindow : Window
             {
                 X = 1,
                 Y = Pos.AnchorEnd(1),
-                Text = "Bac_k",
+                Text = "Back",
                 Width = Dim.Fill() - 2,
                 TextAlignment = Alignment.Center,
             };
@@ -600,7 +600,7 @@ public class SearchWindow : Window
             {
                 X = 1,
                 Y = Pos.AnchorEnd(1),
-                Text = "Bac_k",
+                Text = "Back",
                 Width = Dim.Fill() - 2,
                 TextAlignment = Alignment.Center,
             };
@@ -615,13 +615,7 @@ public class SearchWindow : Window
     {
         try
         {
-            // Try Terminal.Gui's built-in clipboard first (v2 instance-based API)
-            if (App?.Clipboard?.TrySetClipboardData(text) == true)
-            {
-                return; // Success!
-            }
-
-            // Fallback to platform-specific commands if Terminal.Gui clipboard fails
+            // Use platform-specific commands directly (Terminal.Gui clipboard may truncate long URLs)
             if (OperatingSystem.IsWindows())
             {
                 var psi = new System.Diagnostics.ProcessStartInfo("clip")

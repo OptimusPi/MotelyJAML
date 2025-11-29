@@ -31,6 +31,32 @@ public static class JamlConfigLoader
         try
         {
             var jamlContent = File.ReadAllText(jamlPath);
+            return TryLoadFromJamlString(jamlContent, out config, out error);
+        }
+        catch (Exception ex)
+        {
+            config = null;
+            error = $"Failed to read JAML file: {ex.Message}";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Try to load a MotelyJsonConfig from a JAML string.
+    /// </summary>
+    public static bool TryLoadFromJamlString(
+        string jamlContent,
+        out MotelyJsonConfig? config,
+        out string? error
+    )
+    {
+        config = null;
+        error = null;
+
+        try
+        {
+            // Pre-process JAML to support type-as-key syntax
+            jamlContent = PreProcessJaml(jamlContent);
 
             // Parse JAML (YAML-based) to object
             var deserializer = new DeserializerBuilder()
@@ -59,5 +85,70 @@ public static class JamlConfigLoader
             error = $"Failed to parse JAML: {ex.Message}";
             return false;
         }
+    }
+
+    private static string PreProcessJaml(string jamlContent)
+    {
+        // Support clean type-as-key syntax: "joker: Blueprint" instead of "type: Joker, value: Blueprint"
+        var typeKeys = new[] { "joker", "soulJoker", "souljoker", "voucher", "tarot", "tarotCard", "tarotcard",
+            "planet", "planetCard", "planetcard", "spectral", "spectralCard", "spectralcard",
+            "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag" };
+
+        var lines = jamlContent.Split('\n');
+        var result = new System.Text.StringBuilder();
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            var trimmed = line.TrimStart();
+            bool matched = false;
+
+            // Check if line has type-as-key pattern (e.g., "  - joker: Blueprint")
+            if (trimmed.StartsWith("- "))
+            {
+                foreach (var typeKey in typeKeys)
+                {
+                    var pattern = $"- {typeKey}:";
+                    if (trimmed.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var indent = line.Substring(0, line.IndexOf('-'));
+                        var value = trimmed.Substring(pattern.Length).Trim();
+
+                        // Convert to standard format
+                        var normalizedType = NormalizeTypeName(typeKey);
+                        result.AppendLine($"{indent}- type: {normalizedType}");
+                        result.AppendLine($"{indent}  value: {value}");
+                        matched = true;
+                        break; // Found match, stop checking other typeKeys
+                    }
+                }
+            }
+
+            // Only append original line if no type-as-key pattern was found
+            if (!matched)
+            {
+                result.AppendLine(line);
+            }
+        }
+
+        return result.ToString();
+    }
+
+    private static string NormalizeTypeName(string typeKey)
+    {
+        return typeKey.ToLowerInvariant() switch
+        {
+            "joker" => "Joker",
+            "souljoker" => "SoulJoker",
+            "voucher" => "Voucher",
+            "tarot" or "tarotcard" => "TarotCard",
+            "planet" or "planetcard" => "PlanetCard",
+            "spectral" or "spectralcard" => "SpectralCard",
+            "playingcard" or "standardcard" => "PlayingCard",
+            "boss" => "Boss",
+            "tag" or "smallblindtag" => "SmallBlindTag",
+            "bigblindtag" => "BigBlindTag",
+            _ => typeKey
+        };
     }
 }

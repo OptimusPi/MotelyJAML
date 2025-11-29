@@ -224,7 +224,7 @@ public ref struct MotelyFilterCreationContext
             force
         );
 
-        // TODO Cache the common joker stream?
+        // NOTE: Potential optimization - cache common joker stream for reuse
     }
 
     private readonly void CacheFixedRarityJokerStream(

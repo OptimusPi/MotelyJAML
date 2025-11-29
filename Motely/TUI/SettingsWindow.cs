@@ -168,7 +168,7 @@ public class SettingsWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -259,6 +259,9 @@ public class SettingsWindow : Window
                 return;
             }
 
+            // Save settings to tui.json
+            TuiSettings.Save();
+
             // Success - close window
             App?.RequestStop();
         }
@@ -292,7 +295,7 @@ public class SettingsWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };

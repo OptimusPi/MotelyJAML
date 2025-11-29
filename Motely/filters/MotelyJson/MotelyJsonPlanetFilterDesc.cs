@@ -135,10 +135,9 @@ public struct MotelyJsonPlanetFilterDesc(MotelyJsonPlanetFilterCriteria criteria
                             if (!clause.WantedAntes[ante])
                                 continue;
 
-                            var genericClause = ConvertToGeneric(clause);
                             int anteCount = MotelyJsonScoring.CountPlanetOccurrences(
                                 ref singleCtx,
-                                genericClause,
+                                clause,
                                 ante,
                                 earlyExit: false
                             );
@@ -187,8 +186,7 @@ public struct MotelyJsonPlanetFilterDesc(MotelyJsonPlanetFilterCriteria criteria
                 }
             }
 
-            // TODO: Implement shop planet checking when stream is fully available
-            // For now just return no matches
+            // NOTE: Shop planet checking not yet implemented (requires full stream availability)
             return foundInShop;
         }
 
@@ -344,33 +342,6 @@ public struct MotelyJsonPlanetFilterDesc(MotelyJsonPlanetFilterCriteria criteria
             {
                 return item.TypeCategory == MotelyItemTypeCategory.PlanetCard;
             }
-        }
-
-        private static MotelyJsonConfig.MotleyJsonFilterClause ConvertToGeneric(
-            MotelyJsonPlanetFilterClause clause
-        )
-        {
-            var shopSlots = new List<int>();
-            for (int i = 0; i < clause.WantedShopSlots.Length; i++)
-                if (clause.WantedShopSlots[i])
-                    shopSlots.Add(i);
-
-            var packSlots = new List<int>();
-            for (int i = 0; i < clause.WantedPackSlots.Length; i++)
-                if (clause.WantedPackSlots[i])
-                    packSlots.Add(i);
-
-            return new MotelyJsonConfig.MotleyJsonFilterClause
-            {
-                Type = "PlanetCard",
-                Value = clause.PlanetType?.ToString(),
-                PlanetEnum = clause.PlanetType,
-                Sources = new MotelyJsonConfig.SourcesConfig
-                {
-                    ShopSlots = shopSlots.ToArray(),
-                    PackSlots = packSlots.ToArray(),
-                },
-            };
         }
     }
 }

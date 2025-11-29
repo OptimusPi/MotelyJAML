@@ -411,7 +411,6 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
         _batchIndex = _startBatchIndex - 1;
 
         _completedBatchIndex = _startBatchIndex;
-        // REMOVED: _completedBatchCount - calculated from _batchIndex instead
 
         int[] pseudohashKeyLengths = [.. filterCreationContext.CachedPseudohashKeyLengths];
         _pseudoHashKeyLengthCount = pseudohashKeyLengths.Length;

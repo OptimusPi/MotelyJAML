@@ -34,6 +34,49 @@
       "default": "White",
       "description": "Balatro stake level"
     },
+    "defaults": {
+      "type": "object",
+      "description": "Default values applied to clauses when not specified",
+      "properties": {
+        "antes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "default": [1, 2, 3, 4, 5, 6, 7, 8],
+          "description": "Default antes to check if not specified in clause"
+        },
+        "packSlots": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "default": [0, 1, 2, 3, 4, 5],
+          "description": "Default pack slots (ante 1 limited to 0-3, ante 2+ uses 0-5)"
+        },
+        "shopSlots": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "default": [0, 1, 2, 3, 4, 5],
+          "description": "Default shop slots (ante 1 limited to 0-3, ante 2+ uses 0-5)"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "Default score for 'should' clauses"
+        }
+      },
+      "additionalProperties": false
+    },
     "must": {
       "type": "array",
       "description": "Items that MUST appear in the seed (required)",

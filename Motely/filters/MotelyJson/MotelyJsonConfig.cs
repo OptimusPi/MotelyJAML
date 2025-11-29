@@ -23,6 +23,87 @@ internal static class MotelySlotLimits
 }
 
 /// <summary>
+/// User-configurable defaults for filter clauses (specified in JAML/JSON config)
+/// </summary>
+public class MotelyFilterDefaults
+{
+    [JsonPropertyName("antes")]
+    public int[]? Antes { get; set; }
+
+    [JsonPropertyName("packSlots")]
+    public int[]? PackSlots { get; set; }
+
+    [JsonPropertyName("shopSlots")]
+    public int[]? ShopSlots { get; set; }
+
+    [JsonPropertyName("score")]
+    public int? Score { get; set; }
+
+    // Fallback hardcoded defaults if user doesn't specify
+    [JsonIgnore]
+    public static readonly int[] DEFAULT_ANTES = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    [JsonIgnore]
+    public static readonly int[] DEFAULT_PACK_SLOTS_ANTE_1 = [0, 1, 2, 3];
+
+    [JsonIgnore]
+    public static readonly int[] DEFAULT_PACK_SLOTS_ANTE_2_PLUS = [0, 1, 2, 3, 4, 5];
+
+    [JsonIgnore]
+    public static readonly int[] DEFAULT_SHOP_SLOTS_ANTE_1 = [0, 1, 2, 3];
+
+    [JsonIgnore]
+    public static readonly int[] DEFAULT_SHOP_SLOTS_ANTE_2_PLUS = [0, 1, 2, 3, 4, 5];
+
+    [JsonIgnore]
+    public const int DEFAULT_SCORE = 1;
+
+    /// <summary>
+    /// Get effective antes (user-specified or hardcoded default)
+    /// </summary>
+    public int[] GetEffectiveAntes() => Antes ?? DEFAULT_ANTES;
+
+    /// <summary>
+    /// Get effective pack slots for a given ante (handles ante 1 vs ante 2+ differences)
+    /// </summary>
+    public int[] GetEffectivePackSlots(int ante)
+    {
+        if (PackSlots != null)
+        {
+            // User specified pack slots - filter based on ante
+            return ante == 1
+                ? PackSlots.Where(s => s <= 3).ToArray()
+                : PackSlots;
+        }
+
+        // Use hardcoded defaults
+        return ante == 1 ? DEFAULT_PACK_SLOTS_ANTE_1 : DEFAULT_PACK_SLOTS_ANTE_2_PLUS;
+    }
+
+    /// <summary>
+    /// Get effective shop slots for a given ante (handles ante 1 vs ante 2+ differences)
+    /// </summary>
+    public int[] GetEffectiveShopSlots(int ante)
+    {
+        if (ShopSlots != null)
+        {
+            // User specified shop slots - filter based on ante
+            return ante == 1
+                ? ShopSlots.Where(s => s <= 3).ToArray()
+                : ShopSlots;
+        }
+
+        // Use hardcoded defaults
+        return ante == 1 ? DEFAULT_SHOP_SLOTS_ANTE_1 : DEFAULT_SHOP_SLOTS_ANTE_2_PLUS;
+    }
+
+    /// <summary>
+    /// Get effective score (user-specified or hardcoded default)
+    /// </summary>
+    public int GetEffectiveScore() => Score ?? DEFAULT_SCORE;
+}
+
+/// <summary>
 /// Wildcard types for joker and card filtering
 /// </summary>
 public enum MotelyJsonConfigWildcards
@@ -82,6 +163,9 @@ public class MotelyJsonConfig
 
     [JsonPropertyName("mode")]
     public string? Mode { get; set; }
+
+    [JsonPropertyName("defaults")]
+    public MotelyFilterDefaults? Defaults { get; set; }
 
     [JsonIgnore]
     public MotelyScoreAggregationMode ScoreAggregationMode { get; private set; } =
@@ -822,7 +906,11 @@ public class MotelyJsonConfig
         // Default to all antes if null OR empty (explicit empty array should also get default)
         // Or/And clauses CAN have their own antes that restrict when the entire clause is evaluated!
         if (item.Antes == null || item.Antes.Length == 0)
-            item.Antes = [1, 2, 3, 4, 5, 6, 7, 8];
+        {
+            // Use user-configured defaults if available, otherwise fallback to hardcoded defaults
+            var defaults = Defaults ?? new MotelyFilterDefaults();
+            item.Antes = defaults.GetEffectiveAntes();
+        }
 
         // Don't initialize empty arrays - let min/max populate them later
         // if (item.Sources != null)
@@ -910,7 +998,19 @@ public class MotelyJsonConfig
                     Tags = false,
                 };
             }
-            // ELSE: Leave Sources as null so ante-based defaults apply!
+            else
+            {
+                // Apply user-configured defaults (if specified) for items that don't have explicit Sources
+                // This allows users to set default pack/shop slots in their JAML config
+                if (Defaults != null && (Defaults.PackSlots != null || Defaults.ShopSlots != null))
+                {
+                    // Note: We can't apply ante-specific defaults here because we don't know which ante yet
+                    // The clause might check multiple antes. Defaults will be applied per-ante during filtering.
+                    // For now, just mark that we have user defaults available.
+                    // Actual per-ante slot filtering happens in the hot path.
+                }
+                // ELSE: Leave Sources as null so ante-based defaults apply during filtering!
+            }
         }
 
         // RECURSIVELY process nested clauses for And/Or
@@ -1011,52 +1111,38 @@ public class MotelyJsonConfig
 
         // Compute MaxVoucherAnte once during PostProcess
         int maxAnte = 0;
-        if (Must != null)
+        foreach (var clause in Must.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher))
         {
-            foreach (var clause in Must.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher))
-            {
-                if (clause.EffectiveAntes != null)
-                    maxAnte = Math.Max(
-                        maxAnte,
-                        clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
-                    );
-            }
+            maxAnte = Math.Max(
+                maxAnte,
+                clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
+            );
         }
-        if (Should != null)
+        foreach (var clause in Should.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher))
         {
-            foreach (
-                var clause in Should.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher)
-            )
-            {
-                if (clause.EffectiveAntes != null)
-                    maxAnte = Math.Max(
-                        maxAnte,
-                        clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
-                    );
-            }
+            maxAnte = Math.Max(
+                maxAnte,
+                clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
+            );
         }
         MaxVoucherAnte = maxAnte;
 #if DEBUG
         DebugLogger.Log($"[Config] MaxVoucherAnte calculated as: {MaxVoucherAnte}");
 #endif
 
-        // Compute MaxBossAnte once during PostProcess
+        // Compute MaxBossAnte once during PostProcess (check BOTH Must and Should)
         int maxBossAnte = 0;
-        if (Should != null)
+        foreach (var clause in Must!)
         {
-            foreach (var clause in Should)
-            {
-                if (
-                    clause.ItemTypeEnum == MotelyFilterItemType.Boss
-                    && clause.EffectiveAntes != null
-                )
-                {
-                    maxBossAnte = Math.Max(
-                        maxBossAnte,
-                        clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
-                    );
-                }
-            }
+            if (clause.ItemTypeEnum == MotelyFilterItemType.Boss)
+                maxBossAnte = Math.Max(maxBossAnte,
+                    clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1);
+        }
+        foreach (var clause in Should!)
+        {
+            if (clause.ItemTypeEnum == MotelyFilterItemType.Boss)
+                maxBossAnte = Math.Max(maxBossAnte,
+                    clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1);
         }
         MaxBossAnte = maxBossAnte;
 #if DEBUG
@@ -1140,24 +1226,21 @@ public class MotelyJsonConfig
         var columns = new List<string> { "seed", "score" };
         var usedNames = new HashSet<string>(columns, StringComparer.OrdinalIgnoreCase);
 
-        if (Should != null)
+        foreach (var clause in Should)
         {
-            foreach (var clause in Should)
+            var columnName = GetClauseColumnName(clause);
+
+            // Ensure unique column names by adding suffix if duplicate
+            var uniqueName = columnName;
+            int suffix = 2;
+            while (usedNames.Contains(uniqueName))
             {
-                var columnName = GetClauseColumnName(clause);
-
-                // Ensure unique column names by adding suffix if duplicate
-                var uniqueName = columnName;
-                int suffix = 2;
-                while (usedNames.Contains(uniqueName))
-                {
-                    uniqueName = $"{columnName}_{suffix}";
-                    suffix++;
-                }
-
-                usedNames.Add(uniqueName);
-                columns.Add(uniqueName);
+                uniqueName = $"{columnName}_{suffix}";
+                suffix++;
             }
+
+            usedNames.Add(uniqueName);
+            columns.Add(uniqueName);
         }
 
         return columns;
@@ -1234,6 +1317,7 @@ public class MotelyJsonConfig
 
     /// <summary>
     /// Convert any string to a safe SQL column name (lowercase, alphanumeric + underscore only)
+    /// Max 63 chars for PostgreSQL/DuckDB compatibility
     /// </summary>
     private static string MakeSafeColumnName(string name)
     {
@@ -1247,6 +1331,10 @@ public class MotelyJsonConfig
         // SQL columns can't start with a digit
         if (char.IsDigit(safeName[0]))
             safeName = "col_" + safeName;
+
+        // Limit to 63 characters (PostgreSQL/DuckDB limit)
+        if (safeName.Length > 63)
+            safeName = safeName.Substring(0, 63);
 
         return safeName;
     }

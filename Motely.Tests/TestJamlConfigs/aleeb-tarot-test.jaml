@@ -1,0 +1,14 @@
+name: ALEEB Tarot Category Test
+description: Test that ALEEB matches The Empress tarot in Ante 1 shop
+deck: Red
+stake: White
+
+must:
+  - type: TarotCard
+    value: TheEmpress
+    antes: [1]
+    sources:
+      shopSlots: [2]
+
+should: []
+mustNot: []

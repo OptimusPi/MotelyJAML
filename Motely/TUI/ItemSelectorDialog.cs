@@ -121,7 +121,7 @@ public class ItemSelectorDialog : Dialog
             X = 1,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill() - 2,
-            Text = "Bac_k",
+            Text = "Back",
             TextAlignment = Alignment.Center,
         };
         cancelBtn.SetScheme(BalatroTheme.BackButton);

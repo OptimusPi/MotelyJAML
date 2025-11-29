@@ -16,7 +16,6 @@ public class FilterBuilderWindow : Window
     private Label _statusLabel;
     private CleanButton _startSearchBtn;
     private bool _isDialogOpen = false;
-    private bool _filterSaved = false;
 
     public FilterBuilderWindow()
     {
@@ -192,7 +191,7 @@ public class FilterBuilderWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -581,7 +580,6 @@ public class FilterBuilderWindow : Window
 
                     // Enable Start Search since filter is now loaded
                     _loadedFilterPath = selected.fullPath;
-                    _filterSaved = true;
                     _startSearchBtn.Text = " Start Search ";
                     _startSearchBtn.Enabled = true;
                     _startSearchBtn.SetScheme(BalatroTheme.BlueButton);
@@ -624,7 +622,7 @@ public class FilterBuilderWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -709,7 +707,6 @@ public class FilterBuilderWindow : Window
                 _statusLabel.Text = $"Filter '{name}' saved to {fileName}";
 
                 // Enable Start Search button now that filter is saved
-                _filterSaved = true;
                 _startSearchBtn.Text = " Start Search ";
                 _startSearchBtn.Enabled = true;
                 _startSearchBtn.SetScheme(BalatroTheme.BlueButton);
@@ -885,7 +882,7 @@ public class FilterBuilderWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };

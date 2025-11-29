@@ -190,10 +190,9 @@ public partial struct MotelyJsonTarotCardFilterDesc(MotelyJsonTarotFilterCriteri
                             if (!clause.WantedAntes[ante])
                                 continue;
 
-                            var genericClause = ConvertToGeneric(clause);
                             int anteCount = MotelyJsonScoring.TarotCardsTally(
                                 ref singleCtx,
-                                genericClause,
+                                clause,
                                 ante,
                                 ref state,
                                 earlyExit: false
@@ -831,33 +830,6 @@ public partial struct MotelyJsonTarotCardFilterDesc(MotelyJsonTarotFilterCriteri
             }
 
             return false;
-        }
-
-        private static MotelyJsonConfig.MotleyJsonFilterClause ConvertToGeneric(
-            MotelyJsonTarotFilterClause clause
-        )
-        {
-            var shopSlots = new List<int>();
-            for (int i = 0; i < clause.WantedShopSlots.Length; i++)
-                if (clause.WantedShopSlots[i])
-                    shopSlots.Add(i);
-
-            var packSlots = new List<int>();
-            for (int i = 0; i < clause.WantedPackSlots.Length; i++)
-                if (clause.WantedPackSlots[i])
-                    packSlots.Add(i);
-
-            return new MotelyJsonConfig.MotleyJsonFilterClause
-            {
-                Type = "TarotCard",
-                Value = clause.TarotType?.ToString(),
-                TarotEnum = clause.TarotType,
-                Sources = new MotelyJsonConfig.SourcesConfig
-                {
-                    ShopSlots = shopSlots.ToArray(),
-                    PackSlots = packSlots.ToArray(),
-                },
-            };
         }
     }
 }

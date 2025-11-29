@@ -25,6 +25,10 @@ public class MotelyApiServer
     private readonly int _port;
     private readonly Action<string> _logCallback;
 
+    // Persistent results storage - keyed by config JSON hash
+    private static readonly ConcurrentDictionary<string, List<SearchResult>> _resultsCache = new();
+    private static string? _lastConfigHash = null;
+
     public bool IsRunning => _listener?.IsListening ?? false;
     public string Url => $"http://{_host}:{_port}/";
 
@@ -310,87 +314,34 @@ public class MotelyApiServer
         <div class=""grid"">
             <div class=""section"">
                 <h2>🔍 Search Seeds</h2>
-                <label>Filter Format:</label>
-                <div class=""tabs"">
-                    <div class=""tab active"" onclick=""switchTab('json')"">JSON</div>
-                    <div class=""tab"" onclick=""switchTab('jaml')"">JAML</div>
-                </div>
+                <label>Filter (JAML Format):</label>
 
-                <div id=""jsonTab"" class=""tab-content active"">
-                    <textarea id=""filterJson"">{
-  ""must"": [
-    {
-      ""type"": ""Voucher"",
-      ""value"": ""Telescope"",
-      ""antes"": [1, 2]
-    },
-    {
-      ""type"": ""Voucher"",
-      ""value"": ""Observatory"",
-      ""antes"": [2, 3]
-    },
-    {
-      ""type"": ""SoulJoker"",
-      ""value"": ""Perkeo"",
-      ""antes"": [1, 2, 3],
-      ""packSlots"": [0, 1, 2, 3]
-    }
-  ],
-  ""should"": [
-    {
-      ""type"": ""SoulJoker"",
-      ""value"": ""Perkeo"",
-      ""Edition"": ""Negative"",
-      ""antes"": [1, 2, 3]
-    },
-    {
-      ""type"": ""Joker"",
-      ""values"": [""Blueprint"", ""Brainstorm""],
-      ""antes"": [1, 2, 3]
-    },
-    {
-      ""type"": ""Joker"",
-      ""values"": [""Blueprint"", ""Brainstorm""],
-      ""Edition"": ""Negative"",
-      ""antes"": [1, 2, 3]
-    }
-  ],
-  ""deck"": ""Red"",
-  ""stake"": ""White""
-}</textarea>
-                </div>
-
-                <div id=""jamlTab"" class=""tab-content"">
-                    <textarea id=""filterJaml"">must:
-  - type: Voucher
-    value: Telescope
-    antes: [1, 2, 3]
-  - type: Voucher
-    value: Observatory
-    antes: [1, 2, 3]
-  - type: SoulJoker
+                <textarea id=""filterJaml"">must:
+  - voucher: Telescope
+    antes: [1, 2]
+  - voucher: Observatory
+    antes: [2, 3]
+  - soulJoker: Perkeo
     edition: Negative
-    value: Perkeo
-    antes: [1]
+    antes: [2, 3]
 should:
-  - type: SoulJoker
-    value: Perkeo
-    antes: [1]
-  - type: SoulJoker
-    value: Perkeo
-    antes: [2]
-  - type: SoulJoker
-    value: Perkeo
-    antes: [3]
-  - type: Joker
-    value: Blueprint
-    antes: [1]
+  - joker: Blueprint
+    antes: [1, 2, 3]
+    score: 100
 deck: Red
 stake: White</textarea>
-                </div>
 
-                <button onclick=""searchSeeds()"">Search 1M Seeds</button>
-                <div class=""info"">Note: Search uses JSON format. Types: Joker, SoulJoker, Voucher, TarotCard, SpectralCard, PlanetCard, PlayingCard, Boss, SmallBlindTag, BigBlindTag</div>
+                <label>Seed Count:</label>
+                <select id=""seedCount"">
+                    <option value=""1000000"">1 Million</option>
+
+                    <option value=""10000000"">10 Million</option>
+                    <option value=""100000000"">100 Million</option>
+                    <option value=""100000000"">1 Billion</option>
+                </select>
+
+                <button onclick=""searchSeeds()"">Search Seeds</button>
+                <div class=""info"">Note: Use type-as-key syntax (e.g., <code>voucher: Telescope</code>). Types: joker, soulJoker, voucher, tarot, planet, spectral, playingCard, boss, tag</div>
                 <div id=""searchResults"" class=""results""></div>
             </div>
 
@@ -436,15 +387,29 @@ stake: White</textarea>
     <script>
         async function searchSeeds() {
             const resultsDiv = document.getElementById('searchResults');
-            const filterJson = document.getElementById('filterJson').value;
+            const filterJaml = document.getElementById('filterJaml').value;
+            const seedCount = parseInt(document.getElementById('seedCount').value);
 
-            resultsDiv.innerHTML = '<div class=""loading"">⏳ Searching 1,000,000 random seeds...</div>';
+            if (!filterJaml.trim()) {
+                resultsDiv.innerHTML = '<div class=""error"">Please enter a filter!</div>';
+                return;
+            }
+
+            const countText = seedCount >= 1000000000
+                ? `${(seedCount / 1000000000).toFixed(0)} B`
+                : `${(seedCount / 1000000).toFixed(0)} M`;
+            resultsDiv.innerHTML = `<div class=""loading"">⏳ Searching ${countText} random seeds...</div>`;
 
             try {
+                const requestBody = JSON.stringify({
+                    filterJaml: filterJaml,
+                    seedCount: seedCount
+                });
+
                 const response = await fetch('/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: filterJson
+                    body: requestBody
                 });
 
                 const data = await response.json();
@@ -455,12 +420,31 @@ stake: White</textarea>
                 }
 
                 if (data.results && data.results.length > 0) {
-                    let html = '<h3>Top Results:</h3>';
-                    data.results.forEach((result, i) => {
-                        html += `<div class=""result-item"">
-                            <div><span class=""seed"">#${i + 1}: ${result.seed}</span> - <span class=""score"">Score: ${result.score}</span></div>
-                        </div>`;
+                    window.searchResults = data.results;
+                    window.searchColumns = data.columns || ['seed', 'score'];
+                    const tallyColumns = data.columns.slice(2);
+                    let html = '<h3>Top 1000 Results (' + (data.total || data.results.length) + ' total found)</h3>';
+                    html += '<button onclick=""exportToCSV()"" style=""background: #0093ff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;"">Export to CSV</button>';
+                    html += '<div style=""max-height: 600px; overflow-y: auto; border: 1px solid #444;"">';
+                    html += '<table style=""width: 100%; border-collapse: collapse; font-size: 12px;"">';
+                    html += '<thead style=""position: sticky; top: 0; background: #2a2a2a;""><tr style=""border-bottom: 2px solid #ff4c40;"">';
+                    html += '<th style=""padding: 8px; text-align: left;"">#</th>';
+                    data.columns.forEach(col => {
+                        const align = col === 'seed' ? 'left' : 'right';
+                        html += '<th style=""padding: 8px; text-align: ' + align + ';"">' + col + '</th>';
                     });
+                    html += '</tr></thead><tbody>';
+                    data.results.forEach((result, i) => {
+                        html += '<tr style=""border-bottom: 1px solid #333; ' + (i % 2 === 0 ? 'background: #1a1a1a;' : '') + '"">';
+                        html += '<td style=""padding: 6px;"">' + (i + 1) + '</td>';
+                        html += '<td style=""padding: 6px; font-family: monospace; color: #0093ff;"">' + result.seed + '</td>';
+                        html += '<td style=""padding: 6px; text-align: right; color: #00ff88;"">' + result.score + '</td>';
+                        (result.tallies || []).forEach(tally => {
+                            html += '<td style=""padding: 6px; text-align: right;"">' + tally + '</td>';
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
                     resultsDiv.innerHTML = html;
                 } else {
                     resultsDiv.innerHTML = '<div class=""info"">No results found. Try adjusting your filter or search again!</div>';
@@ -508,16 +492,40 @@ stake: White</textarea>
             if (e.key === 'Enter') analyzeSeed();
         });
 
-        // Tab switching
-        function switchTab(format) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        // CSV Export Function
+        function exportToCSV() {
+            if (!window.searchResults || window.searchResults.length === 0) {
+                alert('No results to export!');
+                return;
+            }
 
-            // Show selected tab
-            document.getElementById(format + 'Tab').classList.add('active');
-            event.target.classList.add('active');
+            const results = window.searchResults;
+            const columns = window.searchColumns || ['seed', 'score'];
+
+            // Build CSV header
+            let csv = columns.join(',') + '\n';
+
+            // Build CSV rows (seed, score, tally1, tally2, ...)
+            results.forEach(result => {
+                const row = [result.seed, result.score];
+                if (result.tallies) {
+                    result.tallies.forEach(t => row.push(t));
+                }
+                csv += row.join(',') + '\n';
+            });
+
+            // Create download link
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `motely-results-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
+
     </script>
 </body>
 </html>";
@@ -531,14 +539,37 @@ stake: White</textarea>
     private async Task HandleSearchAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
         using var reader = new StreamReader(request.InputStream);
-        var filterJson = await reader.ReadToEndAsync();
+        var body = await reader.ReadToEndAsync();
 
-        if (string.IsNullOrWhiteSpace(filterJson))
+        if (string.IsNullOrWhiteSpace(body))
         {
             response.StatusCode = 400;
             await WriteJsonAsync(response, new { error = "Request body cannot be empty" });
             return;
         }
+
+        // Parse request to get JAML filter and seedCount
+        var searchRequest = JsonSerializer.Deserialize<SearchRequest>(body);
+        var filterJaml = searchRequest?.FilterJaml;
+        var seedCount = searchRequest?.SeedCount ?? 1000000;
+
+        if (string.IsNullOrWhiteSpace(filterJaml))
+        {
+            response.StatusCode = 400;
+            await WriteJsonAsync(response, new { error = "filterJaml is required" });
+            return;
+        }
+
+        // Load JAML config from string
+        if (!JamlConfigLoader.TryLoadFromJamlString(filterJaml, out var config, out var loadError))
+        {
+            response.StatusCode = 400;
+            await WriteJsonAsync(response, new { error = $"Invalid JAML: {loadError}" });
+            return;
+        }
+
+        // Convert config to JSON for executor (temp workaround)
+        var filterJson = JsonSerializer.Serialize(config);
 
         string? tempFilterFile = null;
         try
@@ -561,30 +592,62 @@ stake: White</textarea>
                 Quiet = true,
                 SpecificSeed = null,
                 Wordlist = null,
-                RandomSeeds = 1000000, // 1 million random seeds
+                RandomSeeds = (int)Math.Min(seedCount, int.MaxValue),
                 Cutoff = 0,
                 AutoCutoff = true,
             };
 
-            var results = new List<SearchResult>();
+            // Compute config hash to detect changes
+            var configHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(filterJson)));
 
-            // Create callback to capture results directly
+            // Clear cache if config changed
+            if (_lastConfigHash != configHash)
+            {
+                _resultsCache.Clear();
+                _lastConfigHash = configHash;
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Config changed - cleared result cache");
+            }
+
+            // Get or create results list for this config
+            var results = _resultsCache.GetOrAdd(configHash, _ => new List<SearchResult>());
+
+            // Create callback to capture new results with individual tally values
             Action<MotelySeedScoreTally> resultCallback = (tally) =>
             {
-                results.Add(new SearchResult { Seed = tally.Seed, Score = tally.Score });
+                lock (results)
+                {
+                    results.Add(new SearchResult
+                    {
+                        Seed = tally.Seed,
+                        Score = tally.Score,
+                        Tallies = tally.TallyColumns
+                    });
+                }
             };
 
             var executor = new JsonSearchExecutor(tempFilterFile, parameters, "json", resultCallback);
             executor.Execute();
 
-            // Return results immediately
+            // Return top 1000 results (sorted by score) with column names
             response.StatusCode = 200;
-            await WriteJsonAsync(
-                response,
-                new { results = results.OrderByDescending(r => r.Score).Take(10) }
-            );
+            List<SearchResult> topResults;
+            lock (results)
+            {
+                topResults = results.OrderByDescending(r => r.Score).Take(1000).ToList();
+            }
 
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Search completed - {results.Count} results");
+            // Get column names from config for table headers
+            var columnNames = config!.GetColumnNames();
+
+            await WriteJsonAsync(response, new
+            {
+                results = topResults,
+                total = results.Count,
+                columns = columnNames
+            });
+
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Search completed - {results.Count} total results (returned top 1000)");
         }
         catch (Exception ex)
         {
@@ -684,6 +747,15 @@ stake: White</textarea>
 
 }
 
+public class SearchRequest
+{
+    [JsonPropertyName("filterJaml")]
+    public string? FilterJaml { get; set; }
+
+    [JsonPropertyName("seedCount")]
+    public long SeedCount { get; set; }
+}
+
 public class SearchResult
 {
     [JsonPropertyName("seed")]
@@ -691,6 +763,9 @@ public class SearchResult
 
     [JsonPropertyName("score")]
     public int Score { get; set; }
+
+    [JsonPropertyName("tallies")]
+    public List<int> Tallies { get; set; } = new();
 }
 
 public class AnalyzeRequest

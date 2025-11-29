@@ -2,24 +2,29 @@ name: Perkeo Observatory
 description: Perkeo with the Telescope and Observatory Vouchers.
 author: tacodiva
 dateCreated: 2025-01-01T05:46:12.6691000Z
+
+defaults:
+  # Default antes to check if unspecified in clauses
+  antes: [1, 2, 3, 4, 5, 6, 7, 8]
+
+  # Default pack/shop slots (ante 1 auto-capped at 0-3, ante 2+ uses full range)
+  packSlots: [0, 1, 2, 3, 4, 5]
+  shopSlots: [0, 1, 2, 3, 4, 5]
+
+  # Default score for should clauses
+  score: 1
+
 must:
-  - type: Voucher
-    value: Hieroglyph
-    antes: [1, 2]
-  - type: Voucher
-    value: Petroglyph
-    antes: [2, 3]
-  - type: souljoker
+  - voucher: Telescope
+    antes: [1]
+  - voucher: Observatory
+    antes: [2]
+  - soulJoker: Perkeo
     edition: Negative
-    value: Perkeo
-    antes: [1,2]
+    antes: [1, 2]
+
 should:
+  - joker: Blueprint
+  - joker: Brainstorm
 
-  - type: Joker
-    value: Blueprint
-    antes: [2,3,4,5,6,7]
-
-  - type: Joker
-    value: Blueprint
-    antes: [1,2,3,4,5]
 mustNot: []

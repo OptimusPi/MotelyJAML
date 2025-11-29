@@ -17,6 +17,9 @@ public static class MotelyTUI
 
     public static int Run(string? configName = null, string? configFormat = null)
     {
+        // Load persisted settings from tui.json
+        TuiSettings.Load();
+
         try
         {
             // v2 instance-based approach

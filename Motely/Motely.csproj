@@ -5,13 +5,10 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <Version>1.0.0</Version>
   </PropertyGroup>
-  <!-- Build as Library by default (for BalatroSeedOracle) -->
+  <!-- Build as Exe by default (TUI mode) -->
   <PropertyGroup>
-    <OutputType>Library</OutputType>
-  </PropertyGroup>
-  <!-- Build as Exe when building standalone CLI -->
-  <PropertyGroup Condition="'$(Configuration)' == 'CLI'">
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <PropertyGroup>
@@ -54,17 +51,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Condition="'$(Configuration)' == 'CLI'" />
-    <PackageReference Include="Terminal.Gui" Condition="'$(Configuration)' == 'CLI'" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" />
+    <PackageReference Include="Terminal.Gui" />
     <PackageReference Include="YamlDotNet" />
     <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Jimbo.png" />
-  </ItemGroup>
-  <!-- Exclude TUI folder and Program.cs when NOT building CLI (they require Terminal.Gui) -->
-  <ItemGroup Condition="'$(Configuration)' != 'CLI'">
-    <Compile Remove="TUI\**\*.cs" />
-    <Compile Remove="Program.cs" />
   </ItemGroup>
 </Project>

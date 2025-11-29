@@ -56,7 +56,7 @@ public static class MotelyJsonScoring
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int TarotCardsTally(
         ref MotelySingleSearchContext ctx,
-        MotelyJsonConfig.MotleyJsonFilterClause clause,
+        MotelyJsonTarotFilterClause clause,
         int ante,
         ref MotelyRunState runState,
         bool earlyExit = false
@@ -64,29 +64,22 @@ public static class MotelyJsonScoring
     {
         int tally = 0;
 
-        // Default sources if not specified
-        var shopSlots = clause.Sources?.ShopSlots ?? Array.Empty<int>();
-        var packSlots = clause.Sources?.PackSlots ?? new[] { 0, 1, 2, 3, 4, 5 }; // Default to all 6 pack slots
-
         // Check shop slots
-        if (shopSlots.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedShopSlots))
         {
             var shopStream = ctx.CreateShopItemStream(ante, isCached: false);
-            // JSON slot indices are 0-based, so use them directly for loop bounds
-            int maxSlot = clause.MaxShopSlot.HasValue
-                ? clause.MaxShopSlot.Value
-                : ArrayMax(shopSlots);
+            int maxSlot = clause.MaxShopSlot ?? clause.MaxShopSlotsNeeded - 1;
 
             for (int i = 0; i <= maxSlot; i++)
             {
                 var item = ctx.GetNextShopItem(ref shopStream);
                 if (
-                    ArrayContains(shopSlots, i)
+                    clause.WantedShopSlots[i]
                     && item.TypeCategory == MotelyItemTypeCategory.TarotCard
                 )
                 {
                     // If no specific tarot specified, match ANY tarot card
-                    if (!clause.TarotEnum.HasValue)
+                    if (!clause.TarotType.HasValue)
                     {
                         tally++;
                         if (earlyExit)
@@ -95,37 +88,34 @@ public static class MotelyJsonScoring
                     else if (
                         item.Type
                         == (MotelyItemType)(
-                            (int)MotelyItemTypeCategory.TarotCard | (int)clause.TarotEnum.Value
+                            (int)MotelyItemTypeCategory.TarotCard | (int)clause.TarotType.Value
                         )
                     )
                     {
                         tally++;
                         if (earlyExit)
-                            return tally; // Early exit for filtering
+                            return tally;
                     }
                 }
             }
         }
 
         // Check pack slots
-        if (packSlots.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedPackSlots))
         {
-            // IMPORTANT: Ante 0-1 get the guaranteed first Buffoon pack, ante 2+ skip it
             var packStream = ctx.CreateBoosterPackStream(
                 ante,
                 isCached: false,
                 generatedFirstPack: ante > 1
             );
-            var tarotStream = ctx.CreateArcanaPackTarotStream(ante); // Create ONCE before loop
-            // When no specific slots specified, check more packs to find arcana/spectral packs
-            int maxPackSlot = packSlots.Length > 0 ? ArrayMax(packSlots) : 5; // Check up to 6 packs by default
-            int packCount = (clause.MaxPackSlot ?? maxPackSlot) + 1;
+            var tarotStream = ctx.CreateArcanaPackTarotStream(ante);
+            int maxPackSlot = clause.MaxPackSlot ?? clause.MaxPackSlotsNeeded - 1;
+            int packCount = maxPackSlot + 1;
 
             for (int i = 0; i < packCount; i++)
             {
                 var pack = ctx.GetNextBoosterPack(ref packStream);
 
-                // Always advance stream for Arcana packs to maintain PRNG sync
                 if (pack.GetPackType() == MotelyBoosterPackType.Arcana)
                 {
                     var contents = ctx.GetNextArcanaPackContents(
@@ -133,19 +123,11 @@ public static class MotelyJsonScoring
                         pack.GetPackSize()
                     );
 
-                    // Only score if this slot is in our filter
-                    if (
-                        ArrayContains(packSlots, i)
-                        && !(
-                            clause.Sources?.RequireMega == true
-                            && pack.GetPackSize() != MotelyBoosterPackSize.Mega
-                        )
-                    )
+                    if (clause.WantedPackSlots[i])
                     {
                         for (int j = 0; j < contents.Length; j++)
                         {
-                            // If no specific tarot specified, count ALL tarot cards in Arcana pack
-                            if (!clause.TarotEnum.HasValue)
+                            if (!clause.TarotType.HasValue)
                             {
                                 tally++;
                                 if (earlyExit)
@@ -155,13 +137,13 @@ public static class MotelyJsonScoring
                                 contents[j].Type
                                 == (MotelyItemType)(
                                     (int)MotelyItemTypeCategory.TarotCard
-                                    | (int)clause.TarotEnum.Value
+                                    | (int)clause.TarotType.Value
                                 )
                             )
                             {
                                 tally++;
                                 if (earlyExit)
-                                    return tally; // Early exit for filtering
+                                    return tally;
                             }
                         }
                     }
@@ -220,39 +202,35 @@ public static class MotelyJsonScoring
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CountPlanetOccurrences(
         ref MotelySingleSearchContext ctx,
-        MotelyJsonConfig.MotleyJsonFilterClause clause,
+        MotelyJsonPlanetFilterClause clause,
         int ante,
         bool earlyExit = false
     )
     {
-        Debug.Assert(clause.PlanetEnum.HasValue, "CountPlanetOccurrences requires PlanetEnum");
+        Debug.Assert(clause.PlanetType.HasValue, "CountPlanetOccurrences requires PlanetType");
 
         int tally = 0;
 
         // Check shop slots
-        if (clause.Sources?.ShopSlots?.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedShopSlots))
         {
             var shopStream = ctx.CreateShopItemStream(ante, isCached: false);
-            var shopSlots = clause.Sources.ShopSlots;
-            // JSON slot indices are 0-based, use directly for loop bounds
-            int maxSlot = clause.MaxShopSlot.HasValue
-                ? clause.MaxShopSlot.Value
-                : ArrayMax(shopSlots);
+            int maxSlot = clause.MaxShopSlot ?? clause.MaxShopSlotsNeeded - 1;
 
             for (int i = 0; i <= maxSlot; i++)
             {
                 var item = ctx.GetNextShopItem(ref shopStream);
                 if (
-                    ArrayContains(shopSlots, i)
+                    clause.WantedShopSlots[i]
                     && item.TypeCategory == MotelyItemTypeCategory.PlanetCard
                 )
                 {
                     if (
-                        clause.PlanetEnum.HasValue
+                        clause.PlanetType.HasValue
                         && item.Type
                             == (MotelyItemType)(
                                 (int)MotelyItemTypeCategory.PlanetCard
-                                | (int)clause.PlanetEnum.Value
+                                | (int)clause.PlanetType.Value
                             )
                     )
                     {
@@ -265,18 +243,16 @@ public static class MotelyJsonScoring
         }
 
         // Check pack slots
-        if (clause.Sources?.PackSlots?.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedPackSlots))
         {
-            // IMPORTANT: Ante 0-1 get the guaranteed first Buffoon pack, ante 2+ skip it
             var packStream = ctx.CreateBoosterPackStream(
                 ante,
                 isCached: false,
                 generatedFirstPack: ante > 1
             );
             var planetStream = ctx.CreateCelestialPackPlanetStream(ante);
-            var packSlots = clause.Sources.PackSlots;
-            int maxPackSlot = ArrayMax(packSlots);
-            int packCount = (clause.MaxPackSlot ?? maxPackSlot) + 1;
+            int maxPackSlot = clause.MaxPackSlot ?? clause.MaxPackSlotsNeeded - 1;
+            int packCount = maxPackSlot + 1;
 
             for (int i = 0; i < packCount; i++)
             {
@@ -289,22 +265,16 @@ public static class MotelyJsonScoring
                         pack.GetPackSize()
                     );
 
-                    if (
-                        ArrayContains(packSlots, i)
-                        && !(
-                            clause.Sources.RequireMega == true
-                            && pack.GetPackSize() != MotelyBoosterPackSize.Mega
-                        )
-                    )
+                    if (clause.WantedPackSlots[i])
                     {
                         for (int j = 0; j < contents.Length; j++)
                         {
                             if (
-                                clause.PlanetEnum.HasValue
+                                clause.PlanetType.HasValue
                                 && contents[j].Type
                                     == (MotelyItemType)(
                                         (int)MotelyItemTypeCategory.PlanetCard
-                                        | (int)clause.PlanetEnum.Value
+                                        | (int)clause.PlanetType.Value
                                     )
                             )
                             {
@@ -324,29 +294,25 @@ public static class MotelyJsonScoring
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CountSpectralOccurrences(
         ref MotelySingleSearchContext ctx,
-        MotelyJsonConfig.MotleyJsonFilterClause clause,
+        MotelyJsonSpectralFilterClause clause,
         int ante,
         bool earlyExit = false
     )
     {
-        bool searchAnySpectral = !clause.SpectralEnum.HasValue;
+        bool searchAnySpectral = !clause.SpectralType.HasValue;
         int tally = 0;
 
         // Check shop slots
-        if (clause.Sources?.ShopSlots?.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedShopSlots))
         {
             var shopStream = ctx.CreateShopItemStream(ante, isCached: false);
-            var shopSlots = clause.Sources.ShopSlots;
-            // JSON slot indices are 0-based, use directly for loop bounds
-            int maxSlot = clause.MaxShopSlot.HasValue
-                ? clause.MaxShopSlot.Value
-                : ArrayMax(shopSlots);
+            int maxSlot = clause.MaxShopSlot ?? clause.MaxShopSlotsNeeded - 1;
 
             for (int i = 0; i <= maxSlot; i++)
             {
                 var item = ctx.GetNextShopItem(ref shopStream);
                 if (
-                    ArrayContains(shopSlots, i)
+                    clause.WantedShopSlots[i]
                     && item.TypeCategory == MotelyItemTypeCategory.SpectralCard
                 )
                 {
@@ -359,11 +325,11 @@ public static class MotelyJsonScoring
                     else
                     {
                         if (
-                            clause.SpectralEnum.HasValue
+                            clause.SpectralType.HasValue
                             && item.Type
                                 == (MotelyItemType)(
                                     (int)MotelyItemTypeCategory.SpectralCard
-                                    | (int)clause.SpectralEnum.Value
+                                    | (int)clause.SpectralType.Value
                                 )
                         )
                         {
@@ -377,18 +343,16 @@ public static class MotelyJsonScoring
         }
 
         // Check pack slots
-        if (clause.Sources?.PackSlots?.Length > 0)
+        if (BoolArrayHasTrue(clause.WantedPackSlots))
         {
-            // IMPORTANT: Ante 0-1 get the guaranteed first Buffoon pack, ante 2+ skip it
             var packStream = ctx.CreateBoosterPackStream(
                 ante,
                 isCached: false,
                 generatedFirstPack: ante > 1
             );
             var spectralStream = ctx.CreateSpectralPackSpectralStream(ante, soulOnly: false);
-            var packSlots = clause.Sources.PackSlots;
-            int maxPackSlot = ArrayMax(packSlots);
-            int packCount = (clause.MaxPackSlot ?? maxPackSlot) + 1;
+            int maxPackSlot = clause.MaxPackSlot ?? clause.MaxPackSlotsNeeded - 1;
+            int packCount = maxPackSlot + 1;
 
             for (int i = 0; i < packCount; i++)
             {
@@ -401,13 +365,7 @@ public static class MotelyJsonScoring
                         pack.GetPackSize()
                     );
 
-                    if (
-                        ArrayContains(packSlots, i)
-                        && !(
-                            clause.Sources.RequireMega == true
-                            && pack.GetPackSize() != MotelyBoosterPackSize.Mega
-                        )
-                    )
+                    if (clause.WantedPackSlots[i])
                     {
                         for (int j = 0; j < contents.Length; j++)
                         {
@@ -421,11 +379,11 @@ public static class MotelyJsonScoring
                                     searchAnySpectral
                                     || (
                                         item.Type == MotelyItemType.Soul
-                                        && clause.SpectralEnum == MotelySpectralCard.Soul
+                                        && clause.SpectralType == MotelySpectralCard.Soul
                                     )
                                     || (
                                         item.Type == MotelyItemType.BlackHole
-                                        && clause.SpectralEnum == MotelySpectralCard.BlackHole
+                                        && clause.SpectralType == MotelySpectralCard.BlackHole
                                     )
                                 )
                                 {
@@ -445,11 +403,11 @@ public static class MotelyJsonScoring
                                 else
                                 {
                                     if (
-                                        clause.SpectralEnum.HasValue
+                                        clause.SpectralType.HasValue
                                         && item.Type
                                             == (MotelyItemType)(
                                                 (int)MotelyItemTypeCategory.SpectralCard
-                                                | (int)clause.SpectralEnum.Value
+                                                | (int)clause.SpectralType.Value
                                             )
                                     )
                                     {
@@ -1093,20 +1051,20 @@ public static class MotelyJsonScoring
                     : 0,
                 MotelyFilterItemType.TarotCard => TarotCardsTally(
                     ref ctx,
-                    clause,
+                    MotelyJsonTarotFilterClause.FromJsonClause(clause),
                     ante,
                     ref runState,
                     earlyExit: false
                 ),
                 MotelyFilterItemType.PlanetCard => CountPlanetOccurrences(
                     ref ctx,
-                    clause,
+                    MotelyJsonPlanetFilterClause.FromJsonClause(clause),
                     ante,
                     earlyExit: false
                 ),
                 MotelyFilterItemType.SpectralCard => CountSpectralOccurrences(
                     ref ctx,
-                    clause,
+                    MotelyJsonSpectralFilterClause.FromJsonClause(clause),
                     ante,
                     earlyExit: false
                 ),
@@ -1262,24 +1220,12 @@ public static class MotelyJsonScoring
         if (!clause.BossEnum.HasValue)
             return false;
 
-        try
-        {
-            // Use cached bosses if available (for scoring)
-            if (runState.CachedBosses != null && ante >= 0 && ante < runState.CachedBosses.Length)
-            {
-                return runState.CachedBosses[ante] == clause.BossEnum.Value;
-            }
+        Debug.Assert(runState.CachedBosses != null, "Boss cache should be initialized when boss clauses exist");
 
-            // Fallback to generating bosses (for filtering)
-            var bossStream = ctx.CreateBossStream();
-            MotelyBossBlind boss = ctx.GetBossForAnte(ref bossStream, ante, ref runState);
-            return boss == clause.BossEnum.Value;
-        }
-        catch
-        {
-            // Boss generation can fail for some seeds
+        if (ante < 0 || ante >= runState.CachedBosses!.Length)
             return false;
-        }
+
+        return runState.CachedBosses[ante] == clause.BossEnum.Value;
     }
 
     public static bool CheckVoucherSingle(
@@ -1381,10 +1327,7 @@ public static class MotelyJsonScoring
                 foreach (var nestedClause in clause.Clauses)
                 {
                     // Skip if this clause doesn't apply to this ante - USE ARRAY SEARCH, NO LINQ!
-                    if (
-                        nestedClause.EffectiveAntes == null
-                        || !ArrayContains(nestedClause.EffectiveAntes, ante)
-                    )
+                    if (!ArrayContains(nestedClause.EffectiveAntes, ante))
                     {
                         allMatch = false;
                         break;
@@ -1428,20 +1371,20 @@ public static class MotelyJsonScoring
                             ),
                             MotelyFilterItemType.TarotCard => TarotCardsTally(
                                 ref ctx,
-                                nestedClause,
+                                MotelyJsonTarotFilterClause.FromJsonClause(nestedClause),
                                 ante,
                                 ref runState,
                                 earlyExit: false
                             ),
                             MotelyFilterItemType.PlanetCard => CountPlanetOccurrences(
                                 ref ctx,
-                                nestedClause,
+                                MotelyJsonPlanetFilterClause.FromJsonClause(nestedClause),
                                 ante,
                                 earlyExit: false
                             ),
                             MotelyFilterItemType.SpectralCard => CountSpectralOccurrences(
                                 ref ctx,
-                                nestedClause,
+                                MotelyJsonSpectralFilterClause.FromJsonClause(nestedClause),
                                 ante,
                                 earlyExit: false
                             ),
@@ -1588,8 +1531,8 @@ public static class MotelyJsonScoring
             );
         }
 
-        // EffectiveAntes can be null for some clause types (e.g., StandardCard in should[])
-        if (clause.EffectiveAntes == null || clause.EffectiveAntes.Length == 0)
+        // EffectiveAntes is never null (returns Antes ?? [] from getter)
+        if (clause.EffectiveAntes.Length == 0)
         {
             return 0; // No antes to check
         }
@@ -1618,20 +1561,20 @@ public static class MotelyJsonScoring
                     ),
                     MotelyFilterItemType.TarotCard => TarotCardsTally(
                         ref ctx,
-                        clause,
+                        MotelyJsonTarotFilterClause.FromJsonClause(clause),
                         ante,
                         ref runState,
                         earlyExit: false
                     ),
                     MotelyFilterItemType.PlanetCard => CountPlanetOccurrences(
                         ref ctx,
-                        clause,
+                        MotelyJsonPlanetFilterClause.FromJsonClause(clause),
                         ante,
                         earlyExit: false
                     ),
                     MotelyFilterItemType.SpectralCard => CountSpectralOccurrences(
                         ref ctx,
-                        clause,
+                        MotelyJsonSpectralFilterClause.FromJsonClause(clause),
                         ante,
                         earlyExit: false
                     ),

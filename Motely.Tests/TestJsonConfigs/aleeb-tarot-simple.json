@@ -1,6 +1,6 @@
 {
-  "name": "ALEEB Tarot Category Test",
-  "description": "Test that ALEEB matches The Empress tarot in Ante 1 shop",
+  "name": "Simple Tarot Test",
+  "description": "Just shop slot The Empress",
   "deck": "Red",
   "stake": "White",
   "must": [

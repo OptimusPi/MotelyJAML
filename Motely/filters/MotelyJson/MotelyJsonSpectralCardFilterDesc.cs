@@ -242,10 +242,9 @@ public struct MotelyJsonSpectralCardFilterDesc(MotelyJsonSpectralFilterCriteria 
                             if (!clause.WantedAntes[ante])
                                 continue;
 
-                            var genericClause = ConvertToGeneric(clause);
                             int anteCount = MotelyJsonScoring.CountSpectralOccurrences(
                                 ref singleCtx,
-                                genericClause,
+                                clause,
                                 ante,
                                 earlyExit: false
                             );
@@ -797,33 +796,6 @@ public struct MotelyJsonSpectralCardFilterDesc(MotelyJsonSpectralFilterCriteria 
             }
 
             return false;
-        }
-
-        private static MotelyJsonConfig.MotleyJsonFilterClause ConvertToGeneric(
-            MotelyJsonSpectralFilterClause clause
-        )
-        {
-            var shopSlots = new List<int>();
-            for (int i = 0; i < clause.WantedShopSlots.Length; i++)
-                if (clause.WantedShopSlots[i])
-                    shopSlots.Add(i);
-
-            var packSlots = new List<int>();
-            for (int i = 0; i < clause.WantedPackSlots.Length; i++)
-                if (clause.WantedPackSlots[i])
-                    packSlots.Add(i);
-
-            return new MotelyJsonConfig.MotleyJsonFilterClause
-            {
-                Type = "SpectralCard",
-                Value = clause.SpectralType?.ToString(),
-                SpectralEnum = clause.SpectralType,
-                Sources = new MotelyJsonConfig.SourcesConfig
-                {
-                    ShopSlots = shopSlots.ToArray(),
-                    PackSlots = packSlots.ToArray(),
-                },
-            };
         }
     }
 }

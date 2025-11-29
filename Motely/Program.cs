@@ -28,11 +28,6 @@ namespace Motely
             app.HelpOption("-?|-h|--help");
 
             // Core options
-            var tuiOption = app.Option(
-                "--tui",
-                "Launch Terminal User Interface",
-                CommandOptionType.NoValue
-            );
             var jsonOption = app.Option<string>(
                 "-j|--json <JSON>",
                 "JSON config file (JsonItemFilters/)",
@@ -159,7 +154,7 @@ namespace Motely
                 CommandOptionType.NoValue
             );
 
-            // Set defaults (NOTE: Don't set defaults for jsonOption/tomlOption/yamlOption - they're checked with HasValue())
+            // Set defaults for performance options
             threadsOption.DefaultValue = Environment.ProcessorCount;
             batchSizeOption.DefaultValue = 2;
             startBatchOption.DefaultValue = 0;
@@ -169,30 +164,10 @@ namespace Motely
             cutoffOption.DefaultValue = "0";
             deckOption.DefaultValue = "Red";
             stakeOption.DefaultValue = "White";
-            timeOption.DefaultValue = 1200;
+            timeOption.DefaultValue = 2; // 2 seconds
 
             app.OnExecute(() =>
             {
-                // TUI mode takes priority (can load filter)
-                if (tuiOption.HasValue())
-                {
-                    string? configName = null;
-                    string? configFormat = null;
-
-                    if (jamlOption.HasValue())
-                    {
-                        configName = jamlOption.Value();
-                        configFormat = "jaml";
-                    }
-                    else if (jsonOption.HasValue())
-                    {
-                        configName = jsonOption.Value();
-                        configFormat = "json";
-                    }
-
-                    return MotelyTUI.Run(configName, configFormat);
-                }
-
                 // Analyze mode takes priority
                 var analyzeSeed = analyzeOption.Value();
                 if (!string.IsNullOrEmpty(analyzeSeed))
@@ -303,7 +278,7 @@ namespace Motely
                     // Native filter mode
                     var scoreConfig = scoreOption.Value();
 
-                    // Parse cutoff for native filters with scoring or CSV scoringI he
+                    // Parse cutoff for native filters with scoring or CSV scoring
                     if (!string.IsNullOrEmpty(scoreConfig))
                     {
                         var cutoffStr = cutoffOption.Value() ?? "0";

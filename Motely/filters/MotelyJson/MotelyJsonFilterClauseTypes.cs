@@ -500,6 +500,8 @@ public class MotelyJsonTarotFilterClause : MotelyJsonFilterClause
                     wantedShopSlots[slot] = true;
             }
         }
+        // ShopSlots null → empty (matches scoring logic: ?? Array.Empty<int>())
+
         bool[] wantedPackSlots = new bool[6];
         if (jsonClause.Sources?.PackSlots != null)
         {
@@ -508,6 +510,12 @@ public class MotelyJsonTarotFilterClause : MotelyJsonFilterClause
                 if (slot >= 0 && slot < 6)
                     wantedPackSlots[slot] = true;
             }
+        }
+        else if (jsonClause.Sources?.ShopSlots != null)
+        {
+            // Default to all pack slots when only shop slots specified (matches scoring logic)
+            for (int i = 0; i < 6; i++)
+                wantedPackSlots[i] = true;
         }
 
         // Pre-calculate MaxShopSlotsNeeded
@@ -749,6 +757,8 @@ public class MotelyJsonSpectralFilterClause : MotelyJsonFilterClause
                     wantedShopSlots[slot] = true;
             }
         }
+        // ShopSlots null → empty (matches scoring logic: ?? Array.Empty<int>())
+
         bool[] wantedPackSlots = new bool[6];
         if (jsonClause.Sources?.PackSlots != null)
         {
@@ -757,6 +767,12 @@ public class MotelyJsonSpectralFilterClause : MotelyJsonFilterClause
                 if (slot >= 0 && slot < 6)
                     wantedPackSlots[slot] = true;
             }
+        }
+        else if (jsonClause.Sources?.ShopSlots != null)
+        {
+            // Default to all pack slots when only shop slots specified (matches scoring logic)
+            for (int i = 0; i < 6; i++)
+                wantedPackSlots[i] = true;
         }
 
         // Pre-calculate MaxShopSlotsNeeded
@@ -898,6 +914,8 @@ public class MotelyJsonPlanetFilterClause : MotelyJsonFilterClause
                     wantedShopSlots[slot] = true;
             }
         }
+        // ShopSlots null → empty (matches scoring logic: ?? Array.Empty<int>())
+
         bool[] wantedPackSlots = new bool[6];
         if (jsonClause.Sources?.PackSlots != null)
         {
@@ -906,6 +924,12 @@ public class MotelyJsonPlanetFilterClause : MotelyJsonFilterClause
                 if (slot >= 0 && slot < 6)
                     wantedPackSlots[slot] = true;
             }
+        }
+        else if (jsonClause.Sources?.ShopSlots != null)
+        {
+            // Default to all pack slots when only shop slots specified (matches scoring logic)
+            for (int i = 0; i < 6; i++)
+                wantedPackSlots[i] = true;
         }
 
         // Pre-calculate MaxShopSlotsNeeded

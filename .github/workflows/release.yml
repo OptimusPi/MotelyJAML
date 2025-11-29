@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Release ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: win-x64
+            artifact: Motely-win-x64.zip
+          - os: ubuntu-latest
+            target: linux-x64
+            artifact: Motely-linux-x64.tar.gz
+          - os: macos-latest
+            target: osx-x64
+            artifact: Motely-osx-x64.tar.gz
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Publish
+      run: |
+        dotnet publish Motely/Motely.csproj \
+          -c Release \
+          -r ${{ matrix.target }} \
+          --self-contained true \
+          -p:PublishSingleFile=true \
+          -p:PublishTrimmed=true \
+          -p:IncludeNativeLibrariesForSelfExtract=true \
+          -o publish/${{ matrix.target }}
+
+    - name: Package (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd publish/${{ matrix.target }}
+        7z a ../../${{ matrix.artifact }} *
+
+    - name: Package (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cd publish/${{ matrix.target }}
+        tar -czf ../../${{ matrix.artifact }} *
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: ${{ matrix.artifact }}
+
+  create-release:
+    name: Create Release
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/**/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

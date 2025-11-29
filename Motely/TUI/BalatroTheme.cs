@@ -21,7 +21,7 @@ public static class BalatroTheme
     public static readonly Color Transparent = new(0, 0, 0, 0);
     public static readonly Color ModalGrey = new(55, 66, 77);
     public static readonly Color DarkGrey = new(35, 42, 52);
-    public static readonly Color InnerPanelGrey = new(45, 54, 64); // Slightly darker than ModalGrey for inner panels
+    public static readonly Color InnerPanelGrey = new(45, 54, 64);
     public static readonly Color LightGrey = new(180, 185, 195);
     public static readonly Color MediumGrey = new(100, 110, 120);
     public static readonly Color BrightSilver = new(200, 205, 215);
@@ -139,7 +139,7 @@ public static class BalatroTheme
     public static Scheme ListView => new()
     {
         Normal = new Attribute(White, ModalGrey),
-        Focus = new Attribute(White, Blue),  // Blue highlight for selected item
+        Focus = new Attribute(White, Blue),
         HotNormal = new Attribute(White, ModalGrey),
         HotFocus = new Attribute(White, Blue),
     };

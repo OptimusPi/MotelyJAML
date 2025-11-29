@@ -20,6 +20,11 @@ public class MainMenuWindow : View
         ViewportSettings |= ViewportSettingsFlags.Transparent;
         SetScheme(BalatroTheme.Title); // Title has transparent background
 
+        // Jimbo sprite - ADD FIRST so text layers on top!
+        var jimboView = new JimboView() { Y = 1 };
+        jimboView.X = Pos.AnchorEnd(jimboView.Frame.Width + 4);
+        Add(jimboView);
+
         // Big logo - aligned left with padding, white text
         var logoLabel = new Label()
         {
@@ -39,12 +44,6 @@ public class MainMenuWindow : View
         };
         subtitleLabel.SetScheme(BalatroTheme.Title);
         Add(subtitleLabel);
-
-        // Jimbo sprite on the right side - rendered as colored pixel blocks!
-        var jimboView = new JimboView() { Y = 1 };
-        // Position from right edge based on actual sprite width
-        jimboView.X = Pos.AnchorEnd(jimboView.Frame.Width + 4);
-        Add(jimboView);
 
         // ═══════════════════════════════════════════════════════════════
         // BUTTON DOCK AT BOTTOM - Transparent container with clean buttons
@@ -311,7 +310,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -373,7 +372,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -464,6 +463,8 @@ public class MainMenuWindow : View
                 TuiSettings.ThreadCount = threads;
             if (int.TryParse(batchField.Text, out int batch) && batch >= 1 && batch <= 7)
                 TuiSettings.BatchCharacterCount = batch;
+
+            TuiSettings.Save();
             App?.RequestStop(dialog);
         };
         dialog.Add(saveBtn);
@@ -472,7 +473,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -542,6 +543,8 @@ public class MainMenuWindow : View
             TuiSettings.ApiServerHost = hostField.Text ?? "localhost";
             if (int.TryParse(portField.Text, out int port) && port > 0)
                 TuiSettings.ApiServerPort = port;
+
+            TuiSettings.Save();
             App?.RequestStop(dialog);
         };
         dialog.Add(saveBtn);
@@ -550,7 +553,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -600,7 +603,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -657,7 +660,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -788,7 +791,7 @@ public class MainMenuWindow : View
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };

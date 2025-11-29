@@ -365,35 +365,5 @@ public readonly struct MotelyJsonSoulJokerFilterDesc(MotelyJsonSoulJokerFilterCr
                 }
             );
         }
-
-        private static MotelyJsonConfig.MotleyJsonFilterClause ConvertToGeneric(
-            MotelyJsonSoulJokerFilterClause clause
-        )
-        {
-            var effectiveAntes = new List<int>();
-            for (int i = 0; i < clause.WantedAntes.Length; i++)
-            {
-                if (clause.WantedAntes[i])
-                    effectiveAntes.Add(i);
-            }
-
-            var sources = new MotelyJsonConfig.SourcesConfig
-            {
-                PackSlots =
-                    clause
-                        .WantedPackSlots?.Select((wanted, idx) => wanted ? idx : -1)
-                        .Where(x => x >= 0)
-                        .ToArray() ?? Array.Empty<int>(),
-                RequireMega = clause.RequireMega,
-            };
-
-            return new MotelyJsonConfig.MotleyJsonFilterClause
-            {
-                JokerEnum = clause.JokerType,
-                EffectiveAntes = effectiveAntes.ToArray(),
-                EditionEnum = clause.EditionEnum,
-                Sources = sources,
-            };
-        }
     }
 }

@@ -61,7 +61,6 @@ ref partial struct MotelyVectorSearchContext
             SpectralRate = Deck == MotelyDeck.Ghost ? Vector512.Create(2.0) : Vector512.Create(0.0),
         };
 
-        // TODO: These voucher checks need to be per-lane eventually
         if (runState.IsVoucherActive(MotelyVoucher.TarotTycoon))
             stream.TarotRate = Vector512.Create(32.0);
         else if (runState.IsVoucherActive(MotelyVoucher.TarotMerchant))

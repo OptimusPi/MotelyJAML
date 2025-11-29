@@ -82,25 +82,6 @@ public struct MotelyJsonSeedScoreDesc(
         // Auto-cutoff starts at 0, manual cutoff uses specified value
         _learnedCutoff = AutoCutoff ? 0 : Cutoff;
         _seedsFiltered = 0;
-
-        // Cache voucher streams for vectorizable Must clauses
-        if (Config.Must != null)
-        {
-            foreach (var clause in Config.Must)
-            {
-                if (
-                    clause.ItemTypeEnum == MotelyFilterItemType.Voucher
-                    && clause.EffectiveAntes != null
-                )
-                {
-                    foreach (var ante in clause.EffectiveAntes)
-                    {
-                        ctx.CacheAnteFirstVoucher(ante);
-                    }
-                }
-            }
-        }
-
         return new MotelyJsonSeedScoreProvider(Config, Cutoff, AutoCutoff, _onResultFound);
     }
 
@@ -123,6 +104,11 @@ public struct MotelyJsonSeedScoreDesc(
             int scoreThreshold = 0
         )
         {
+            // Base filter already checked MUST clauses - we only score seeds that passed
+            // If no seeds passed the base filter, exit early
+            if (baseFilterMask.IsAllFalse())
+                return VectorMask.NoBitsSet;
+
             if (IsCancelled)
                 return VectorMask.NoBitsSet;
 
@@ -132,10 +118,6 @@ public struct MotelyJsonSeedScoreDesc(
             var autoCutoff = AutoCutoff;
             var onResultFound = OnResultFound;
 
-            // Base filter already checked MUST clauses - we only score seeds that passed
-            // If no seeds passed the base filter, exit early
-            if (baseFilterMask.IsAllFalse())
-                return VectorMask.NoBitsSet;
 
             // Score individual seeds that passed the base filter
             // NOTE: Scoring is intentionally SCALAR - we don't need vectorized performance here
@@ -148,7 +130,7 @@ public struct MotelyJsonSeedScoreDesc(
                 {
                     var runState = new MotelyRunState();
 
-                    // Activate all vouchers for scoring (vouchers are cached, so this is fast enough)
+                    // Activate all vouchers for scoring
                     if (config.MaxVoucherAnte > 0)
                     {
                         MotelyJsonScoring.ActivateAllVouchers(
@@ -158,47 +140,10 @@ public struct MotelyJsonSeedScoreDesc(
                         );
                     }
 
-                    // Pre-generate all bosses to maintain state across scoring checks
-                    // Find max ante needed for boss checks
-                    int maxBossAnte = 0;
-                    if (config.Must != null)
-                    {
-                        foreach (var clause in config.Must)
-                        {
-                            if (
-                                clause.ItemTypeEnum == MotelyFilterItemType.Boss
-                                && clause.EffectiveAntes != null
-                            )
-                            {
-                                foreach (var ante in clause.EffectiveAntes)
-                                {
-                                    if (ante > maxBossAnte)
-                                        maxBossAnte = ante;
-                                }
-                            }
-                        }
-                    }
-                    if (config.Should != null)
-                    {
-                        foreach (var clause in config.Should)
-                        {
-                            if (
-                                clause.ItemTypeEnum == MotelyFilterItemType.Boss
-                                && clause.EffectiveAntes != null
-                            )
-                            {
-                                foreach (var ante in clause.EffectiveAntes)
-                                {
-                                    if (ante > maxBossAnte)
-                                        maxBossAnte = ante;
-                                }
-                            }
-                        }
-                    }
+                    // Use pre-computed MaxBossAnte from PostProcess()
+                    int maxBossAnte = config.MaxBossAnte;
 
-                    // REMOVED: Don't re-verify MUST clauses! The base filter already checked them!
-                    // Re-verifying with a fresh state breaks voucher state tracking.
-                    // The score provider should trust the base filter and only score Should clauses.
+
 
                     // Generate and cache all bosses if needed
                     MotelyBossBlind[]? cachedBosses = null;
@@ -333,7 +278,7 @@ public struct MotelyJsonSeedScoreDesc(
                                         if (
                                             MotelyJsonScoring.TarotCardsTally(
                                                 ref singleCtx,
-                                                clause,
+                                                MotelyJsonTarotFilterClause.FromJsonClause(clause),
                                                 ante,
                                                 ref runState,
                                                 earlyExit: true
@@ -349,7 +294,7 @@ public struct MotelyJsonSeedScoreDesc(
                                         if (
                                             MotelyJsonScoring.CountPlanetOccurrences(
                                                 ref singleCtx,
-                                                clause,
+                                                MotelyJsonPlanetFilterClause.FromJsonClause(clause),
                                                 ante,
                                                 earlyExit: true
                                             ) > 0
@@ -364,7 +309,7 @@ public struct MotelyJsonSeedScoreDesc(
                                         if (
                                             MotelyJsonScoring.CountSpectralOccurrences(
                                                 ref singleCtx,
-                                                clause,
+                                                MotelyJsonSpectralFilterClause.FromJsonClause(clause),
                                                 ante,
                                                 earlyExit: true
                                             ) > 0

@@ -17,12 +17,22 @@ public class BalatroShaderBackground : View
     private static readonly (int R, int G, int B) Color3 = (55, 66, 68); // #374244 Black
 
     private const double Contrast = 1.8;
+    
+    //private const double SpinAmount = 0.6;
     private const double SpinAmount = 0.6;
-    private const double ZoomScale = 12.0;
-    private const double SpinEase = 0.5;
-    private const double PixelSize = 200.0;
-    private const double ParallaxX = 0.05;
-    private const int LoopCount = 5;
+
+    //private const double SpinEase = 0.5;
+    private const double SpinEase = 0.7;
+
+
+    //private const double PixelSize = 750.0;
+    private const double PixelSize = 128.0;
+
+    //private const double ParallaxX = 0.12;
+    private const double ParallaxX = -0.01;
+
+    //private const int LoopCount = 5;
+    private const int LoopCount = 3;
 
     public BalatroShaderBackground()
     {
@@ -37,13 +47,15 @@ public class BalatroShaderBackground : View
 
     public Color GetColorAt(int screenX, int screenY)
     {
-        if (_frameBuffer == null || screenY < 0 || screenY >= _bufferHeight)
+        if (_frameBuffer == null || screenY < 0 || screenY >= _bufferHeight / 2)
             return new Color(Color3.R, Color3.G, Color3.B);
 
+        // Convert screen Y to buffer Y (each char shows 2 vertical pixels via half-block)
+        int bufferY = screenY * 2;
         if (screenX < 0 || screenX >= _bufferWidth)
             return new Color(Color3.R, Color3.G, Color3.B);
 
-        return _frameBuffer[screenX, screenY];
+        return _frameBuffer[screenX, bufferY];
     }
 
     public void Start()
@@ -56,14 +68,14 @@ public class BalatroShaderBackground : View
         UpdateFrameBuffer();
 
         MotelyTUI.App?.AddTimeout(
-            TimeSpan.FromMilliseconds(83),
+            TimeSpan.FromMilliseconds(41),
             () =>
             {
                 if (!_isRunning)
                     return false;
 
-                _time += 0.03;
-                _spinTime += 0.02;
+                _time += 0.04;
+                _spinTime += 0.03;
                 UpdateFrameBuffer();
                 SetNeedsDraw();
                 return true;
@@ -77,22 +89,26 @@ public class BalatroShaderBackground : View
     {
         try
         {
-            int screenWidth = MotelyTUI.App?.Driver?.Cols ?? 80;
-            int screenHeight = MotelyTUI.App?.Driver?.Rows ?? 24;
+            int screenCols = MotelyTUI.App?.Driver?.Cols ?? 80;
+            int screenRows = MotelyTUI.App?.Driver?.Rows ?? 24;
+
+            // Half-block: 2 vertical pixels per character
+            int bufferWidth = screenCols;
+            int bufferHeight = screenRows * 2;
 
             if (
                 _frameBuffer == null
-                || _bufferWidth != screenWidth
-                || _bufferHeight != screenHeight
+                || _bufferWidth != bufferWidth
+                || _bufferHeight != bufferHeight
             )
             {
-                _frameBuffer = new Color[screenWidth, screenHeight];
-                _bufferWidth = screenWidth;
-                _bufferHeight = screenHeight;
+                _frameBuffer = new Color[bufferWidth, bufferHeight];
+                _bufferWidth = bufferWidth;
+                _bufferHeight = bufferHeight;
             }
 
-            double resolution = Math.Sqrt(screenWidth * screenWidth + screenHeight * screenHeight);
-            CalculateFrame(screenWidth, screenHeight, resolution);
+            double resolution = Math.Sqrt(bufferWidth * bufferWidth + bufferHeight * bufferHeight);
+            CalculateFrame(bufferWidth, bufferHeight, resolution);
         }
         catch { }
     }
@@ -103,18 +119,26 @@ public class BalatroShaderBackground : View
             return;
 
         var driver = MotelyTUI.App.Driver;
-        var block = new System.Text.Rune('█');
-        int screenWidth = Math.Min(driver.Cols, _bufferWidth);
-        int screenHeight = Math.Min(driver.Rows, _bufferHeight);
+        var upperHalf = new System.Text.Rune('▀');
+        int maxRows = Math.Min(driver.Rows, _bufferHeight / 2);
+        int maxCols = Math.Min(driver.Cols, _bufferWidth);
 
-        for (int y = 0; y < screenHeight; y++)
+        // Half-block: each char = 2 vertical pixels (top/bottom)
+        for (int screenY = 0; screenY < maxRows; screenY++)
         {
-            for (int x = 0; x < screenWidth; x++)
+            int bufY = screenY * 2;
+            for (int screenX = 0; screenX < maxCols; screenX++)
             {
-                var color = _frameBuffer[x, y];
-                driver.SetAttribute(new Attribute(color, color));
-                driver.Move(x, y);
-                driver.AddRune(block);
+                // Skip the very last cell (bottom-right corner) to avoid terminal scroll
+                if (screenY == maxRows - 1 && screenX == maxCols - 1)
+                    continue;
+
+                var topColor = _frameBuffer[screenX, bufY];
+                var bottomColor = bufY + 1 < _bufferHeight ? _frameBuffer[screenX, bufY + 1] : topColor;
+
+                driver.SetAttribute(new Attribute(topColor, bottomColor));
+                driver.Move(screenX, screenY);
+                driver.AddRune(upperHalf);
             }
         }
     }
@@ -153,9 +177,8 @@ public class BalatroShaderBackground : View
     {
         double pixSize = resolution / PixelSize;
 
-        // Terminal chars are ~2x taller than wide, stretch X to compensate
-        double uvX =
-            ((Math.Floor(x / pixSize) * pixSize - 0.5 * width) / resolution - ParallaxX) * 0.6;
+        // Using double-wide blocks for square pixels - no X stretch needed!
+        double uvX = ((Math.Floor(x / pixSize) * pixSize - 0.5 * width) / resolution - ParallaxX);
         double uvY = (Math.Floor(y / pixSize) * pixSize - 0.5 * height) / resolution;
         double uvLen = Math.Sqrt(uvX * uvX + uvY * uvY);
 
@@ -165,14 +188,12 @@ public class BalatroShaderBackground : View
             + speed
             - SpinEase * 20.0 * (SpinAmount * uvLen + (1.0 - SpinAmount));
 
-        double midX = (width / resolution) / 2.0;
-        double midY = (height / resolution) / 2.0;
+        // Simplified from original: (uv_len * cos(angle) + mid) - mid = uv_len * cos(angle)
+        uvX = uvLen * Math.Cos(newAngle);
+        uvY = uvLen * Math.Sin(newAngle);
 
-        uvX = uvLen * Math.Cos(newAngle) + midX - midX;
-        uvY = uvLen * Math.Sin(newAngle) + midY - midY;
-
-        uvX *= 30.0 + ZoomScale;
-        uvY *= 30.0 + ZoomScale;
+        uvX *= 30.0;
+        uvY *= 30.0;
 
         double animSpeed = time * 2.0;
         double uv2X = uvX + uvY;

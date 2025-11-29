@@ -26,11 +26,11 @@ public class ApiServerWindow : Window
     {
         _serverUrl = $"http://{host}:{port}/";
 
-        // Compact draggable window
+        // Wide window to accommodate long cloudflare URLs
         Title = "API Server";
         X = Pos.Center();
         Y = Pos.Center();
-        Width = 60;
+        Width = Dim.Percent(85); // Use 85% of screen width
         Height = 22;
         CanFocus = true;
         SetScheme(BalatroTheme.Window);
@@ -48,17 +48,24 @@ public class ApiServerWindow : Window
         });
         Add(_statusLabel);
 
-        // URL (clickable hint)
+        // URL (clickable hint) - full width to show complete URL
         _urlLabel = new Label()
         {
             X = 1,
             Y = 2,
+            Width = Dim.Fill() - 2,
             Text = _serverUrl,
         };
         _urlLabel.SetScheme(new Scheme()
         {
             Normal = new Attribute(BalatroTheme.Blue, BalatroTheme.ModalGrey),
         });
+        _urlLabel.MouseClick += (s, e) =>
+        {
+            CopyToClipboard(_serverUrl);
+            LogMessage($"[CLIPBOARD] Copied URL: {_serverUrl}");
+            e.Handled = true;
+        };
         Add(_urlLabel);
 
         // Tunnel status & button - full width to show complete URL
@@ -73,6 +80,19 @@ public class ApiServerWindow : Window
         {
             Normal = new Attribute(BalatroTheme.Green, BalatroTheme.ModalGrey),
         });
+        _tunnelLabel.MouseClick += (s, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(_tunnelLabel.Text.ToString()))
+            {
+                var urlText = _tunnelLabel.Text.ToString();
+                if (urlText.StartsWith("https://"))
+                {
+                    CopyToClipboard(urlText);
+                    LogMessage($"[CLIPBOARD] Copied URL: {urlText}");
+                }
+            }
+            e.Handled = true;
+        };
         Add(_tunnelLabel);
 
         _tunnelButton = new CleanButton()
@@ -181,7 +201,7 @@ public class ApiServerWindow : Window
         {
             X = 1,
             Y = Pos.AnchorEnd(1),
-            Text = "Bac_k",
+            Text = "Back",
             Width = Dim.Fill() - 2,
             TextAlignment = Alignment.Center,
         };
@@ -248,7 +268,7 @@ public class ApiServerWindow : Window
                 {
                     Normal = new Attribute(BalatroTheme.Gray, BalatroTheme.ModalGrey),
                 });
-                _stopButton.Text = "Bac_k";
+                _stopButton.Visible = false; // Hide when server stops (back button remains)
             });
         }
     }
@@ -261,7 +281,7 @@ public class ApiServerWindow : Window
             _cts?.Cancel();
             _server?.Stop();
             _stopButton.Enabled = false;
-            _stopButton.Text = "Stopped";
+            _stopButton.Visible = false; // Hide when stopped
         }
     }
 
@@ -453,5 +473,43 @@ public class ApiServerWindow : Window
         }
 
         return null;
+    }
+
+    private void CopyToClipboard(string text)
+    {
+        try
+        {
+            // Use platform-specific commands directly (Terminal.Gui clipboard may truncate)
+            if (OperatingSystem.IsWindows())
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("clip")
+                {
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                var proc = System.Diagnostics.Process.Start(psi);
+                proc?.StandardInput.Write(text);
+                proc?.StandardInput.Close();
+                proc?.WaitForExit();
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("pbcopy")
+                {
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                var proc = System.Diagnostics.Process.Start(psi);
+                proc?.StandardInput.Write(text);
+                proc?.StandardInput.Close();
+                proc?.WaitForExit();
+            }
+        }
+        catch
+        {
+            // Ignore clipboard errors
+        }
     }
 }
