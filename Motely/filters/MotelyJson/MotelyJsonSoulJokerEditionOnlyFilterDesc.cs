@@ -60,7 +60,7 @@ public readonly struct MotelyJsonSoulJokerEditionOnlyFilterDesc(
                 "Edition-only filter called with empty clauses"
             );
 
-            // CRITICAL: For edition-only checks, we DON'T need to detect soul cards!
+            // For edition-only checks, we DON'T need to detect soul cards!
             // We just check the edition stream for the specific ante(s) required
             // This is BLAZING FAST (1-2 PRNG calls per ante)
 
@@ -105,7 +105,7 @@ public readonly struct MotelyJsonSoulJokerEditionOnlyFilterDesc(
                 resultMask,
                 (ref MotelySingleSearchContext singleCtx) =>
                 {
-                    // BUG FIX: Check if any clause has Min parameter - if so, we CANNOT early exit!
+                    // Check if any clause has Min parameter - if so, we CANNOT early exit!
                     // We need to count ALL occurrences to verify minimum threshold
                     bool hasMinRequirement = false;
                     foreach (var clause in clauses)

@@ -932,7 +932,7 @@ public class MotelyJsonConfig
         //     item.Sources.ShopSlots ??= [];
         // }
 
-        // CRITICAL: Parse all enums ONCE to avoid string operations in hot path
+        // Parse all enums ONCE to avoid string operations in hot path
         item.InitializeParsedEnums();
 
         // Merge flat properties into Sources for backwards compatibility
@@ -968,7 +968,7 @@ public class MotelyJsonConfig
                 item.Sources.Tags = item.Tags.Value;
         }
 
-        // IMPORTANT: Don't apply GetDefaultSources anymore - we use ante-based defaults dynamically!
+        // Don't apply GetDefaultSources anymore - we use ante-based defaults dynamically!
         // Only apply defaults for special cases that REQUIRE specific sources (like soul jokers pack-only)
         if (
             item.Sources == null

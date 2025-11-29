@@ -99,7 +99,7 @@ namespace Motely.Executors
                     + (!string.IsNullOrEmpty(_scoreConfig) ? $" with scoring: {_scoreConfig}" : "")
             );
 
-            // DEBUG: Help identify non-determinism
+            // Help identify non-determinism
             DebugLogger.Log($"Thread count: {_params.Threads}");
             DebugLogger.Log($"Batch size: {_params.BatchSize}");
             DebugLogger.Log($"Start batch: {_params.StartBatch}");

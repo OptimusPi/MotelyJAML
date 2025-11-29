@@ -207,39 +207,12 @@ public partial struct MotelyJsonJokerFilterDesc(MotelyJsonJokerFilterCriteria cr
                     }
                 }
 
-                // Early exit check: After each ante, check if we can already determine failure
-                // A clause can only succeed if it finds a match in at least one of its specified antes
-                // Check if any clause that should have matched by now has no matches
-                bool canEarlyExit = false;
-                for (int i = 0; i < Clauses.Count; i++)
-                {
-                    var clause = Clauses[i];
-                    // Check if this clause has any antes left to check
-                    bool hasAntesRemaining = false;
-                    for (int futureAnte = ante + 1; futureAnte <= _maxAnte; futureAnte++)
-                    {
-                        ulong futureBit = 1UL << (futureAnte - 1);
-                        if (!clause.WantedAntes.Any(x => x) || clause.WantedAntes[futureAnte])
-                        {
-                            hasAntesRemaining = true;
-                            break;
-                        }
-                    }
-
-                    // If this clause has no matches and no antes left to check, we can exit
-                    if (clauseMasks[i].IsAllFalse() && !hasAntesRemaining)
-                    {
-                        canEarlyExit = true;
-                        break;
-                    }
-                }
-
-                if (canEarlyExit)
-                    return VectorMask.NoBitsSet;
+                // Removed "early exit" - it ran at the END (ante >= maxAnte), not early!
+                // The final check below already handles this correctly.
             }
 
             // All clauses must be satisfied (AND logic)
-            // CRITICAL FIX: If any clause found nothing (NoBitsSet), the entire filter fails!
+            // If any clause found nothing (NoBitsSet), the entire filter fails!
             var resultMask = VectorMask.AllBitsSet;
             for (int i = 0; i < clauseMasks.Length; i++)
             {

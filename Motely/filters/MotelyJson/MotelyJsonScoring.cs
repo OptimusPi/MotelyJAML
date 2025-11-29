@@ -454,7 +454,7 @@ public static class MotelyJsonScoring
         }
 
         int tally = 0;
-        // IMPORTANT: For ante 2+, we need generatedFirstPack: true to skip the phantom first Buffoon pack!
+        // For ante 2+, we need generatedFirstPack: true to skip the phantom first Buffoon pack!
         var packStream = ctx.CreateBoosterPackStream(
             ante,
             isCached: false,
@@ -554,7 +554,7 @@ public static class MotelyJsonScoring
     {
         int tally = 0;
         var shopStream = ctx.CreateShopItemStream(ante, isCached: false);
-        // IMPORTANT: For ante 2+, we need generatedFirstPack: true to skip the phantom first Buffoon pack!
+        // For ante 2+, we need generatedFirstPack: true to skip the phantom first Buffoon pack!
         var packStream = ctx.CreateBoosterPackStream(
             ante,
             isCached: false,
@@ -760,12 +760,12 @@ public static class MotelyJsonScoring
         ref MotelyRunState voucherState
     )
     {
-        // CRITICAL: Make a COPY of the voucherState to avoid corrupting the shared state!
+        // Make a COPY of the voucherState to avoid corrupting the shared state!
         // Each clause should evaluate independently without affecting other clauses
         var localVoucherState = voucherState; // Struct copy - preserves original state
         int count = 0;
 
-        // IMPORTANT: ALWAYS walk from ante 1 to build voucher state correctly (vouchers persist across antes!)
+        // ALWAYS walk from ante 1 to build voucher state correctly (vouchers persist across antes!)
         // SCORE only in user-specified antes, but BUILD STATE from ante 1
         int minAnte = 1; // ALWAYS start at ante 1 to build voucher state correctly
         int maxAnte =
@@ -821,7 +821,7 @@ public static class MotelyJsonScoring
             // ALWAYS consume the voucher to update state for next ante check (even if this clause doesn't care about it)
             localVoucherState.ActivateVoucher(voucherAtAnte);
 
-            // CRITICAL FIX: Handle Hieroglyph bonus voucher - CHECK IT against THIS CLAUSE for the SAME ante!
+            // Handle Hieroglyph bonus voucher - CHECK IT against THIS CLAUSE for the SAME ante!
             // This allows "Hieroglyph at ante 1 AND Petroglyph at ante 1" to work when Hieroglyph gives Petroglyph
             if (voucherAtAnte == MotelyVoucher.Hieroglyph)
             {
@@ -1151,7 +1151,7 @@ public static class MotelyJsonScoring
 
     /// <summary>
     /// COUNTS how many times a tag appears (0, 1, or 2 for generic "tag" type)
-    /// CRITICAL FIX: Generic "tag" type should tally BOTH small and big blind!
+    /// Generic "tag" type should tally BOTH small and big blind!
     /// </summary>
     public static int CountTagOccurrences(
         ref MotelySingleSearchContext ctx,
@@ -1238,7 +1238,7 @@ public static class MotelyJsonScoring
         if (!clause.VoucherEnum.HasValue)
             return false;
 
-        // IMPORTANT: Check if it's already active from ActivateAllVouchers
+        // Check if it's already active from ActivateAllVouchers
         if (runState.IsVoucherActive(clause.VoucherEnum.Value))
             return true;
 
@@ -1296,7 +1296,7 @@ public static class MotelyJsonScoring
             if (allAntes.Count == 0)
                 return 0; // No antes to check
 
-            // CRITICAL: Create GLOBAL soul FACE stream ONCE for ALL antes (face/type is NOT ante-dependent)
+            // Create GLOBAL soul FACE stream ONCE for ALL antes (face/type is NOT ante-dependent)
             // This stream is shared across all soul joker clauses in all antes
             int minAnte = allAntes.Min();
             MotelySingleJokerFixedRarityStream? sharedGlobalFaceStream = null;
@@ -1319,7 +1319,7 @@ public static class MotelyJsonScoring
                 bool allMatch = true;
                 var anteCounts = new List<(int count, int score)>();
 
-                // CRITICAL: Create per-ante soul EDITION stream (edition IS ante-dependent)
+                // Create per-ante soul EDITION stream (edition IS ante-dependent)
                 MotelySingleJokerFixedRarityStream? sharedEditionStream = null;
                 bool editionStreamCreated = false;
 
@@ -1625,7 +1625,7 @@ public static class MotelyJsonScoring
         var soulClause = MotelyJsonSoulJokerFilterClause.FromJsonClause(clause);
         int totalCount = 0;
 
-        // CRITICAL: Soul joker has TWO components with different ante-dependency:
+        // Soul joker has TWO components with different ante-dependency:
         // 1. Face/Type - NOT ante-dependent (global stream, created once)
         // 2. Edition - IS ante-dependent (per-ante stream, created each ante)
 
@@ -1655,7 +1655,7 @@ public static class MotelyJsonScoring
 
     /// <summary>
     /// Count how many soul jokers match the criteria in packs for a specific ante
-    /// CRITICAL: Advances BOTH soul joker streams for EACH Soul card found (sequence!)
+    /// Advances BOTH soul joker streams for EACH Soul card found (sequence!)
     /// - soulFaceStream: Used for face/type checks (NOT ante-dependent)
     /// - soulEditionStream: Used for edition checks (IS ante-dependent)
     /// </summary>
@@ -1713,7 +1713,7 @@ public static class MotelyJsonScoring
             // If this pack has The Soul, get the NEXT soul joker from BOTH streams
             if (hasSoul)
             {
-                // CRITICAL FIX: Consume from BOTH streams to keep them in sync
+                // Consume from BOTH streams to keep them in sync
                 // - Face stream for type matching (NOT ante-dependent)
                 // - Edition stream for edition matching (IS ante-dependent)
                 var soulJokerFace = ctx.GetNextJoker(ref soulFaceStream);
@@ -1785,7 +1785,7 @@ public static class MotelyJsonScoring
 
     /// <summary>
     /// Count soul joker occurrences across ALL antes with proper stream walking
-    /// BUG FIX: Use dual-stream approach - face stream (global) and edition stream (per-ante)
+    /// Use dual-stream approach - face stream (global) and edition stream (per-ante)
     /// </summary>
     private static int CountSoulJokerOccurrencesForAllAntes(
         ref MotelySingleSearchContext ctx,
@@ -1802,7 +1802,7 @@ public static class MotelyJsonScoring
 
         int totalCount = 0;
 
-        // BUG FIX: Soul joker has TWO components with different ante-dependency:
+        // Soul joker has TWO components with different ante-dependency:
         // 1. Face/Type - NOT ante-dependent (global stream, created once)
         // 2. Edition - IS ante-dependent (per-ante stream, created each ante)
         int minAnte = effectiveAntes.Length > 0 ? effectiveAntes[0] : 1;
@@ -1920,7 +1920,7 @@ public static class MotelyJsonScoring
         {
             int matchedClauses = 0;
             bool[] clauseSatisfied = new bool[clauses.Count];
-            int[] clauseCounts = new int[clauses.Count]; // BUG FIX: Track count per clause for Min parameter
+            int[] clauseCounts = new int[clauses.Count]; // Track count per clause for Min parameter
 
             // Calculate ante range from clauses (don't hard-code!)
             int minAnte = int.MaxValue,
@@ -1944,7 +1944,7 @@ public static class MotelyJsonScoring
             if (minAnte > maxAnte)
                 return true;
 
-            // CRITICAL: Soul joker has TWO components with different ante-dependency behavior:
+            // Soul joker has TWO components with different ante-dependency behavior:
             // 1. Face/Type (Perkeo, Canio, etc.) - NOT ante-dependent (same PRNG sequence for entire seed)
             // 2. Edition (Negative, Polychrome, etc.) - IS ante-dependent (different per ante)
             //
@@ -1977,7 +1977,7 @@ public static class MotelyJsonScoring
                 var soulEditionStream = searchContext.CreateSoulJokerStream(ante);
 
                 // FIXED: Create pack streams ONCE per ante, OUTSIDE clause loop (like PerkeoObservatory)
-                // IMPORTANT: Ante 0-1 get the guaranteed first Buffoon pack, ante 2+ skip it
+                // Ante 0-1 get the guaranteed first Buffoon pack, ante 2+ skip it
                 var boosterPackStream = searchContext.CreateBoosterPackStream(
                     ante,
                     ante > 1,
@@ -2050,7 +2050,7 @@ public static class MotelyJsonScoring
                             if (ante >= clause.WantedAntes.Length || !clause.WantedAntes[ante])
                                 continue;
 
-                            // BUG FIX: Don't skip if already satisfied when clause has Min > 1
+                            // Don't skip if already satisfied when clause has Min > 1
                             // We need to keep counting to verify minimum threshold
                             if (earlyExit && clauseSatisfied[clauseIdx])
                                 continue;

@@ -113,7 +113,7 @@ public struct MotelyJsonVoucherFilterDesc(MotelyJsonVoucherFilterCriteria criter
 
                 voucherState.ActivateVoucher(vouchers);
 
-                // CRITICAL FIX: Handle Hieroglyph bonus voucher (replay ante = second voucher in SAME ante!)
+                // Handle Hieroglyph bonus voucher (replay ante = second voucher in SAME ante!)
                 // This allows filters like "Hieroglyph at ante 1 AND Petroglyph at ante 1" to work correctly
                 // when Hieroglyph gives Petroglyph as the bonus voucher
                 VectorMask isHieroglyph = VectorEnum256.Equals(vouchers, MotelyVoucher.Hieroglyph);
@@ -188,7 +188,7 @@ public struct MotelyJsonVoucherFilterDesc(MotelyJsonVoucherFilterCriteria criter
                 {
                     var voucherState = new MotelyRunState();
 
-                    // CRITICAL: Walk ALL antes from 1 to maxAnte ONCE, checking ALL clauses as we go!
+                    // Walk ALL antes from 1 to maxAnte ONCE, checking ALL clauses as we go!
                     // This builds voucher state progressively (like the vectorized filter does)
                     int[] clauseCounts = new int[clauses.Length];
                     int clausesSatisfied = 0; // Track how many clauses have met their Min threshold
@@ -250,7 +250,7 @@ public struct MotelyJsonVoucherFilterDesc(MotelyJsonVoucherFilterCriteria criter
                         // ALWAYS activate voucher to update state for next ante
                         voucherState.ActivateVoucher(voucherAtAnte);
 
-                        // CRITICAL FIX: Handle Hieroglyph bonus voucher (replay ante = second voucher from same ante!)
+                        // Handle Hieroglyph bonus voucher (replay ante = second voucher from same ante!)
                         // This allows Hieroglyph + Petroglyph both at ante 1
                         if (voucherAtAnte == MotelyVoucher.Hieroglyph)
                         {

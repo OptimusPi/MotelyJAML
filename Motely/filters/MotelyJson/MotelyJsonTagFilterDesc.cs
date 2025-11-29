@@ -93,7 +93,7 @@ public struct MotelyJsonTagFilterDesc(MotelyJsonTagFilterCriteria criteria)
                 var smallTag = ctx.GetNextTag(ref tagStream);
                 var bigTag = ctx.GetNextTag(ref tagStream);
 
-                // DEBUG: Log tag generation for specific seed
+                // Log tag generation for specific seed
                 if (DebugLogger.IsEnabled)
                 {
                     DebugLogger.Log(
@@ -211,7 +211,7 @@ public struct MotelyJsonTagFilterDesc(MotelyJsonTagFilterCriteria criteria)
             }
 
             // All clauses must be satisfied (AND logic)
-            // CRITICAL FIX: If any clause found nothing (NoBitsSet), the entire filter fails!
+            // If any clause found nothing (NoBitsSet), the entire filter fails!
             var resultMask = VectorMask.AllBitsSet;
             for (int i = 0; i < clauseMasks.Length; i++)
             {

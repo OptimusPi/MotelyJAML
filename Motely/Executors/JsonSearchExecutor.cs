@@ -129,7 +129,7 @@ namespace Motely.Executors
                 {
                     search.Dispose();
 
-                    // CRITICAL: Wait for final batch to flush before showing stats
+                    // Wait for final batch to flush before showing stats
                     // The search may have queued results that need to be written
                     Console.Out.Flush();
                     Thread.Sleep(500); // Give time for final batch flush
@@ -258,7 +258,7 @@ namespace Motely.Executors
                 Console.WriteLine("CreateSearch...");
             }
 
-            // CRITICAL: Validate and normalize config ONCE at load time!
+            // Validate and normalize config ONCE at load time!
             // This removes ALL ambiguity from the hot path!
             MotelyJsonConfigValidator.ValidateConfig(config);
 

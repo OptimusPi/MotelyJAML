@@ -123,7 +123,7 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
         // Copy parsed enums (already initialized by parent)
         cloned.CopyParsedEnumsFrom(source);
 
-        // CRITICAL: Recursively clone nested clauses with the same ante!
+        // Recursively clone nested clauses with the same ante!
         if (source.Clauses != null && source.Clauses.Count > 0)
         {
             cloned.Clauses = new List<MotelyJsonConfig.MotleyJsonFilterClause>();
@@ -149,7 +149,7 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             if (andClause.Clauses == null || andClause.Clauses.Count == 0)
                 continue; // Skip empty And clause
 
-            // CRITICAL FIX: Check if Antes was EXPLICITLY SET (not just defaulted)
+            // Check if Antes was EXPLICITLY SET (not just defaulted)
             // If explicitly set, use helper behavior (propagate to children)
             // If defaulted, respect individual child Antes
             if (
@@ -205,7 +205,7 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             if (orClause.Clauses == null || orClause.Clauses.Count == 0)
                 continue; // Skip empty Or clause
 
-            // CRITICAL FIX: Check if parent OR clause has Antes EXPLICITLY SET (not just defaulted)
+            // Check if parent OR clause has Antes EXPLICITLY SET (not just defaulted)
             // If Antes was explicitly set, use helper behavior (propagate to children)
             // If Antes was defaulted (not explicitly set), respect individual child Antes
             if (
@@ -236,7 +236,7 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             else
             {
                 // No antes array on parent - process normally
-                // CRITICAL FIX: Each clause in the OR should be its own branch
+                // Each clause in the OR should be its own branch
                 // If we have ["King", "Queen", "Jack"], we want "King OR Queen OR Jack"
                 // NOT "(King AND Queen AND Jack) as one group"
                 // So we create a separate filter for EACH individual clause
@@ -320,6 +320,9 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             _nestedFilters = nestedFilters;
         }
 
+        [MethodImpl(
+            MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization
+        )]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
             if (_nestedFilters == null || _nestedFilters.Count == 0)
@@ -352,6 +355,9 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             _nestedFilters = nestedFilters;
         }
 
+        [MethodImpl(
+            MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization
+        )]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
             if (_nestedFilters == null || _nestedFilters.Count == 0)

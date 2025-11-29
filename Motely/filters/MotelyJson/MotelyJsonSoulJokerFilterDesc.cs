@@ -177,7 +177,7 @@ public readonly struct MotelyJsonSoulJokerFilterDesc(MotelyJsonSoulJokerFilterCr
                     // Track counts for each clause
                     int[] clauseCounts = new int[clauses.Count];
 
-                    // CRITICAL: Soul joker has TWO components with different ante-dependency behavior:
+                    // Soul joker has TWO components with different ante-dependency behavior:
                     // 1. Face/Type (Perkeo, Canio, etc.) - NOT ante-dependent (same PRNG sequence for entire seed)
                     // 2. Edition (Negative, Polychrome, etc.) - IS ante-dependent (different per ante)
                     //
@@ -266,18 +266,12 @@ public readonly struct MotelyJsonSoulJokerFilterDesc(MotelyJsonSoulJokerFilterCr
                                     )
                                         continue;
 
-                                    // Check if this pack slot is wanted
+                                    // Check pack slot if specified
                                     if (
-                                        clause.WantedPackSlots != null
-                                        && clause.WantedPackSlots.Any(x => x)
+                                        packIndex >= clause.WantedPackSlots.Length
+                                        || !clause.WantedPackSlots[packIndex]
                                     )
-                                    {
-                                        if (
-                                            packIndex >= clause.WantedPackSlots.Length
-                                            || !clause.WantedPackSlots[packIndex]
-                                        )
-                                            continue;
-                                    }
+                                        continue;
 
                                     // Check mega requirement
                                     if (

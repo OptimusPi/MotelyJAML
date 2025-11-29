@@ -48,6 +48,9 @@ public partial struct MotelyJsonTarotCardFilterDesc(MotelyJsonTarotFilterCriteri
         private readonly int _maxAnte = maxAnte;
         private readonly int _maxShopSlotsNeeded = maxShopSlotsNeeded;
 
+        [MethodImpl(
+            MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization
+        )]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
             if (_clauses == null || _clauses.Count == 0)
@@ -157,7 +160,7 @@ public partial struct MotelyJsonTarotCardFilterDesc(MotelyJsonTarotFilterCriteri
             }
 
             // All clauses must be satisfied (AND logic)
-            // CRITICAL FIX: If any clause found nothing (NoBitsSet), the entire filter fails!
+            // If any clause found nothing (NoBitsSet), the entire filter fails!
             var resultMask = VectorMask.AllBitsSet;
             for (int i = 0; i < clauseMasks.Length; i++)
             {

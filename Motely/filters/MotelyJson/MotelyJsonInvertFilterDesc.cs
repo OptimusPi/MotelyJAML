@@ -41,7 +41,7 @@ namespace Motely.Filters
                 var m = _innerFilter.Filter(ref ctx);
                 DebugLogger.Log($"[INVERT FILTER] inner mask=0x{m.Value:X2}");
 
-                // CRITICAL FIX: Only invert bits for VALID lanes!
+                // Only invert bits for VALID lanes!
                 // Invalid lanes must remain 0 (rejected) regardless of inner filter result.
                 // Build valid lane mask by checking each lane
                 uint validLaneMask = 0;

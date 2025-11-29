@@ -728,7 +728,7 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
                         return;
 
                     case MotelySearchStatus.Disposed:
-                        // CRITICAL FIX: Flush counters before exiting to ensure stats are accurate
+                        // Flush counters before exiting to ensure stats are accurate
                         FlushLocalCounters();
                         return;
                 }
@@ -892,7 +892,7 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
             in MotelySearchContextParams searchParams
         )
         {
-            // CRITICAL FIX: Do NOT write to console here - the callback already handled output!
+            // Do NOT write to console here - the callback already handled output!
             // The score provider (MotelyJsonSeedScoreDesc) invokes the callback which writes to Console.
             // Writing here causes DUPLICATE output (every seed printed twice).
             //

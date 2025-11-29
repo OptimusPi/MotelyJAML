@@ -133,7 +133,7 @@ namespace Motely.Filters
                     continue;
                 }
 
-                // CRITICAL: Initialize parsed enums FIRST
+                // Initialize parsed enums FIRST
                 try
                 {
                     item.InitializeParsedEnums();
@@ -144,7 +144,7 @@ namespace Motely.Filters
                     continue;
                 }
 
-                // CRITICAL: Normalize Sources for ALL item types that support them
+                // Normalize Sources for ALL item types that support them
                 // This happens ONCE at config load, NOT in the hot path!
                 NormalizeSourcesForItem(item, prefix, errors, warnings);
 
@@ -747,7 +747,7 @@ namespace Motely.Filters
         }
 
         /// <summary>
-        /// CRITICAL: Normalizes Sources at CONFIG LOAD TIME.
+        /// Normalizes Sources at CONFIG LOAD TIME.
         /// NO AMBIGUITY IN THE HOT PATH!
         /// </summary>
         private static void NormalizeSourcesForItem(

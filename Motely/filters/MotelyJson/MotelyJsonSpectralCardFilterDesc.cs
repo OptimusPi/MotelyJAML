@@ -211,7 +211,7 @@ public struct MotelyJsonSpectralCardFilterDesc(MotelyJsonSpectralFilterCriteria 
             }
 
             // AND all clause masks together - ALL clauses must match (like other filters)
-            // CRITICAL FIX: If any clause found nothing (NoBitsSet), the entire filter fails!
+            // If any clause found nothing (NoBitsSet), the entire filter fails!
             VectorMask finalResult = VectorMask.AllBitsSet;
             for (int i = 0; i < clauseMasks.Length; i++)
             {

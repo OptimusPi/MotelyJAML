@@ -153,7 +153,7 @@ public class MotelyJsonJokerFilterClause : MotelyJsonFilterClause
         {
             // NO slots specified - leave arrays EMPTY so CountJokerOccurrences can apply ante-based defaults
             // This allows dynamic slot ranges per ante (e.g., ante 0 = 3 shops, ante 3+ = 6 + ante shops)
-            // IMPORTANT: If user specifies ANY source (packSlots, shopSlots, etc), we respect it and DON'T add defaults!
+            // If user specifies ANY source (packSlots, shopSlots, etc), we respect it and DON'T add defaults!
             DebugLogger.Log(
                 $"[JOKER CONVERT] No slots specified, will use ante-based defaults in scoring"
             );
@@ -164,7 +164,7 @@ public class MotelyJsonJokerFilterClause : MotelyJsonFilterClause
             DebugLogger.Log($"[JOKER CONVERT] ShopSlots specified, NOT setting pack slots");
         }
 
-        // DEBUG: Log final state
+        // Log final state
         int shopCount = wantedShopSlots.Count(s => s);
         int packCount = wantedPackSlots.Count(s => s);
         DebugLogger.Log(
@@ -284,6 +284,7 @@ public class MotelyJsonSoulJokerFilterClause : MotelyJsonFilterClause
     public bool RequireMega { get; init; } // Extracted from Sources for optimization
     public bool Satisfied { get; set; } // Track if this clause has been satisfied
 
+
     // Parameterless constructor for init syntax
     public MotelyJsonSoulJokerFilterClause() { }
 
@@ -340,11 +341,15 @@ public class MotelyJsonSoulJokerFilterClause : MotelyJsonFilterClause
             }
         }
 
-        // Pre-calculate MaxPackSlotsNeeded
+        // Pre-calculate MaxPackSlotsNeeded and check if any pack slots wanted
         int maxPackSlotsNeeded = 0;
         for (int i = 0; i < wantedPackSlots.Length; i++)
+        {
             if (wantedPackSlots[i])
+            {
                 maxPackSlotsNeeded = i + 1;
+            }
+        }
         if (maxPackSlotsNeeded == 0)
             maxPackSlotsNeeded = 6; // Default
 
@@ -364,7 +369,7 @@ public class MotelyJsonSoulJokerFilterClause : MotelyJsonFilterClause
             MaxPackSlotsNeeded = maxPackSlotsNeeded,
             RequireMega = jsonClause.Sources?.RequireMega ?? false,
             Satisfied = false,
-            Min = jsonClause.Min,
+            Min = jsonClause.Min
         };
 
         return clause;
