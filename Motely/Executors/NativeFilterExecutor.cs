@@ -295,18 +295,11 @@ namespace Motely.Executors
         private void PrintResultsHeader(MotelyJsonConfig config)
         {
             Console.WriteLine($"# Deck: {config.Deck}, Stake: {config.Stake}");
-            var header = "Seed,TotalScore";
 
-            if (config.Should != null)
-            {
-                foreach (var should in config.Should)
-                {
-                    var col = should.Label ?? should.Value ?? should.Type;
-                    // Quote all column names for Excel compatibility
-                    header += $",\"{col}\"";
-                }
-            }
-            Console.WriteLine(header);
+            // ONE SOURCE OF TRUTH: Use GetColumnNames()
+            var columnNames = config.GetColumnNames();
+            var quotedColumns = columnNames.Select(name => $"\"{name}\"");
+            Console.WriteLine(string.Join(",", quotedColumns));
         }
 
         private List<string>? LoadSeeds()

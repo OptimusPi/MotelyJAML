@@ -172,11 +172,9 @@ public struct MotelyJsonSeedScoreDesc(
                         // SMART: Process vouchers FIRST in order, then other requirements
 
                         // Step 1: Check all voucher requirements (they depend on each other)
-                        // PERFORMANCE: Avoid LINQ in hot path - iterate directly
-                        foreach (var clause in config.Must)
+                        // PERFORMANCE: Use pre-partitioned array (no filtering needed!)
+                        foreach (var clause in config.MustVouchers)
                         {
-                            if (clause.ItemTypeEnum != MotelyFilterItemType.Voucher)
-                                continue;
 
                             bool clauseSatisfied = false;
 
@@ -220,11 +218,9 @@ public struct MotelyJsonSeedScoreDesc(
                         }
 
                         // Step 2: Check all other requirements
-                        // PERFORMANCE: Avoid LINQ in hot path - iterate directly
-                        foreach (var clause in config.Must)
+                        // PERFORMANCE: Use pre-partitioned array (no filtering needed!)
+                        foreach (var clause in config.MustNonVouchers)
                         {
-                            if (clause.ItemTypeEnum == MotelyFilterItemType.Voucher)
-                                continue;
 
                             bool clauseSatisfied = false;
 

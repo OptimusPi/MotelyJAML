@@ -6,33 +6,15 @@ Based on [@tacodiva](https://github.com/tacodiva)'s incredible [Motely](https://
 
 ## Installation
 
-### Quick Install (Linux/macOS)
-```bash
-# Download and extract latest release
-curl -fsSL https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-linux-x64.tar.gz | tar -xz
+**[📥 Download Latest Release](https://github.com/OptimusPi/MotelyJAML/releases/latest)**
 
-# Or for macOS
-curl -fsSL https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-osx-x64.tar.gz | tar -xz
-
-# Run it
-./Motely
-```
-
-### Quick Install (Windows PowerShell)
-```powershell
-# Download latest release
-Invoke-WebRequest -Uri "https://github.com/YOUR_USERNAME/Motely/releases/latest/download/Motely-win-x64.zip" -OutFile "Motely.zip"
-Expand-Archive -Path "Motely.zip" -DestinationPath "."
-
-# Run it
-.\Motely.exe
-```
+Available for Windows (x64), Linux (x64), macOS (Intel & Apple Silicon)
 
 ### Build from Source
 ```bash
-git clone https://github.com/YOUR_USERNAME/Motely.git
-cd Motely
-dotnet run
+git clone https://github.com/OptimusPi/MotelyJAML.git
+cd MotelyJAML
+dotnet run --project Motely
 ```
 
 ## Quick Start
@@ -61,17 +43,17 @@ dotnet run -- --jaml MyFilter --threads 16 --cutoff 2
 dotnet run -- --native PerkeoObservatory --threads 16
 
 # Analyze a specific seed
-dotnet run -- --analyze ALEEB
+is
 ```
 
 ## Command Line Options
 
 ### Core Options
-- `--tui`: Launch Terminal User Interface (default if no args provided)
 - `--json <filename>`: JSON config from JsonItemFilters/ (without .json extension)
 - `--jaml <filename>`: JAML config from JamlFilters/ (without .jaml extension)
 - `--native <filter name>`: Built-in native filter (without .cs extension)
 - `--analyze <SEED>`: Analyze specific seed
+- **Note:** No args launches TUI by default
 
 ### Performance Options
 - `--threads <N>`: Thread count (default: CPU cores)

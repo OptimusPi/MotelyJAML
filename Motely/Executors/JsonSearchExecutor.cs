@@ -883,17 +883,11 @@ namespace Motely.Executors
             {
                 Console.WriteLine($"# Deck: {config.Deck}, Stake: {config.Stake}");
             }
-            string header = "Seed,TotalScore";
-            if (config.Should != null)
-            {
-                foreach (MotelyJsonConfig.MotleyJsonFilterClause should in config.Should)
-                {
-                    string name = GetClauseHeaderName(should);
-                    // Quote all column names for Excel compatibility
-                    header += $",\"{name}\"";
-                }
-            }
-            Console.WriteLine(header);
+
+            // ONE SOURCE OF TRUTH: Use GetColumnNames()
+            var columnNames = config.GetColumnNames();
+            var quotedColumns = columnNames.Select(name => $"\"{name}\"");
+            Console.WriteLine(string.Join(",", quotedColumns));
         }
 
         /// <summary>

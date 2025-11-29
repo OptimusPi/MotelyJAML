@@ -180,6 +180,19 @@ public class MotelyJsonConfig
     [JsonPropertyName("mustNot")]
     public List<MotleyJsonFilterClause> MustNot { get; set; } = new();
 
+    // PERFORMANCE: Pre-partitioned clauses to avoid repeated iteration
+    [JsonIgnore]
+    public MotleyJsonFilterClause[] MustVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
+
+    [JsonIgnore]
+    public MotleyJsonFilterClause[] MustNonVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
+
+    [JsonIgnore]
+    public MotleyJsonFilterClause[] ShouldVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
+
+    [JsonIgnore]
+    public MotleyJsonFilterClause[] ShouldNonVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
+
     public class MotleyJsonFilterClause
     {
         [JsonPropertyName("type")]
@@ -1109,16 +1122,43 @@ public class MotelyJsonConfig
             }
         }
 
-        // Compute MaxVoucherAnte once during PostProcess
+        // PERFORMANCE: Pre-partition clauses by type to avoid repeated iteration in hot paths
+        var mustVouchers = new List<MotleyJsonFilterClause>();
+        var mustNonVouchers = new List<MotleyJsonFilterClause>();
+        var shouldVouchers = new List<MotleyJsonFilterClause>();
+        var shouldNonVouchers = new List<MotleyJsonFilterClause>();
+
+        foreach (var clause in Must)
+        {
+            if (clause.ItemTypeEnum == MotelyFilterItemType.Voucher)
+                mustVouchers.Add(clause);
+            else
+                mustNonVouchers.Add(clause);
+        }
+
+        foreach (var clause in Should)
+        {
+            if (clause.ItemTypeEnum == MotelyFilterItemType.Voucher)
+                shouldVouchers.Add(clause);
+            else
+                shouldNonVouchers.Add(clause);
+        }
+
+        MustVouchers = mustVouchers.ToArray();
+        MustNonVouchers = mustNonVouchers.ToArray();
+        ShouldVouchers = shouldVouchers.ToArray();
+        ShouldNonVouchers = shouldNonVouchers.ToArray();
+
+        // Compute MaxVoucherAnte once during PostProcess (use pre-partitioned arrays!)
         int maxAnte = 0;
-        foreach (var clause in Must.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher))
+        foreach (var clause in MustVouchers)
         {
             maxAnte = Math.Max(
                 maxAnte,
                 clause.EffectiveAntes.Length > 0 ? clause.EffectiveAntes.Max() : 1
             );
         }
-        foreach (var clause in Should.Where(c => c.ItemTypeEnum == MotelyFilterItemType.Voucher))
+        foreach (var clause in ShouldVouchers)
         {
             maxAnte = Math.Max(
                 maxAnte,
@@ -1247,13 +1287,14 @@ public class MotelyJsonConfig
     }
 
     /// <summary>
-    /// Generate a safe column name for a filter clause (for DuckDB/CSV)
+    /// Generate a human-readable column name for a filter clause
+    /// Supports spaces and proper casing - will be quoted in CSV/DuckDB
     /// </summary>
     private static string GetClauseColumnName(MotleyJsonFilterClause clause)
     {
-        // Use label if provided
+        // Use label if provided (highest priority - keep original formatting!)
         if (!string.IsNullOrEmpty(clause.Label))
-            return MakeSafeColumnName(clause.Label);
+            return clause.Label;
 
         // Handle OR/AND clauses with compact notation
         if ((clause.Type?.ToLower() == "or" || clause.Type?.ToLower() == "and") && clause.Clauses != null && clause.Clauses.Count > 0)
@@ -1263,12 +1304,13 @@ public class MotelyJsonConfig
             var anteSuffix = "";
             if (clause.Antes != null && clause.Antes.Length > 0 && clause.Antes.Length < 8)
             {
-                // Use @A1A2A3 format to avoid ambiguity (not @A123)
-                // Example: [1,2,3] → @A1A2A3, [12,3] → @A12A3
-                anteSuffix = "@" + string.Join("", clause.Antes.Select(a => $"A{a}"));
+                // Human-readable ante range: A1-3 instead of A1A2A3
+                var minAnte = clause.Antes.Min();
+                var maxAnte = clause.Antes.Max();
+                anteSuffix = minAnte == maxAnte ? $" A{minAnte}" : $" A{minAnte}-{maxAnte}";
             }
 
-            return MakeSafeColumnName($"{count}_{clauseType}{anteSuffix}");
+            return $"{count} {clauseType}{anteSuffix}";
         }
 
         // Build name from value/type
@@ -1306,13 +1348,17 @@ public class MotelyJsonConfig
 
         // Add edition prefix if specified
         if (!string.IsNullOrEmpty(clause.Edition))
-            name = clause.Edition + "_" + name;
+            name = clause.Edition + " " + name; // Space instead of underscore!
 
-        // Add ante suffix if specified (use @A1A2A3 format to avoid ambiguity)
+        // Add ante suffix if specified (human-readable range format)
         if (clause.Antes != null && clause.Antes.Length > 0 && clause.Antes.Length < 8)
-            name += "@" + string.Join("", clause.Antes.Select(a => $"A{a}"));
+        {
+            var minAnte = clause.Antes.Min();
+            var maxAnte = clause.Antes.Max();
+            name += minAnte == maxAnte ? $" A{minAnte}" : $" A{minAnte}-{maxAnte}";
+        }
 
-        return MakeSafeColumnName(name);
+        return name; // NO MakeSafeColumnName - keep it beautiful!
     }
 
     /// <summary>

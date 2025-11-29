@@ -181,13 +181,8 @@ public class SearchWindow : Window
                 _ => ConfigFormatConverter.LoadFromJsonString(configContent),
             };
 
-            // Get column names from config ONCE (includes labels for SHOULD clauses)
-            // Capitalize first letter for better UI presentation
-            _columnNames = (_config?.GetColumnNames() ?? new List<string> { "Seed", "Score" })
-                .Select(name =>
-                    string.IsNullOrEmpty(name) ? name : char.ToUpper(name[0]) + name.Substring(1)
-                )
-                .ToList();
+            // Get column names from config ONCE (ONE SOURCE OF TRUTH - don't modify!)
+            _columnNames = _config!.GetColumnNames(); // Config is validated, can't be null!
 
             // Initialize the results tracker with column names (set once, not per-result!)
             _topResults.Initialize(_columnNames);
@@ -542,7 +537,8 @@ public class SearchWindow : Window
             // Build Blueprint URL
             var deckName = _config?.Deck ?? "Red";
             var stakeName = _config?.Stake ?? "White";
-            var maxAnte = _config?.MaxBossAnte ?? 8;
+            
+            var maxAnte = 8;
 
             var url =
                 $"https://miaklwalker.github.io/Blueprint/?seed={seed}&deck={deckName}+Deck&antes={maxAnte}&stake={stakeName}+Stake";

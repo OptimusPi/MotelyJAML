@@ -53,7 +53,7 @@ public static class MotelyJsonScoring
 
     #region Count Functions for Should Clauses
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int TarotCardsTally(
         ref MotelySingleSearchContext ctx,
         MotelyJsonTarotFilterClause clause,
@@ -199,7 +199,7 @@ public static class MotelyJsonScoring
         return 0;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int CountPlanetOccurrences(
         ref MotelySingleSearchContext ctx,
         MotelyJsonPlanetFilterClause clause,
@@ -291,7 +291,7 @@ public static class MotelyJsonScoring
         return tally;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int CountSpectralOccurrences(
         ref MotelySingleSearchContext ctx,
         MotelyJsonSpectralFilterClause clause,
@@ -542,7 +542,7 @@ public static class MotelyJsonScoring
         return (ante == 0 || ante == 1) ? 4 : 6; // Antes 0-1: 4 slots [0,1,2,3], Ante 2+: 6 slots [0,1,2,3,4,5]
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int CountJokerOccurrences(
         ref MotelySingleSearchContext ctx,
         MotelyJsonJokerFilterClause clause,
