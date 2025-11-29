@@ -59,6 +59,9 @@ public struct VectorMask(uint mask)
     public static VectorMask operator ^(VectorMask a, VectorMask b) => new(a.Value ^ b.Value);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static VectorMask operator ~(VectorMask a) => new(~a.Value & 0xFF);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator VectorMask(Vector256<int> vec) =>
         new(MotelyVectorUtils.VectorMaskToIntMask(vec));
 

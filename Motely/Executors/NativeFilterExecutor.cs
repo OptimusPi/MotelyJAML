@@ -202,7 +202,9 @@ namespace Motely.Executors
             }
             // If endBatch=0, don't set end boundary (infinite search until Ctrl+C)
 
-            if (seeds != null && seeds.Count > 0)
+            if (_params.RandomSeeds.HasValue)
+                return settings.WithRandomSearch(_params.RandomSeeds.Value).Start();
+            else if (seeds != null && seeds.Count > 0)
                 return settings.WithListSearch(seeds).Start();
             else
                 return settings.WithSequentialSearch().Start();

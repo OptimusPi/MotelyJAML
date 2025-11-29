@@ -282,20 +282,8 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
                 var filterMask = filter.Filter(ref ctx);
 
                 // If this is a mustNot filter (inverted), negate the mask
-                // Only invert VALID lanes - invalid lanes must stay rejected
                 if (isInverted)
-                {
-                    uint validLaneMask = 0;
-                    for (int lane = 0; lane < 8; lane++)
-                    {
-                        if (ctx.IsLaneValid(lane))
-                        {
-                            validLaneMask |= (1u << lane);
-                        }
-                    }
-                    // Invert only valid lanes: valid lanes with 0 become 1, valid lanes with 1 become 0
-                    filterMask = new VectorMask((~filterMask.Value) & validLaneMask);
-                }
+                    filterMask = ~filterMask;
 
                 result &= filterMask;
 
