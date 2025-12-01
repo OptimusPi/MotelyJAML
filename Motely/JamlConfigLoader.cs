@@ -92,7 +92,7 @@ public static class JamlConfigLoader
         // Support clean type-as-key syntax: "joker: Blueprint" instead of "type: Joker, value: Blueprint"
         var typeKeys = new[] { "joker", "soulJoker", "souljoker", "voucher", "tarot", "tarotCard", "tarotcard",
             "planet", "planetCard", "planetcard", "spectral", "spectralCard", "spectralcard",
-            "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag" };
+            "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag", "and", "or" };
 
         var lines = jamlContent.Split('\n');
         var result = new System.Text.StringBuilder();
@@ -146,8 +146,10 @@ public static class JamlConfigLoader
             "spectral" or "spectralcard" => "SpectralCard",
             "playingcard" or "standardcard" => "PlayingCard",
             "boss" => "Boss",
-            "tag" or "smallblindtag" => "SmallBlindTag",
+            "smallblindtag" => "SmallBlindTag",
             "bigblindtag" => "BigBlindTag",
+            "and" => "And",
+            "or" => "Or",
             _ => typeKey
         };
     }
