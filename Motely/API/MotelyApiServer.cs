@@ -339,6 +339,11 @@ public class MotelyApiServer
                 response.ContentType = "application/json";
                 await HandleGenieAsync(request, response);
             }
+            else if (request.HttpMethod == "GET" && path == "/filters")
+            {
+                response.ContentType = "application/json";
+                await HandleFiltersGetAsync(response);
+            }
             else
             {
                 response.ContentType = "application/json";
@@ -544,6 +549,14 @@ public class MotelyApiServer
             background: #ff9500;
         }
         
+        .button-red {
+            background: #ff4444;
+        }
+        
+        .button-red:hover:not(:disabled) {
+            background: #ff5555;
+        }
+        
         .button-orange:hover:not(:disabled) {
             background: #ffa520;
         }
@@ -653,29 +666,26 @@ public class MotelyApiServer
             </div>
 
             <div id=""jaml-tab"" class=""tab-content"">
+                <label>Load Saved Filter:</label>
+                <select id=""filterDropdown"" onchange=""loadSelectedFilter()"">
+                    <option value="""">-- New Filter --</option>
+                </select>
                 <label>Filter (JAML Format):</label>
-                <textarea id=""filterJaml"">name: NegPerkeoRun
+                <textarea id=""filterJaml"">name: Negative Perkeo
 must:
-  - voucher: Telescope
-    antes: [1, 2]
-  - voucher: Observatory
-    antes: [2, 3]
   - soulJoker: Perkeo
     edition: Negative
-    antes: [2, 3]
+    antes: [1, 2, 3]
 should:
-  - joker: Blueprint
+  - joker: any
+    edition: Negative
     antes: [1, 2, 3]
     score: 100
-deck: Red
+  - voucher: Observatory
+    antes: [2, 3, 4]
+    score: 50
+deck: Ghost
 stake: White</textarea>
-                <label>Seed Count:</label>
-                <select id=""seedCount"">
-                    <option value=""1000000"">1 Million</option>
-                    <option value=""10000000"">10 Million</option>
-                    <option value=""100000000"">100 Million</option>
-                    <option value=""1000000000"">1 Billion</option>
-                </select>
                 <div class=""info-text"">Types: joker, soulJoker, voucher, tarot, planet, spectral, playingCard, boss, tag</div>
             </div>
 
@@ -691,7 +701,7 @@ stake: White</textarea>
         </div>
 
         <div class=""button-row"">
-            <button id=""searchBtn"" onclick=""searchSeeds()"" class=""button-blue"">Search</button>
+            <button id=""searchBtn"" onclick=""toggleSearch()"" class=""button-blue"">Start Search</button>
             <button id=""shareBtn"" onclick=""shareSearch()"" class=""button-orange"" disabled>Share Search</button>
         </div>
 
@@ -706,11 +716,14 @@ stake: White</textarea>
 
     <script>
         let currentSearchId = null;
-        let pollInterval = null;
         let searchResults = [];
         let searchColumns = ['seed', 'score'];
         let currentDeck = 'Red';
         let currentStake = 'White';
+        let isSearching = false;
+        let searchAborted = false;
+        let currentBatchSize = 1000000;
+        let totalSeedsSearched = 0;
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -757,9 +770,16 @@ stake: White</textarea>
             }
         }
 
-        async function searchSeeds() {
+        function toggleSearch() {
+            if (isSearching) {
+                stopSearch();
+            } else {
+                startSearch();
+            }
+        }
+
+        async function startSearch() {
             const filterJaml = document.getElementById('filterJaml').value;
-            const seedCount = parseInt(document.getElementById('seedCount').value);
             const searchBtn = document.getElementById('searchBtn');
             const resultsContainer = document.getElementById('resultsContainer');
 
@@ -768,72 +788,154 @@ stake: White</textarea>
                 return;
             }
 
+            isSearching = true;
+            searchAborted = false;
+            currentBatchSize = 1000000;
+            totalSeedsSearched = 0;
+            searchResults = [];
+
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
-            resultsContainer.innerHTML = '<div class=""loading"">Searching fertilizer cache and launching background search...</div>';
+            resultsContainer.innerHTML = '<div class=""loading"">Starting search...</div>';
 
-            try {
-                const response = await fetch('/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filterJaml, seedCount })
-                });
+            await runSearchLoop(filterJaml);
+        }
 
-                const data = await response.json();
+        async function runSearchLoop(filterJaml) {
+            const searchBtn = document.getElementById('searchBtn');
 
-                if (!response.ok) {
-                    resultsContainer.innerHTML = `<div class=""error"">Error: ${data.error || 'Search failed'}</div>`;
+            while (isSearching && !searchAborted) {
+                const startTime = Date.now();
+
+                try {
+                    const response = await fetch('/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filterJaml, seedCount: currentBatchSize })
+                    });
+
+                    if (searchAborted) break;
+
+                    const data = await response.json();
+                    const elapsed = Date.now() - startTime;
+
+                    if (!response.ok) {
+                        if (data.error && data.error.includes('already taken')) {
+                            filterJaml = autoRenameFilter(filterJaml);
+                            document.getElementById('filterJaml').value = filterJaml;
+                            continue;
+                        }
+                        document.getElementById('resultsContainer').innerHTML = 
+                            `<div class=""error"">Error: ${data.error || 'Search failed'}</div>`;
+                        stopSearch();
+                        return;
+                    }
+
+                    currentSearchId = data.searchId;
+                    document.getElementById('shareBtn').disabled = false;
+                    totalSeedsSearched += currentBatchSize;
+
+                    mergeResults(data.results || []);
+                    displayResults({ 
+                        results: searchResults, 
+                        columns: data.columns || searchColumns,
+                        total: searchResults.length,
+                        pileSize: data.pileSize || 0,
+                        isBackgroundRunning: true
+                    });
+
+                    if (elapsed < 1000) {
+                        currentBatchSize = Math.min(currentBatchSize * 2, 100000000);
+                    } else {
+                        currentBatchSize = 1000000;
+                    }
+
                     searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search';
-                    return;
+                    searchBtn.textContent = 'Stop Search';
+                    searchBtn.classList.remove('button-blue');
+                    searchBtn.classList.add('button-red');
+
+                } catch (error) {
+                    if (!searchAborted) {
+                        console.error('Search error:', error);
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
                 }
-
-                currentSearchId = data.searchId;
-                document.getElementById('shareBtn').disabled = false;
-
-                displayResults(data);
-
-                startPolling();
-
-            } catch (error) {
-                resultsContainer.innerHTML = `<div class=""error"">Error: ${error.message}</div>`;
-            } finally {
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Search';
             }
         }
 
-        function startPolling() {
-            if (pollInterval) clearInterval(pollInterval);
-            
-            let pollCount = 0;
-            const maxPolls = 60;
-            
-            pollInterval = setInterval(async () => {
-                if (!currentSearchId || pollCount >= maxPolls) {
-                    clearInterval(pollInterval);
-                    return;
+        function mergeResults(newResults) {
+            const existingSeeds = new Set(searchResults.map(r => r.seed));
+            for (const result of newResults) {
+                if (!existingSeeds.has(result.seed)) {
+                    searchResults.push(result);
+                    existingSeeds.add(result.seed);
                 }
-                
-                pollCount++;
-                
-                try {
-                    const response = await fetch(`/search?id=${currentSearchId}`);
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        displayResults(data);
-                        
-                        if (!data.isBackgroundRunning) {
-                            clearInterval(pollInterval);
-                            document.getElementById('resultsTitle').textContent =
-                                `Results (${data.total} found, pile: ${data.pileSize || 0}) Done`;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Poll error:', error);
+            }
+            searchResults.sort((a, b) => b.score - a.score);
+        }
+
+        function stopSearch() {
+            isSearching = false;
+            searchAborted = true;
+            const searchBtn = document.getElementById('searchBtn');
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Start Search';
+            searchBtn.classList.remove('button-red');
+            searchBtn.classList.add('button-blue');
+
+            document.getElementById('resultsTitle').textContent = 
+                `Results (${searchResults.length} found, ${(totalSeedsSearched/1000000).toFixed(1)}M searched) Stopped`;
+        }
+
+        let savedFilters = [];
+
+        async function loadFilters() {
+            try {
+                const response = await fetch('/filters');
+                if (response.ok) {
+                    savedFilters = await response.json();
+                    const dropdown = document.getElementById('filterDropdown');
+                    dropdown.innerHTML = '<option value="""">-- New Filter --</option>';
+                    savedFilters.forEach((filter, i) => {
+                        dropdown.innerHTML += `<option value=""${i}"">${filter.name} (${filter.deck}/${filter.stake})</option>`;
+                    });
                 }
-            }, 5000);
+            } catch (e) {
+                console.error('Failed to load filters:', e);
+            }
+        }
+
+        function loadSelectedFilter() {
+            const dropdown = document.getElementById('filterDropdown');
+            const idx = dropdown.value;
+            if (idx === '') {
+                return;
+            }
+            const filter = savedFilters[parseInt(idx)];
+            if (filter) {
+                alert(`Filter: ${filter.name}\nDeck: ${filter.deck}, Stake: ${filter.stake}\n${filter.description || 'No description'}\n\n(Filter already loaded in server - just start search)`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadFilters);
+
+        function autoRenameFilter(jaml) {
+            const nameMatch = jaml.match(/^name:\s*(.+)$/m);
+            if (!nameMatch) return jaml;
+            
+            const currentName = nameMatch[1].trim();
+            const editMatch = currentName.match(/_edit(\d+)$/);
+            
+            let newName;
+            if (editMatch) {
+                const num = parseInt(editMatch[1]) + 1;
+                newName = currentName.replace(/_edit\d+$/, `_edit${num}`);
+            } else {
+                newName = currentName + '_edit1';
+            }
+            
+            return jaml.replace(/^name:\s*.+$/m, `name: ${newName}`);
         }
 
         function displayResults(data) {
@@ -1435,6 +1537,36 @@ stake: White</textarea>
         catch (Exception ex)
         {
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Genie failed: {ex.Message}");
+            response.StatusCode = 500;
+            await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleFiltersGetAsync(HttpListenerResponse response)
+    {
+        try
+        {
+            var filters = new List<object>();
+            
+            foreach (var kvp in _registeredFilters)
+            {
+                var config = kvp.Value;
+                filters.Add(new
+                {
+                    name = config.Name ?? "Unnamed",
+                    deck = config.Deck ?? "Red",
+                    stake = config.Stake ?? "White",
+                    description = config.Description ?? ""
+                });
+            }
+
+            response.StatusCode = 200;
+            await WriteJsonAsync(response, filters);
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Returned {filters.Count} filters");
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Get filters failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
         }
