@@ -40,7 +40,10 @@ public class MotelyApiServer
     private readonly int _port;
     private readonly Action<string> _logCallback;
 
-    private static readonly ConcurrentDictionary<string, SearchResult> _fertilizerCache = new();
+    // Fertilizer pile: ONLY stores seeds (strings), no results!
+    // Motely is fast enough to re-search the pile each time with any filter
+    private static readonly HashSet<string> _fertilizerPile = new();
+    private static readonly object _pileLock = new();
     private static readonly ConcurrentDictionary<string, SavedSearch> _savedSearches = new();
     private static readonly ConcurrentDictionary<string, BackgroundSearchState> _backgroundSearches = new();
 
@@ -634,8 +637,8 @@ stake: White</textarea>
                         
                         if (!data.isBackgroundRunning) {
                             clearInterval(pollInterval);
-                            document.getElementById('resultsTitle').textContent = 
-                                `Results (${data.total} found, cache: ${data.cacheSize}) Done`;
+                            document.getElementById('resultsTitle').textContent =
+                                `Results (${data.total} found, pile: ${data.pileSize || 0}) Done`;
                         }
                     }
                 } catch (error) {
@@ -651,8 +654,8 @@ stake: White</textarea>
             const resultsContainer = document.getElementById('resultsContainer');
             const isRunning = data.isBackgroundRunning ? 'Running...' : 'Done';
             
-            document.getElementById('resultsTitle').textContent = 
-                `Results (${data.total} found, cache: ${data.cacheSize}) ${isRunning}`;
+            document.getElementById('resultsTitle').textContent =
+                `Results (${data.total} found, pile: ${data.pileSize || 0}) ${isRunning}`;
 
             if (searchResults.length === 0) {
                 resultsContainer.innerHTML = '<div class=""info-text"">No results yet. Background search running...</div>';
@@ -845,28 +848,29 @@ stake: White</textarea>
             tempFilterFile = Path.Combine(Path.GetTempPath(), $"motely_filter_{Guid.NewGuid()}.json");
             await File.WriteAllTextAsync(tempFilterFile, filterJson);
 
-            var cacheSeeds = _fertilizerCache.Keys.ToList();
+            // Step 1: Get seeds from fertilizer pile
+            List<string> pileSeeds;
+            lock (_pileLock)
+            {
+                pileSeeds = _fertilizerPile.ToList();
+            }
+
             var results = new List<SearchResult>();
 
-            if (cacheSeeds.Count > 0)
+            // Step 2: Search the fertilizer pile with current filter (if any seeds exist)
+            if (pileSeeds.Count > 0)
             {
-                var cacheParams = new JsonSearchParams
+                var pileParams = new JsonSearchParams
                 {
                     Threads = Environment.ProcessorCount,
-                    BatchSize = 36,
-                    StartBatch = 0,
-                    EndBatch = 0,
                     EnableDebug = false,
                     NoFancy = true,
                     Quiet = true,
-                    SpecificSeed = null,
-                    SeedList = cacheSeeds,
-                    RandomSeeds = 0,
-                    Cutoff = 0,
+                    SeedList = pileSeeds,  // Search the fertilizer pile!
                     AutoCutoff = true,
                 };
 
-                Action<MotelySeedScoreTally> cacheCallback = (tally) =>
+                Action<MotelySeedScoreTally> pileCallback = (tally) =>
                 {
                     lock (results)
                     {
@@ -879,17 +883,27 @@ stake: White</textarea>
                     }
                 };
 
-                var cacheExecutor = new JsonSearchExecutor(tempFilterFile, cacheParams, "json", cacheCallback);
-                cacheExecutor.Execute();
+                var pileExecutor = new JsonSearchExecutor(tempFilterFile, pileParams, "json", pileCallback);
+                pileExecutor.Execute();
 
-                _logCallback($"[{DateTime.Now:HH:mm:ss}] Cache search: {results.Count} seeds matched from {cacheSeeds.Count} cached");
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Fertilizer search: {results.Count} matched from {pileSeeds.Count} in pile");
             }
 
+            // Step 3: Get top results and add their seeds to the pile
             var topResults = results.OrderByDescending(r => r.Score).Take(1000).ToList();
 
-            foreach (var result in topResults)
+            lock (_pileLock)
             {
-                _fertilizerCache.TryAdd(result.Seed, result);
+                foreach (var result in topResults)
+                {
+                    _fertilizerPile.Add(result.Seed);  // Just the seed string!
+                }
+            }
+
+            int pileSize;
+            lock (_pileLock)
+            {
+                pileSize = _fertilizerPile.Count;
             }
 
             response.StatusCode = 200;
@@ -899,7 +913,7 @@ stake: White</textarea>
                 results = topResults,
                 total = results.Count,
                 columns = config.GetColumnNames(),
-                cacheSize = _fertilizerCache.Count
+                pileSize = pileSize  // Changed from cacheSize
             });
 
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Immediate response sent with {topResults.Count} results");
@@ -907,6 +921,7 @@ stake: White</textarea>
             var bgFilterFile = Path.Combine(Path.GetTempPath(), $"motely_bg_{searchId}.json");
             File.Copy(tempFilterFile, bgFilterFile, true);
 
+            // Step 4: Fire-and-forget background search to hydrate the fertilizer pile
             _ = Task.Run(async () =>
             {
                 _backgroundSearches[searchId] = new BackgroundSearchState { IsRunning = true, SeedsAdded = 0 };
@@ -918,16 +933,10 @@ stake: White</textarea>
                     var bgParams = new JsonSearchParams
                     {
                         Threads = Environment.ProcessorCount,
-                        BatchSize = 36,
-                        StartBatch = 0,
-                        EndBatch = 0,
                         EnableDebug = false,
                         NoFancy = true,
                         Quiet = true,
-                        SpecificSeed = null,
-                        Wordlist = null,
                         RandomSeeds = (int)Math.Min(seedCount, int.MaxValue),
-                        Cutoff = 0,
                         AutoCutoff = true,
                     };
 
@@ -947,10 +956,14 @@ stake: White</textarea>
                     var bgExecutor = new JsonSearchExecutor(bgFilterFile, bgParams, "json", bgCallback);
                     bgExecutor.Execute();
 
+                    // Add top seeds to fertilizer pile (just the seed strings!)
                     var bgTopResults = bgResults.OrderByDescending(r => r.Score).Take(1000).ToList();
-                    foreach (var result in bgTopResults)
+                    lock (_pileLock)
                     {
-                        _fertilizerCache.TryAdd(result.Seed, result);
+                        foreach (var result in bgTopResults)
+                        {
+                            _fertilizerPile.Add(result.Seed);
+                        }
                     }
 
                     if (_backgroundSearches.TryGetValue(searchId, out var state))
@@ -959,7 +972,7 @@ stake: White</textarea>
                         state.IsRunning = false;
                     }
 
-                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Background search completed for {searchId}: {bgTopResults.Count} seeds added to cache");
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Background done: {bgTopResults.Count} seeds added to pile (total: {_fertilizerPile.Count})");
 
                     try { File.Delete(bgFilterFile); } catch { }
                 }
@@ -1015,9 +1028,14 @@ stake: White</textarea>
                 return;
             }
 
-            var cacheSeeds = _fertilizerCache.Keys.ToList();
-            
-            if (cacheSeeds.Count == 0)
+            // Get seeds from fertilizer pile
+            List<string> pileSeeds;
+            lock (_pileLock)
+            {
+                pileSeeds = _fertilizerPile.ToList();
+            }
+
+            if (pileSeeds.Count == 0)
             {
                 await WriteJsonAsync(response, new
                 {
@@ -1025,6 +1043,7 @@ stake: White</textarea>
                     results = new List<SearchResult>(),
                     total = 0,
                     columns = config.GetColumnNames(),
+                    pileSize = 0,
                     isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bg) && bg.IsRunning
                 });
                 return;
@@ -1040,19 +1059,14 @@ stake: White</textarea>
 
                 var results = new List<SearchResult>();
 
+                // Re-search the fertilizer pile with this filter
                 var parameters = new JsonSearchParams
                 {
                     Threads = Environment.ProcessorCount,
-                    BatchSize = 36,
-                    StartBatch = 0,
-                    EndBatch = 0,
                     EnableDebug = false,
                     NoFancy = true,
                     Quiet = true,
-                    SpecificSeed = null,
-                    SeedList = cacheSeeds,
-                    RandomSeeds = 0,
-                    Cutoff = 0,
+                    SeedList = pileSeeds,  // Search the fertilizer pile!
                     AutoCutoff = true,
                 };
 
@@ -1079,7 +1093,7 @@ stake: White</textarea>
                     results = results.OrderByDescending(r => r.Score).Take(1000).ToList(),
                     total = results.Count,
                     columns = config.GetColumnNames(),
-                    cacheSize = _fertilizerCache.Count,
+                    pileSize = pileSeeds.Count,
                     isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bgState) && bgState.IsRunning
                 });
             }
