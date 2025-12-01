@@ -179,6 +179,16 @@ namespace Motely.Executors
                 return seeds;
             }
 
+            // Direct seed list takes priority over wordlist file
+            if (_params.SeedList != null && _params.SeedList.Count > 0)
+            {
+                if (!_params.Quiet)
+                {
+                    Console.WriteLine($"🔍 Searching {_params.SeedList.Count} seeds from provided list");
+                }
+                return _params.SeedList;
+            }
+
             if (!string.IsNullOrEmpty(_params.Wordlist))
             {
                 string wordlistPath = Path.Combine("wordlists", _params.Wordlist + ".txt");
@@ -1041,6 +1051,7 @@ namespace Motely.Executors
         public bool Quiet { get; set; }
         public string? SpecificSeed { get; set; }
         public string? Wordlist { get; set; }
+        public List<string>? SeedList { get; set; }
         public int? RandomSeeds { get; set; }
     }
 }
