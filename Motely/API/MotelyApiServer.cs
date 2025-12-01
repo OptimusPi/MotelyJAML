@@ -42,10 +42,16 @@ public class MotelyApiServer
 
     // Fertilizer pile: ONLY stores seeds (strings), no results!
     // Motely is fast enough to re-search the pile each time with any filter
+    // GLOBAL pile - top 1000 from EVERY search gets added, NEVER cleared!
     private static readonly HashSet<string> _fertilizerPile = new();
     private static readonly object _pileLock = new();
     private static readonly ConcurrentDictionary<string, SavedSearch> _savedSearches = new();
     private static readonly ConcurrentDictionary<string, BackgroundSearchState> _backgroundSearches = new();
+
+    // Paths for persistence
+    private static readonly string _dataDir = Path.Combine(AppContext.BaseDirectory, "MotelyData");
+    private static readonly string _filtersDir = Path.Combine(_dataDir, "Filters");
+    private static readonly string _fertilizerPath = Path.Combine(_dataDir, "fertilizer.txt");
 
     public bool IsRunning => _listener?.IsListening ?? false;
     public string Url => $"http://{_host}:{_port}/";
@@ -65,6 +71,16 @@ public class MotelyApiServer
     {
         if (_listener != null)
             throw new InvalidOperationException("Server is already running");
+
+        // Initialize data directories
+        Directory.CreateDirectory(_dataDir);
+        Directory.CreateDirectory(_filtersDir);
+
+        // Load fertilizer pile from disk
+        LoadFertilizerPile();
+
+        // Load saved filters from disk
+        LoadSavedFilters();
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _listener = new HttpListener();
@@ -103,6 +119,178 @@ public class MotelyApiServer
     {
         _cts?.Cancel();
         _listener?.Stop(); // Force GetContextAsync() to throw and exit the loop
+
+        // Persist fertilizer pile on shutdown
+        SaveFertilizerPile();
+    }
+
+    private void LoadFertilizerPile()
+    {
+        try
+        {
+            if (File.Exists(_fertilizerPath))
+            {
+                var seeds = File.ReadAllLines(_fertilizerPath)
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .ToList();
+
+                lock (_pileLock)
+                {
+                    foreach (var seed in seeds)
+                    {
+                        _fertilizerPile.Add(seed);
+                    }
+                }
+
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Loaded {seeds.Count} seeds from fertilizer pile");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to load fertilizer pile: {ex.Message}");
+        }
+    }
+
+    private void SaveFertilizerPile()
+    {
+        try
+        {
+            List<string> seeds;
+            lock (_pileLock)
+            {
+                seeds = _fertilizerPile.ToList();
+            }
+
+            File.WriteAllLines(_fertilizerPath, seeds);
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Saved {seeds.Count} seeds to fertilizer pile");
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to save fertilizer pile: {ex.Message}");
+        }
+    }
+
+    private void LoadSavedFilters()
+    {
+        try
+        {
+            var jamlFiles = Directory.GetFiles(_filtersDir, "*.jaml");
+            foreach (var file in jamlFiles)
+            {
+                var filterName = Path.GetFileNameWithoutExtension(file);
+                var jaml = File.ReadAllText(file);
+
+                // Parse deck/stake from filename if present (format: FilterName_Deck_Stake.jaml)
+                var parts = filterName.Split('_');
+                var deck = parts.Length > 1 ? parts[^2] : "Red";
+                var stake = parts.Length > 2 ? parts[^1] : "White";
+                var name = parts.Length > 2 ? string.Join("_", parts.Take(parts.Length - 2)) : filterName;
+
+                var searchId = $"{name}_{deck}_{stake}";
+                _savedSearches[searchId] = new SavedSearch
+                {
+                    Id = searchId,
+                    FilterJaml = jaml,
+                    Deck = deck,
+                    Stake = stake,
+                    Timestamp = File.GetLastWriteTimeUtc(file).Ticks
+                };
+            }
+
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Loaded {jamlFiles.Length} saved filters");
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to load saved filters: {ex.Message}");
+        }
+    }
+
+    private void SaveFilter(string searchId, string jaml)
+    {
+        try
+        {
+            var filePath = Path.Combine(_filtersDir, $"{searchId}.jaml");
+            File.WriteAllText(filePath, jaml);
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Saved filter: {searchId}");
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to save filter {searchId}: {ex.Message}");
+        }
+    }
+
+    private static string ExtractFilterName(MotelyJsonConfig config, string jaml)
+    {
+        // Try to get name from config first
+        if (!string.IsNullOrWhiteSpace(config.Name))
+        {
+            return SanitizeFilterName(config.Name);
+        }
+
+        // Try to extract from JAML (look for "name:" line)
+        var lines = jaml.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("name:", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = trimmed.Substring(5).Trim().Trim('"', '\'');
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    return SanitizeFilterName(name);
+                }
+            }
+        }
+
+        // Fallback: generate from first must/should item
+        if (config.Must?.Count > 0)
+        {
+            var first = config.Must[0];
+            return SanitizeFilterName($"{first.Type}_{first.Value}");
+        }
+        if (config.Should?.Count > 0)
+        {
+            var first = config.Should[0];
+            return SanitizeFilterName($"{first.Type}_{first.Value}");
+        }
+
+        return "UnnamedFilter";
+    }
+
+    private static string SanitizeFilterName(string name)
+    {
+        // Remove invalid filename characters and limit length
+        var invalid = Path.GetInvalidFileNameChars();
+        var sanitized = new string(name.Where(c => !invalid.Contains(c) && c != ' ').ToArray());
+        return sanitized.Length > 50 ? sanitized.Substring(0, 50) : sanitized;
+    }
+
+    private static string ExtractDeckFromJaml(string jaml)
+    {
+        var lines = jaml.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("deck:", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed.Substring(5).Trim().Trim('"', '\'');
+            }
+        }
+        return "Red";
+    }
+
+    private static string ExtractStakeFromJaml(string jaml)
+    {
+        var lines = jaml.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("stake:", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed.Substring(6).Trim().Trim('"', '\'');
+            }
+        }
+        return "White";
     }
 
     private async Task HandleRequestAsync(HttpListenerContext context)
@@ -466,7 +654,8 @@ public class MotelyApiServer
 
             <div id=""jaml-tab"" class=""tab-content"">
                 <label>Filter (JAML Format):</label>
-                <textarea id=""filterJaml"">must:
+                <textarea id=""filterJaml"">name: NegPerkeoRun
+must:
   - voucher: Telescope
     antes: [1, 2]
   - voucher: Observatory
@@ -772,15 +961,28 @@ stake: White</textarea>
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const searchId = urlParams.get('search');
-            
+
             if (searchId) {
                 currentSearchId = searchId;
                 document.getElementById('shareBtn').disabled = false;
-                
+
                 (async () => {
                     const response = await fetch(`/search?id=${searchId}`);
                     if (response.ok) {
                         const data = await response.json();
+
+                        // IMPORTANT: Populate the JAML editor so joining users can see the filter!
+                        if (data.filterJaml) {
+                            document.getElementById('filterJaml').value = data.filterJaml;
+                            // Update deck/stake globals if provided
+                            if (data.deck) currentDeck = data.deck;
+                            if (data.stake) currentStake = data.stake;
+                            // Switch to JAML tab so user sees what they're searching for
+                            switchTab('jaml');
+                            document.querySelector('.tab:nth-child(2)').classList.add('active');
+                            document.querySelector('.tab:nth-child(1)').classList.remove('active');
+                        }
+
                         displayResults(data);
                         startPolling();
                     }
@@ -827,25 +1029,50 @@ stake: White</textarea>
             return;
         }
 
-        var filterName = config.GetType().Name;
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var searchId = $"{filterName}_{timestamp}";
+        // Extract filter name, deck, stake from JAML
+        var filterName = ExtractFilterName(config, filterJaml);
+        var deck = ExtractDeckFromJaml(filterJaml);
+        var stake = ExtractStakeFromJaml(filterJaml);
+        var searchId = $"{filterName}_{deck}_{stake}";
 
-        _savedSearches[searchId] = new SavedSearch
+        // Check if this filter name is already taken (with different JAML content)
+        if (_savedSearches.TryGetValue(searchId, out var existingSearch))
         {
-            Id = searchId,
-            FilterJaml = filterJaml,
-            Deck = "Red",
-            Stake = "White",
-            Timestamp = timestamp
-        };
+            // If JAML is different, reject as duplicate name
+            if (existingSearch.FilterJaml.Trim() != filterJaml.Trim())
+            {
+                response.StatusCode = 409; // Conflict
+                await WriteJsonAsync(response, new {
+                    error = $"Filter name '{filterName}' is already taken for {deck}/{stake}. Choose a different name or use the existing filter.",
+                    existingSearchId = searchId
+                });
+                return;
+            }
+            // Same JAML = just continue with existing search (user re-searching same filter)
+        }
+        else
+        {
+            // New filter - save it
+            _savedSearches[searchId] = new SavedSearch
+            {
+                Id = searchId,
+                FilterJaml = filterJaml,
+                Deck = deck,
+                Stake = stake,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            };
+
+            // Persist filter to disk
+            SaveFilter(searchId, filterJaml);
+        }
 
         var filterJson = JsonSerializer.Serialize(config);
         string? tempFilterFile = null;
 
         try
         {
-            tempFilterFile = Path.Combine(Path.GetTempPath(), $"motely_filter_{Guid.NewGuid()}.json");
+            // Use deterministic filename based on searchId
+            tempFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}.json");
             await File.WriteAllTextAsync(tempFilterFile, filterJson);
 
             // Step 1: Get seeds from fertilizer pile
@@ -918,7 +1145,7 @@ stake: White</textarea>
 
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Immediate response sent with {topResults.Count} results");
 
-            var bgFilterFile = Path.Combine(Path.GetTempPath(), $"motely_bg_{searchId}.json");
+            var bgFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}_bg.json");
             File.Copy(tempFilterFile, bgFilterFile, true);
 
             // Step 4: Fire-and-forget background search to hydrate the fertilizer pile
@@ -1040,6 +1267,9 @@ stake: White</textarea>
                 await WriteJsonAsync(response, new
                 {
                     searchId = searchId,
+                    filterJaml = savedSearch.FilterJaml,  // Include JAML so joining users can see the filter!
+                    deck = savedSearch.Deck,
+                    stake = savedSearch.Stake,
                     results = new List<SearchResult>(),
                     total = 0,
                     columns = config.GetColumnNames(),
@@ -1054,7 +1284,8 @@ stake: White</textarea>
 
             try
             {
-                tempFilterFile = Path.Combine(Path.GetTempPath(), $"motely_filter_{Guid.NewGuid()}.json");
+                // Use deterministic filename based on searchId
+                tempFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}.json");
                 await File.WriteAllTextAsync(tempFilterFile, filterJson);
 
                 var results = new List<SearchResult>();
@@ -1090,6 +1321,9 @@ stake: White</textarea>
                 await WriteJsonAsync(response, new
                 {
                     searchId = searchId,
+                    filterJaml = savedSearch.FilterJaml,  // Include JAML so joining users can see the filter!
+                    deck = savedSearch.Deck,
+                    stake = savedSearch.Stake,
                     results = results.OrderByDescending(r => r.Score).Take(1000).ToList(),
                     total = results.Count,
                     columns = config.GetColumnNames(),
