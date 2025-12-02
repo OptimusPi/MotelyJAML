@@ -49,8 +49,8 @@ public class MotelyApiServer
     private static readonly ConcurrentDictionary<string, BackgroundSearchState> _backgroundSearches = new();
 
     // Paths for persistence
-    private static readonly string _dataDir = Path.Combine(AppContext.BaseDirectory, "MotelyData");
-    private static readonly string _filtersDir = Path.Combine(_dataDir, "Filters");
+    private readonly string _dataDir;
+    private readonly string _filtersDir;
     private static readonly string _fertilizerPath = Path.Combine(_dataDir, "fertilizer.txt");
 
     public bool IsRunning => _listener?.IsListening ?? false;
@@ -61,13 +61,17 @@ public class MotelyApiServer
         string host = "localhost",
         int port = 3141,
         Action<string>? logCallback = null,
-        int? threadCount = null
+        int? threadCount = null,
+        string? dataDirectory = null
     )
     {
         _host = host;
         _port = port;
         _logCallback = logCallback ?? Console.WriteLine;
         ThreadCount = threadCount ?? Environment.ProcessorCount;
+        
+        _dataDir = dataDirectory ?? AppContext.BaseDirectory;
+        _filtersDir = Path.Combine(_dataDir, "JamlFilters");
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -356,6 +360,16 @@ public class MotelyApiServer
             {
                 response.ContentType = "application/json";
                 await HandleFiltersGetAsync(response);
+            }
+            else if (request.HttpMethod == "DELETE" && path == "/search")
+            {
+                response.ContentType = "application/json";
+                await HandleSearchDeleteAsync(request, response);
+            }
+            else if (request.HttpMethod == "DELETE" && path.StartsWith("/filters/"))
+            {
+                response.ContentType = "application/json";
+                await HandleFilterDeleteAsync(request, response, path);
             }
             else
             {
@@ -699,11 +713,14 @@ public class MotelyApiServer
 
             <div id=""jaml-tab"" class=""tab-content"">
                 <label>Load Saved Filter:</label>
-                <select id=""filterDropdown"" onchange=""loadSelectedFilter()"">
-                    <option value="""">-- New Filter --</option>
-                </select>
+                <div style=""display: flex; gap: 8px; align-items: center;"">
+                    <select id=""filterDropdown"" onchange=""loadSelectedFilter()"" style=""flex: 1;"">
+                        <option value="""">-- New Filter --</option>
+                    </select>
+                    <button onclick=""deleteSelectedSearch()"" style=""background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"" title=""Delete selected search"">🗑</button>
+                </div>
                 <label>Filter (JAML Format):</label>
-                <textarea id=""filterJaml"">name: Negative Perkeo
+                <textarea id=""filterJaml"" style=""font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 16px; line-height: 1.4;"">name: Negative Perkeo
 must:
   - soulJoker: Perkeo
     edition: Negative
@@ -819,11 +836,25 @@ stake: White</textarea>
                 return;
             }
 
+            // Wait for any existing search to finish (max 10s)
+            if (isSearching) {
+                searchBtn.textContent = 'Waiting for current search...';
+                let waitTime = 0;
+                while (isSearching && waitTime < 10000) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitTime += 100;
+                }
+                if (isSearching) {
+                    resultsContainer.innerHTML = '<div class=""error"">Another search is still running. Please wait.</div>';
+                    searchBtn.textContent = 'Start Search';
+                    return;
+                }
+            }
+
             isSearching = true;
             searchAborted = false;
-            currentBatchSize = 1000000;
+            currentBatchSize = parseInt(document.getElementById('seedCount').value) || 100000;
             totalSeedsSearched = 0;
-            // DON'T clear searchResults - keep the existing results and merge new ones!
 
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
@@ -848,6 +879,21 @@ stake: White</textarea>
 
                     const data = await response.json();
                     const elapsed = Date.now() - startTime;
+
+                    // Aggressive scaling: 1M → 10M → 100M for fast CPUs
+                    if (elapsed > 1000) {
+                        if (currentBatchSize < 1000000) {
+                            currentBatchSize = 1000000;
+                            searchBtn.textContent = 'Scaling to 1M seeds...';
+                        } else if (currentBatchSize < 10000000) {
+                            currentBatchSize = 10000000;
+                            searchBtn.textContent = 'Scaling to 10M seeds...';
+                        } else if (currentBatchSize < 100000000) {
+                            currentBatchSize = 100000000;
+                            searchBtn.textContent = 'Scaling to 100M seeds...';
+                        }
+                        document.getElementById('seedCount').value = currentBatchSize.toString();
+                    }
 
                     if (!response.ok) {
                         if (data.error && data.error.includes('already taken')) {
@@ -971,6 +1017,30 @@ stake: White</textarea>
             }
             
             return jaml.replace(/^name:\s*.+$/m, `name: ${newName}`);
+        }
+
+        async function deleteSelectedSearch() {
+            const dropdown = document.getElementById('filterDropdown');
+            const idx = dropdown.value;
+            if (idx === '') {
+                alert('No filter selected');
+                return;
+            }
+            
+            const filter = savedFilters[parseInt(idx)];
+            if (!confirm('Delete filter ' + filter.name + '?')) return;
+            
+            try {
+                const response = await fetch('/filters/' + filter.filePath, { method: 'DELETE' });
+                if (response.ok) {
+                    await loadFilters();
+                    document.getElementById('filterJaml').value = '';
+                } else {
+                    alert('Delete failed');
+                }
+            } catch (e) {
+                alert('Delete failed: ' + e.message);
+            }
         }
 
         function displayResults(data) {
@@ -1098,6 +1168,7 @@ stake: White</textarea>
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const searchId = urlParams.get('search');
+            const autoLaunch = urlParams.get('autolaunch');
 
             if (searchId) {
                 currentSearchId = searchId;
@@ -1116,6 +1187,12 @@ stake: White</textarea>
                             if (data.stake) currentStake = data.stake;
                             // Switch to JAML tab so user sees what they're searching for
                             document.querySelector('.tab:nth-child(2)').click();
+                            
+                            // Auto-launch 1M search if requested
+                            if (autoLaunch === '1' || autoLaunch === 'true') {
+                                document.getElementById('seedCount').value = '1000000';
+                                setTimeout(() => startSearch(), 500);
+                            }
                         }
 
                         displayResults(data);
@@ -1136,6 +1213,15 @@ stake: White</textarea>
 
     private async Task HandleSearchAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
+        // Check if we're already running 2 searches (max concurrent)
+        var activeSearches = _backgroundSearches.Count(kvp => kvp.Value.IsRunning);
+        if (activeSearches >= 2)
+        {
+            response.StatusCode = 503; // Service Unavailable
+            await WriteJsonAsync(response, new { error = "Server busy - max 2 searches running. Try again soon." });
+            return;
+        }
+
         using var reader = new StreamReader(request.InputStream);
         var body = await reader.ReadToEndAsync();
 
@@ -1528,25 +1614,114 @@ stake: White</textarea>
         {
             var filters = new List<object>();
             
-            foreach (var kvp in _savedSearches)
+            if (Directory.Exists(_filtersDir))
             {
-                var search = kvp.Value;
-                filters.Add(new
+                // Load both .jaml and .json files
+                var allFiles = Directory.GetFiles(_filtersDir, "*.jaml")
+                    .Concat(Directory.GetFiles(_filtersDir, "*.json"));
+                    
+                foreach (var filePath in allFiles)
                 {
-                    name = search.Id,
-                    deck = search.Deck,
-                    stake = search.Stake,
-                    filterJaml = search.FilterJaml
-                });
+                    var fileName = Path.GetFileName(filePath);
+                    var content = await File.ReadAllTextAsync(filePath);
+                    
+                    filters.Add(new
+                    {
+                        name = Path.GetFileNameWithoutExtension(fileName),
+                        filePath = fileName,
+                        filterJaml = content
+                    });
+                }
             }
 
             response.StatusCode = 200;
             await WriteJsonAsync(response, filters);
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Returned {filters.Count} filters");
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Returned {filters.Count} filter files");
         }
         catch (Exception ex)
         {
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Get filters failed: {ex.Message}");
+            response.StatusCode = 500;
+            await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleSearchDeleteAsync(HttpListenerRequest request, HttpListenerResponse response)
+    {
+        try
+        {
+            var query = request.Url?.Query ?? "";
+            var searchId = "";
+            
+            // Parse search ID from query string
+            if (query.StartsWith("?id="))
+            {
+                searchId = Uri.UnescapeDataString(query.Substring(4));
+            }
+            
+            if (string.IsNullOrEmpty(searchId))
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "Search ID required" });
+                return;
+            }
+            
+            // Remove from saved searches (safe - only removes from memory)
+            if (_savedSearches.TryRemove(searchId, out var removedSearch))
+            {
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Deleted search: {searchId}");
+                await WriteJsonAsync(response, new { success = true, message = $"Search {searchId} deleted" });
+            }
+            else
+            {
+                response.StatusCode = 404;
+                await WriteJsonAsync(response, new { error = "Search not found" });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Delete search failed: {ex.Message}");
+            response.StatusCode = 500;
+            await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleFilterDeleteAsync(HttpListenerRequest request, HttpListenerResponse response, string path)
+    {
+        try
+        {
+            // Extract filename safely - just the name part
+            var fileName = path.Substring("/filters/".Length);
+            
+            // Validate: must be .jaml or .json and no path chars
+            if (string.IsNullOrEmpty(fileName) || 
+                (!fileName.EndsWith(".jaml") && !fileName.EndsWith(".json")) ||
+                fileName.Contains("/") || 
+                fileName.Contains("\\") || 
+                fileName.Contains(".."))
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "Invalid filter name" });
+                return;
+            }
+            
+            var filePath = Path.Combine(_filtersDir, fileName);
+            
+            if (!File.Exists(filePath))
+            {
+                response.StatusCode = 404;
+                await WriteJsonAsync(response, new { error = "Filter not found" });
+                return;
+            }
+            
+            File.Delete(filePath);
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Deleted filter file: {fileName}");
+            
+            await WriteJsonAsync(response, new { success = true, message = $"Filter {fileName} deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Delete filter failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
         }
