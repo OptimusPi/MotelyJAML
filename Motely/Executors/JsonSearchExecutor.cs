@@ -6,18 +6,41 @@ namespace Motely.Executors
     /// <summary>
     /// Executes JSON-based filter searches with specialized vectorized filters
     /// </summary>
-    public sealed class JsonSearchExecutor(
-        string configPath,
-        JsonSearchParams parameters,
-        string format = "json",
-        Action<MotelySeedScoreTally>? customCallback = null
-    )
+    public sealed class JsonSearchExecutor
     {
-        private readonly string _configPath = configPath;
-        private readonly JsonSearchParams _params = parameters;
-        private readonly string _format = format;
-        private readonly Action<MotelySeedScoreTally>? _customCallback = customCallback;
+        private readonly string? _configPath;
+        private readonly MotelyJsonConfig? _config;
+        private readonly JsonSearchParams _params;
+        private readonly string _format;
+        private readonly Action<MotelySeedScoreTally>? _customCallback;
         private bool _cancelled = false;
+
+        public JsonSearchExecutor(
+            string configPath,
+            JsonSearchParams parameters,
+            string format = "json",
+            Action<MotelySeedScoreTally>? customCallback = null
+        )
+        {
+            _configPath = configPath;
+            _config = null;
+            _params = parameters;
+            _format = format;
+            _customCallback = customCallback;
+        }
+
+        public JsonSearchExecutor(
+            MotelyJsonConfig config,
+            JsonSearchParams parameters,
+            Action<MotelySeedScoreTally>? customCallback = null
+        )
+        {
+            _configPath = null;
+            _config = config;
+            _params = parameters;
+            _format = "json";
+            _customCallback = customCallback;
+        }
 
         /// <summary>
         /// Cancel the currently running search
@@ -216,14 +239,17 @@ namespace Motely.Executors
 
         private MotelyJsonConfig LoadConfig()
         {
+            if (_config != null)
+                return _config;
+
+            if (string.IsNullOrEmpty(_configPath))
+                throw new InvalidOperationException("No config path or config object provided");
+
             string configPath;
             bool isJamlFormat = _format == "jaml";
             string extension = isJamlFormat ? ".jaml" : ".json";
             string filterDir = isJamlFormat ? "JamlFilters" : "JsonItemFilters";
 
-            // If the caller passed a rooted or path-containing config, use it directly
-            // (but append extension only when no extension is present). Otherwise treat
-            // the value as a filter name under the appropriate ItemFilters directory.
             bool hasDirectory = !string.IsNullOrEmpty(Path.GetDirectoryName(_configPath));
             if (Path.IsPathRooted(_configPath) || hasDirectory)
             {
@@ -241,7 +267,6 @@ namespace Motely.Executors
                     $"Could not find {_format.ToUpper()} config file: {configPath}"
                 );
 
-            // Load based on format
             MotelyJsonConfig? config;
             string? error;
             bool success;

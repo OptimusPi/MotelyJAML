@@ -125,11 +125,13 @@ public class MainMenuWindow : View
         };
         btnHostApi.Accept += (s, e) =>
         {
+            MotelyTUI.ShaderBackground?.Stop();
             var serverWindow = new ApiServerWindow(
                 TuiSettings.ApiServerHost,
                 TuiSettings.ApiServerPort
             );
             App?.Run(serverWindow);
+            MotelyTUI.ShaderBackground?.Start();
         };
         dockBar.Add(btnHostApi);
 
@@ -163,11 +165,13 @@ public class MainMenuWindow : View
                     break;
                 case KeyCode.H:
                     btnHostApi.SetFocus();
+                    MotelyTUI.ShaderBackground?.Stop();
                     var srv = new ApiServerWindow(
                         TuiSettings.ApiServerHost,
                         TuiSettings.ApiServerPort
                     );
                     App?.Run(srv);
+                    MotelyTUI.ShaderBackground?.Start();
                     e.Handled = true;
                     break;
                 case KeyCode.Esc:

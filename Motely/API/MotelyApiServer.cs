@@ -55,16 +55,19 @@ public class MotelyApiServer
 
     public bool IsRunning => _listener?.IsListening ?? false;
     public string Url => $"http://{_host}:{_port}/";
+    public int ThreadCount { get; set; } = Environment.ProcessorCount;
 
     public MotelyApiServer(
         string host = "localhost",
         int port = 3141,
-        Action<string>? logCallback = null
+        Action<string>? logCallback = null,
+        int? threadCount = null
     )
     {
         _host = host;
         _port = port;
         _logCallback = logCallback ?? Console.WriteLine;
+        ThreadCount = threadCount ?? Environment.ProcessorCount;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -293,6 +296,16 @@ public class MotelyApiServer
         return "White";
     }
 
+    private static string SanitizeSearchId(string id)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        foreach (var c in invalid)
+        {
+            id = id.Replace(c, '-');
+        }
+        return id.Replace(',', '-').Replace(' ', '-');
+    }
+
     private async Task HandleRequestAsync(HttpListenerContext context)
     {
         var request = context.Request;
@@ -433,8 +446,6 @@ public class MotelyApiServer
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.2s;
-            font-weight: bold;
-            text-transform: uppercase;
         }
         
         .tab:hover {
@@ -465,8 +476,7 @@ public class MotelyApiServer
             display: block;
             color: #fff;
             margin-bottom: 8px;
-            font-weight: bold;
-            font-size: 1.05em;
+            font-size: 1.1em;
         }
         
         textarea, input, select {
@@ -503,14 +513,12 @@ public class MotelyApiServer
             background: #ff4c40;
             color: #fff;
             border: none;
-            padding: 14px 32px;
-            font-size: 1.2em;
+            padding: 10px 24px;
+            font-size: 1.1em;
             font-family: 'm6x11', 'Courier New', monospace;
-            font-weight: bold;
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.2s;
-            text-transform: uppercase;
         }
         
         button:hover:not(:disabled) {
@@ -568,6 +576,33 @@ public class MotelyApiServer
             margin-top: 20px;
         }
         
+        #resultsContainer {
+            max-height: 60vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            scrollbar-gutter: stable;
+        }
+        
+        #resultsContainer::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        
+        #resultsContainer::-webkit-scrollbar-track {
+            background: #1a1818;
+            border-radius: 6px;
+        }
+        
+        #resultsContainer::-webkit-scrollbar-thumb {
+            background: #ff4c40;
+            border-radius: 6px;
+            border: 2px solid #1a1818;
+        }
+        
+        #resultsContainer::-webkit-scrollbar-thumb:hover {
+            background: #ff6a60;
+        }
+        
         .results-header {
             display: flex;
             justify-content: space-between;
@@ -593,9 +628,8 @@ public class MotelyApiServer
         .results-table th {
             background: #ff4c40;
             color: #fff;
-            padding: 12px;
+            padding: 10px;
             text-align: left;
-            font-weight: bold;
         }
         
         .results-table td {
@@ -610,16 +644,14 @@ public class MotelyApiServer
         
         .seed-cell {
             color: #0093ff;
-            font-weight: bold;
         }
         
         .score-cell {
             color: #00ff88;
-            font-weight: bold;
         }
         
         .info-text {
-            color: #aaa;
+            color: #fff;
             font-size: 0.95em;
             margin-top: 10px;
         }
@@ -653,9 +685,9 @@ public class MotelyApiServer
 
         <div class=""modal"">
             <div class=""tabs"">
-                <button class=""tab active"" onclick=""switchTab('genie')"">Genie</button>
-                <button class=""tab"" onclick=""switchTab('jaml')"">JAML Editor</button>
-                <button class=""tab"" onclick=""switchTab('analyze')"">Analyze</button>
+                <button class=""tab active"" onclick=""switchTab('genie', this)"">Genie</button>
+                <button class=""tab"" onclick=""switchTab('jaml', this)"">JAML Editor</button>
+                <button class=""tab"" onclick=""switchTab('analyze', this)"">Analyze</button>
             </div>
 
             <div id=""genie-tab"" class=""tab-content active"">
@@ -725,11 +757,11 @@ stake: White</textarea>
         let currentBatchSize = 1000000;
         let totalSeedsSearched = 0;
 
-        function switchTab(tabName) {
+        function switchTab(tabName, btn) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            event.target.classList.add('active');
+            if (btn) btn.classList.add('active');
             document.getElementById(tabName + '-tab').classList.add('active');
         }
 
@@ -761,7 +793,6 @@ stake: White</textarea>
                 const jaml = data.jaml;
 
                 document.getElementById('filterJaml').value = jaml;
-                switchTab('jaml');
                 document.querySelector('.tab:nth-child(2)').click();
 
                 statusDiv.innerHTML = '<div style=""color: #00ff88;"">JAML generated! Switched to editor.</div>';
@@ -792,11 +823,10 @@ stake: White</textarea>
             searchAborted = false;
             currentBatchSize = 1000000;
             totalSeedsSearched = 0;
-            searchResults = [];
+            // DON'T clear searchResults - keep the existing results and merge new ones!
 
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
-            resultsContainer.innerHTML = '<div class=""loading"">Starting search...</div>';
 
             await runSearchLoop(filterJaml);
         }
@@ -855,10 +885,14 @@ stake: White</textarea>
                     searchBtn.classList.remove('button-blue');
                     searchBtn.classList.add('button-red');
 
+                    // Wait before next poll - longer if background search is running
+                    const pollDelay = data.isBackgroundRunning ? 5000 : 2000;
+                    await new Promise(r => setTimeout(r, pollDelay));
+
                 } catch (error) {
                     if (!searchAborted) {
                         console.error('Search error:', error);
-                        await new Promise(r => setTimeout(r, 1000));
+                        await new Promise(r => setTimeout(r, 3000));
                     }
                 }
             }
@@ -910,11 +944,12 @@ stake: White</textarea>
             const dropdown = document.getElementById('filterDropdown');
             const idx = dropdown.value;
             if (idx === '') {
+                document.getElementById('filterJaml').value = '';
                 return;
             }
             const filter = savedFilters[parseInt(idx)];
-            if (filter) {
-                alert(`Filter: ${filter.name}\nDeck: ${filter.deck}, Stake: ${filter.stake}\n${filter.description || 'No description'}\n\n(Filter already loaded in server - just start search)`);
+            if (filter && filter.filterJaml) {
+                document.getElementById('filterJaml').value = filter.filterJaml;
             }
         }
 
@@ -1080,9 +1115,7 @@ stake: White</textarea>
                             if (data.deck) currentDeck = data.deck;
                             if (data.stake) currentStake = data.stake;
                             // Switch to JAML tab so user sees what they're searching for
-                            switchTab('jaml');
-                            document.querySelector('.tab:nth-child(2)').classList.add('active');
-                            document.querySelector('.tab:nth-child(1)').classList.remove('active');
+                            document.querySelector('.tab:nth-child(2)').click();
                         }
 
                         displayResults(data);
@@ -1132,52 +1165,32 @@ stake: White</textarea>
         }
 
         // Extract filter name, deck, stake from JAML
-        var filterName = ExtractFilterName(config, filterJaml);
+        var filterName = ExtractFilterName(config!, filterJaml);
         var deck = ExtractDeckFromJaml(filterJaml);
         var stake = ExtractStakeFromJaml(filterJaml);
-        var searchId = $"{filterName}_{deck}_{stake}";
+        var searchId = SanitizeSearchId($"{filterName}_{deck}_{stake}");
 
-        // Check if this filter name is already taken (with different JAML content)
-        if (_savedSearches.TryGetValue(searchId, out var existingSearch))
+        var isUpdated = _savedSearches.TryGetValue(searchId, out var existingSearch) 
+            && existingSearch.FilterJaml.Trim() != filterJaml.Trim();
+
+        _savedSearches[searchId] = new SavedSearch
         {
-            // If JAML is different, reject as duplicate name
-            if (existingSearch.FilterJaml.Trim() != filterJaml.Trim())
-            {
-                response.StatusCode = 409; // Conflict
-                await WriteJsonAsync(response, new {
-                    error = $"Filter name '{filterName}' is already taken for {deck}/{stake}. Choose a different name or use the existing filter.",
-                    existingSearchId = searchId
-                });
-                return;
-            }
-            // Same JAML = just continue with existing search (user re-searching same filter)
-        }
-        else
+            Id = searchId,
+            FilterJaml = filterJaml,
+            Deck = deck,
+            Stake = stake,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        };
+
+        SaveFilter(searchId, filterJaml);
+
+        if (isUpdated)
         {
-            // New filter - save it
-            _savedSearches[searchId] = new SavedSearch
-            {
-                Id = searchId,
-                FilterJaml = filterJaml,
-                Deck = deck,
-                Stake = stake,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-            };
-
-            // Persist filter to disk
-            SaveFilter(searchId, filterJaml);
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Filter '{filterName}' updated - fertilizer pile preserved");
         }
-
-        var filterJson = JsonSerializer.Serialize(config);
-        string? tempFilterFile = null;
 
         try
         {
-            // Use deterministic filename based on searchId
-            tempFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}.json");
-            await File.WriteAllTextAsync(tempFilterFile, filterJson);
-
-            // Step 1: Get seeds from fertilizer pile
             List<string> pileSeeds;
             lock (_pileLock)
             {
@@ -1186,16 +1199,15 @@ stake: White</textarea>
 
             var results = new List<SearchResult>();
 
-            // Step 2: Search the fertilizer pile with current filter (if any seeds exist)
             if (pileSeeds.Count > 0)
             {
                 var pileParams = new JsonSearchParams
                 {
-                    Threads = Environment.ProcessorCount,
+                    Threads = ThreadCount,
                     EnableDebug = false,
                     NoFancy = true,
                     Quiet = true,
-                    SeedList = pileSeeds,  // Search the fertilizer pile!
+                    SeedList = pileSeeds,
                     AutoCutoff = true,
                 };
 
@@ -1212,20 +1224,19 @@ stake: White</textarea>
                     }
                 };
 
-                var pileExecutor = new JsonSearchExecutor(tempFilterFile, pileParams, "json", pileCallback);
+                var pileExecutor = new JsonSearchExecutor(config!, pileParams, pileCallback);
                 pileExecutor.Execute();
 
                 _logCallback($"[{DateTime.Now:HH:mm:ss}] Fertilizer search: {results.Count} matched from {pileSeeds.Count} in pile");
             }
 
-            // Step 3: Get top results and add their seeds to the pile
             var topResults = results.OrderByDescending(r => r.Score).Take(1000).ToList();
 
             lock (_pileLock)
             {
                 foreach (var result in topResults)
                 {
-                    _fertilizerPile.Add(result.Seed);  // Just the seed string!
+                    _fertilizerPile.Add(result.Seed);
                 }
             }
 
@@ -1241,17 +1252,14 @@ stake: White</textarea>
                 searchId = searchId,
                 results = topResults,
                 total = results.Count,
-                columns = config.GetColumnNames(),
-                pileSize = pileSize  // Changed from cacheSize
+                columns = config!.GetColumnNames(),
+                pileSize = pileSize
             });
 
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Immediate response sent with {topResults.Count} results");
 
-            var bgFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}_bg.json");
-            File.Copy(tempFilterFile, bgFilterFile, true);
-
-            // Step 4: Fire-and-forget background search to hydrate the fertilizer pile
-            _ = Task.Run(async () =>
+            var bgConfig = config!;
+            _ = Task.Run(() =>
             {
                 _backgroundSearches[searchId] = new BackgroundSearchState { IsRunning = true, SeedsAdded = 0 };
 
@@ -1261,7 +1269,7 @@ stake: White</textarea>
 
                     var bgParams = new JsonSearchParams
                     {
-                        Threads = Environment.ProcessorCount,
+                        Threads = ThreadCount,
                         EnableDebug = false,
                         NoFancy = true,
                         Quiet = true,
@@ -1282,10 +1290,9 @@ stake: White</textarea>
                         }
                     };
 
-                    var bgExecutor = new JsonSearchExecutor(bgFilterFile, bgParams, "json", bgCallback);
+                    var bgExecutor = new JsonSearchExecutor(bgConfig, bgParams, bgCallback);
                     bgExecutor.Execute();
 
-                    // Add top seeds to fertilizer pile (just the seed strings!)
                     var bgTopResults = bgResults.OrderByDescending(r => r.Score).Take(1000).ToList();
                     lock (_pileLock)
                     {
@@ -1302,8 +1309,6 @@ stake: White</textarea>
                     }
 
                     _logCallback($"[{DateTime.Now:HH:mm:ss}] Background done: {bgTopResults.Count} seeds added to pile (total: {_fertilizerPile.Count})");
-
-                    try { File.Delete(bgFilterFile); } catch { }
                 }
                 catch (Exception ex)
                 {
@@ -1320,13 +1325,6 @@ stake: White</textarea>
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Search failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
-        }
-        finally
-        {
-            if (tempFilterFile != null && File.Exists(tempFilterFile))
-            {
-                try { File.Delete(tempFilterFile); } catch { }
-            }
         }
     }
 
@@ -1374,72 +1372,54 @@ stake: White</textarea>
                     stake = savedSearch.Stake,
                     results = new List<SearchResult>(),
                     total = 0,
-                    columns = config.GetColumnNames(),
+                    columns = config!.GetColumnNames(),
                     pileSize = 0,
                     isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bg) && bg.IsRunning
                 });
                 return;
             }
 
-            var filterJson = JsonSerializer.Serialize(config);
-            string? tempFilterFile = null;
+            var results = new List<SearchResult>();
 
-            try
+            var parameters = new JsonSearchParams
             {
-                // Use deterministic filename based on searchId
-                tempFilterFile = Path.Combine(Path.GetTempPath(), $"{searchId}.json");
-                await File.WriteAllTextAsync(tempFilterFile, filterJson);
+                Threads = ThreadCount,
+                EnableDebug = false,
+                NoFancy = true,
+                Quiet = true,
+                SeedList = pileSeeds,
+                AutoCutoff = true,
+            };
 
-                var results = new List<SearchResult>();
-
-                // Re-search the fertilizer pile with this filter
-                var parameters = new JsonSearchParams
+            Action<MotelySeedScoreTally> resultCallback = (tally) =>
+            {
+                lock (results)
                 {
-                    Threads = Environment.ProcessorCount,
-                    EnableDebug = false,
-                    NoFancy = true,
-                    Quiet = true,
-                    SeedList = pileSeeds,  // Search the fertilizer pile!
-                    AutoCutoff = true,
-                };
-
-                Action<MotelySeedScoreTally> resultCallback = (tally) =>
-                {
-                    lock (results)
+                    results.Add(new SearchResult
                     {
-                        results.Add(new SearchResult
-                        {
-                            Seed = tally.Seed,
-                            Score = tally.Score,
-                            Tallies = tally.TallyColumns
-                        });
-                    }
-                };
-
-                var executor = new JsonSearchExecutor(tempFilterFile, parameters, "json", resultCallback);
-                executor.Execute();
-
-                response.StatusCode = 200;
-                await WriteJsonAsync(response, new
-                {
-                    searchId = searchId,
-                    filterJaml = savedSearch.FilterJaml,  // Include JAML so joining users can see the filter!
-                    deck = savedSearch.Deck,
-                    stake = savedSearch.Stake,
-                    results = results.OrderByDescending(r => r.Score).Take(1000).ToList(),
-                    total = results.Count,
-                    columns = config.GetColumnNames(),
-                    pileSize = pileSeeds.Count,
-                    isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bgState) && bgState.IsRunning
-                });
-            }
-            finally
-            {
-                if (tempFilterFile != null && File.Exists(tempFilterFile))
-                {
-                    try { File.Delete(tempFilterFile); } catch { }
+                        Seed = tally.Seed,
+                        Score = tally.Score,
+                        Tallies = tally.TallyColumns
+                    });
                 }
-            }
+            };
+
+            var executor = new JsonSearchExecutor(config!, parameters, resultCallback);
+            executor.Execute();
+
+            response.StatusCode = 200;
+            await WriteJsonAsync(response, new
+            {
+                searchId = searchId,
+                filterJaml = savedSearch.FilterJaml,
+                deck = savedSearch.Deck,
+                stake = savedSearch.Stake,
+                results = results.OrderByDescending(r => r.Score).Take(1000).ToList(),
+                total = results.Count,
+                columns = config!.GetColumnNames(),
+                pileSize = pileSeeds.Count,
+                isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bgState) && bgState.IsRunning
+            });
         }
         catch (Exception ex)
         {
@@ -1548,15 +1528,15 @@ stake: White</textarea>
         {
             var filters = new List<object>();
             
-            foreach (var kvp in _registeredFilters)
+            foreach (var kvp in _savedSearches)
             {
-                var config = kvp.Value;
+                var search = kvp.Value;
                 filters.Add(new
                 {
-                    name = config.Name ?? "Unnamed",
-                    deck = config.Deck ?? "Red",
-                    stake = config.Stake ?? "White",
-                    description = config.Description ?? ""
+                    name = search.Id,
+                    deck = search.Deck,
+                    stake = search.Stake,
+                    filterJaml = search.FilterJaml
                 });
             }
 
