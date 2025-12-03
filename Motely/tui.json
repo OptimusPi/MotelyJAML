@@ -1,6 +1,6 @@
 {
   "threadCount": 16,
   "batchCharacterCount": 1,
-  "apiServerHost": "192.168.0.171",
-  "apiServerPort": 4444
+  "apiServerHost": "127.0.0.1",
+  "apiServerPort": 4455
 }

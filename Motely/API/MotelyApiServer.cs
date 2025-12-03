@@ -49,8 +49,8 @@ public class MotelyApiServer
     private static readonly ConcurrentDictionary<string, BackgroundSearchState> _backgroundSearches = new();
 
     // Paths for persistence
-    private readonly string _dataDir;
-    private readonly string _filtersDir;
+    private static readonly string _dataDir = Path.Combine(AppContext.BaseDirectory, "MotelyData");
+    private static readonly string _filtersDir = Path.Combine(_dataDir, "Filters");
     private static readonly string _fertilizerPath = Path.Combine(_dataDir, "fertilizer.txt");
 
     public bool IsRunning => _listener?.IsListening ?? false;
@@ -61,17 +61,13 @@ public class MotelyApiServer
         string host = "localhost",
         int port = 3141,
         Action<string>? logCallback = null,
-        int? threadCount = null,
-        string? dataDirectory = null
+        int? threadCount = null
     )
     {
         _host = host;
         _port = port;
         _logCallback = logCallback ?? Console.WriteLine;
         ThreadCount = threadCount ?? Environment.ProcessorCount;
-        
-        _dataDir = dataDirectory ?? AppContext.BaseDirectory;
-        _filtersDir = Path.Combine(_dataDir, "JamlFilters");
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -700,7 +696,7 @@ public class MotelyApiServer
         <div class=""modal"">
             <div class=""tabs"">
                 <button class=""tab active"" onclick=""switchTab('genie', this)"">Genie</button>
-                <button class=""tab"" onclick=""switchTab('jaml', this)"">JAML Editor</button>
+                <button class=""tab active"" onclick=""switchTab('jaml', this)"">JAML Search</button>
                 <button class=""tab"" onclick=""switchTab('analyze', this)"">Analyze</button>
             </div>
 
@@ -827,13 +823,30 @@ stake: White</textarea>
         }
 
         async function startSearch() {
-            const filterJaml = document.getElementById('filterJaml').value;
+            let filterJaml = document.getElementById('filterJaml').value;
             const searchBtn = document.getElementById('searchBtn');
             const resultsContainer = document.getElementById('resultsContainer');
 
             if (!filterJaml.trim()) {
                 resultsContainer.innerHTML = '<div class=""error"">Please enter a filter!</div>';
                 return;
+            }
+
+            // Auto-add should clause with easter egg if missing
+            if (!filterJaml.includes('should:') && !filterJaml.includes('should ')) {
+                const lines = filterJaml.split('\n');
+                const mustNotIndex = lines.findIndex(line => line.startsWith('mustNot'));
+                
+                const shouldClause = 'should:\n  - joker: Egg\n    score: 1';
+                
+                if (mustNotIndex >= 0) {
+                    lines.splice(mustNotIndex, 0, shouldClause, '');
+                } else {
+                    lines.push('', shouldClause);
+                }
+                
+                filterJaml = lines.join('\n');
+                document.getElementById('filterJaml').value = filterJaml;
             }
 
             // Wait for any existing search to finish (max 10s)
@@ -853,7 +866,7 @@ stake: White</textarea>
 
             isSearching = true;
             searchAborted = false;
-            currentBatchSize = parseInt(document.getElementById('seedCount').value) || 100000;
+            currentBatchSize = 1000000;
             totalSeedsSearched = 0;
 
             searchBtn.disabled = true;
@@ -864,35 +877,58 @@ stake: White</textarea>
 
         async function runSearchLoop(filterJaml) {
             const searchBtn = document.getElementById('searchBtn');
+            let searchStarted = false;
+            let lastFilterJaml = filterJaml;
 
             while (isSearching && !searchAborted) {
+                // Check if filter was edited - reset search if changed
+                const currentFilterJaml = document.getElementById('filterJaml').value;
+                if (currentFilterJaml !== lastFilterJaml) {
+                    searchStarted = false;
+                    lastFilterJaml = currentFilterJaml;
+                    filterJaml = currentFilterJaml;
+                }
                 const startTime = Date.now();
 
                 try {
-                    const response = await fetch('/search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filterJaml, seedCount: currentBatchSize })
-                    });
+                    let response;
+                    if (!searchStarted) {
+                        // POST once to start the search
+                        response = await fetch('/search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filterJaml, seedCount: currentBatchSize })
+                        });
+                        searchStarted = true;
+                    } else {
+                        // GET to poll for results
+                        response = await fetch(`/search?id=${currentSearchId}`);
+                    }
 
                     if (searchAborted) break;
 
                     const data = await response.json();
                     const elapsed = Date.now() - startTime;
 
-                    // Aggressive scaling: 1M → 10M → 100M for fast CPUs
+                    // Aggressive scaling: 1M → 10M → 100M → 1B for fast CPUs
                     if (elapsed > 1000) {
                         if (currentBatchSize < 1000000) {
                             currentBatchSize = 1000000;
-                            searchBtn.textContent = 'Scaling to 1M seeds...';
+                            searchBtn.textContent = `Scaling to 1M seeds... (${elapsed}ms)`;
                         } else if (currentBatchSize < 10000000) {
                             currentBatchSize = 10000000;
-                            searchBtn.textContent = 'Scaling to 10M seeds...';
+                            searchBtn.textContent = `Scaling to 10M seeds... (${elapsed}ms)`;
                         } else if (currentBatchSize < 100000000) {
                             currentBatchSize = 100000000;
-                            searchBtn.textContent = 'Scaling to 100M seeds...';
+                            searchBtn.textContent = `Scaling to 100M seeds... (${elapsed}ms)`;
+                        } else if (currentBatchSize < 1000000000) {
+                            currentBatchSize = 1000000000;
+                            searchBtn.textContent = `Scaling to 1B seeds... (${elapsed}ms)`;
+                        } else {
+                            searchBtn.textContent = `Searching ${(currentBatchSize/1000000).toFixed(0)}M seeds... (${elapsed}ms)`;
                         }
-                        document.getElementById('seedCount').value = currentBatchSize.toString();
+                    } else {
+                        searchBtn.textContent = `Searching ${(currentBatchSize/1000000).toFixed(0)}M seeds... (${elapsed}ms)`;
                     }
 
                     if (!response.ok) {
@@ -978,7 +1014,7 @@ stake: White</textarea>
                     const dropdown = document.getElementById('filterDropdown');
                     dropdown.innerHTML = '<option value="""">-- New Filter --</option>';
                     savedFilters.forEach((filter, i) => {
-                        dropdown.innerHTML += `<option value=""${i}"">${filter.name} (${filter.deck}/${filter.stake})</option>`;
+                        dropdown.innerHTML += `<option value=""${i}"">${filter.name}</option>`;
                     });
                 }
             } catch (e) {
@@ -1190,7 +1226,6 @@ stake: White</textarea>
                             
                             // Auto-launch 1M search if requested
                             if (autoLaunch === '1' || autoLaunch === 'true') {
-                                document.getElementById('seedCount').value = '1000000';
                                 setTimeout(() => startSearch(), 500);
                             }
                         }
@@ -1294,7 +1329,8 @@ stake: White</textarea>
                     NoFancy = true,
                     Quiet = true,
                     SeedList = pileSeeds,
-                    AutoCutoff = true,
+                    AutoCutoff = false,
+                    Cutoff = 1,
                 };
 
                 Action<MotelySeedScoreTally> pileCallback = (tally) =>
@@ -1359,8 +1395,9 @@ stake: White</textarea>
                         EnableDebug = false,
                         NoFancy = true,
                         Quiet = true,
-                        RandomSeeds = (int)Math.Min(seedCount, int.MaxValue),
-                        AutoCutoff = true,
+                        RandomSeeds = (int)Math.Min(seedCount, 1000000),
+                        AutoCutoff = false,
+                Cutoff = 1,
                     };
 
                     Action<MotelySeedScoreTally> bgCallback = (tally) =>
@@ -1474,7 +1511,8 @@ stake: White</textarea>
                 NoFancy = true,
                 Quiet = true,
                 SeedList = pileSeeds,
-                AutoCutoff = true,
+                AutoCutoff = false,
+                Cutoff = 1,
             };
 
             Action<MotelySeedScoreTally> resultCallback = (tally) =>
