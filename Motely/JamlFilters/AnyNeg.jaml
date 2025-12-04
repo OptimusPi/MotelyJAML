@@ -1,0 +1,28 @@
+name: "AnyNeg"
+description: "find any negative"
+author: "pifreak"
+dateCreated: "2025-08-14"
+deck: Red
+stake: White
+
+must:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1]
+  
+  - soulJoker: "*"
+    edition: Negative
+    antes: [2]
+
+should:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1]
+    packSlots: [2]
+  
+  - soulJoker: "*"
+    edition: Negative
+    antes: [2]
+    packSlots: [5]
+
+mustNot: []

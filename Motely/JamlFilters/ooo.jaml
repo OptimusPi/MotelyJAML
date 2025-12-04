@@ -1,0 +1,18 @@
+name: "NegativeSkipCopy"
+description: "finds copy jokers after negativetags"
+author: "pifreak"
+dateCreated: "2025-08-24"
+deck: Red
+stake: White
+
+must:
+  - spectralCard: Ankh
+    antes: [1]
+    packSlots: [1]
+
+should:
+  - spectralCard: Ankh
+    antes: [1]
+    packSlots: [1]
+
+mustNot: []

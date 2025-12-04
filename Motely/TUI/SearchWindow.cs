@@ -89,14 +89,19 @@ public class SearchWindow : Window
         };
         Add(_outputView);
 
-        // Status label
+        // Status label - positioned to avoid shader background conflicts
         _statusLabel = new Label()
         {
             X = 1,
             Y = Pos.AnchorEnd(3),
             Width = Dim.Fill() - 2,
+            Height = 1, // Fixed height to prevent bouncing
             Text = "Initializing search...",
         };
+        _statusLabel.SetScheme(new Scheme()
+        {
+            Normal = new Attribute(BalatroTheme.White, BalatroTheme.ModalGrey), // Solid background
+        });
         Add(_statusLabel);
 
         // Stop button (full width)

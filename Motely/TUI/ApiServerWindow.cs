@@ -307,70 +307,9 @@ public class ApiServerWindow : Window
         {
             try
             {
-                // Find cloudflared executable - try PATH first, then common install locations
-                var cloudflaredPath = FindCloudflared();
-                if (cloudflaredPath == null)
-                {
-                    throw new Exception("cloudflared not found");
-                }
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = cloudflaredPath,
-                    Arguments = $"tunnel --url {_serverUrl}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-
-                _tunnelProcess = Process.Start(psi);
-                if (_tunnelProcess == null)
-                {
-                    throw new Exception("Failed to start cloudflared");
-                }
-
-                LogMessage("[TUNNEL] Starting cloudflared...");
-
-                // Read output to find the URL
-                _tunnelProcess.ErrorDataReceived += (s, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        // cloudflared outputs URL to stderr
-                        if (e.Data.Contains(".trycloudflare.com"))
-                        {
-                            var start = e.Data.IndexOf("https://");
-                            if (start >= 0)
-                            {
-                                // Extract URL - find first terminating character (space, quote, newline, etc.)
-                                var remaining = e.Data.Substring(start);
-                                var terminators = new[] { ' ', '"', '\'', '\t', '\n', '\r', '|', '>' };
-                                var endIndex = remaining.Length;
-                                foreach (var term in terminators)
-                                {
-                                    var idx = remaining.IndexOf(term);
-                                    if (idx > 0 && idx < endIndex)
-                                        endIndex = idx;
-                                }
-                                var url = remaining.Substring(0, endIndex).Trim();
-
-                                App?.Invoke(() =>
-                                {
-                                    _tunnelLabel.Text = url; // Show full URL
-                                    _tunnelButton.Text = "Stop Tunnel";
-                                    _tunnelButton.Enabled = true;
-                                    _tunnelButton.SetScheme(BalatroTheme.ModalButton);
-                                    _tunnelButton.Accept -= (s2, e2) => StartTunnel();
-                                    _tunnelButton.Accept += (s2, e2) => StopTunnel();
-                                });
-                                LogMessage($"[TUNNEL] Public URL: {url}");
-                            }
-                        }
-                    }
-                };
-
-                _tunnelProcess.BeginErrorReadLine();
+                // Use .NET HTTP hosting instead of external cloudflared dependency
+                LogMessage("[TUNNEL] External tunneling not supported - use local network access or port forwarding");
+                throw new NotSupportedException("External tunneling removed - use local network or manual port forwarding");
             }
             catch (Exception ex)
             {
@@ -381,7 +320,7 @@ public class ApiServerWindow : Window
                     _tunnelLabel.Text = "";
                 });
                 LogMessage($"[TUNNEL] Error: {ex.Message}");
-                LogMessage("[TUNNEL] Install cloudflared: winget install Cloudflare.cloudflared");
+                LogMessage("[TUNNEL] Use local network access or manual port forwarding instead");
                 _tunnelProcess = null;
             }
         });
@@ -428,61 +367,7 @@ public class ApiServerWindow : Window
         }
     }
 
-    private static string? FindCloudflared()
-    {
-        // Determine executable name based on platform
-        bool isWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
-        string exeName = isWindows ? "cloudflared.exe" : "cloudflared";
-
-        // Try PATH first (works on all platforms)
-        var pathDirs = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
-        foreach (var dir in pathDirs)
-        {
-            var exePath = Path.Combine(dir, exeName);
-            if (File.Exists(exePath))
-                return exePath;
-        }
-
-        // On Unix, if not found in PATH dirs checked above, just try running it
-        // The OS will find it if it's installed
-        if (!isWindows)
-            return "cloudflared";  // Let OS find it in PATH
-
-        // Try common winget install locations
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-
-        var commonPaths = new[]
-        {
-            Path.Combine(programFiles, "cloudflared", "cloudflared.exe"),
-            Path.Combine(programFiles, "Cloudflare", "cloudflared", "cloudflared.exe"),
-            Path.Combine(localAppData, "Microsoft", "WinGet", "Links", "cloudflared.exe"),
-        };
-
-        foreach (var path in commonPaths)
-        {
-            if (File.Exists(path))
-                return path;
-        }
-
-        // Search winget packages folder for any cloudflared install
-        var wingetPackages = Path.Combine(localAppData, "Microsoft", "WinGet", "Packages");
-        if (Directory.Exists(wingetPackages))
-        {
-            try
-            {
-                foreach (var dir in Directory.GetDirectories(wingetPackages, "Cloudflare.cloudflared*"))
-                {
-                    var exe = Path.Combine(dir, "cloudflared.exe");
-                    if (File.Exists(exe))
-                        return exe;
-                }
-            }
-            catch { }
-        }
-
-        return null;
-    }
+    // Removed FindCloudflared() - external tunnel dependencies removed for cross-platform compatibility
 
     private void CopyToClipboard(string text)
     {

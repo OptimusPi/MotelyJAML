@@ -1,0 +1,13 @@
+name: "any-perkeo"
+description: ""
+author: "test"
+deck: Red
+stake: White
+
+must:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1]
+
+should: []
+mustNot: []

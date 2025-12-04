@@ -48,6 +48,11 @@ namespace Motely
                 "Run built-in native filter",
                 CommandOptionType.SingleValue
             );
+            var convertOption = app.Option(
+                "--convert",
+                "Convert all JSON filters to JAML format",
+                CommandOptionType.NoValue
+            );
             var scoreOption = app.Option<string>(
                 "--score <JSON>",
                 "Add JSON scoring to native filter",

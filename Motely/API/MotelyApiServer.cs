@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Motely.Analysis;
 using Motely.Executors;
 using Motely.Filters;
+using DuckDB.NET.Data;
 
 namespace Motely.API;
 
@@ -27,6 +28,9 @@ public class BackgroundSearchState
 {
     public bool IsRunning { get; set; }
     public int SeedsAdded { get; set; }
+    public long CurrentBatch { get; set; }
+    public int ProgressPercent { get; set; }
+    public IMotelySearch? Search { get; set; }
 }
 
 /// <summary>
@@ -49,9 +53,8 @@ public class MotelyApiServer
     private static readonly ConcurrentDictionary<string, BackgroundSearchState> _backgroundSearches = new();
 
     // Paths for persistence
-    private static readonly string _dataDir = Path.Combine(AppContext.BaseDirectory, "MotelyData");
-    private static readonly string _filtersDir = Path.Combine(_dataDir, "Filters");
-    private static readonly string _fertilizerPath = Path.Combine(_dataDir, "fertilizer.txt");
+    private static readonly string _filtersDir = "JamlFilters";
+    private static readonly string _fertilizerPath = "fertilizer.txt";
 
     public bool IsRunning => _listener?.IsListening ?? false;
     public string Url => $"http://{_host}:{_port}/";
@@ -76,7 +79,7 @@ public class MotelyApiServer
             throw new InvalidOperationException("Server is already running");
 
         // Initialize data directories
-        Directory.CreateDirectory(_dataDir);
+        Directory.CreateDirectory(".");
         Directory.CreateDirectory(_filtersDir);
 
         // Load fertilizer pile from disk
@@ -716,7 +719,7 @@ public class MotelyApiServer
                     <button onclick=""deleteSelectedSearch()"" style=""background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"" title=""Delete selected search"">🗑</button>
                 </div>
                 <label>Filter (JAML Format):</label>
-                <textarea id=""filterJaml"" style=""font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 16px; line-height: 1.4;"">name: Negative Perkeo
+                <textarea id=""filterJaml"" style=""font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', 'Cascadia Code', 'Roboto Mono', 'Courier New', monospace; font-size: 16px; line-height: 1.5;"">name: Negative Perkeo
 must:
   - soulJoker: Perkeo
     edition: Negative
@@ -1310,6 +1313,49 @@ stake: White</textarea>
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Filter '{filterName}' updated - fertilizer pile preserved");
         }
 
+        // Check if search is already running for this searchId
+        if (_backgroundSearches.TryGetValue(searchId, out var runningSearch) && runningSearch.IsRunning)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Stopping existing search for {searchId}");
+            
+            // Mark as stopped
+            runningSearch.IsRunning = false;
+            
+            // Save current batch to database for continuation
+            if (runningSearch.Search != null)
+            {
+                var currentBatch = runningSearch.Search.CompletedBatchCount;
+                runningSearch.CurrentBatch = currentBatch;
+                
+                // Save batch marker to database
+                var dbPath = $"{searchId}.db";
+                try
+                {
+                    using var conn = new DuckDBConnection($"Data Source={dbPath}");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS search_state (
+                            last_batch BIGINT,
+                            updated_at TIMESTAMP DEFAULT NOW()
+                        );
+                        INSERT OR REPLACE INTO search_state (last_batch) VALUES (?);
+                    ";
+                    cmd.Parameters.Add(currentBatch);
+                    cmd.ExecuteNonQuery();
+                    
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Saved batch {currentBatch} for search {searchId}");
+                }
+                catch (Exception ex)
+                {
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to save batch marker: {ex.Message}");
+                }
+            }
+            
+            // Dispose the existing search if possible
+            runningSearch.Search?.Dispose();
+        }
+
         try
         {
             List<string> pileSeeds;
@@ -1383,11 +1429,45 @@ stake: White</textarea>
             var bgConfig = config!;
             _ = Task.Run(() =>
             {
-                _backgroundSearches[searchId] = new BackgroundSearchState { IsRunning = true, SeedsAdded = 0 };
+                var bgState = new BackgroundSearchState { IsRunning = true, SeedsAdded = 0 };
+                _backgroundSearches[searchId] = bgState;
 
                 try
                 {
                     var bgResults = new List<SearchResult>();
+                    
+                    // Create DuckDB database for this search
+                    var dbPath = $"{searchId}.db";
+                    using var connection = new DuckDBConnection($"Data Source={dbPath}");
+                    connection.Open();
+                    
+                    // Create results table
+                    using var createCmd = connection.CreateCommand();
+                    createCmd.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS results (
+                            seed VARCHAR,
+                            score INTEGER,
+                            tallies JSON,
+                            timestamp TIMESTAMP DEFAULT NOW()
+                        );
+                        CREATE TABLE IF NOT EXISTS search_state (
+                            last_batch BIGINT,
+                            updated_at TIMESTAMP DEFAULT NOW()
+                        );";
+                    createCmd.ExecuteNonQuery();
+                    
+                    // Check for saved batch to continue from
+                    ulong startBatch = 0;
+                    using var batchCmd = connection.CreateCommand();
+                    batchCmd.CommandText = "SELECT last_batch FROM search_state ORDER BY updated_at DESC LIMIT 1";
+                    var savedBatch = batchCmd.ExecuteScalar();
+                    if (savedBatch != null && savedBatch != DBNull.Value)
+                    {
+                        startBatch = (ulong)(long)savedBatch;
+                        _logCallback($"[{DateTime.Now:HH:mm:ss}] Continuing search from batch {startBatch}");
+                    }
+                    
+                    using var appender = connection.CreateAppender("results");
 
                     var bgParams = new JsonSearchParams
                     {
@@ -1395,26 +1475,72 @@ stake: White</textarea>
                         EnableDebug = false,
                         NoFancy = true,
                         Quiet = true,
-                        RandomSeeds = (int)Math.Min(seedCount, 1000000),
+                        BatchSize = 2, // Use 2-character sequential search
+                        StartBatch = startBatch,
+                        EndBatch = 0, // No end limit
                         AutoCutoff = false,
-                Cutoff = 1,
+                        Cutoff = 1,
                     };
 
                     Action<MotelySeedScoreTally> bgCallback = (tally) =>
                     {
                         lock (bgResults)
                         {
-                            bgResults.Add(new SearchResult
+                            var result = new SearchResult
                             {
                                 Seed = tally.Seed,
                                 Score = tally.Score,
                                 Tallies = tally.TallyColumns
-                            });
+                            };
+                            bgResults.Add(result);
+                            
+                            // Also write to DuckDB
+                            try
+                            {
+                                var row = appender.CreateRow();
+                                row.AppendValue(tally.Seed);
+                                row.AppendValue(tally.Score);
+                                row.AppendValue(JsonSerializer.Serialize(tally.TallyColumns));
+                                row.EndRow();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logCallback($"[{DateTime.Now:HH:mm:ss}] DB write error: {ex.Message}");
+                            }
                         }
                     };
 
                     var bgExecutor = new JsonSearchExecutor(bgConfig, bgParams, bgCallback);
+                    
+                    // Start a progress monitoring task
+                    var progressCancellation = new CancellationTokenSource();
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (bgState.IsRunning && !progressCancellation.Token.IsCancellationRequested)
+                            {
+                                await Task.Delay(2000, progressCancellation.Token); // Update every 2 seconds
+                                
+                                // For now, just calculate rough progress based on time (we'll improve this)
+                                // This is a placeholder until we can access the actual search progress
+                                var elapsed = DateTime.Now.Subtract(DateTime.Now.AddSeconds(-10)); // Rough estimate
+                                bgState.ProgressPercent = Math.Min(99, (int)(elapsed.TotalMinutes * 2)); // 2% per minute, max 99%
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Expected when search completes
+                        }
+                    }, progressCancellation.Token);
+
                     bgExecutor.Execute();
+                    
+                    // Close the database appender to ensure all data is written
+                    appender.Close();
+                    connection.Close();
+                    
+                    progressCancellation.Cancel(); // Stop progress monitoring
 
                     var bgTopResults = bgResults.OrderByDescending(r => r.Score).Take(1000).ToList();
                     lock (_pileLock)
@@ -1478,59 +1604,22 @@ stake: White</textarea>
                 return;
             }
 
-            // Get seeds from fertilizer pile
-            List<string> pileSeeds;
-            lock (_pileLock)
+            // Get results from DuckDB database
+            var dbPath = $"{searchId}.db";
+            var results = GetTopResultsFromDb(dbPath, 1000);
+            
+            // Check if background search is running
+            var isRunning = false;
+            var progressPercent = 0;
+            if (_backgroundSearches.TryGetValue(searchId, out var bgState))
             {
-                pileSeeds = _fertilizerPile.ToList();
+                isRunning = bgState.IsRunning;
+                progressPercent = bgState.ProgressPercent;
             }
-
-            if (pileSeeds.Count == 0)
-            {
-                await WriteJsonAsync(response, new
-                {
-                    searchId = searchId,
-                    filterJaml = savedSearch.FilterJaml,  // Include JAML so joining users can see the filter!
-                    deck = savedSearch.Deck,
-                    stake = savedSearch.Stake,
-                    results = new List<SearchResult>(),
-                    total = 0,
-                    columns = config!.GetColumnNames(),
-                    pileSize = 0,
-                    isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bg) && bg.IsRunning
-                });
-                return;
-            }
-
-            var results = new List<SearchResult>();
-
-            var parameters = new JsonSearchParams
-            {
-                Threads = ThreadCount,
-                EnableDebug = false,
-                NoFancy = true,
-                Quiet = true,
-                SeedList = pileSeeds,
-                AutoCutoff = false,
-                Cutoff = 1,
-            };
-
-            Action<MotelySeedScoreTally> resultCallback = (tally) =>
-            {
-                lock (results)
-                {
-                    results.Add(new SearchResult
-                    {
-                        Seed = tally.Seed,
-                        Score = tally.Score,
-                        Tallies = tally.TallyColumns
-                    });
-                }
-            };
-
-            var executor = new JsonSearchExecutor(config!, parameters, resultCallback);
-            executor.Execute();
-
+            
+            // Determine status
+            var status = isRunning ? "RUNNING" : "STOPPED";
+            
             response.StatusCode = 200;
             await WriteJsonAsync(response, new
             {
@@ -1538,11 +1627,13 @@ stake: White</textarea>
                 filterJaml = savedSearch.FilterJaml,
                 deck = savedSearch.Deck,
                 stake = savedSearch.Stake,
-                results = results.OrderByDescending(r => r.Score).Take(1000).ToList(),
+                results = results,
                 total = results.Count,
                 columns = config!.GetColumnNames(),
-                pileSize = pileSeeds.Count,
-                isBackgroundRunning = _backgroundSearches.TryGetValue(searchId, out var bgState) && bgState.IsRunning
+                status = status,
+                progressPercent = progressPercent,
+                isBackgroundRunning = isRunning,
+                searchStatus = isRunning ? "running" : "stopped"
             });
         }
         catch (Exception ex)
@@ -1762,6 +1853,49 @@ stake: White</textarea>
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Delete filter failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private List<SearchResult> GetTopResultsFromDb(string dbPath, int limit)
+    {
+        if (!File.Exists(dbPath)) return new List<SearchResult>();
+        
+        try
+        {
+            using var conn = new DuckDBConnection($"Data Source={dbPath}");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT seed, score, tallies FROM results ORDER BY score DESC LIMIT {limit}";
+            
+            var results = new List<SearchResult>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var talliesJson = reader.IsDBNull(2) ? "[]" : reader.GetString(2);
+                var tallies = new List<int>();
+                try
+                {
+                    tallies = JsonSerializer.Deserialize<List<int>>(talliesJson) ?? new List<int>();
+                }
+                catch
+                {
+                    // If JSON parsing fails, use empty list
+                }
+                
+                results.Add(new SearchResult
+                {
+                    Seed = reader.GetString(0),
+                    Score = reader.GetInt32(1),
+                    Tallies = tallies
+                });
+            }
+            
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to read from DB {dbPath}: {ex.Message}");
+            return new List<SearchResult>();
         }
     }
 

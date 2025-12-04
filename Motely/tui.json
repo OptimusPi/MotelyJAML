@@ -1,5 +1,5 @@
 {
-  "threadCount": 16,
+  "threadCount": 14,
   "batchCharacterCount": 1,
   "apiServerHost": "127.0.0.1",
   "apiServerPort": 4455

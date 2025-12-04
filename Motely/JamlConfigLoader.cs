@@ -55,12 +55,13 @@ public static class JamlConfigLoader
 
         try
         {
-            // Pre-process JAML to support type-as-key syntax
+            // Pre-process JAML to support type-as-key syntax (but let YAML handle arrays naturally)
             jamlContent = PreProcessJaml(jamlContent);
 
             // Parse JAML (YAML-based) to object
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
                 .Build();
 
             var deserializedConfig = deserializer.Deserialize<MotelyJsonConfig>(jamlContent);
@@ -90,9 +91,13 @@ public static class JamlConfigLoader
     private static string PreProcessJaml(string jamlContent)
     {
         // Support clean type-as-key syntax: "joker: Blueprint" instead of "type: Joker, value: Blueprint"
+        // Support plural values arrays: "jokers: [Blueprint, Brainstorm]" expands to multiple clauses
         var typeKeys = new[] { "joker", "soulJoker", "souljoker", "voucher", "tarot", "tarotCard", "tarotcard",
             "planet", "planetCard", "planetcard", "spectral", "spectralCard", "spectralcard",
             "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag", "and", "or" };
+        
+        var pluralTypeKeys = new[] { "jokers", "soulJokers", "vouchers", "tarots", "tarotCards", 
+            "planets", "planetCards", "spectrals", "spectralCards", "playingCards", "standardCards", "bosses", "tags" };
 
         var lines = jamlContent.Split('\n');
         var result = new System.Text.StringBuilder();
@@ -106,20 +111,43 @@ public static class JamlConfigLoader
             // Check if line has type-as-key pattern (e.g., "  - joker: Blueprint")
             if (trimmed.StartsWith("- "))
             {
-                foreach (var typeKey in typeKeys)
+                // Handle plural arrays (jokers: [Blueprint, Brainstorm])
+                foreach (var pluralKey in pluralTypeKeys)
                 {
-                    var pattern = $"- {typeKey}:";
+                    var pattern = $"- {pluralKey}:";
                     if (trimmed.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                     {
                         var indent = line.Substring(0, line.IndexOf('-'));
-                        var value = trimmed.Substring(pattern.Length).Trim();
-
-                        // Convert to standard format
-                        var normalizedType = NormalizeTypeName(typeKey);
+                        var singularType = GetSingularTypeName(pluralKey);
+                        var normalizedType = NormalizeTypeName(singularType);
+                        var arrayContent = trimmed.Substring(pattern.Length).Trim();
+                        
+                        // Convert jokers: [Blueprint, Brainstorm] to type: Joker + values: [Blueprint, Brainstorm]
                         result.AppendLine($"{indent}- type: {normalizedType}");
-                        result.AppendLine($"{indent}  value: {value}");
+                        result.AppendLine($"{indent}  values: {arrayContent}");
                         matched = true;
-                        break; // Found match, stop checking other typeKeys
+                        break;
+                    }
+                }
+                
+                // Then check for singular type-as-key patterns
+                if (!matched)
+                {
+                    foreach (var typeKey in typeKeys)
+                    {
+                        var pattern = $"- {typeKey}:";
+                        if (trimmed.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var indent = line.Substring(0, line.IndexOf('-'));
+                            var value = trimmed.Substring(pattern.Length).Trim();
+
+                            // Convert to standard format
+                            var normalizedType = NormalizeTypeName(typeKey);
+                            result.AppendLine($"{indent}- type: {normalizedType}");
+                            result.AppendLine($"{indent}  value: {value}");
+                            matched = true;
+                            break; // Found match, stop checking other typeKeys
+                        }
                     }
                 }
             }
@@ -132,6 +160,23 @@ public static class JamlConfigLoader
         }
 
         return result.ToString();
+    }
+
+    private static string GetSingularTypeName(string pluralKey)
+    {
+        return pluralKey.ToLowerInvariant() switch
+        {
+            "jokers" => "joker",
+            "souljokers" => "soulJoker",
+            "vouchers" => "voucher", 
+            "tarots" or "tarotcards" => "tarot",
+            "planets" or "planetcards" => "planet",
+            "spectrals" or "spectralcards" => "spectral",
+            "playingcards" or "standardcards" => "playingCard",
+            "bosses" => "boss",
+            "tags" => "tag",
+            _ => pluralKey.TrimEnd('s') // fallback: remove 's'
+        };
     }
 
     private static string NormalizeTypeName(string typeKey)

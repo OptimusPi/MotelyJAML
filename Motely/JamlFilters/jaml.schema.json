@@ -106,6 +106,13 @@
           "type": "string",
           "description": "Name of the specific item (e.g., 'Perkeo', 'Hieroglyph')"
         },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of item names for multiple matching (creates OR clause)"
+        },
         "antes": {
           "type": "array",
           "items": {

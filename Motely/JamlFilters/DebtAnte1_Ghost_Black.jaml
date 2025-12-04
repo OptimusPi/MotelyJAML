@@ -1,0 +1,48 @@
+name: "DebtAnte1"
+description: "What can YOU do with a Credit Card, Perkeo, and Wraith?"
+author: "pifreak"
+dateCreated: "2025-12-03"
+deck: Ghost
+stake: Black
+
+must:
+  - soulJoker: Perkeo
+    antes: [1]
+  - spectralCard: Wraith
+    antes: [1]
+    shopSlots: [0,1]
+  - joker: CreditCard
+    antes: [1,2,3,4]
+should:
+  - joker: CreditCard
+    antes: [1]
+    score: 100
+    shopSlots: [0, 1]
+  
+  - joker: Showman
+    antes: [1]
+    shopSlots: [0, 1, 2, 3]
+  
+  - spectralCard: Wraith
+    score: 100
+    antes: [1]
+    shopSlots: [0, 1, 2, 3]
+
+  - spectralCard: Wraith
+    shopSlots: [0, 1]
+  
+  - joker: CreditCard
+    antes: [1]
+    shopSlots: [0, 1]
+  
+  - joker: CreditCard
+    antes: [1]
+    packSlots: [0, 1]
+
+  # Test the new jokers array syntax
+  - jokers: [Blueprint, Brainstorm, ChaosTheClown]
+    antes: [2, 3, 4]
+    shopSlots: [2, 3, 4, 5]
+    score: 5
+
+mustNot: []

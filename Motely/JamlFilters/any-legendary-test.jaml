@@ -1,0 +1,14 @@
+name: "any-legendary-test"
+description: "Test for any legendary joker"
+author: "test"
+deck: Red
+stake: White
+
+must:
+  - joker: "*"
+    antes: [1]
+    shopSlots: [0, 1, 2, 3]
+    packSlots: [0, 1, 2, 3]
+
+should: []
+mustNot: []
