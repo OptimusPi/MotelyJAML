@@ -960,3 +960,8 @@ label {
   background: #3a5055;
   color: #fff;
 }
+
+.editor-buttons {
+  display: flex;
+  gap: 4px;
+}

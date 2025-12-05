@@ -225,7 +225,10 @@
                     </div>
                     <div class="editor-header">
                         <label>Filter (JAML):</label>
-                        <button onclick="toggleEditorMode()" id="editorToggle" class="button-tiny" title="Switch editor mode">Plain</button>
+                        <div class="editor-buttons">
+                            <button onclick="formatJaml()" class="button-tiny" title="Auto-format JAML (Ctrl+Shift+F)">Format</button>
+                            <button onclick="toggleEditorMode()" id="editorToggle" class="button-tiny" title="Switch editor mode">Plain</button>
+                        </div>
                     </div>
                     <div id="monacoEditor" class="monaco-container"></div>
                     <textarea id="filterJaml" class="plain-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" style="display:none;">name: Negative Perkeo

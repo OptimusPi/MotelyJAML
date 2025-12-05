@@ -107,6 +107,108 @@ function toggleEditorMode() {
     }
 }
 
+// ================================================
+// JAML Auto-Formatter - fixes indentation!
+// ================================================
+function formatJaml() {
+    const content = getJamlValue();
+    if (!content.trim()) return;
+
+    const lines = content.split('\n');
+    const formatted = [];
+
+    // State tracking
+    let inListSection = false;  // Inside must/should/mustNot
+    let nestingLevel = 0;       // How deep in or/and blocks
+    let lastItemIndent = 2;     // Indent of last "- item:" line
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Skip empty lines
+        if (!trimmed) {
+            formatted.push('');
+            continue;
+        }
+
+        // Top-level keys go at column 0
+        if (/^(name|deck|stake|must|should|mustNot|defaults|description|author|dateCreated):/i.test(trimmed)) {
+            nestingLevel = 0;
+            lastItemIndent = 2;
+            inListSection = /^(must|should|mustNot):/i.test(trimmed);
+            formatted.push(trimmed);
+            continue;
+        }
+
+        // Not in a list section - just preserve
+        if (!inListSection) {
+            formatted.push(trimmed);
+            continue;
+        }
+
+        // Detect nesting based on original indentation
+        const origIndent = line.match(/^(\s*)/)[1].length;
+
+        // Handle list items (lines starting with -)
+        if (trimmed.startsWith('-')) {
+            const afterDash = trimmed.substring(1).trim();
+
+            // Is this "- or:" or "- and:"?
+            if (/^(or|and):\s*$/.test(afterDash)) {
+                // Calculate proper indent: base 2 + 4 per nesting level
+                const indent = 2 + nestingLevel * 4;
+                formatted.push(' '.repeat(indent) + trimmed);
+                nestingLevel++;
+                lastItemIndent = indent;
+            } else {
+                // Regular item like "- joker: Blueprint"
+                // Must be inside current nesting level
+                const indent = 2 + nestingLevel * 4;
+                formatted.push(' '.repeat(indent) + trimmed);
+                lastItemIndent = indent;
+            }
+            continue;
+        }
+
+        // Property lines (antes:, edition:, etc.) - indent 2 more than their list item
+        if (/^(antes|edition|score|shopSlots|packSlots|sources|label|seal|enhancement|rank|suit):/i.test(trimmed)) {
+            formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
+            continue;
+        }
+
+        // Standalone type definitions (shouldn't normally happen, but handle it)
+        if (/^(joker|soulJoker|voucher|tag|smallBlindTag|bigBlindTag|tarot|spectral|planet|boss|playingCard):/i.test(trimmed)) {
+            formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
+            continue;
+        }
+
+        // Check if we're returning to a shallower nesting level
+        // by looking at original indentation
+        if (origIndent < lastItemIndent && nestingLevel > 0) {
+            // Estimate how many levels to pop
+            const expectedIndent = 2 + (nestingLevel - 1) * 4;
+            if (origIndent <= expectedIndent) {
+                nestingLevel = Math.max(0, Math.floor((origIndent - 2) / 4));
+            }
+        }
+
+        // Default: use last item indent + 2
+        formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
+    }
+
+    setJamlValue(formatted.join('\n'));
+    showStatus('JAML formatted!');
+}
+
+// Quick format shortcut: Ctrl+Shift+F
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        formatJaml();
+    }
+});
+
 // Check if JAML content changed from what started the current search
 // ANY change invalidates existing results (columns, criteria all depend on JAML!)
 function checkJamlChanged() {
