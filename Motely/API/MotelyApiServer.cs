@@ -1169,21 +1169,24 @@ public class MotelyApiServer
         try
         {
             var filters = new List<object>();
-            
+
             if (Directory.Exists(_filtersDir))
             {
                 // Load both .jaml and .json files
                 var allFiles = Directory.GetFiles(_filtersDir, "*.jaml")
                     .Concat(Directory.GetFiles(_filtersDir, "*.json"));
-                    
+
                 foreach (var filePath in allFiles)
                 {
                     var fileName = Path.GetFileName(filePath);
                     var content = await File.ReadAllTextAsync(filePath);
-                    
+
+                    // Extract the actual "name:" field from the filter content
+                    var displayName = ExtractFilterName(content) ?? Path.GetFileNameWithoutExtension(fileName);
+
                     filters.Add(new
                     {
-                        name = Path.GetFileNameWithoutExtension(fileName),
+                        name = displayName,
                         filePath = fileName,
                         filterJaml = content
                     });
@@ -1200,6 +1203,39 @@ public class MotelyApiServer
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Extract the "name:" field from JAML or "name" from JSON content
+    /// </summary>
+    private string? ExtractFilterName(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return null;
+
+        // Try JAML format first (name: value or name: "value")
+        var lines = content.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("name:", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = trimmed.Substring(5).Trim();
+                // Remove quotes if present
+                if (value.StartsWith("\"") && value.EndsWith("\""))
+                    value = value.Substring(1, value.Length - 2);
+                if (value.StartsWith("'") && value.EndsWith("'"))
+                    value = value.Substring(1, value.Length - 2);
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value;
+            }
+        }
+
+        // Try JSON format ("name": "value")
+        var nameMatch = System.Text.RegularExpressions.Regex.Match(content, "\"name\"\\s*:\\s*\"([^\"]+)\"");
+        if (nameMatch.Success)
+            return nameMatch.Groups[1].Value;
+
+        return null;
     }
 
     private async Task HandleSearchDeleteAsync(HttpListenerRequest request, HttpListenerResponse response)

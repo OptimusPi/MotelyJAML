@@ -57,6 +57,56 @@ function setJamlValue(value) {
     }
 }
 
+// Toggle between Monaco and Plain text editor
+let usePlainEditor = false;
+
+function toggleEditorMode() {
+    const monacoContainer = document.getElementById('monacoEditor');
+    const plainTextarea = document.getElementById('filterJaml');
+    const toggleBtn = document.getElementById('editorToggle');
+
+    usePlainEditor = !usePlainEditor;
+
+    if (usePlainEditor) {
+        // Switch to plain editor
+        // Sync content from Monaco to textarea
+        if (window.jamlEditor) {
+            plainTextarea.value = window.jamlEditor.getValue();
+        }
+        monacoContainer.style.display = 'none';
+        plainTextarea.style.display = 'block';
+        toggleBtn.textContent = 'Monaco';
+
+        // Override getJamlValue/setJamlValue to use textarea
+        window.getJamlValue = () => plainTextarea.value;
+        window.setJamlValue = (val) => {
+            plainTextarea.value = val;
+            if (window.jamlEditor) window.jamlEditor.setValue(val);
+        };
+
+        // Add change listener to plain textarea
+        plainTextarea.oninput = () => {
+            if (typeof checkJamlChanged === 'function') checkJamlChanged();
+        };
+    } else {
+        // Switch to Monaco editor
+        // Sync content from textarea to Monaco
+        if (window.jamlEditor) {
+            window.jamlEditor.setValue(plainTextarea.value);
+        }
+        plainTextarea.style.display = 'none';
+        monacoContainer.style.display = 'block';
+        toggleBtn.textContent = 'Plain';
+
+        // Restore Monaco-based getJamlValue/setJamlValue
+        window.getJamlValue = () => window.jamlEditor ? window.jamlEditor.getValue() : plainTextarea.value;
+        window.setJamlValue = (val) => {
+            plainTextarea.value = val;
+            if (window.jamlEditor) window.jamlEditor.setValue(val);
+        };
+    }
+}
+
 // Check if JAML content changed from what started the current search
 // ANY change invalidates existing results (columns, criteria all depend on JAML!)
 function checkJamlChanged() {

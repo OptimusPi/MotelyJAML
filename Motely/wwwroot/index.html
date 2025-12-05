@@ -223,9 +223,12 @@
                         <button onclick="deleteSelectedSearch()" class="delete-btn"
                             title="Delete selected filter">Del</button>
                     </div>
-                    <label>Filter (JAML):</label>
+                    <div class="editor-header">
+                        <label>Filter (JAML):</label>
+                        <button onclick="toggleEditorMode()" id="editorToggle" class="button-tiny" title="Switch editor mode">Plain</button>
+                    </div>
                     <div id="monacoEditor" class="monaco-container"></div>
-                    <textarea id="filterJaml" style="display:none;">name: Negative Perkeo
+                    <textarea id="filterJaml" class="plain-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" style="display:none;">name: Negative Perkeo
 must:
   - soulJoker: Perkeo
     edition: Negative
@@ -313,10 +316,11 @@ stake: White</textarea>
             require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
             require(['vs/editor/editor.main'], function () {
 
-                // Register JAML autocomplete provider
+                // Register JAML autocomplete provider - CONTEXT AWARE!
                 monaco.languages.registerCompletionItemProvider('yaml', {
                     provideCompletionItems: function(model, position) {
                         const lineContent = model.getLineContent(position.lineNumber);
+                        const textBeforeCursor = lineContent.substring(0, position.column - 1);
                         const word = model.getWordUntilPosition(position);
                         const range = {
                             startLineNumber: position.lineNumber,
@@ -327,130 +331,181 @@ stake: White</textarea>
 
                         const suggestions = [];
 
-                        // Top-level JAML keywords
-                        const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:', 'defaults:'];
+                        // Data lists
+                        const decks = ['Red', 'Blue', 'Yellow', 'Green', 'Black', 'Magic', 'Nebula', 'Ghost', 'Abandoned', 'Checkered', 'Zodiac', 'Painted', 'Anaglyph', 'Plasma', 'Erratic'];
+                        const stakes = ['White', 'Red', 'Green', 'Black', 'Blue', 'Purple', 'Orange', 'Gold'];
+                        const editions = ['Foil', 'Holo', 'Polychrome', 'Negative'];
+                        const seals = ['Red', 'Blue', 'Gold', 'Purple'];
+                        const enhancements = ['Bonus', 'Mult', 'Wild', 'Glass', 'Steel', 'Stone', 'Lucky', 'Gold'];
+                        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+                        const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+                        const legendaries = ['Canio', 'Triboulet', 'Yorick', 'Chicot', 'Perkeo'];
+                        const jokers = ['Blueprint', 'Brainstorm', 'DNA', 'Vagabond', 'Baron', 'Obelisk', 'Campfire', 'WeeJoker', 'TheDuo', 'TheTrio', 'TheFamily', 'TheOrder', 'TheTribe', 'Hologram', 'Constellation', 'Vampire', 'Madness', 'Seance', 'Astronomer', 'Cartomancer', 'JokerStencil', 'FourFingers', 'Mime', 'CeremonialDagger', 'MarbleJoker', 'LoyaltyCard', 'Dusk', 'Fibonacci', 'SteelJoker', 'Hack', 'Pareidolia', 'SpaceJoker', 'Burglar', 'Blackboard', 'SixthSense', 'Hiker', 'CardSharp', 'Shortcut', 'Cloud9', 'Rocket', 'MidasMask', 'Luchador', 'GiftCard', 'TurtleBean', 'Erosion', 'ToTheMoon', 'StoneJoker', 'LuckyCat', 'Bull', 'DietCola', 'TradingCard', 'FlashCard', 'SpareTrousers', 'Ramen', 'Seltzer', 'Castle', 'MrBones', 'Acrobat', 'SockAndBuskin', 'Troubadour', 'Certificate', 'SmearedJoker', 'Throwback', 'RoughGem', 'Bloodstone', 'Arrowhead', 'OnyxAgate', 'GlassJoker', 'Showman', 'FlowerPot', 'MerryAndy', 'OopsAll6s', 'TheIdol', 'SeeingDouble', 'Matador', 'Satellite', 'Bootstraps', 'Joker', 'GreedyJoker', 'LustyJoker', 'WrathfulJoker', 'GluttonousJoker', 'JollyJoker', 'ZanyJoker', 'MadJoker', 'CrazyJoker', 'DrollJoker', 'SlyJoker', 'WilyJoker', 'CleverJoker', 'DeviousJoker', 'CraftyJoker', 'HalfJoker', 'CreditCard', 'Banner', 'MysticSummit', 'EightBall', 'Misprint', 'RaisedFist', 'ChaostheClown', 'ScaryFace', 'AbstractJoker', 'DelayedGratification', 'GrosMichel', 'EvenSteven', 'OddTodd', 'Scholar', 'BusinessCard', 'Supernova', 'RideTheBus', 'Egg', 'Runner', 'IceCream', 'Splash', 'BlueJoker', 'FacelessJoker', 'GreenJoker', 'Superposition', 'ToDoList', 'Cavendish', 'RedCard', 'SquareJoker', 'RiffRaff', 'Photograph', 'ReservedParking', 'MailInRebate', 'Hallucination', 'FortuneTeller', 'Juggler', 'Drunkard', 'GoldenJoker', 'Popcorn', 'WalkieTalkie', 'SmileyFace', 'GoldenTicket', 'Swashbuckler', 'HangingChad', 'ShootTheMoon', 'BaseballCard', 'AncientJoker', 'HitTheRoad', 'Stuntman', 'InvisibleJoker', 'DriversLicense', 'BurntJoker'];
+                        const vouchers = ['Overstock', 'OverstockPlus', 'ClearanceSale', 'Liquidation', 'Hone', 'GlowUp', 'RerollSurplus', 'RerollGlut', 'CrystalBall', 'OmenGlobe', 'Telescope', 'Observatory', 'Grabber', 'NachoTong', 'Wasteful', 'Recyclomancy', 'TarotMerchant', 'TarotTycoon', 'PlanetMerchant', 'PlanetTycoon', 'SeedMoney', 'MoneyTree', 'Blank', 'Antimatter', 'MagicTrick', 'Illusion', 'Hieroglyph', 'Petroglyph', 'DirectorsCut', 'Retcon', 'PaintBrush', 'Palette'];
+                        const tags = ['UncommonTag', 'RareTag', 'NegativeTag', 'FoilTag', 'HolographicTag', 'PolychromeTag', 'InvestmentTag', 'VoucherTag', 'BossTag', 'StandardTag', 'CharmTag', 'MeteorTag', 'BuffoonTag', 'HandyTag', 'GarbageTag', 'EtherealTag', 'CouponTag', 'DoubleTag', 'JuggleTag', 'D6Tag', 'TopupTag', 'SpeedTag', 'OrbitalTag', 'EconomyTag'];
+                        const tarots = ['TheFool', 'TheMagician', 'TheHighPriestess', 'TheEmpress', 'TheEmperor', 'TheHierophant', 'TheLovers', 'TheChariot', 'Justice', 'TheHermit', 'TheWheelOfFortune', 'Strength', 'TheHangedMan', 'Death', 'Temperance', 'TheDevil', 'TheTower', 'TheStar', 'TheMoon', 'TheSun', 'Judgement', 'TheWorld'];
+                        const spectrals = ['Familiar', 'Grim', 'Incantation', 'Talisman', 'Aura', 'Wraith', 'Sigil', 'Ouija', 'Ectoplasm', 'Immolate', 'Ankh', 'DejaVu', 'Hex', 'Trance', 'Medium', 'Cryptid', 'Soul', 'BlackHole'];
+                        const planets = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'PlanetX', 'Ceres', 'Eris'];
+                        const bosses = ['AmberAcorn', 'CeruleanBell', 'CrimsonHeart', 'VerdantLeaf', 'VioletVessel', 'TheArm', 'TheClub', 'TheEye', 'TheFish', 'TheFlint', 'TheGoad', 'TheHead', 'TheHook', 'TheHouse', 'TheManacle', 'TheMark', 'TheMouth', 'TheNeedle', 'TheOx', 'ThePillar', 'ThePlant', 'ThePsychic', 'TheSerpent', 'TheTooth', 'TheWall', 'TheWater', 'TheWheel', 'TheWindow'];
+
+                        // Helper to add items
+                        const addItems = (items, detail) => {
+                            items.forEach(item => suggestions.push({
+                                label: item,
+                                kind: monaco.languages.CompletionItemKind.Value,
+                                insertText: item,
+                                detail: detail,
+                                range: range
+                            }));
+                        };
+
+                        // CONTEXT DETECTION - check what's before the cursor on this line
+                        const lineLower = textBeforeCursor.toLowerCase();
+
+                        // After "deck:" → only decks
+                        if (lineLower.includes('deck:')) {
+                            addItems(decks, 'Deck');
+                            return { suggestions };
+                        }
+                        // After "stake:" → only stakes
+                        if (lineLower.includes('stake:')) {
+                            addItems(stakes, 'Stake');
+                            return { suggestions };
+                        }
+                        // After "edition:" → only editions
+                        if (lineLower.includes('edition:')) {
+                            addItems(editions, 'Edition');
+                            return { suggestions };
+                        }
+                        // After "seal:" → only seals
+                        if (lineLower.includes('seal:')) {
+                            addItems(seals, 'Seal');
+                            return { suggestions };
+                        }
+                        // After "enhancement:" → only enhancements
+                        if (lineLower.includes('enhancement:')) {
+                            addItems(enhancements, 'Enhancement');
+                            return { suggestions };
+                        }
+                        // After "rank:" → only ranks
+                        if (lineLower.includes('rank:')) {
+                            addItems(ranks, 'Rank');
+                            return { suggestions };
+                        }
+                        // After "suit:" → only suits
+                        if (lineLower.includes('suit:')) {
+                            addItems(suits, 'Suit');
+                            return { suggestions };
+                        }
+                        // After "soulJoker:" → only legendaries
+                        if (lineLower.includes('souljoker:')) {
+                            addItems(legendaries, 'Legendary Joker');
+                            return { suggestions };
+                        }
+                        // After "joker:" → only jokers (not legendaries)
+                        if (lineLower.includes('joker:') && !lineLower.includes('souljoker:')) {
+                            addItems(jokers, 'Joker');
+                            return { suggestions };
+                        }
+                        // After "voucher:" → only vouchers
+                        if (lineLower.includes('voucher:')) {
+                            addItems(vouchers, 'Voucher');
+                            return { suggestions };
+                        }
+                        // After "tag:" → only tags
+                        if (lineLower.includes('tag:') && !lineLower.includes('smallblindtag:') && !lineLower.includes('bigblindtag:')) {
+                            addItems(tags, 'Tag');
+                            return { suggestions };
+                        }
+                        if (lineLower.includes('smallblindtag:') || lineLower.includes('bigblindtag:')) {
+                            addItems(tags, 'Tag');
+                            return { suggestions };
+                        }
+                        // After "tarot:" → only tarots
+                        if (lineLower.includes('tarot:')) {
+                            addItems(tarots, 'Tarot');
+                            return { suggestions };
+                        }
+                        // After "spectral:" → only spectrals
+                        if (lineLower.includes('spectral:')) {
+                            addItems(spectrals, 'Spectral');
+                            return { suggestions };
+                        }
+                        // After "planet:" → only planets
+                        if (lineLower.includes('planet:')) {
+                            addItems(planets, 'Planet');
+                            return { suggestions };
+                        }
+                        // After "boss:" → only bosses
+                        if (lineLower.includes('boss:')) {
+                            addItems(bosses, 'Boss');
+                            return { suggestions };
+                        }
+
+                        // Check indentation level for context
+                        const indent = lineContent.match(/^(\s*)/)[1].length;
+                        const isClauseLine = lineContent.trim().startsWith('-') || indent >= 2;
+                        const isRootLevel = indent === 0 && !lineContent.trim().startsWith('-');
+
+                        // Root level → top-level keywords
+                        if (isRootLevel) {
+                            const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:', 'defaults:'];
+                            keywords.forEach(k => suggestions.push({
+                                label: k,
+                                kind: monaco.languages.CompletionItemKind.Keyword,
+                                insertText: k + ' ',
+                                range: range
+                            }));
+                            return { suggestions };
+                        }
+
+                        // Inside a clause (indented or after -) → clause types and properties
+                        if (isClauseLine) {
+                            // Item types
+                            const itemTypes = ['joker:', 'soulJoker:', 'voucher:', 'tag:', 'smallBlindTag:', 'bigBlindTag:', 'tarot:', 'spectral:', 'planet:', 'boss:', 'playingCard:', 'and:', 'or:'];
+                            itemTypes.forEach(t => suggestions.push({
+                                label: t,
+                                kind: monaco.languages.CompletionItemKind.Class,
+                                insertText: t + ' ',
+                                range: range
+                            }));
+                            // Clause properties
+                            const props = ['antes:', 'edition:', 'score:', 'shopSlots:', 'packSlots:', 'sources:', 'label:', 'seal:', 'enhancement:', 'rank:', 'suit:'];
+                            props.forEach(p => suggestions.push({
+                                label: p,
+                                kind: monaco.languages.CompletionItemKind.Property,
+                                insertText: p + ' ',
+                                range: range
+                            }));
+                            // Snippets for new clauses
+                            suggestions.push({
+                                label: 'clause-joker',
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                insertText: 'joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                detail: 'Joker clause',
+                                range: range
+                            });
+                            suggestions.push({
+                                label: 'clause-legendary',
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                insertText: 'soulJoker: ${1:Perkeo}\n    edition: ${2:Negative}\n    antes: [${3:1, 2, 3}]',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                detail: 'Legendary joker clause',
+                                range: range
+                            });
+                            return { suggestions };
+                        }
+
+                        // Fallback: show everything relevant for general editing
+                        const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:'];
                         keywords.forEach(k => suggestions.push({
                             label: k,
                             kind: monaco.languages.CompletionItemKind.Keyword,
                             insertText: k + ' ',
                             range: range
                         }));
-
-                        // Item types (for clauses)
-                        const itemTypes = ['joker:', 'soulJoker:', 'voucher:', 'tag:', 'tarot:', 'spectral:', 'planet:', 'boss:', 'and:', 'or:'];
-                        itemTypes.forEach(t => suggestions.push({
-                            label: t,
-                            kind: monaco.languages.CompletionItemKind.Class,
-                            insertText: t + ' ',
-                            range: range
-                        }));
-
-                        // Clause properties
-                        const props = ['antes:', 'edition:', 'score:', 'shopSlots:', 'packSlots:', 'sources:', 'label:', 'seal:', 'enhancement:', 'rank:', 'suit:'];
-                        props.forEach(p => suggestions.push({
-                            label: p,
-                            kind: monaco.languages.CompletionItemKind.Property,
-                            insertText: p + ' ',
-                            range: range
-                        }));
-
-                        // Decks
-                        const decks = ['Red', 'Blue', 'Yellow', 'Green', 'Black', 'Magic', 'Nebula', 'Ghost', 'Abandoned', 'Checkered', 'Zodiac', 'Painted', 'Anaglyph', 'Plasma', 'Erratic'];
-                        decks.forEach(d => suggestions.push({
-                            label: d,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: d,
-                            detail: 'Deck',
-                            range: range
-                        }));
-
-                        // Stakes
-                        const stakes = ['White', 'Red', 'Green', 'Black', 'Blue', 'Purple', 'Orange', 'Gold'];
-                        stakes.forEach(s => suggestions.push({
-                            label: s,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: s,
-                            detail: 'Stake',
-                            range: range
-                        }));
-
-                        // Editions
-                        const editions = ['Foil', 'Holo', 'Polychrome', 'Negative'];
-                        editions.forEach(e => suggestions.push({
-                            label: e,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: e,
-                            detail: 'Edition',
-                            range: range
-                        }));
-
-                        // Legendary Jokers
-                        const legendaries = ['Canio', 'Triboulet', 'Yorick', 'Chicot', 'Perkeo'];
-                        legendaries.forEach(j => suggestions.push({
-                            label: j,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: j,
-                            detail: 'Legendary Joker',
-                            range: range
-                        }));
-
-                        // Popular Jokers
-                        const jokers = ['Blueprint', 'Brainstorm', 'DNA', 'Vagabond', 'Baron', 'Obelisk', 'Campfire', 'WeeJoker', 'TheDuo', 'TheTrio', 'TheFamily', 'Hologram', 'Constellation', 'Vampire', 'Madness', 'Seance', 'Astronomer', 'Cartomancer'];
-                        jokers.forEach(j => suggestions.push({
-                            label: j,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: j,
-                            detail: 'Joker',
-                            range: range
-                        }));
-
-                        // Vouchers
-                        const vouchers = ['Overstock', 'OverstockPlus', 'ClearanceSale', 'Liquidation', 'Hone', 'GlowUp', 'RerollSurplus', 'RerollGlut', 'CrystalBall', 'OmenGlobe', 'Telescope', 'Observatory', 'Grabber', 'NachoTong', 'Wasteful', 'Recyclomancy', 'TarotMerchant', 'TarotTycoon', 'PlanetMerchant', 'PlanetTycoon', 'SeedMoney', 'MoneyTree', 'Blank', 'Antimatter', 'MagicTrick', 'Illusion', 'Hieroglyph', 'Petroglyph', 'DirectorsCut', 'Retcon', 'PaintBrush', 'Palette'];
-                        vouchers.forEach(v => suggestions.push({
-                            label: v,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: v,
-                            detail: 'Voucher',
-                            range: range
-                        }));
-
-                        // Tags
-                        const tags = ['NegativeTag', 'PolychromeTag', 'HolographicTag', 'FoilTag', 'RareTag', 'UncommonTag', 'VoucherTag', 'EtherealTag', 'CharmTag', 'MeteorTag', 'BuffoonTag', 'DoubleTag'];
-                        tags.forEach(t => suggestions.push({
-                            label: t,
-                            kind: monaco.languages.CompletionItemKind.Value,
-                            insertText: t,
-                            detail: 'Tag',
-                            range: range
-                        }));
-
-                        // Snippets
-                        suggestions.push({
-                            label: 'must-joker',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: '- joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: 'Must have joker clause',
-                            range: range
-                        });
-                        suggestions.push({
-                            label: 'must-legendary',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: '- soulJoker: ${1:Perkeo}\n    edition: ${2:Negative}\n    antes: [${3:1, 2, 3}]',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: 'Must have legendary joker',
-                            range: range
-                        });
-                        suggestions.push({
-                            label: 'should-joker',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: '- joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]\n    score: ${3:100}',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: 'Should have joker clause',
-                            range: range
-                        });
-
-                        return { suggestions: suggestions };
+                        return { suggestions };
                     }
                 });
 
@@ -467,8 +522,26 @@ stake: White</textarea>
                     scrollBeyondLastLine: false,
                     renderWhitespace: 'selection',
                     tabSize: 2,
+                    insertSpaces: true,
                     quickSuggestions: true,
                     suggestOnTriggerCharacters: true
+                });
+
+                // Make Tab key indent properly (insert spaces OR indent selection)
+                window.jamlEditor.addCommand(monaco.KeyCode.Tab, () => {
+                    const selection = window.jamlEditor.getSelection();
+                    // If multiple lines selected, indent all of them
+                    if (selection && selection.startLineNumber !== selection.endLineNumber) {
+                        window.jamlEditor.trigger('keyboard', 'editor.action.indentLines');
+                    } else {
+                        // Single line or no selection - just insert 2 spaces
+                        window.jamlEditor.trigger('keyboard', 'type', { text: '  ' });
+                    }
+                });
+
+                // Shift+Tab to outdent selection
+                window.jamlEditor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Tab, () => {
+                    window.jamlEditor.trigger('keyboard', 'editor.action.outdentLines');
                 });
 
                 // Sync Monaco content to hidden textarea AND check if search ID changed

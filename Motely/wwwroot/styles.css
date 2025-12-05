@@ -915,3 +915,48 @@ label {
   margin-bottom: 8px;
   resize: vertical;
 }
+
+/* Plain Text Editor - big font, black on white, no frills */
+.plain-editor {
+  width: 100%;
+  flex: 1;
+  min-height: 200px;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 12px;
+  border: 2px solid #333;
+  border-radius: 4px;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.plain-editor:focus {
+  outline: 2px solid #0093ff;
+  border-color: #0093ff;
+}
+
+/* Editor header with toggle */
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.button-tiny {
+  background: #33464b;
+  color: #b9c2d2;
+  border: 1px solid #565b5c;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.button-tiny:hover {
+  background: #3a5055;
+  color: #fff;
+}
