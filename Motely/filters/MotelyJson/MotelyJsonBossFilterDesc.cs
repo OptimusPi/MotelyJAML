@@ -48,6 +48,23 @@ public struct MotelyJsonBossFilterDesc(MotelyJsonBossFilterCriteria criteria)
                 {
                     var state = new MotelyRunState();
 
+                    // Initialize boss cache - CheckBossSingle requires it!
+                    // Game starts at Ante 1, so bosses are generated from ante 1 onwards
+                    if (maxAnte > 0)
+                    {
+                        var cachedBosses = new MotelyBossBlind[maxAnte + 1];
+                        var bossStream = singleCtx.CreateBossStream();
+                        for (int ante = 1; ante <= maxAnte; ante++)
+                        {
+                            cachedBosses[ante] = singleCtx.GetBossForAnte(
+                                ref bossStream,
+                                ante,
+                                ref state
+                            );
+                        }
+                        state.CachedBosses = cachedBosses;
+                    }
+
                     // Check all clauses using the SAME shared function used in scoring
                     foreach (var clause in clauses)
                     {

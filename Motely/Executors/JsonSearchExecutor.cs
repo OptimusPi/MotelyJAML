@@ -6,18 +6,42 @@ namespace Motely.Executors
     /// <summary>
     /// Executes JSON-based filter searches with specialized vectorized filters
     /// </summary>
-    public sealed class JsonSearchExecutor(
-        string configPath,
-        JsonSearchParams parameters,
-        string format = "json",
-        Action<MotelySeedScoreTally>? customCallback = null
-    )
+    public sealed class JsonSearchExecutor
     {
-        private readonly string _configPath = configPath;
-        private readonly JsonSearchParams _params = parameters;
-        private readonly string _format = format;
-        private readonly Action<MotelySeedScoreTally>? _customCallback = customCallback;
+        private readonly string? _configPath;
+        private readonly MotelyJsonConfig? _config;
+        private readonly JsonSearchParams _params;
+        private readonly string _format;
+        private readonly Action<MotelySeedScoreTally>? _customCallback;
         private bool _cancelled = false;
+        private IMotelySearch? _runningSearch;
+
+        public JsonSearchExecutor(
+            string configPath,
+            JsonSearchParams parameters,
+            string format = "json",
+            Action<MotelySeedScoreTally>? customCallback = null
+        )
+        {
+            _configPath = configPath;
+            _config = null;
+            _params = parameters;
+            _format = format;
+            _customCallback = customCallback;
+        }
+
+        public JsonSearchExecutor(
+            MotelyJsonConfig config,
+            JsonSearchParams parameters,
+            Action<MotelySeedScoreTally>? customCallback = null
+        )
+        {
+            _configPath = null;
+            _config = config;
+            _params = parameters;
+            _format = "json";
+            _customCallback = customCallback;
+        }
 
         /// <summary>
         /// Cancel the currently running search
@@ -25,6 +49,7 @@ namespace Motely.Executors
         public void Cancel()
         {
             _cancelled = true;
+            _runningSearch?.Pause();
         }
 
         /// <summary>
@@ -53,14 +78,14 @@ namespace Motely.Executors
             }
         }
 
-        public int Execute()
+        public int Execute(bool awaitCompletion = true)
         {
             DebugLogger.IsEnabled = _params.EnableDebug;
             FancyConsole.IsEnabled = !_params.NoFancy;
             // Gate colored output based on --nofancy
             TallyColorizer.ColorEnabled = !_params.NoFancy;
 
-            List<string>? seeds = LoadSeeds();
+            var (seeds, preSorted) = LoadSeeds();
 
             // Suppress startup messages in quiet mode
             if (!_params.Quiet)
@@ -90,7 +115,7 @@ namespace Motely.Executors
             try
             {
                 MotelyJsonConfig config = LoadConfig();
-                IMotelySearch search = CreateSearch(config, seeds);
+                IMotelySearch search = CreateSearch(config, seeds, preSorted);
                 if (search == null)
                 {
                     return 1;
@@ -118,32 +143,40 @@ namespace Motely.Executors
 
                 search.Start();
 
-                // Wait for completion - progress shown by MotelySearch.PrintReport() in FancyConsole bottom line
-                while (search.Status != MotelySearchStatus.Completed && !_cancelled)
+                if (awaitCompletion)
                 {
+                    // Wait for completion - progress shown by MotelySearch.PrintReport() in FancyConsole bottom line
+                    while (search.Status != MotelySearchStatus.Completed && !_cancelled)
+                    {
+                        Thread.Sleep(100);
+                    }
+
+                    // Stop the search gracefully (if cancelled)
+                    if (_cancelled)
+                    {
+                        search.Dispose();
+
+                        // Wait for final batch to flush before showing stats
+                        // The search may have queued results that need to be written
+                        Console.Out.Flush();
+                        Thread.Sleep(500); // Give time for final batch flush
+                        Console.Out.Flush();
+                    }
+
+                    Console.Out.Flush();
                     Thread.Sleep(100);
-                }
-
-                // Stop the search gracefully (if cancelled)
-                if (_cancelled)
-                {
-                    search.Dispose();
-
-                    // Wait for final batch to flush before showing stats
-                    // The search may have queued results that need to be written
                     Console.Out.Flush();
-                    Thread.Sleep(500); // Give time for final batch flush
-                    Console.Out.Flush();
+
+                    // Suppress summary in quiet mode
+                    if (!_params.Quiet)
+                    {
+                        PrintResultsSummary(search, _cancelled);
+                    }
                 }
-
-                Console.Out.Flush();
-                Thread.Sleep(100);
-                Console.Out.Flush();
-
-                // Suppress summary in quiet mode
-                if (!_params.Quiet)
+                else
                 {
-                    PrintResultsSummary(search, _cancelled);
+                    // Store the search for later access/cancellation
+                    _runningSearch = search;
                 }
 
                 // Cleanup cancel handler if registered
@@ -166,7 +199,12 @@ namespace Motely.Executors
             }
         }
 
-        private List<string>? LoadSeeds()
+        /// <summary>
+        /// Load seeds from the configured source.
+        /// Returns (seeds, preSorted) where preSorted=true means seeds are already sorted by length.
+        /// For DbList, returns streaming IEnumerable that doesn't load everything into RAM.
+        /// </summary>
+        private (IEnumerable<string>? seeds, bool preSorted) LoadSeeds()
         {
             if (!string.IsNullOrEmpty(_params.SpecificSeed))
             {
@@ -174,9 +212,18 @@ namespace Motely.Executors
                 {
                     Console.WriteLine($"🔍 Searching for specific seed: {_params.SpecificSeed}");
                 }
-                // Return just the specific seed - let the system handle partial batches
-                var seeds = new List<string>() { _params.SpecificSeed };
-                return seeds;
+                // Return just the specific seed
+                return (new[] { _params.SpecificSeed }, false);
+            }
+
+            // Direct seed list takes priority over wordlist file
+            if (_params.SeedList != null && _params.SeedList.Count > 0)
+            {
+                if (!_params.Quiet)
+                {
+                    Console.WriteLine($"🔍 Searching {_params.SeedList.Count} seeds from provided list");
+                }
+                return (_params.SeedList, false);
             }
 
             if (!string.IsNullOrEmpty(_params.Wordlist))
@@ -198,22 +245,42 @@ namespace Motely.Executors
                         $"✅ Loaded {seeds.Count} seeds from wordlist: {wordlistPath}"
                     );
                 }
-                return seeds;
+                return (seeds, false);
             }
 
-            return null; // Sequential search
+            // DuckDB seed list (e.g., fertilizer.db) - ZERO memory allocation!
+            // DuckDBSeeds.Stream() returns IEnumerable that streams from DuckDB, already sorted by LENGTH
+            if (!string.IsNullOrEmpty(_params.DbList))
+            {
+                if (!File.Exists(_params.DbList))
+                {
+                    throw new FileNotFoundException($"DuckDB file not found: {_params.DbList}");
+                }
+
+                if (!_params.Quiet)
+                {
+                    Console.WriteLine($"✅ Streaming seeds from DuckDB: {_params.DbList}");
+                }
+                // Return streaming IEnumerable - NO list materialization, already sorted by LENGTH!
+                return (DuckDBSeeds.Stream(_params.DbList), true);
+            }
+
+            return (null, false); // Sequential search
         }
 
         private MotelyJsonConfig LoadConfig()
         {
+            if (_config != null)
+                return _config;
+
+            if (string.IsNullOrEmpty(_configPath))
+                throw new InvalidOperationException("No config path or config object provided");
+
             string configPath;
             bool isJamlFormat = _format == "jaml";
             string extension = isJamlFormat ? ".jaml" : ".json";
             string filterDir = isJamlFormat ? "JamlFilters" : "JsonItemFilters";
 
-            // If the caller passed a rooted or path-containing config, use it directly
-            // (but append extension only when no extension is present). Otherwise treat
-            // the value as a filter name under the appropriate ItemFilters directory.
             bool hasDirectory = !string.IsNullOrEmpty(Path.GetDirectoryName(_configPath));
             if (Path.IsPathRooted(_configPath) || hasDirectory)
             {
@@ -231,7 +298,6 @@ namespace Motely.Executors
                     $"Could not find {_format.ToUpper()} config file: {configPath}"
                 );
 
-            // Load based on format
             MotelyJsonConfig? config;
             string? error;
             bool success;
@@ -251,7 +317,7 @@ namespace Motely.Executors
             return config;
         }
 
-        private IMotelySearch CreateSearch(MotelyJsonConfig config, List<string>? seeds)
+        private IMotelySearch CreateSearch(MotelyJsonConfig config, IEnumerable<string>? seeds, bool preSorted = false)
         {
             if (!_params.Quiet)
             {
@@ -401,9 +467,11 @@ namespace Motely.Executors
 
                     if (_params.Quiet)
                         compositeSettings = compositeSettings.WithQuietMode(true);
+                    if (_params.ProgressCallback != null)
+                        compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
-                    if (seeds != null && seeds.Count > 0)
-                        return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                    if (seeds != null)
+                        return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                     else
                         return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
                 }
@@ -449,9 +517,11 @@ namespace Motely.Executors
 
                 if (_params.Quiet)
                     passthroughSettings = passthroughSettings.WithQuietMode(true);
+                if (_params.ProgressCallback != null)
+                    passthroughSettings = passthroughSettings.WithProgressCallback(_params.ProgressCallback);
 
-                if (seeds != null && seeds.Count > 0)
-                    return passthroughSettings.WithListSearch(seeds).Start();
+                if (seeds != null)
+                    return passthroughSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return passthroughSettings.WithSequentialSearch().Start();
             }
@@ -534,13 +604,15 @@ namespace Motely.Executors
                 {
                     compositeSettings = compositeSettings.WithQuietMode(true);
                 }
+                if (_params.ProgressCallback != null)
+                    compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
                 // Start search with composite filter (no chaining needed!)
                 if (_params.RandomSeeds.HasValue)
                     return (IMotelySearch)
                         compositeSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
-                else if (seeds != null && seeds.Count > 0)
-                    return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                else if (seeds != null)
+                    return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
             }
@@ -620,13 +692,15 @@ namespace Motely.Executors
 
                 if (_params.Quiet)
                     compositeSettings = compositeSettings.WithQuietMode(true);
+                if (_params.ProgressCallback != null)
+                    compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
                 // Start search with composite filter
                 if (_params.RandomSeeds.HasValue)
                     return (IMotelySearch)
                         compositeSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
-                else if (seeds != null && seeds.Count > 0)
-                    return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                else if (seeds != null)
+                    return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
             }
@@ -827,6 +901,8 @@ namespace Motely.Executors
             {
                 searchSettings = searchSettings.WithQuietMode(true);
             }
+            if (_params.ProgressCallback != null)
+                searchSettings = searchSettings.WithProgressCallback(_params.ProgressCallback);
 
             // Apply deck and stake
             if (
@@ -861,10 +937,10 @@ namespace Motely.Executors
                 return (IMotelySearch)
                     searchSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
             }
-            else if (seeds != null && seeds.Count > 0)
+            else if (seeds != null)
             {
-                // Use provided seed list
-                return (IMotelySearch)searchSettings.WithListSearch(seeds).Start();
+                // Use provided seed list (streaming IEnumerable for DuckDB)
+                return (IMotelySearch)searchSettings.WithListSearch(seeds, preSorted).Start();
             }
             else
             {
@@ -1041,6 +1117,16 @@ namespace Motely.Executors
         public bool Quiet { get; set; }
         public string? SpecificSeed { get; set; }
         public string? Wordlist { get; set; }
+        /// <summary>
+        /// DuckDB file path containing seeds table (e.g., fertilizer.db)
+        /// Use this for large seed collections - more efficient than SeedList
+        /// </summary>
+        public string? DbList { get; set; }
+        public List<string>? SeedList { get; set; }
         public int? RandomSeeds { get; set; }
+        /// <summary>
+        /// Progress callback: (completedBatches, totalBatches, seedsSearched, seedsPerMs)
+        /// </summary>
+        public Action<long, long, long, double>? ProgressCallback { get; set; }
     }
 }

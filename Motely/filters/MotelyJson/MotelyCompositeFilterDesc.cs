@@ -27,6 +27,31 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
             var category = kvp.Key;
             var clauses = kvp.Value;
 
+            // CRITICAL FIX: And/Or clauses should NOT be grouped together!
+            // Each individual and:/or: clause must be a SEPARATE filter that gets ANDed with others.
+            // Otherwise, 3 separate "or:" in must get merged into ONE OrFilter (wrong!)
+            if (category == FilterCategory.Or)
+            {
+                // Create a SEPARATE OrFilter for EACH or clause (they get ANDed together)
+                foreach (var orClause in clauses)
+                {
+                    var singleOrFilter = CreateSingleOrFilter(orClause, ref ctx);
+                    filterEntries.Add((singleOrFilter, orClause.IsInverted));
+                }
+                continue;
+            }
+
+            if (category == FilterCategory.And)
+            {
+                // Create a SEPARATE AndFilter for EACH and clause (they get ANDed together)
+                foreach (var andClause in clauses)
+                {
+                    var singleAndFilter = CreateSingleAndFilter(andClause, ref ctx);
+                    filterEntries.Add((singleAndFilter, andClause.IsInverted));
+                }
+                continue;
+            }
+
             // Check if ALL clauses in this category are inverted (mustNot)
             bool isInverted = clauses.All(c => c.IsInverted);
 
@@ -76,8 +101,6 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
                 FilterCategory.Tag => new MotelyJsonTagFilterDesc(
                     MotelyJsonFilterClauseExtensions.CreateTagCriteria(clauses)
                 ).CreateFilter(ref ctx),
-                FilterCategory.And => CreateAndFilter(clauses, ref ctx),
-                FilterCategory.Or => CreateOrFilter(clauses, ref ctx),
                 _ => throw new ArgumentException($"Unsupported filter category: {category}"),
             };
             filterEntries.Add((filter, isInverted));
@@ -255,6 +278,99 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
         }
 
         return new OrFilter(nestedFilters);
+    }
+
+    /// <summary>
+    /// Create an OrFilter for a SINGLE or: clause (used to ensure multiple or: clauses in must are ANDed)
+    /// </summary>
+    private static IMotelySeedFilter CreateSingleOrFilter(
+        MotelyJsonConfig.MotleyJsonFilterClause orClause,
+        ref MotelyFilterCreationContext ctx
+    )
+    {
+        var nestedFilters = new List<IMotelySeedFilter>();
+
+        if (orClause.Clauses == null || orClause.Clauses.Count == 0)
+            return new OrFilter(nestedFilters); // Empty Or fails all
+
+        // Check if parent OR clause has Antes EXPLICITLY SET
+        if (
+            orClause.AntesWasExplicitlySet
+            && orClause.Antes != null
+            && orClause.Antes.Length > 0
+        )
+        {
+            // Clone each child clause for each ante, then OR them all together
+            foreach (var ante in orClause.Antes)
+            {
+                foreach (var child in orClause.Clauses)
+                {
+                    var clonedChild = CloneClauseWithAnte(child, ante);
+                    var singleClauseList = new List<MotelyJsonConfig.MotleyJsonFilterClause> { clonedChild };
+                    var nestedComposite = new MotelyCompositeFilterDesc(singleClauseList);
+                    nestedFilters.Add(nestedComposite.CreateFilter(ref ctx));
+                }
+            }
+        }
+        else
+        {
+            // No antes array on parent - create separate filter for each child clause
+            foreach (var individualClause in orClause.Clauses)
+            {
+                var singleClauseList = new List<MotelyJsonConfig.MotleyJsonFilterClause> { individualClause };
+                var nestedComposite = new MotelyCompositeFilterDesc(singleClauseList);
+                nestedFilters.Add(nestedComposite.CreateFilter(ref ctx));
+            }
+        }
+
+        return new OrFilter(nestedFilters);
+    }
+
+    /// <summary>
+    /// Create an AndFilter for a SINGLE and: clause (used to ensure multiple and: clauses in must are ANDed)
+    /// </summary>
+    private static IMotelySeedFilter CreateSingleAndFilter(
+        MotelyJsonConfig.MotleyJsonFilterClause andClause,
+        ref MotelyFilterCreationContext ctx
+    )
+    {
+        var nestedFilters = new List<IMotelySeedFilter>();
+
+        if (andClause.Clauses == null || andClause.Clauses.Count == 0)
+            return new AndFilter(nestedFilters); // Empty And fails all
+
+        // Check if Antes was EXPLICITLY SET
+        if (
+            andClause.AntesWasExplicitlySet
+            && andClause.Antes != null
+            && andClause.Antes.Length > 0
+        )
+        {
+            // Create separate AND groups for EACH ante, then OR them together
+            var anteSpecificAndFilters = new List<IMotelySeedFilter>();
+
+            foreach (var ante in andClause.Antes)
+            {
+                var clonedChildren = new List<MotelyJsonConfig.MotleyJsonFilterClause>();
+                foreach (var child in andClause.Clauses)
+                {
+                    var clonedChild = CloneClauseWithAnte(child, ante);
+                    clonedChildren.Add(clonedChild);
+                }
+
+                var anteComposite = new MotelyCompositeFilterDesc(clonedChildren);
+                anteSpecificAndFilters.Add(anteComposite.CreateFilter(ref ctx));
+            }
+
+            // Wrap all ante-specific ANDs in an OR
+            return new OrFilter(anteSpecificAndFilters);
+        }
+        else
+        {
+            // No antes array on parent - just process normally
+            var nestedComposite = new MotelyCompositeFilterDesc(andClause.Clauses);
+            return nestedComposite.CreateFilter(ref ctx);
+        }
     }
 
     public struct MotelyCompositeFilter : IMotelySeedFilter

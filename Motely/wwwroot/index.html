@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAML - Joker Ante Markup Language</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+
+        <!-- JAML Header -->
+        <header class="jaml-header">
+            <h1 class="jaml-logo">JAML</h1>
+            <p class="jaml-tagline" id="jaml-tagline">Joker Ante Markup Language</p>
+        </header>
+
+        <!-- Side by Side Container -->
+        <div class="side-by-side">
+
+            <!-- Left Side: Tabs and Content -->
+            <div class="left-panel">
+                <div class="tabs">
+                    <button class="tab" onclick="switchTab('builder', this)">Builder</button>
+                    <button class="tab active" onclick="switchTab('jaml', this)">Search</button>
+                    <button class="tab" onclick="switchTab('analyze', this)">Analyze</button>
+                </div>
+                <!-- Filter Builder Tab - FRIENDLY VERSION -->
+                <div id="builder-tab" class="tab-content">
+                    <div class="builder-friendly">
+                        <!-- Step 1: Name your search -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">1</span>
+                                <span class="section-title">Name Your Search</span>
+                            </div>
+                            <input type="text" id="builderName" placeholder="e.g., Early Perkeo Run" value="My Filter">
+                        </div>
+
+                        <!-- Step 2: Choose your run settings -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">2</span>
+                                <span class="section-title">Run Settings</span>
+                            </div>
+                            <div class="builder-row-2col">
+                                <div>
+                                    <label class="friendly-label">Deck</label>
+                                    <select id="builderDeck">
+                                        <option value="Red">Red</option>
+                                        <option value="Blue">Blue</option>
+                                        <option value="Yellow">Yellow</option>
+                                        <option value="Green">Green</option>
+                                        <option value="Black">Black</option>
+                                        <option value="Magic">Magic</option>
+                                        <option value="Nebula">Nebula</option>
+                                        <option value="Ghost" selected>Ghost</option>
+                                        <option value="Abandoned">Abandoned</option>
+                                        <option value="Checkered">Checkered</option>
+                                        <option value="Zodiac">Zodiac</option>
+                                        <option value="Painted">Painted</option>
+                                        <option value="Anaglyph">Anaglyph</option>
+                                        <option value="Plasma">Plasma</option>
+                                        <option value="Erratic">Erratic</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="friendly-label">Stake</label>
+                                    <select id="builderStake">
+                                        <option value="White" selected>White</option>
+                                        <option value="Red">Red</option>
+                                        <option value="Green">Green</option>
+                                        <option value="Black">Black</option>
+                                        <option value="Blue">Blue</option>
+                                        <option value="Purple">Purple</option>
+                                        <option value="Orange">Orange</option>
+                                        <option value="Gold">Gold</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: What are you looking for? -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">3</span>
+                                <span class="section-title">Add Items to Find</span>
+                            </div>
+
+                            <!-- Requirement type - friendly buttons -->
+                            <div class="requirement-buttons">
+                                <button type="button" class="req-btn req-must active" onclick="setRequirement('must', this)" title="Seed MUST have this item">
+                                    I NEED this
+                                </button>
+                                <button type="button" class="req-btn req-should" onclick="setRequirement('should', this)" title="Nice to have, adds to score">
+                                    I WANT this
+                                </button>
+                                <button type="button" class="req-btn req-mustnot" onclick="setRequirement('mustNot', this)" title="Skip seeds with this item">
+                                    AVOID this
+                                </button>
+                            </div>
+                            <input type="hidden" id="builderSection2" value="must">
+
+                            <!-- Item selection -->
+                            <div class="builder-row-2col" style="margin-top: 12px;">
+                                <div>
+                                    <label class="friendly-label">Item Type</label>
+                                    <select id="builderType2" onchange="updateBuilderValues2()">
+                                        <option value="joker">Joker</option>
+                                        <option value="soulJoker">Legendary Joker</option>
+                                        <option value="voucher">Voucher</option>
+                                        <option value="tag">Tag (Skip Blind)</option>
+                                        <option value="tarot">Tarot Card</option>
+                                        <option value="spectral">Spectral Card</option>
+                                        <option value="planet">Planet Card</option>
+                                        <option value="boss">Boss Blind</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="friendly-label">Which One?</label>
+                                    <select id="builderValue2"></select>
+                                </div>
+                            </div>
+
+                            <!-- Edition (for jokers) -->
+                            <div class="builder-row" id="editionRow2">
+                                <label class="friendly-label">Special Edition?</label>
+                                <select id="builderEdition2">
+                                    <option value="">Any / Normal</option>
+                                    <option value="Foil">Foil (+50 Chips)</option>
+                                    <option value="Holo">Holo (+10 Mult)</option>
+                                    <option value="Polychrome">Polychrome (x1.5 Mult)</option>
+                                    <option value="Negative">Negative (+1 Joker Slot)</option>
+                                </select>
+                            </div>
+
+                            <!-- When to find it -->
+                            <div class="builder-row">
+                                <label class="friendly-label">When should it appear?</label>
+                                <p class="help-text">Check the antes where you want to find this item</p>
+                                <div class="ante-buttons">
+                                    <button type="button" class="ante-btn active" data-ante="1">Ante 1</button>
+                                    <button type="button" class="ante-btn active" data-ante="2">Ante 2</button>
+                                    <button type="button" class="ante-btn active" data-ante="3">Ante 3</button>
+                                    <button type="button" class="ante-btn" data-ante="4">Ante 4</button>
+                                    <button type="button" class="ante-btn" data-ante="5">Ante 5</button>
+                                    <button type="button" class="ante-btn" data-ante="6">Ante 6</button>
+                                    <button type="button" class="ante-btn" data-ante="7">Ante 7</button>
+                                    <button type="button" class="ante-btn" data-ante="8">Ante 8</button>
+                                </div>
+                                <div class="ante-quick-buttons">
+                                    <button type="button" class="ante-quick" onclick="selectAntes('early')">Early (1-3)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('mid')">Mid (4-5)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('late')">Late (6-8)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('all')">All</button>
+                                </div>
+                            </div>
+
+                            <!-- Score (only for "should") -->
+                            <div class="builder-row" id="scoreRow2" style="display:none;">
+                                <label class="friendly-label">How important is this? (Score)</label>
+                                <p class="help-text">Higher = more important. Seeds are ranked by total score.</p>
+                                <input type="number" id="builderScore2" value="100" min="1" max="1000">
+                            </div>
+
+                            <!-- Advanced options (hidden by default) -->
+                            <details class="advanced-options">
+                                <summary>Advanced Options</summary>
+                                <div class="builder-row" id="shopSlotsRow2">
+                                    <label class="friendly-label">Shop Position</label>
+                                    <p class="help-text">Which shop slots to check (left to right)</p>
+                                    <div class="slots-inline">
+                                        <label><input type="checkbox" class="shop-cb2" value="0" checked>1st</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="1" checked>2nd</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="2">3rd</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="3">4th</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="4">5th</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="5">6th</label>
+                                    </div>
+                                </div>
+                                <div class="builder-row" id="packSlotsRow2">
+                                    <label class="friendly-label">Pack Position</label>
+                                    <p class="help-text">Which pack slots to check</p>
+                                    <div class="slots-inline">
+                                        <label><input type="checkbox" class="pack-cb2" value="0" checked>1st</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="1" checked>2nd</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="2">3rd</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="3">4th</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="4">5th</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="5">6th</label>
+                                    </div>
+                                </div>
+                                <div class="builder-row" id="requireMegaRow2" style="display:none;">
+                                    <label><input type="checkbox" id="builderRequireMega2"> Must be in Mega Pack</label>
+                                </div>
+                            </details>
+
+                            <button onclick="addClauseFromBuilder()" class="button-primary add-item-btn">
+                                + Add This Item
+                            </button>
+                        </div>
+
+                        <!-- Create filter button -->
+                        <div class="builder-actions">
+                            <button onclick="newFilterFromBuilder()" class="button-primary">
+                                Create Filter & Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JAML Search Tab -->
+                <div id="jaml-tab" class="tab-content  active">
+                    <label>Saved Filters:</label>
+                    <div class="search-row">
+                        <select id="savedSearches" onchange="loadSavedSearch()">
+                            <option value="">Select a saved filter...</option>
+                        </select>
+                        <button onclick="deleteSelectedSearch()" class="delete-btn"
+                            title="Delete selected filter">Del</button>
+                    </div>
+                    <div class="editor-header">
+                        <label>Filter (JAML):</label>
+                        <div class="editor-buttons">
+                            <button onclick="formatJaml()" class="button-tiny" title="Auto-format JAML (Ctrl+Shift+F)">Format</button>
+                            <button onclick="toggleEditorMode()" id="editorToggle" class="button-tiny" title="Switch editor mode">Plain</button>
+                        </div>
+                    </div>
+                    <div id="monacoEditor" class="monaco-container"></div>
+                    <textarea id="filterJaml" class="plain-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" style="display:none;">name: Negative Perkeo
+must:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1, 2, 3]
+  - voucher: Observatory
+    antes: [2, 3]
+should:
+  - joker: Blueprint
+    antes: [1, 2, 3]
+    score: 100
+deck: Ghost
+stake: White</textarea>
+                    <div class="action-buttons">
+                        <button id="searchBtn" onclick="toggleSearch()" class="button-primary">Start Search</button>
+                        <button id="shareBtn" onclick="shareSearch()" class="button-small">Share</button>
+                        <input type="number" id="batchOverride" placeholder="Batch #" title="Override start batch (leave empty for auto-resume)" style="width: 80px; margin-left: 8px;">
+                    </div>
+                </div>
+
+                <!-- Analyze Tab -->
+                <div id="analyze-tab" class="tab-content">
+                    <label>Analyze specific seed:</label>
+                    <input type="text" id="analyzeSeed" placeholder="Enter seed (e.g., ABCD1234)" maxlength="8">
+                    <div class="deck-stake-row">
+                        <div>
+                            <label>Deck:</label>
+                            <select id="analyzeDeck">
+                                <option value="Red">Red Deck</option>
+                                <option value="Blue">Blue Deck</option>
+                                <option value="Yellow">Yellow Deck</option>
+                                <option value="Green">Green Deck</option>
+                                <option value="Black">Black Deck</option>
+                                <option value="Magic">Magic Deck</option>
+                                <option value="Nebula">Nebula Deck</option>
+                                <option value="Ghost">Ghost Deck</option>
+                                <option value="Abandoned">Abandoned Deck</option>
+                                <option value="Checkered">Checkered Deck</option>
+                                <option value="Zodiac">Zodiac Deck</option>
+                                <option value="Painted">Painted Deck</option>
+                                <option value="Anaglyph">Anaglyph Deck</option>
+                                <option value="Plasma">Plasma Deck</option>
+                                <option value="Erratic">Erratic Deck</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Stake:</label>
+                            <select id="analyzeStake">
+                                <option value="White">White Stake</option>
+                                <option value="Red">Red Stake</option>
+                                <option value="Green">Green Stake</option>
+                                <option value="Black">Black Stake</option>
+                                <option value="Blue">Blue Stake</option>
+                                <option value="Purple">Purple Stake</option>
+                                <option value="Orange">Orange Stake</option>
+                                <option value="Gold">Gold Stake</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="analyzeSeed()" class="button-blue">Analyze</button>
+                    <div id="analyzeResult"></div>
+                </div>
+            </div>
+
+            <!-- Right Side: Results Panel -->
+            <div class="right-panel">
+                <div class="results-header">
+                    <span id="status" class="status-inline">Results</span>
+                    <div class="results-actions">
+                        <button onclick="exportResults()" class="button-small">Export CSV</button>
+                    </div>
+                </div>
+                <div id="resultsGrid" class="results-container">
+                    <div class="no-results">
+                        <p>No results yet</p>
+                        <p class="help-text">Start a search to see results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- js-yaml for proper YAML parsing/formatting -->
+        <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+        <script src="script.js"></script>
+        <!-- Monaco Editor Loader -->
+        <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+        <script>
+            // Initialize Monaco Editor
+            require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+
+                // Register JAML autocomplete provider - CONTEXT AWARE!
+                monaco.languages.registerCompletionItemProvider('yaml', {
+                    provideCompletionItems: function(model, position) {
+                        const lineContent = model.getLineContent(position.lineNumber);
+                        const textBeforeCursor = lineContent.substring(0, position.column - 1);
+                        const word = model.getWordUntilPosition(position);
+                        const range = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: word.startColumn,
+                            endColumn: word.endColumn
+                        };
+
+                        const suggestions = [];
+
+                        // Data lists
+                        const decks = ['Red', 'Blue', 'Yellow', 'Green', 'Black', 'Magic', 'Nebula', 'Ghost', 'Abandoned', 'Checkered', 'Zodiac', 'Painted', 'Anaglyph', 'Plasma', 'Erratic'];
+                        const stakes = ['White', 'Red', 'Green', 'Black', 'Blue', 'Purple', 'Orange', 'Gold'];
+                        const editions = ['Foil', 'Holo', 'Polychrome', 'Negative'];
+                        const seals = ['Red', 'Blue', 'Gold', 'Purple'];
+                        const enhancements = ['Bonus', 'Mult', 'Wild', 'Glass', 'Steel', 'Stone', 'Lucky', 'Gold'];
+                        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+                        const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+                        const legendaries = ['Canio', 'Triboulet', 'Yorick', 'Chicot', 'Perkeo'];
+                        const jokers = ['Blueprint', 'Brainstorm', 'DNA', 'Vagabond', 'Baron', 'Obelisk', 'Campfire', 'WeeJoker', 'TheDuo', 'TheTrio', 'TheFamily', 'TheOrder', 'TheTribe', 'Hologram', 'Constellation', 'Vampire', 'Madness', 'Seance', 'Astronomer', 'Cartomancer', 'JokerStencil', 'FourFingers', 'Mime', 'CeremonialDagger', 'MarbleJoker', 'LoyaltyCard', 'Dusk', 'Fibonacci', 'SteelJoker', 'Hack', 'Pareidolia', 'SpaceJoker', 'Burglar', 'Blackboard', 'SixthSense', 'Hiker', 'CardSharp', 'Shortcut', 'Cloud9', 'Rocket', 'MidasMask', 'Luchador', 'GiftCard', 'TurtleBean', 'Erosion', 'ToTheMoon', 'StoneJoker', 'LuckyCat', 'Bull', 'DietCola', 'TradingCard', 'FlashCard', 'SpareTrousers', 'Ramen', 'Seltzer', 'Castle', 'MrBones', 'Acrobat', 'SockAndBuskin', 'Troubadour', 'Certificate', 'SmearedJoker', 'Throwback', 'RoughGem', 'Bloodstone', 'Arrowhead', 'OnyxAgate', 'GlassJoker', 'Showman', 'FlowerPot', 'MerryAndy', 'OopsAll6s', 'TheIdol', 'SeeingDouble', 'Matador', 'Satellite', 'Bootstraps', 'Joker', 'GreedyJoker', 'LustyJoker', 'WrathfulJoker', 'GluttonousJoker', 'JollyJoker', 'ZanyJoker', 'MadJoker', 'CrazyJoker', 'DrollJoker', 'SlyJoker', 'WilyJoker', 'CleverJoker', 'DeviousJoker', 'CraftyJoker', 'HalfJoker', 'CreditCard', 'Banner', 'MysticSummit', 'EightBall', 'Misprint', 'RaisedFist', 'ChaostheClown', 'ScaryFace', 'AbstractJoker', 'DelayedGratification', 'GrosMichel', 'EvenSteven', 'OddTodd', 'Scholar', 'BusinessCard', 'Supernova', 'RideTheBus', 'Egg', 'Runner', 'IceCream', 'Splash', 'BlueJoker', 'FacelessJoker', 'GreenJoker', 'Superposition', 'ToDoList', 'Cavendish', 'RedCard', 'SquareJoker', 'RiffRaff', 'Photograph', 'ReservedParking', 'MailInRebate', 'Hallucination', 'FortuneTeller', 'Juggler', 'Drunkard', 'GoldenJoker', 'Popcorn', 'WalkieTalkie', 'SmileyFace', 'GoldenTicket', 'Swashbuckler', 'HangingChad', 'ShootTheMoon', 'BaseballCard', 'AncientJoker', 'HitTheRoad', 'Stuntman', 'InvisibleJoker', 'DriversLicense', 'BurntJoker'];
+                        const vouchers = ['Overstock', 'OverstockPlus', 'ClearanceSale', 'Liquidation', 'Hone', 'GlowUp', 'RerollSurplus', 'RerollGlut', 'CrystalBall', 'OmenGlobe', 'Telescope', 'Observatory', 'Grabber', 'NachoTong', 'Wasteful', 'Recyclomancy', 'TarotMerchant', 'TarotTycoon', 'PlanetMerchant', 'PlanetTycoon', 'SeedMoney', 'MoneyTree', 'Blank', 'Antimatter', 'MagicTrick', 'Illusion', 'Hieroglyph', 'Petroglyph', 'DirectorsCut', 'Retcon', 'PaintBrush', 'Palette'];
+                        const tags = ['UncommonTag', 'RareTag', 'NegativeTag', 'FoilTag', 'HolographicTag', 'PolychromeTag', 'InvestmentTag', 'VoucherTag', 'BossTag', 'StandardTag', 'CharmTag', 'MeteorTag', 'BuffoonTag', 'HandyTag', 'GarbageTag', 'EtherealTag', 'CouponTag', 'DoubleTag', 'JuggleTag', 'D6Tag', 'TopupTag', 'SpeedTag', 'OrbitalTag', 'EconomyTag'];
+                        const tarots = ['TheFool', 'TheMagician', 'TheHighPriestess', 'TheEmpress', 'TheEmperor', 'TheHierophant', 'TheLovers', 'TheChariot', 'Justice', 'TheHermit', 'TheWheelOfFortune', 'Strength', 'TheHangedMan', 'Death', 'Temperance', 'TheDevil', 'TheTower', 'TheStar', 'TheMoon', 'TheSun', 'Judgement', 'TheWorld'];
+                        const spectrals = ['Familiar', 'Grim', 'Incantation', 'Talisman', 'Aura', 'Wraith', 'Sigil', 'Ouija', 'Ectoplasm', 'Immolate', 'Ankh', 'DejaVu', 'Hex', 'Trance', 'Medium', 'Cryptid', 'Soul', 'BlackHole'];
+                        const planets = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'PlanetX', 'Ceres', 'Eris'];
+                        const bosses = ['AmberAcorn', 'CeruleanBell', 'CrimsonHeart', 'VerdantLeaf', 'VioletVessel', 'TheArm', 'TheClub', 'TheEye', 'TheFish', 'TheFlint', 'TheGoad', 'TheHead', 'TheHook', 'TheHouse', 'TheManacle', 'TheMark', 'TheMouth', 'TheNeedle', 'TheOx', 'ThePillar', 'ThePlant', 'ThePsychic', 'TheSerpent', 'TheTooth', 'TheWall', 'TheWater', 'TheWheel', 'TheWindow'];
+
+                        // Helper to add items
+                        const addItems = (items, detail) => {
+                            items.forEach(item => suggestions.push({
+                                label: item,
+                                kind: monaco.languages.CompletionItemKind.Value,
+                                insertText: item,
+                                detail: detail,
+                                range: range
+                            }));
+                        };
+
+                        // CONTEXT DETECTION - check what's before the cursor on this line
+                        const lineLower = textBeforeCursor.toLowerCase();
+
+                        // After "deck:" → only decks
+                        if (lineLower.includes('deck:')) {
+                            addItems(decks, 'Deck');
+                            return { suggestions };
+                        }
+                        // After "stake:" → only stakes
+                        if (lineLower.includes('stake:')) {
+                            addItems(stakes, 'Stake');
+                            return { suggestions };
+                        }
+                        // After "edition:" → only editions
+                        if (lineLower.includes('edition:')) {
+                            addItems(editions, 'Edition');
+                            return { suggestions };
+                        }
+                        // After "seal:" → only seals
+                        if (lineLower.includes('seal:')) {
+                            addItems(seals, 'Seal');
+                            return { suggestions };
+                        }
+                        // After "enhancement:" → only enhancements
+                        if (lineLower.includes('enhancement:')) {
+                            addItems(enhancements, 'Enhancement');
+                            return { suggestions };
+                        }
+                        // After "rank:" → only ranks
+                        if (lineLower.includes('rank:')) {
+                            addItems(ranks, 'Rank');
+                            return { suggestions };
+                        }
+                        // After "suit:" → only suits
+                        if (lineLower.includes('suit:')) {
+                            addItems(suits, 'Suit');
+                            return { suggestions };
+                        }
+                        // After "soulJoker:" → only legendaries
+                        if (lineLower.includes('souljoker:')) {
+                            addItems(legendaries, 'Legendary Joker');
+                            return { suggestions };
+                        }
+                        // After "joker:" → only jokers (not legendaries)
+                        if (lineLower.includes('joker:') && !lineLower.includes('souljoker:')) {
+                            addItems(jokers, 'Joker');
+                            return { suggestions };
+                        }
+                        // After "voucher:" → only vouchers
+                        if (lineLower.includes('voucher:')) {
+                            addItems(vouchers, 'Voucher');
+                            return { suggestions };
+                        }
+                        // After "tag:" → only tags
+                        if (lineLower.includes('tag:') && !lineLower.includes('smallblindtag:') && !lineLower.includes('bigblindtag:')) {
+                            addItems(tags, 'Tag');
+                            return { suggestions };
+                        }
+                        if (lineLower.includes('smallblindtag:') || lineLower.includes('bigblindtag:')) {
+                            addItems(tags, 'Tag');
+                            return { suggestions };
+                        }
+                        // After "tarot:" → only tarots
+                        if (lineLower.includes('tarot:')) {
+                            addItems(tarots, 'Tarot');
+                            return { suggestions };
+                        }
+                        // After "spectral:" → only spectrals
+                        if (lineLower.includes('spectral:')) {
+                            addItems(spectrals, 'Spectral');
+                            return { suggestions };
+                        }
+                        // After "planet:" → only planets
+                        if (lineLower.includes('planet:')) {
+                            addItems(planets, 'Planet');
+                            return { suggestions };
+                        }
+                        // After "boss:" → only bosses
+                        if (lineLower.includes('boss:')) {
+                            addItems(bosses, 'Boss');
+                            return { suggestions };
+                        }
+
+                        // Check indentation level for context
+                        const indent = lineContent.match(/^(\s*)/)[1].length;
+                        const isClauseLine = lineContent.trim().startsWith('-') || indent >= 2;
+                        const isRootLevel = indent === 0 && !lineContent.trim().startsWith('-');
+
+                        // Root level → top-level keywords
+                        if (isRootLevel) {
+                            const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:', 'defaults:'];
+                            keywords.forEach(k => suggestions.push({
+                                label: k,
+                                kind: monaco.languages.CompletionItemKind.Keyword,
+                                insertText: k + ' ',
+                                range: range
+                            }));
+                            return { suggestions };
+                        }
+
+                        // Inside a clause (indented or after -) → clause types and properties
+                        if (isClauseLine) {
+                            // Item types
+                            const itemTypes = ['joker:', 'soulJoker:', 'voucher:', 'tag:', 'smallBlindTag:', 'bigBlindTag:', 'tarot:', 'spectral:', 'planet:', 'boss:', 'playingCard:', 'and:', 'or:'];
+                            itemTypes.forEach(t => suggestions.push({
+                                label: t,
+                                kind: monaco.languages.CompletionItemKind.Class,
+                                insertText: t + ' ',
+                                range: range
+                            }));
+                            // Clause properties
+                            const props = ['antes:', 'edition:', 'score:', 'shopSlots:', 'packSlots:', 'sources:', 'label:', 'seal:', 'enhancement:', 'rank:', 'suit:'];
+                            props.forEach(p => suggestions.push({
+                                label: p,
+                                kind: monaco.languages.CompletionItemKind.Property,
+                                insertText: p + ' ',
+                                range: range
+                            }));
+                            // Snippets for new clauses
+                            suggestions.push({
+                                label: 'clause-joker',
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                insertText: 'joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                detail: 'Joker clause',
+                                range: range
+                            });
+                            suggestions.push({
+                                label: 'clause-legendary',
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                insertText: 'soulJoker: ${1:Perkeo}\n    edition: ${2:Negative}\n    antes: [${3:1, 2, 3}]',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                detail: 'Legendary joker clause',
+                                range: range
+                            });
+                            return { suggestions };
+                        }
+
+                        // Fallback: show everything relevant for general editing
+                        const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:'];
+                        keywords.forEach(k => suggestions.push({
+                            label: k,
+                            kind: monaco.languages.CompletionItemKind.Keyword,
+                            insertText: k + ' ',
+                            range: range
+                        }));
+                        return { suggestions };
+                    }
+                });
+
+                window.jamlEditor = monaco.editor.create(document.getElementById('monacoEditor'), {
+                    value: document.getElementById('filterJaml').value,
+                    language: 'yaml',
+                    theme: 'vs-dark',
+                    minimap: { enabled: false },
+                    fontSize: 15,
+                    lineNumbers: 'on',
+                    folding: true,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    renderWhitespace: 'selection',
+                    tabSize: 2,
+                    insertSpaces: true,
+                    quickSuggestions: true,
+                    suggestOnTriggerCharacters: true
+                });
+
+                // Make Tab key indent properly (insert spaces OR indent selection)
+                window.jamlEditor.addCommand(monaco.KeyCode.Tab, () => {
+                    const selection = window.jamlEditor.getSelection();
+                    // If multiple lines selected, indent all of them
+                    if (selection && selection.startLineNumber !== selection.endLineNumber) {
+                        window.jamlEditor.trigger('keyboard', 'editor.action.indentLines');
+                    } else {
+                        // Single line or no selection - just insert 2 spaces
+                        window.jamlEditor.trigger('keyboard', 'type', { text: '  ' });
+                    }
+                });
+
+                // Shift+Tab to outdent selection
+                window.jamlEditor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Tab, () => {
+                    window.jamlEditor.trigger('keyboard', 'editor.action.outdentLines');
+                });
+
+                // Sync Monaco content to hidden textarea AND invalidate search on user edit
+                window.jamlEditor.onDidChangeModelContent(() => {
+                    document.getElementById('filterJaml').value = window.jamlEditor.getValue();
+                    // Any user edit invalidates the current search
+                    if (typeof onUserJamlEdit === 'function') {
+                        onUserJamlEdit();
+                    }
+                });
+
+                // Override getJamlValue to use Monaco
+                window.getJamlValue = () => window.jamlEditor.getValue();
+                window.setJamlValue = (val) => {
+                    isProgrammaticEdit = true;
+                    window.jamlEditor.setValue(val);
+                    isProgrammaticEdit = false;
+                };
+            });
+        </script>
+    </div>
+</body>
+
+</html>

@@ -96,14 +96,19 @@ public sealed class MotelyRandomSeedProvider(int count) : IMotelySeedProvider
     }
 }
 
-public sealed class MotelySeedListProvider(IEnumerable<string> seeds) : IMotelySeedProvider
+public sealed class MotelySeedListProvider : IMotelySeedProvider
 {
-    // Sort the seeds by length to increase vectorization potential
-    public readonly string[] Seeds = [.. seeds.OrderBy(seed => seed.Length)];
+    // Sort the seeds by length to increase vectorization potential (unless already sorted)
+    public readonly string[] Seeds;
 
     public int SeedCount => Seeds.Length;
 
     private long _currentSeed = -1;
+
+    public MotelySeedListProvider(IEnumerable<string> seeds, bool alreadySorted = false)
+    {
+        Seeds = alreadySorted ? [.. seeds] : [.. seeds.OrderBy(seed => seed.Length)];
+    }
 
     public ReadOnlySpan<char> NextSeed()
     {
@@ -111,6 +116,79 @@ public sealed class MotelySeedListProvider(IEnumerable<string> seeds) : IMotelyS
         if (index >= Seeds.Length)
             return ReadOnlySpan<char>.Empty;
         return Seeds[index];
+    }
+}
+
+/// <summary>
+/// Streams seeds from a DuckDB database, sorted by length.
+/// Returns IEnumerable for use with WithListSearch(seeds, alreadySorted: true).
+/// </summary>
+public static class DuckDBSeeds
+{
+    public static IEnumerable<string> Stream(string dbPath, string tableName = "seeds", string columnName = "seed")
+    {
+        using var connection = new DuckDB.NET.Data.DuckDBConnection($"Data Source={dbPath}");
+        connection.Open();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"SELECT {columnName} FROM {tableName} ORDER BY LENGTH({columnName})";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            yield return reader.GetString(0);
+    }
+}
+
+/// <summary>
+/// Streams seeds from a DuckDB database table.
+/// Expects a table with a 'seed' VARCHAR column (e.g., fertilizer.db with 'seeds' table)
+/// </summary>
+public sealed class DuckDBSeedProvider : IMotelySeedProvider, IDisposable
+{
+    private readonly DuckDB.NET.Data.DuckDBConnection _connection;
+    private readonly string[] _seeds; // Pre-loaded and sorted for vectorization (DuckDB cursor not thread-safe)
+    private long _currentIndex = -1;
+
+    public int SeedCount { get; }
+
+    /// <summary>
+    /// Create provider from a DuckDB database file
+    /// </summary>
+    /// <param name="dbPath">Path to DuckDB file (e.g., fertilizer.db)</param>
+    /// <param name="tableName">Table containing seeds (default: "seeds")</param>
+    /// <param name="columnName">Column containing seed strings (default: "seed")</param>
+    public DuckDBSeedProvider(string dbPath, string tableName = "seeds", string columnName = "seed")
+    {
+        _connection = new DuckDB.NET.Data.DuckDBConnection($"Data Source={dbPath}");
+        _connection.Open();
+
+        // Get count first
+        using var countCmd = _connection.CreateCommand();
+        countCmd.CommandText = $"SELECT COUNT(*) FROM {tableName}";
+        SeedCount = Convert.ToInt32(countCmd.ExecuteScalar());
+
+        // Load seeds sorted by length in DuckDB (faster than C# LINQ sorting!)
+        // DuckDB readers aren't thread-safe for concurrent NextSeed() calls, so we pre-load
+        _seeds = new string[SeedCount];
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = $"SELECT {columnName} FROM {tableName} ORDER BY LENGTH({columnName})";
+        using var reader = cmd.ExecuteReader();
+        int i = 0;
+        while (reader.Read() && i < SeedCount)
+        {
+            _seeds[i++] = reader.GetString(0);
+        }
+    }
+
+    public ReadOnlySpan<char> NextSeed()
+    {
+        long index = Interlocked.Increment(ref _currentIndex);
+        if (index >= _seeds.Length)
+            return ReadOnlySpan<char>.Empty;
+        return _seeds[index];
+    }
+
+    public void Dispose()
+    {
+        _connection?.Dispose();
     }
 }
 
@@ -181,9 +259,9 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         return this;
     }
 
-    public MotelySearchSettings<TBaseFilter> WithListSearch(IEnumerable<string> seeds)
+    public MotelySearchSettings<TBaseFilter> WithListSearch(IEnumerable<string> seeds, bool alreadySorted = false)
     {
-        return WithProviderSearch(new MotelySeedListProvider(seeds));
+        return WithProviderSearch(new MotelySeedListProvider(seeds, alreadySorted));
     }
 
     public MotelySearchSettings<TBaseFilter> WithRandomSearch(int count)
@@ -490,10 +568,6 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
 
     private void PrintReport()
     {
-        // Suppress all progress output in quiet mode
-        if (_quietMode)
-            return;
-
         double elapsedMS = _elapsedTime.ElapsedMilliseconds;
 
         if (elapsedMS - _lastReportMS < reportInterval)
@@ -503,6 +577,19 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
 
         // PERFORMANCE: Use calculated CompletedBatchCount (no extra state to maintain)
         long thisCompletedCount = CompletedBatchCount;
+
+        // ALWAYS invoke progress callback if set (even in quiet mode) - needed for API speed stats
+        if (_progressCallback != null)
+        {
+            long totalBatches = _threads[0].MaxBatch;
+            long seedsSearched = thisCompletedCount * _threads[0].SeedsPerBatch;
+            double seedsPerMs = elapsedMS > 1 ? seedsSearched / elapsedMS : 0;
+            _progressCallback(thisCompletedCount, totalBatches, seedsSearched, seedsPerMs);
+        }
+
+        // Suppress console progress output in quiet mode
+        if (_quietMode)
+            return;
 
         double totalPortionFinished = (double)thisCompletedCount / (double)_threads[0].MaxBatch;
         double thisPortionFinished = thisCompletedCount / (double)_threads[0].MaxBatch;
