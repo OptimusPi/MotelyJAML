@@ -181,7 +181,7 @@ textarea {
 
 #filterJaml {
     font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
-    font-size: 16px; /* Keep crisp for code */
+    font-size: 18px; /* Bigger for readability */
     line-height: 1.4;
     flex: 1; /* GROW to fill remaining space */
     resize: vertical;
@@ -930,7 +930,7 @@ label {
   background: #ffffff;
   color: #000000;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.5;
   padding: 12px;
   border: 2px solid #333;

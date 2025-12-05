@@ -109,7 +109,12 @@ namespace Motely
             );
             var wordlistOption = app.Option<string>(
                 "--wordlist <WL>",
-                "Wordlist file",
+                "Wordlist file (txt, one seed per line)",
+                CommandOptionType.SingleValue
+            );
+            var dblistOption = app.Option<string>(
+                "--dblist <DB>",
+                "DuckDB file with seeds table (e.g., fertilizer.db)",
                 CommandOptionType.SingleValue
             );
             var keywordOption = app.Option<string>(
@@ -192,6 +197,7 @@ namespace Motely
                     Quiet = quietOption.HasValue(),
                     SpecificSeed = seedOption.Value(),
                     Wordlist = wordlistOption.Value(),
+                    DbList = dblistOption.Value(),
                     RandomSeeds = randomOption.HasValue() ? randomOption.ParsedValue : null,
                 };
 

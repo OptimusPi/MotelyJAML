@@ -85,7 +85,7 @@ namespace Motely.Executors
             // Gate colored output based on --nofancy
             TallyColorizer.ColorEnabled = !_params.NoFancy;
 
-            List<string>? seeds = LoadSeeds();
+            var (seeds, preSorted) = LoadSeeds();
 
             // Suppress startup messages in quiet mode
             if (!_params.Quiet)
@@ -115,7 +115,7 @@ namespace Motely.Executors
             try
             {
                 MotelyJsonConfig config = LoadConfig();
-                IMotelySearch search = CreateSearch(config, seeds);
+                IMotelySearch search = CreateSearch(config, seeds, preSorted);
                 if (search == null)
                 {
                     return 1;
@@ -199,7 +199,12 @@ namespace Motely.Executors
             }
         }
 
-        private List<string>? LoadSeeds()
+        /// <summary>
+        /// Load seeds from the configured source.
+        /// Returns (seeds, preSorted) where preSorted=true means seeds are already sorted by length.
+        /// For DbList, returns streaming IEnumerable that doesn't load everything into RAM.
+        /// </summary>
+        private (IEnumerable<string>? seeds, bool preSorted) LoadSeeds()
         {
             if (!string.IsNullOrEmpty(_params.SpecificSeed))
             {
@@ -207,9 +212,8 @@ namespace Motely.Executors
                 {
                     Console.WriteLine($"🔍 Searching for specific seed: {_params.SpecificSeed}");
                 }
-                // Return just the specific seed - let the system handle partial batches
-                var seeds = new List<string>() { _params.SpecificSeed };
-                return seeds;
+                // Return just the specific seed
+                return (new[] { _params.SpecificSeed }, false);
             }
 
             // Direct seed list takes priority over wordlist file
@@ -219,7 +223,7 @@ namespace Motely.Executors
                 {
                     Console.WriteLine($"🔍 Searching {_params.SeedList.Count} seeds from provided list");
                 }
-                return _params.SeedList;
+                return (_params.SeedList, false);
             }
 
             if (!string.IsNullOrEmpty(_params.Wordlist))
@@ -241,10 +245,27 @@ namespace Motely.Executors
                         $"✅ Loaded {seeds.Count} seeds from wordlist: {wordlistPath}"
                     );
                 }
-                return seeds;
+                return (seeds, false);
             }
 
-            return null; // Sequential search
+            // DuckDB seed list (e.g., fertilizer.db) - ZERO memory allocation!
+            // DuckDBSeeds.Stream() returns IEnumerable that streams from DuckDB, already sorted by LENGTH
+            if (!string.IsNullOrEmpty(_params.DbList))
+            {
+                if (!File.Exists(_params.DbList))
+                {
+                    throw new FileNotFoundException($"DuckDB file not found: {_params.DbList}");
+                }
+
+                if (!_params.Quiet)
+                {
+                    Console.WriteLine($"✅ Streaming seeds from DuckDB: {_params.DbList}");
+                }
+                // Return streaming IEnumerable - NO list materialization, already sorted by LENGTH!
+                return (DuckDBSeeds.Stream(_params.DbList), true);
+            }
+
+            return (null, false); // Sequential search
         }
 
         private MotelyJsonConfig LoadConfig()
@@ -296,7 +317,7 @@ namespace Motely.Executors
             return config;
         }
 
-        private IMotelySearch CreateSearch(MotelyJsonConfig config, List<string>? seeds)
+        private IMotelySearch CreateSearch(MotelyJsonConfig config, IEnumerable<string>? seeds, bool preSorted = false)
         {
             if (!_params.Quiet)
             {
@@ -449,8 +470,8 @@ namespace Motely.Executors
                     if (_params.ProgressCallback != null)
                         compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
-                    if (seeds != null && seeds.Count > 0)
-                        return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                    if (seeds != null)
+                        return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                     else
                         return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
                 }
@@ -499,8 +520,8 @@ namespace Motely.Executors
                 if (_params.ProgressCallback != null)
                     passthroughSettings = passthroughSettings.WithProgressCallback(_params.ProgressCallback);
 
-                if (seeds != null && seeds.Count > 0)
-                    return passthroughSettings.WithListSearch(seeds).Start();
+                if (seeds != null)
+                    return passthroughSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return passthroughSettings.WithSequentialSearch().Start();
             }
@@ -590,8 +611,8 @@ namespace Motely.Executors
                 if (_params.RandomSeeds.HasValue)
                     return (IMotelySearch)
                         compositeSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
-                else if (seeds != null && seeds.Count > 0)
-                    return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                else if (seeds != null)
+                    return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
             }
@@ -678,8 +699,8 @@ namespace Motely.Executors
                 if (_params.RandomSeeds.HasValue)
                     return (IMotelySearch)
                         compositeSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
-                else if (seeds != null && seeds.Count > 0)
-                    return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
+                else if (seeds != null)
+                    return (IMotelySearch)compositeSettings.WithListSearch(seeds, preSorted).Start();
                 else
                     return (IMotelySearch)compositeSettings.WithSequentialSearch().Start();
             }
@@ -916,10 +937,10 @@ namespace Motely.Executors
                 return (IMotelySearch)
                     searchSettings.WithRandomSearch(_params.RandomSeeds.Value).Start();
             }
-            else if (seeds != null && seeds.Count > 0)
+            else if (seeds != null)
             {
-                // Use provided seed list
-                return (IMotelySearch)searchSettings.WithListSearch(seeds).Start();
+                // Use provided seed list (streaming IEnumerable for DuckDB)
+                return (IMotelySearch)searchSettings.WithListSearch(seeds, preSorted).Start();
             }
             else
             {
@@ -1096,6 +1117,11 @@ namespace Motely.Executors
         public bool Quiet { get; set; }
         public string? SpecificSeed { get; set; }
         public string? Wordlist { get; set; }
+        /// <summary>
+        /// DuckDB file path containing seeds table (e.g., fertilizer.db)
+        /// Use this for large seed collections - more efficient than SeedList
+        /// </summary>
+        public string? DbList { get; set; }
         public List<string>? SeedList { get; set; }
         public int? RandomSeeds { get; set; }
         /// <summary>

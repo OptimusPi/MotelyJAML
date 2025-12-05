@@ -462,15 +462,13 @@ async function runSearch() {
     }
 }
 
-async function pollSearchStatus(delay = 0) {
+async function pollSearchStatus(delay = 1000) {
     let pollCount = 0;
-    
+
     while (isSearching && !searchAborted) {
         try {
-            // Progressive polling: 0s, 1s, 2s, 3s, 3s, 3s...
-            if (delay > 0) {
-                await new Promise(r => setTimeout(r, delay));
-            }
+            // Always wait at least 1s between polls to avoid overwhelming the search
+            await new Promise(r => setTimeout(r, delay));
             
             const response = await fetch(`/search?id=${currentSearchId}`);
             if (!response.ok) {
@@ -481,7 +479,6 @@ async function pollSearchStatus(delay = 0) {
 
             const data = await response.json();
             const running = data.isBackgroundRunning === true;
-            const seeds = data.seedsFound || 0;
             const seedsSearched = data.seedsSearched || 0;
             const seedsPerSecond = data.seedsPerSecond || 0;
 
@@ -499,26 +496,28 @@ async function pollSearchStatus(delay = 0) {
                 batchInput.placeholder = `Current: ${data.currentBatch}`;
             }
 
-            // Update button and status based on isBackgroundRunning (most reliable)
-            if (running) {
-                updateSearchButton('RUNNING', 0);
-                showStatus(`Batch ${data.currentBatch || 0} | ${speedStr} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
-            } else {
-                updateSearchButton('CONTINUE', 0);
-                showStatus(`Stopped at batch ${data.currentBatch || 0} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
-                isSearching = false;
-                return;
-            }
-
-            // Update results from DB
+            // Update results from DB FIRST so count is accurate
             if (data.results && data.results.length > 0) {
                 mergeResults(data.results);
                 displayResults({ results: searchResults, columns: data.columns });
             }
 
-            // Progressive backoff: 0→1→2→3→3→3... (max 3 seconds)
+            // Update button and status based on isBackgroundRunning (most reliable)
+            // Use data.seedsFound for accurate count (actual DB count, not capped at 1000)
+            const foundCount = data.seedsFound || searchResults.length;
+            if (running) {
+                updateSearchButton('RUNNING', 0);
+                showStatus(`Batch ${data.currentBatch || 0} | ${speedStr} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${foundCount} found`);
+            } else {
+                updateSearchButton('CONTINUE', 0);
+                showStatus(`Stopped at batch ${data.currentBatch || 0} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${foundCount} found`);
+                isSearching = false;
+                return;
+            }
+
+            // Progressive backoff: 1→2→3→4→5→5→5... (min 1s, max 5s between polls)
             pollCount++;
-            delay = Math.min(pollCount * 1000, 3000);
+            delay = Math.min(1000 + pollCount * 1000, 5000);
             
         } catch (error) {
             if (!searchAborted) {
