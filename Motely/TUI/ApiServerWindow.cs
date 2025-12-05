@@ -31,7 +31,7 @@ public class ApiServerWindow : Window
         X = Pos.Center();
         Y = Pos.Center();
         Width = Dim.Percent(85); // Use 85% of screen width
-        Height = 22;
+        Height = 25; // Taller for bigger request log
         CanFocus = true;
         SetScheme(BalatroTheme.Window);
 
@@ -95,6 +95,17 @@ public class ApiServerWindow : Window
         };
         Add(_tunnelLabel);
 
+        // Open Web UI button - launches browser with local URL
+        var openWebButton = new CleanButton()
+        {
+            X = Pos.AnchorEnd(34),
+            Y = 1,
+            Text = "Open Web UI",
+        };
+        openWebButton.SetScheme(BalatroTheme.GreenButton);
+        openWebButton.Accept += (s, e) => OpenInBrowser(_serverUrl);
+        Add(openWebButton);
+
         _tunnelButton = new CleanButton()
         {
             X = Pos.AnchorEnd(18),
@@ -154,13 +165,13 @@ public class ApiServerWindow : Window
         };
         endpointsFrame.Add(analyzeDesc);
 
-        // Request log
+        // Request log (taller for better visibility)
         var logFrame = new FrameView()
         {
             X = 1,
             Y = 10,
             Width = Dim.Fill() - 2,
-            Height = 8,
+            Height = 11,
             Title = "Request Log",
         };
         logFrame.SetScheme(BalatroTheme.InnerPanel);
@@ -404,6 +415,30 @@ public class ApiServerWindow : Window
         catch
         {
             // Ignore clipboard errors
+        }
+    }
+
+    private void OpenInBrowser(string url)
+    {
+        try
+        {
+            LogMessage($"[BROWSER] Opening {url}");
+            if (OperatingSystem.IsWindows())
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start("open", url);
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                Process.Start("xdg-open", url);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogMessage($"[BROWSER] Failed to open: {ex.Message}");
         }
     }
 }

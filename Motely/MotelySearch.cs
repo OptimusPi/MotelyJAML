@@ -490,10 +490,6 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
 
     private void PrintReport()
     {
-        // Suppress all progress output in quiet mode
-        if (_quietMode)
-            return;
-
         double elapsedMS = _elapsedTime.ElapsedMilliseconds;
 
         if (elapsedMS - _lastReportMS < reportInterval)
@@ -503,6 +499,19 @@ public sealed unsafe class MotelySearch<TBaseFilter> : IInternalMotelySearch
 
         // PERFORMANCE: Use calculated CompletedBatchCount (no extra state to maintain)
         long thisCompletedCount = CompletedBatchCount;
+
+        // ALWAYS invoke progress callback if set (even in quiet mode) - needed for API speed stats
+        if (_progressCallback != null)
+        {
+            long totalBatches = _threads[0].MaxBatch;
+            long seedsSearched = thisCompletedCount * _threads[0].SeedsPerBatch;
+            double seedsPerMs = elapsedMS > 1 ? seedsSearched / elapsedMS : 0;
+            _progressCallback(thisCompletedCount, totalBatches, seedsSearched, seedsPerMs);
+        }
+
+        // Suppress console progress output in quiet mode
+        if (_quietMode)
+            return;
 
         double totalPortionFinished = (double)thisCompletedCount / (double)_threads[0].MaxBatch;
         double thisPortionFinished = thisCompletedCount / (double)_threads[0].MaxBatch;

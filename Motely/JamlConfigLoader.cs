@@ -83,7 +83,17 @@ public static class JamlConfigLoader
         catch (Exception ex)
         {
             config = null;
-            error = $"Failed to parse JAML: {ex.Message}";
+            // Include inner exception and stack trace for better debugging
+            var innerMsg = ex.InnerException?.Message;
+            var details = innerMsg != null ? $" -> {innerMsg}" : "";
+            error = $"Failed to parse JAML: {ex.Message}{details}";
+
+            // Debug: log preprocessed content to help diagnose issues
+            #if DEBUG
+            Console.WriteLine($"[JAML DEBUG] Preprocessed content:\n{jamlContent}");
+            Console.WriteLine($"[JAML DEBUG] Exception: {ex}");
+            #endif
+
             return false;
         }
     }
@@ -144,7 +154,36 @@ public static class JamlConfigLoader
                             // Convert to standard format
                             var normalizedType = NormalizeTypeName(typeKey);
                             result.AppendLine($"{indent}- type: {normalizedType}");
-                            result.AppendLine($"{indent}  value: {value}");
+
+                            // Special handling for or/and - they use "clauses:" not "value:"
+                            // This allows shorthand: "- or:" followed by nested items
+                            // instead of requiring explicit "clauses:" keyword
+                            if (typeKey.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                                typeKey.Equals("and", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // "null" comes from js-yaml formatter quirk - treat as empty
+                                // User already has explicit "clauses:" on next line, don't add another
+                                if (value.Equals("null", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Just emit type, user has explicit clauses: below
+                                }
+                                else if (string.IsNullOrEmpty(value))
+                                {
+                                    // Normal shorthand: "- or:" with nested items (no explicit clauses:)
+                                    // Add "clauses:" so nested items become the clauses array
+                                    result.AppendLine($"{indent}  clauses:");
+                                }
+                                else
+                                {
+                                    // User wrote "- or: something" which doesn't make sense
+                                    // Just pass it through and let the deserializer error
+                                    result.AppendLine($"{indent}  value: {value}");
+                                }
+                            }
+                            else
+                            {
+                                result.AppendLine($"{indent}  value: {value}");
+                            }
                             matched = true;
                             break; // Found match, stop checking other typeKeys
                         }

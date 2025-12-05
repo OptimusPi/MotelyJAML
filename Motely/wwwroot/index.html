@@ -246,7 +246,8 @@ deck: Ghost
 stake: White</textarea>
                     <div class="action-buttons">
                         <button id="searchBtn" onclick="toggleSearch()" class="button-primary">Start Search</button>
-                        <button id="shareBtn" onclick="shareSearch()" class="button-small" disabled>Share</button>
+                        <button id="shareBtn" onclick="shareSearch()" class="button-small">Share</button>
+                        <input type="number" id="batchOverride" placeholder="Batch #" title="Override start batch (leave empty for auto-resume)" style="width: 80px; margin-left: 8px;">
                     </div>
                 </div>
 
@@ -311,6 +312,8 @@ stake: White</textarea>
             </div>
         </div>
 
+        <!-- js-yaml for proper YAML parsing/formatting -->
+        <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
         <script src="script.js"></script>
         <!-- Monaco Editor Loader -->
         <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
@@ -547,18 +550,22 @@ stake: White</textarea>
                     window.jamlEditor.trigger('keyboard', 'editor.action.outdentLines');
                 });
 
-                // Sync Monaco content to hidden textarea AND check if search ID changed
+                // Sync Monaco content to hidden textarea AND invalidate search on user edit
                 window.jamlEditor.onDidChangeModelContent(() => {
                     document.getElementById('filterJaml').value = window.jamlEditor.getValue();
-                    // If JAML changed in a way that affects search ID, reset button
-                    if (typeof checkJamlChanged === 'function') {
-                        checkJamlChanged();
+                    // Any user edit invalidates the current search
+                    if (typeof onUserJamlEdit === 'function') {
+                        onUserJamlEdit();
                     }
                 });
 
                 // Override getJamlValue to use Monaco
                 window.getJamlValue = () => window.jamlEditor.getValue();
-                window.setJamlValue = (val) => window.jamlEditor.setValue(val);
+                window.setJamlValue = (val) => {
+                    isProgrammaticEdit = true;
+                    window.jamlEditor.setValue(val);
+                    isProgrammaticEdit = false;
+                };
             });
         </script>
     </div>

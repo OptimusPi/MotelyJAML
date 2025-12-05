@@ -7,19 +7,25 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    overflow: hidden; /* NO page scrolling - panels scroll internally */
+}
+
 body {
     font-family: 'm6x11', 'Courier New', monospace;
     background: #0b1415; /* ColorDarkShadow */
     color: #FFFFFF;
     font-size: 16px; /* Bigger base font */
-    padding: 16px;
+    padding: 12px;
+    margin: 0;
 }
 
 /* JAML Header */
 .jaml-header {
     text-align: center;
-    margin-bottom: 16px;
-    
+    margin-bottom: 8px;
+    flex-shrink: 0; /* don't shrink header */
 }
 
 .jaml-logo {
@@ -100,7 +106,8 @@ body {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-height: 0; /* Allow shrinking */
+    min-height: 0; /* CRITICAL: allow shrinking in flex */
+    overflow: hidden; /* contain children */
 }
 
 /* Buttons - slim */
@@ -246,11 +253,11 @@ label {
     background: #1e2b2d; /* ColorDarkGrey */
     border: 3px solid #565b5c; /* ColorFadedGrey */
     border-radius: 8px;
-    padding: 20px; /* BIGGER padding */
+    padding: 12px; /* reasonable padding */
     flex: 1; /* GROW to fill available space */
+    min-height: 0; /* CRITICAL: allow shrinking in flex */
     overflow-y: auto;
-    max-height: calc(100vh - 400px); /* Constrain height, allow for header/tabs/status */
-    /* NO inset shadow glows! */
+    /* NO max-height - let flex handle it! */
 }
 
 .results-table {
@@ -298,14 +305,18 @@ label {
     font-size: 16px; /* BIGGER */
 }
 
-/* Action buttons - stay at bottom, don't grow */
+/* Action buttons - stay at bottom, stretch wide */
 .action-buttons {
     display: flex;
     gap: 10px;
     margin-top: 8px;
-    justify-content: center;
-    flex-wrap: wrap;
     flex-shrink: 0;
+}
+
+.action-buttons button {
+    flex: 1;
+    padding: 10px 20px;
+    font-size: 14px;
 }
 
 .search-row {
@@ -357,16 +368,18 @@ label {
 .app-layout {
   display: flex;
   flex-direction: column;
-  height: 90vh; /* full viewport height */
+  height: 100%;
+  max-height: 100vh;
 }
 
 /* Side-by-side area fills the remaining space under header */
 .side-by-side {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 16px;
   flex: 1;             /* take all remaining vertical space */
-  /* no fixed height here to avoid overflow traps */
+  min-height: 0;       /* CRITICAL: allow flex children to shrink below content size */
+  overflow: hidden;    /* contain children */
 }
 
 /* Panels: keep your Balatro look, add scrolling */
@@ -374,6 +387,7 @@ label {
 .right-panel {
   flex: 1;
   min-width: 0;
+  min-height: 0;         /* CRITICAL: allow shrinking */
   display: flex;
   flex-direction: column;
 
@@ -381,7 +395,7 @@ label {
   background: #3a5055;
   border: 4px solid #b9c2d2;
   border-radius: 12px;
-  padding: 25px;
+  padding: 16px;
   box-sizing: border-box;
   color: #FFFFFF;
 
@@ -394,15 +408,16 @@ label {
   overflow-y: auto;
 }
 
-/* Mobile: stack panels vertically and FIX SCROLLING */
+/* Mobile: stack panels vertically - PAGE SCROLLS! */
 @media (max-width: 768px) {
-  body {
-    padding: 8px;
-    overflow-y: auto !important; /* ALLOW SCROLLING! */
+  html, body {
+    height: auto;
+    overflow-y: auto !important; /* ALLOW PAGE SCROLLING on mobile! */
   }
 
   .app-layout {
     height: auto; /* Don't lock to viewport - let content flow */
+    max-height: none;
     min-height: 100vh;
   }
 
@@ -410,6 +425,7 @@ label {
     flex-direction: column;
     gap: 15px;
     flex: none; /* Don't flex-grow, just be natural height */
+    overflow: visible;
   }
 
   .left-panel,
@@ -421,7 +437,7 @@ label {
   }
 
   .results-container {
-    max-height: 300px; /* Limit results height on mobile */
+    max-height: 400px; /* Limit results height on mobile */
     overflow-y: auto;
   }
 
@@ -437,16 +453,6 @@ label {
   .action-buttons button {
     flex: 1 1 45%; /* Two buttons per row */
     min-width: 120px;
-  }
-
-  /* Make sure search button is ALWAYS visible */
-  #searchBtn {
-    position: sticky;
-    bottom: 10px;
-    z-index: 100;
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
   }
 }
 

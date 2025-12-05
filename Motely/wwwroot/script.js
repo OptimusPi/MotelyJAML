@@ -33,12 +33,26 @@ let searchAborted = false;
 let currentSearchId = null;
 let currentSearchJaml = null; // The JAML content that started the current search
 let currentBatchSize = 1000000;
+let isProgrammaticEdit = false; // Flag to ignore programmatic setJamlValue calls
 let totalSeedsSearched = 0;
 let searchResults = [];
 let searchColumns = ['seed', 'score'];
 let savedFilters = [];
 let sortColumn = 'score';
 let sortDirection = 'desc'; // 'asc' or 'desc'
+const maxRows = 1000; // Display limit message (API returns up to 1000)
+
+// Sync URL with current search ID (so refresh/bookmark works)
+function updateUrlWithSearchId(searchId) {
+    const url = new URL(window.location);
+    if (searchId) {
+        url.searchParams.set('search', searchId);
+    } else {
+        url.searchParams.delete('search');
+    }
+    // Update URL without reloading page
+    window.history.replaceState({}, '', url);
+}
 
 // ================================================
 // JAML Editor Helpers (Monaco or textarea fallback)
@@ -51,10 +65,12 @@ function getJamlValue() {
 }
 
 function setJamlValue(value) {
+    isProgrammaticEdit = true; // Mark as programmatic so change events don't invalidate
     document.getElementById('filterJaml').value = value;
     if (window.jamlEditor) {
         window.jamlEditor.setValue(value);
     }
+    isProgrammaticEdit = false;
 }
 
 // Toggle between Monaco and Plain text editor
@@ -85,9 +101,7 @@ function toggleEditorMode() {
         };
 
         // Add change listener to plain textarea
-        plainTextarea.oninput = () => {
-            if (typeof checkJamlChanged === 'function') checkJamlChanged();
-        };
+        plainTextarea.oninput = () => onUserJamlEdit();
     } else {
         // Switch to Monaco editor
         // Sync content from textarea to Monaco
@@ -108,97 +122,61 @@ function toggleEditorMode() {
 }
 
 // ================================================
-// JAML Auto-Formatter - fixes indentation!
+// JAML Auto-Formatter - keeps arrays inline, NEVER uses {} brackets
 // ================================================
 function formatJaml() {
     const content = getJamlValue();
     if (!content.trim()) return;
 
-    const lines = content.split('\n');
-    const formatted = [];
-
-    // State tracking
-    let inListSection = false;  // Inside must/should/mustNot
-    let nestingLevel = 0;       // How deep in or/and blocks
-    let lastItemIndent = 2;     // Indent of last "- item:" line
-
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
-        let trimmed = line.trim();
-
-        // Skip empty lines
-        if (!trimmed) {
-            formatted.push('');
-            continue;
-        }
-
-        // Top-level keys go at column 0
-        if (/^(name|deck|stake|must|should|mustNot|defaults|description|author|dateCreated):/i.test(trimmed)) {
-            nestingLevel = 0;
-            lastItemIndent = 2;
-            inListSection = /^(must|should|mustNot):/i.test(trimmed);
-            formatted.push(trimmed);
-            continue;
-        }
-
-        // Not in a list section - just preserve
-        if (!inListSection) {
-            formatted.push(trimmed);
-            continue;
-        }
-
-        // Detect nesting based on original indentation
-        const origIndent = line.match(/^(\s*)/)[1].length;
-
-        // Handle list items (lines starting with -)
-        if (trimmed.startsWith('-')) {
-            const afterDash = trimmed.substring(1).trim();
-
-            // Is this "- or:" or "- and:"?
-            if (/^(or|and):\s*$/.test(afterDash)) {
-                // Calculate proper indent: base 2 + 4 per nesting level
-                const indent = 2 + nestingLevel * 4;
-                formatted.push(' '.repeat(indent) + trimmed);
-                nestingLevel++;
-                lastItemIndent = indent;
-            } else {
-                // Regular item like "- joker: Blueprint"
-                // Must be inside current nesting level
-                const indent = 2 + nestingLevel * 4;
-                formatted.push(' '.repeat(indent) + trimmed);
-                lastItemIndent = indent;
-            }
-            continue;
-        }
-
-        // Property lines (antes:, edition:, etc.) - indent 2 more than their list item
-        if (/^(antes|edition|score|shopSlots|packSlots|sources|label|seal|enhancement|rank|suit):/i.test(trimmed)) {
-            formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
-            continue;
-        }
-
-        // Standalone type definitions (shouldn't normally happen, but handle it)
-        if (/^(joker|soulJoker|voucher|tag|smallBlindTag|bigBlindTag|tarot|spectral|planet|boss|playingCard):/i.test(trimmed)) {
-            formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
-            continue;
-        }
-
-        // Check if we're returning to a shallower nesting level
-        // by looking at original indentation
-        if (origIndent < lastItemIndent && nestingLevel > 0) {
-            // Estimate how many levels to pop
-            const expectedIndent = 2 + (nestingLevel - 1) * 4;
-            if (origIndent <= expectedIndent) {
-                nestingLevel = Math.max(0, Math.floor((origIndent - 2) / 4));
-            }
-        }
-
-        // Default: use last item indent + 2
-        formatted.push(' '.repeat(lastItemIndent + 2) + trimmed);
+    if (typeof jsyaml === 'undefined') {
+        showStatus('YAML library not loaded yet, try again');
+        return;
     }
 
-    setJamlValue(formatted.join('\n'));
-    showStatus('JAML formatted!');
+    try {
+        const parsed = jsyaml.load(content);
+        if (!parsed || typeof parsed !== 'object') {
+            showStatus('Invalid JAML - could not parse');
+            return;
+        }
+
+        // Dump fully expanded first (flowLevel: -1 = no flow syntax at all)
+        let formatted = jsyaml.dump(parsed, {
+            indent: 2,
+            lineWidth: -1,
+            noArrayIndent: false,
+            sortKeys: false,
+            quotingType: "'",
+            forceQuotes: false,
+            flowLevel: -1  // NEVER use {} or [] flow syntax
+        });
+
+        // Post-process: collapse simple number arrays back to inline [1, 2, 3]
+        // Match patterns like:
+        //   antes:
+        //     - 1
+        //     - 2
+        // And convert to: antes: [1, 2]
+        formatted = formatted.replace(
+            /^(\s*)(antes|shopSlots|packSlots|sources):\n((?:\1  - \d+\n?)+)/gm,
+            (match, indent, key, items) => {
+                const values = items.match(/\d+/g);
+                if (values) {
+                    return `${indent}${key}: [${values.join(', ')}]\n`;
+                }
+                return match;
+            }
+        );
+
+        // Post-process: remove "null" from or:/and: shorthand (JAML allows "- or:" without value)
+        formatted = formatted.replace(/^(\s*- )(or|and): null$/gm, '$1$2:');
+
+        setJamlValue(formatted);
+        showStatus('JAML formatted!');
+
+    } catch (e) {
+        showStatus(`Format error: ${e.message}`);
+    }
 }
 
 // Quick format shortcut: Ctrl+Shift+F
@@ -209,21 +187,32 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Check if JAML content changed from what started the current search
-// ANY change invalidates existing results (columns, criteria all depend on JAML!)
-function checkJamlChanged() {
-    if (!currentSearchId || !currentSearchJaml) return; // Nothing to compare against
+// Called when user edits JAML (not programmatic loads) - invalidates current search
+// No string comparison needed: ANY user edit means the filter might be different!
+function onUserJamlEdit() {
+    if (isProgrammaticEdit) return; // Ignore programmatic setJamlValue calls
 
-    const jaml = getJamlValue().trim();
-    if (!jaml) return;
+    // User edited the JAML - reset dropdown to show they're creating something new
+    const dropdown = document.getElementById('savedSearches');
+    if (dropdown && dropdown.value !== '') {
+        dropdown.value = '';
+    }
 
-    // Compare actual content - ANY difference invalidates the search
-    if (jaml !== currentSearchJaml.trim()) {
-        currentSearchId = null;
-        currentSearchJaml = null;
-        searchResults = [];
-        updateSearchButton('START', 0);
-        showStatus('Filter changed - ready to start new search');
+    if (!currentSearchId) return; // No active search to invalidate
+
+    // User edited the JAML - invalidate the search
+    currentSearchId = null;
+    currentSearchJaml = null;
+    updateUrlWithSearchId(null); // Clear URL - filter changed
+    searchResults = [];
+    updateSearchButton('START', 0);
+    showStatus('Filter changed - ready to start new search');
+
+    // Clear batch override - new filter means fresh start
+    const batchInput = document.getElementById('batchOverride');
+    if (batchInput) {
+        batchInput.value = '';
+        batchInput.placeholder = 'Batch #';
     }
 }
 
@@ -384,50 +373,9 @@ function toggleSearch() {
 }
 
 async function continueSearch() {
-    if (isSearching) {
-        showStatus('Search already running...');
-        return;
-    }
-
-    if (!currentSearchId) {
-        showStatus('No search to continue');
-        return;
-    }
-
-    const searchBtn = document.getElementById('searchBtn');
-    searchBtn.textContent = 'Stop';
-    searchBtn.className = 'button-danger';
-
-    isSearching = true;
-    searchAborted = false;
-
-    showStatus('Continuing search...');
-    
-    // Continue existing search
-    try {
-        const response = await fetch('/search/continue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ searchId: currentSearchId })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            showStatus(`❌ Error: ${error.error}`);
-            stopSearch();
-            return;
-        }
-
-        const data = await response.json();
-        showStatus(`✅ ${data.message}`);
-        
-        // Start polling with progressive backoff: 0->1->2->3 seconds
-        await pollSearchStatus(0); // Start immediately
-        
-    } catch (error) {
-        showStatus(`❌ Network error: ${error.message}`);
-        stopSearch();
-    }
+    // Just call runSearch - the server's POST /search already handles resume
+    // via bgState.StartBatch which was saved when we stopped
+    return runSearch();
 }
 
 async function runSearch() {
@@ -458,10 +406,20 @@ async function runSearch() {
     try {
         // ONE POST to start search
         showStatus('Starting search...');
+
+        // Check for batch override
+        const batchOverrideInput = document.getElementById('batchOverride');
+        const batchOverride = batchOverrideInput && batchOverrideInput.value ? parseInt(batchOverrideInput.value) : null;
+
+        const requestBody = { filterJaml, seedCount: 100000000 };
+        if (batchOverride !== null && !isNaN(batchOverride)) {
+            requestBody.startBatch = batchOverride;
+        }
+
         const response = await fetch('/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filterJaml, seedCount: 100000000 })
+            body: JSON.stringify(requestBody)
         });
 
         // Re-enable button after POST completes
@@ -478,6 +436,7 @@ async function runSearch() {
         const data = await response.json();
         currentSearchId = data.searchId;
         currentSearchJaml = filterJaml.trim(); // Save JAML that started this search
+        updateUrlWithSearchId(currentSearchId); // Sync URL so refresh/bookmark works
 
         // NOW we can show Stop button - searchId is set!
         searchBtn.textContent = 'Stop';
@@ -533,13 +492,20 @@ async function pollSearchStatus(delay = 0) {
                     ? `${(seedsPerSecond / 1000).toFixed(0)}K/s`
                     : `${seedsPerSecond.toFixed(0)}/s`;
 
+            // Update batch override field with current position
+            const batchInput = document.getElementById('batchOverride');
+            if (batchInput && data.currentBatch !== undefined) {
+                batchInput.value = data.currentBatch;
+                batchInput.placeholder = `Current: ${data.currentBatch}`;
+            }
+
             // Update button and status based on isBackgroundRunning (most reliable)
             if (running) {
                 updateSearchButton('RUNNING', 0);
-                showStatus(`${speedStr} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
+                showStatus(`Batch ${data.currentBatch || 0} | ${speedStr} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
             } else {
                 updateSearchButton('CONTINUE', 0);
-                showStatus(`Stopped | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
+                showStatus(`Stopped at batch ${data.currentBatch || 0} | ${(seedsSearched / 1000000).toFixed(1)}M searched | ${seeds} found`);
                 isSearching = false;
                 return;
             }
@@ -601,6 +567,13 @@ async function stopSearch() {
             const statusData = await statusResponse.json();
             const progress = statusData.progressPercent || 0;
             updateSearchButton('CONTINUE', progress / 100);
+
+            // Sync batch input with final position
+            const batchInput = document.getElementById('batchOverride');
+            if (batchInput && statusData.currentBatch !== undefined) {
+                batchInput.value = statusData.currentBatch;
+                batchInput.placeholder = `Current: ${statusData.currentBatch}`;
+            }
         } else {
             updateSearchButton('START', 0);
         }
@@ -726,9 +699,8 @@ function displayResults(data) {
             <tbody>
     `;
 
-    // Add result rows
-    const maxRows = 100; // Limit for performance
-    const displayResults = data.results.slice(0, maxRows);
+    // Add result rows (show all 1000 from API)
+    const displayResults = data.results;
     
     displayResults.forEach(result => {
         html += `
@@ -803,6 +775,7 @@ async function loadSavedSearch() {
         updateSearchButton('START', 0);
         currentSearchId = null;
         currentSearchJaml = null;
+        updateUrlWithSearchId(null); // Clear URL param
         searchResults = [];
         displayResults({ results: [], columns: ['seed', 'score'] });
         return;
@@ -811,19 +784,22 @@ async function loadSavedSearch() {
     const filter = savedFilters[parseInt(idx)];
     if (filter && filter.filterJaml) {
         setJamlValue(filter.filterJaml);
-        
-        // Generate search ID using the same logic as the API
-        const filterName = filter.name || 'unnamed';
-        const deck = filter.deck || 'Red';
-        const stake = filter.stake || 'White';
-        const searchId = generateSearchId(filterName, deck, stake);
-        
+
+        // Use server-provided searchId (guaranteed to match what LoadSavedFilters generated)
+        // Fallback to generating our own if server didn't provide one (shouldn't happen)
+        const searchId = filter.searchId || generateSearchId(
+            filter.name || 'unnamed',
+            extractFromJaml(filter.filterJaml, 'deck') || 'Red',
+            extractFromJaml(filter.filterJaml, 'stake') || 'White'
+        );
+
         // Check if this search exists and get its status
         try {
             const response = await fetch(`/search?id=${searchId}`);
             if (response.ok) {
                 const data = await response.json();
                 currentSearchId = searchId;
+                updateUrlWithSearchId(currentSearchId); // Sync URL
                 // Use server's JAML as source of truth for what built the results
                 currentSearchJaml = data.filterJaml ? data.filterJaml.trim() : filter.filterJaml.trim();
 
@@ -834,18 +810,25 @@ async function loadSavedSearch() {
                     document.getElementById('shareBtn').disabled = false;
                 }
 
+                // Auto-fill batch override with current batch position (user can still override)
+                const batchOverrideInput = document.getElementById('batchOverride');
+                if (batchOverrideInput && data.currentBatch !== undefined) {
+                    batchOverrideInput.value = data.currentBatch;
+                    batchOverrideInput.placeholder = `Current: ${data.currentBatch}`;
+                }
+
                 // Update button based on search status
                 const status = data.searchStatus || data.status || 'stopped';
                 const progress = data.progressPercent || 0;
 
-                if (status === 'running') {
+                if (status === 'running' || data.isBackgroundRunning) {
                     isSearching = true;
                     updateSearchButton('RUNNING', progress / 100);
-                    showStatus(`🔍 Search running - ${progress.toFixed(1)}% complete`);
+                    showStatus(`🔍 Search running at batch ${data.currentBatch || 0}`);
                     await pollSearchStatus(0);
-                } else if (progress > 0) {
+                } else if (data.currentBatch > 0) {
                     updateSearchButton('CONTINUE', progress / 100);
-                    showStatus(`📊 Loaded existing search - ${searchResults.length} results`);
+                    showStatus(`📊 Loaded existing search - ${searchResults.length} results, batch ${data.currentBatch}`);
                 } else {
                     // No existing search - show START button
                     currentSearchJaml = null;
@@ -856,15 +839,29 @@ async function loadSavedSearch() {
                 // No existing search - show START button
                 currentSearchId = null;
                 currentSearchJaml = null;
+                updateUrlWithSearchId(null); // Clear URL param
                 updateSearchButton('START', 0);
                 showStatus(`📄 Filter loaded: ${filter.name}`);
+                // Clear batch override for new search
+                const batchInput = document.getElementById('batchOverride');
+                if (batchInput) {
+                    batchInput.value = '';
+                    batchInput.placeholder = 'Batch #';
+                }
             }
         } catch (error) {
             console.error('Failed to check search status:', error);
             currentSearchId = null;
             currentSearchJaml = null;
+            updateUrlWithSearchId(null); // Clear URL param
             updateSearchButton('START', 0);
             showStatus(`📄 Filter loaded: ${filter.name}`);
+            // Clear batch override on error
+            const batchInput = document.getElementById('batchOverride');
+            if (batchInput) {
+                batchInput.value = '';
+                batchInput.placeholder = 'Batch #';
+            }
         }
     }
 }
@@ -914,20 +911,28 @@ async function checkExistingSearchStatus(searchId) {
             document.getElementById('shareBtn').disabled = false;
         }
         
-        // Check if search is still running
+        // Check if search is still running - use isBackgroundRunning as primary signal
         const status = data.searchStatus || data.status || 'stopped';
         const progress = data.progressPercent || 0; // Already 0-100
-        
-        if (status === 'running') {
-            // Resume polling existing search
+        const running = status === 'running' || data.isBackgroundRunning;
+
+        // Update batch override field with current position
+        const batchInput = document.getElementById('batchOverride');
+        if (batchInput && data.currentBatch !== undefined) {
+            batchInput.value = data.currentBatch;
+            batchInput.placeholder = `Current: ${data.currentBatch}`;
+        }
+
+        if (running) {
+            // Resume polling existing search - search IS RUNNING!
             isSearching = true;
             updateSearchButton('RUNNING', progress / 100);
-            showStatus(`🔍 Search running - ${progress.toFixed(1)}% complete`);
+            showStatus(`🔍 Search running at batch ${data.currentBatch || 0}`);
             await pollSearchStatus(0); // Start polling immediately
-        } else if (progress > 0) {
+        } else if (data.currentBatch > 0) {
             // Stopped search with progress - show Continue button
             updateSearchButton('CONTINUE', progress / 100);
-            showStatus(`📊 Loaded existing search - ${searchResults.length} results`);
+            showStatus(`📊 Loaded existing search - ${searchResults.length} results, batch ${data.currentBatch}`);
         } else {
             // New search
             updateSearchButton('START', 0);
@@ -1055,6 +1060,12 @@ function generateSearchId(filterName, deck, stake) {
     return sanitizeSearchId(`${filterName}_${deck}_${stake}`);
 }
 
+function extractFromJaml(jaml, key) {
+    // Extract a top-level key value from JAML (e.g., deck: Ghost -> "Ghost")
+    const match = jaml.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+    return match ? match[1].trim().replace(/^['"]|['"]$/g, '') : null;
+}
+
 function autoRenameFilter(jaml) {
     const nameMatch = jaml.match(/^name:\\s*(.+)$/m);
     if (!nameMatch) return jaml;
@@ -1084,29 +1095,19 @@ function exportResults() {
         return;
     }
 
-    // Generate CSV
-    const headers = ['seed', 'score', ...searchColumns.slice(2)];
-    let csv = headers.join(',') + '\\n';
-    
-    searchResults.forEach(result => {
-        const row = [
-            result.seed,
-            result.score,
-            ...(result.tallies || [])
-        ];
-        csv += row.join(',') + '\\n';
-    });
+    // Headers from columns, rows from results - simple array join
+    const rows = [
+        searchColumns.join(','),
+        ...searchResults.map(r => [r.seed, r.score, ...(r.tallies || [])].join(','))
+    ];
 
-    // Download CSV
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+    // Download
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `jaml-results-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = `jaml-${Date.now()}.csv`;
     a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
 }
 
 // ================================================
