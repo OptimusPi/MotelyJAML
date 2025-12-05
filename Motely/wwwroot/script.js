@@ -411,9 +411,16 @@ async function runSearch() {
         const batchOverrideInput = document.getElementById('batchOverride');
         const batchOverride = batchOverrideInput && batchOverrideInput.value ? parseInt(batchOverrideInput.value) : null;
 
+        // Check for cutoff override
+        const cutoffOverrideInput = document.getElementById('cutoffOverride');
+        const cutoffOverride = cutoffOverrideInput && cutoffOverrideInput.value !== '' ? parseInt(cutoffOverrideInput.value) : null;
+
         const requestBody = { filterJaml, seedCount: 100000000 };
         if (batchOverride !== null && !isNaN(batchOverride)) {
             requestBody.startBatch = batchOverride;
+        }
+        if (cutoffOverride !== null && !isNaN(cutoffOverride)) {
+            requestBody.cutoff = cutoffOverride;
         }
 
         const response = await fetch('/search', {
@@ -494,6 +501,13 @@ async function pollSearchStatus(delay = 1000) {
             if (batchInput && data.currentBatch !== undefined) {
                 batchInput.value = data.currentBatch;
                 batchInput.placeholder = `Current: ${data.currentBatch}`;
+            }
+
+            // Update cutoff field with effective cutoff from server
+            const cutoffInput = document.getElementById('cutoffOverride');
+            if (cutoffInput && data.cutoff !== undefined) {
+                cutoffInput.value = data.cutoff;
+                cutoffInput.placeholder = `Current: ${data.cutoff}`;
             }
 
             // Update results from DB FIRST so count is accurate
@@ -816,6 +830,13 @@ async function loadSavedSearch() {
                     batchOverrideInput.placeholder = `Current: ${data.currentBatch}`;
                 }
 
+                // Auto-fill cutoff with current effective cutoff (CRITICAL to preserve progress!)
+                const cutoffOverrideInput = document.getElementById('cutoffOverride');
+                if (cutoffOverrideInput && data.cutoff !== undefined) {
+                    cutoffOverrideInput.value = data.cutoff;
+                    cutoffOverrideInput.placeholder = `Current: ${data.cutoff}`;
+                }
+
                 // Update button based on search status
                 const status = data.searchStatus || data.status || 'stopped';
                 const progress = data.progressPercent || 0;
@@ -920,6 +941,13 @@ async function checkExistingSearchStatus(searchId) {
         if (batchInput && data.currentBatch !== undefined) {
             batchInput.value = data.currentBatch;
             batchInput.placeholder = `Current: ${data.currentBatch}`;
+        }
+
+        // Update cutoff field with effective cutoff from server
+        const cutoffInput = document.getElementById('cutoffOverride');
+        if (cutoffInput && data.cutoff !== undefined) {
+            cutoffInput.value = data.cutoff;
+            cutoffInput.placeholder = `Current: ${data.cutoff}`;
         }
 
         if (running) {

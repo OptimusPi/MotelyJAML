@@ -1,0 +1,6 @@
+<Project>
+  <!-- Stop inheriting central package management from parent (BSO) -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

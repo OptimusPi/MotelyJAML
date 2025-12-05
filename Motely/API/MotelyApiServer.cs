@@ -33,6 +33,7 @@ public class BackgroundSearchState
     public long TotalBatches { get; set; } // Total batches for progress calculation
     public long SeedsSearched { get; set; } // Total seeds searched so far
     public double SeedsPerMs { get; set; } // Current search speed
+    public int EffectiveCutoff { get; set; } // Cutoff used for this search (user override or smart)
     public JsonSearchExecutor? Search { get; set; }
     public DuckDBConnection? Connection { get; set; }
     public DuckDBAppender? Appender { get; set; }
@@ -155,17 +156,13 @@ public class MotelyApiServer
         }
         bgState.Appender = null;
 
-        // 5. Dump top seeds from this search's DB to fertilizer DB (INSERT INTO SELECT - zero C# memory!)
-        try
+        // 5. Get DB path BEFORE closing (for fertilizer dump after close)
+        string? searchDbPath = null;
+        if (bgState.Connection != null)
         {
-            if (bgState.Connection != null)
-            {
-                DumpSearchSeedsToFertilizer(bgState.Connection, 1000);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Warning: Failed to dump seeds: {ex.Message}");
+            searchDbPath = bgState.Connection.ConnectionString
+                .Replace("Data Source=", "")
+                .Trim();
         }
 
         // 6. Save batch position to DuckDB BEFORE closing connection
@@ -202,6 +199,19 @@ public class MotelyApiServer
             bgState.Connection = null;
         }
         catch { /* ignore */ }
+
+        // 8. Dump seeds to fertilizer AFTER closing search connection (avoids file lock conflict)
+        if (!string.IsNullOrEmpty(searchDbPath))
+        {
+            try
+            {
+                DumpSearchSeedsToFertilizer(searchDbPath, 1000);
+            }
+            catch (Exception ex)
+            {
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Warning: Failed to dump seeds: {ex.Message}");
+            }
+        }
 
         // Update in-memory state for resume
         bgState.StartBatch = bgState.CurrentBatch;
@@ -426,8 +436,9 @@ public class MotelyApiServer
 
     /// <summary>
     /// Dump top seeds from a search DB to fertilizer DB using INSERT INTO SELECT (no C# memory!)
+    /// Attaches the SEARCH DB (must be closed!) to the fertilizer connection
     /// </summary>
-    private void DumpSearchSeedsToFertilizer(DuckDBConnection searchConnection, int limit = 1000)
+    private void DumpSearchSeedsToFertilizer(string searchDbPath, int limit = 1000)
     {
         lock (_fertilizerLock)
         {
@@ -435,24 +446,23 @@ public class MotelyApiServer
 
             try
             {
-                // DuckDB cross-database: ATTACH the fertilizer DB to the search connection
-                // Then INSERT INTO ... SELECT directly!
-                var fertilizerFullPath = Path.GetFullPath(_fertilizerDbPath);
+                var searchFullPath = Path.GetFullPath(searchDbPath);
 
-                using var attachCmd = searchConnection.CreateCommand();
-                attachCmd.CommandText = $"ATTACH '{fertilizerFullPath}' AS fertilizer_db";
+                // Attach the SEARCH DB to the FERTILIZER connection (search DB must be closed!)
+                using var attachCmd = _fertilizerConnection.CreateCommand();
+                attachCmd.CommandText = $"ATTACH '{searchFullPath}' AS search_db (READ_ONLY)";
                 attachCmd.ExecuteNonQuery();
 
-                // INSERT INTO fertilizer_db.seeds SELECT from local results - NO C# MEMORY!
-                using var insertCmd = searchConnection.CreateCommand();
+                // INSERT INTO local seeds SELECT from search_db.results - NO C# MEMORY!
+                using var insertCmd = _fertilizerConnection.CreateCommand();
                 insertCmd.CommandText = $@"
-                    INSERT OR IGNORE INTO fertilizer_db.seeds (seed)
-                    SELECT seed FROM results ORDER BY score DESC LIMIT {limit}";
+                    INSERT OR IGNORE INTO seeds (seed)
+                    SELECT seed FROM search_db.results ORDER BY score DESC LIMIT {limit}";
                 var inserted = insertCmd.ExecuteNonQuery();
 
                 // Detach when done
-                using var detachCmd = searchConnection.CreateCommand();
-                detachCmd.CommandText = "DETACH fertilizer_db";
+                using var detachCmd = _fertilizerConnection.CreateCommand();
+                detachCmd.CommandText = "DETACH search_db";
                 detachCmd.ExecuteNonQuery();
 
                 _logCallback($"[{DateTime.Now:HH:mm:ss}] Dumped up to {limit} seeds to fertilizer DB (INSERT INTO SELECT - zero C# memory!)");
@@ -1119,19 +1129,33 @@ public class MotelyApiServer
             // Get pile size from DB
             var pileSize = GetFertilizerCount();
 
-            // Smart cutoff from fertilizer results:
-            // - No results = rare filter, accept everything (cutoff = 0)
-            // - Has results = use 10th best score as cutoff threshold
-            int smartCutoff = 0;
-            if (topResults.Count >= 10)
+            // Cutoff logic:
+            // - User override takes priority (allows explicit 0 to accept everything)
+            // - Otherwise smart cutoff from fertilizer results:
+            //   - No results = rare filter, accept everything (cutoff = 0)
+            //   - Has results = use 10th best score as cutoff threshold
+            int effectiveCutoff;
+            if (searchRequest?.Cutoff.HasValue == true)
             {
-                smartCutoff = topResults[9].Score; // 10th best (0-indexed, already sorted desc)
+                effectiveCutoff = searchRequest.Cutoff.Value;
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] USER CUTOFF OVERRIDE: {effectiveCutoff}");
             }
-            else if (topResults.Count > 0)
+            else
             {
-                smartCutoff = topResults[topResults.Count - 1].Score; // Worst of what we found
+                effectiveCutoff = 0;
+                if (topResults.Count >= 10)
+                {
+                    effectiveCutoff = topResults[9].Score; // 10th best (0-indexed, already sorted desc)
+                }
+                else if (topResults.Count > 0)
+                {
+                    effectiveCutoff = topResults[topResults.Count - 1].Score; // Worst of what we found
+                }
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Smart cutoff: {effectiveCutoff} (from {topResults.Count} fertilizer results)");
             }
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Smart cutoff: {smartCutoff} (from {topResults.Count} fertilizer results)");
+
+            // Store effective cutoff in state so GET /search can return it
+            bgState.EffectiveCutoff = effectiveCutoff;
 
             // Mark as running BEFORE sending response
             bgState.IsRunning = true;
@@ -1163,7 +1187,7 @@ public class MotelyApiServer
                         StartBatch = (ulong)bgState.StartBatch,
                         EndBatch = 0, // No end limit
                         AutoCutoff = false,
-                        Cutoff = smartCutoff, // Smart cutoff from fertilizer results
+                        Cutoff = effectiveCutoff, // User override or smart cutoff from fertilizer results
                         ProgressCallback = (completed, total, seedsSearched, seedsPerMs) =>
                         {
                             // Update progress state for GET /search to read
@@ -1381,6 +1405,11 @@ public class MotelyApiServer
                 : seedsSearched > 0 ? $"{seedsSearched / 1000.0:F1}K" : "0";
             _logCallback($"[{DateTime.Now:HH:mm:ss}] GET /search: {status} | batch {currentBatch}/{456976} | {searchedStr} searched | {totalSeedsFound} found | {speedStr}");
 
+            // Get effective cutoff from current search state
+            var effectiveCutoff = (_currentSearchId == searchId && _currentSearch != null)
+                ? _currentSearch.EffectiveCutoff
+                : 0;
+
             response.StatusCode = 200;
             await WriteJsonAsync(response, new
             {
@@ -1397,7 +1426,8 @@ public class MotelyApiServer
                 seedsSearched = seedsSearched,
                 seedsPerSecond = seedsPerMs * 1000, // Convert to per-second for UI
                 seedsFound = totalSeedsFound, // Actual count from DB (not capped)
-                isBackgroundRunning = isRunning
+                isBackgroundRunning = isRunning,
+                cutoff = effectiveCutoff // Return cutoff so UI can populate the field
             });
         }
         catch (Exception ex)
@@ -1923,6 +1953,9 @@ public class SearchRequest
 
     [JsonPropertyName("startBatch")]
     public long? StartBatch { get; set; }
+
+    [JsonPropertyName("cutoff")]
+    public int? Cutoff { get; set; }
 }
 
 public class SearchResult
