@@ -1,0 +1,13 @@
+name: TESTCREATE
+must:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1, 2, 3]
+  - voucher: Observatory
+    antes: [2, 3]
+should:
+  - joker: Blueprint
+    antes: [1, 2, 3]
+    score: 100
+deck: Ghost
+stake: White

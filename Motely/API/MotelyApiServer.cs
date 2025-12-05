@@ -28,9 +28,15 @@ public class BackgroundSearchState
 {
     public bool IsRunning { get; set; }
     public int SeedsAdded { get; set; }
-    public long CurrentBatch { get; set; }
-    public int ProgressPercent { get; set; }
-    public IMotelySearch? Search { get; set; }
+    public long StartBatch { get; set; } // Batch we started from (for resume)
+    public long CurrentBatch { get; set; } // Updated during search via progress callback
+    public long TotalBatches { get; set; } // Total batches for progress calculation
+    public long SeedsSearched { get; set; } // Total seeds searched so far
+    public double SeedsPerMs { get; set; } // Current search speed
+    public JsonSearchExecutor? Search { get; set; }
+    public DuckDBConnection? Connection { get; set; }
+    public DuckDBAppender? Appender { get; set; }
+    public string? FilterJamlHash { get; set; } // Track if JAML changed to invalidate DB
 }
 
 /// <summary>
@@ -60,6 +66,91 @@ public class MotelyApiServer
     public string Url => $"http://{_host}:{_port}/";
     public int ThreadCount { get; set; } = Environment.ProcessorCount;
 
+    /// <summary>
+    /// Stops THE running search (there can only be one due to SIMD/CPU constraints).
+    /// Dumps seeds to fertilizer, saves batch position, closes connections cleanly.
+    /// </summary>
+    private async Task StopRunningSearchAsync()
+    {
+        // Find THE running search (there should only be one)
+        var runningSearch = _backgroundSearches.FirstOrDefault(kvp => kvp.Value.IsRunning);
+        if (runningSearch.Value == null) return;
+
+        var searchId = runningSearch.Key;
+        var bgState = runningSearch.Value;
+
+        _logCallback($"[{DateTime.Now:HH:mm:ss}] Stopping search '{searchId}' (batch {bgState.CurrentBatch}, {bgState.SeedsAdded} seeds)...");
+
+        // 1. Mark as stopped so callback stops processing
+        bgState.IsRunning = false;
+
+        // 2. Cancel the Motely executor
+        bgState.Search?.Cancel();
+
+        // 3. Wait a moment for graceful shutdown
+        await Task.Delay(500);
+
+        // 4. Dump top seeds from this search's DB to fertilizer pile
+        try
+        {
+            if (bgState.Connection != null)
+            {
+                // Close appender first to flush data
+                bgState.Appender?.Close();
+                bgState.Appender = null;
+
+                using var cmd = bgState.Connection.CreateCommand();
+                cmd.CommandText = "SELECT seed FROM results ORDER BY score DESC LIMIT 1000";
+                using var reader = cmd.ExecuteReader();
+
+                var seedsToAdd = new List<string>();
+                while (reader.Read())
+                {
+                    seedsToAdd.Add(reader.GetString(0));
+                }
+
+                if (seedsToAdd.Count > 0)
+                {
+                    lock (_pileLock)
+                    {
+                        foreach (var seed in seedsToAdd)
+                        {
+                            _fertilizerPile.Add(seed);
+                        }
+                    }
+                    SaveFertilizerPile();
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Dumped {seedsToAdd.Count} seeds to fertilizer pile");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Warning: Failed to dump seeds: {ex.Message}");
+        }
+
+        // 5. Close the connection
+        try
+        {
+            bgState.Connection?.Close();
+            bgState.Connection = null;
+        }
+        catch { /* ignore */ }
+
+        // Save the batch position for resume
+        bgState.StartBatch = bgState.CurrentBatch;
+        _logCallback($"[{DateTime.Now:HH:mm:ss}] Search '{searchId}' stopped at batch {bgState.CurrentBatch}");
+    }
+
+    private static List<int> ReadTallies(System.Data.IDataReader reader)
+    {
+        var tallies = new List<int>();
+        for (int i = 2; i < reader.FieldCount; i++)
+        {
+            tallies.Add(reader.IsDBNull(i) ? 0 : reader.GetInt32(i));
+        }
+        return tallies;
+    }
+
     public MotelyApiServer(
         string host = "localhost",
         int port = 3141,
@@ -84,6 +175,9 @@ public class MotelyApiServer
 
         // Load fertilizer pile from disk
         LoadFertilizerPile();
+
+        // Convert any JSON filters to JAML (one-time migration)
+        ConvertJsonFiltersToJaml();
 
         // Load saved filters from disk
         LoadSavedFilters();
@@ -211,6 +305,56 @@ public class MotelyApiServer
         }
     }
 
+    private void ConvertJsonFiltersToJaml()
+    {
+        var jsonFiltersDir = "JsonItemFilters";
+        if (!Directory.Exists(jsonFiltersDir))
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] No JsonItemFilters directory found, skipping conversion");
+            return;
+        }
+
+        var jsonFiles = Directory.GetFiles(jsonFiltersDir, "*.json");
+        var converted = 0;
+        var skipped = 0;
+
+        foreach (var jsonPath in jsonFiles)
+        {
+            try
+            {
+                var jsonContent = File.ReadAllText(jsonPath);
+                var config = ConfigFormatConverter.LoadFromJsonString(jsonContent);
+
+                if (config == null)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var jaml = config.SaveAsJaml();
+                var baseName = Path.GetFileNameWithoutExtension(jsonPath);
+                var jamlPath = Path.Combine(_filtersDir, $"{baseName}.jaml");
+
+                // Only write if JAML doesn't already exist (don't overwrite user edits)
+                if (!File.Exists(jamlPath))
+                {
+                    File.WriteAllText(jamlPath, jaml);
+                    converted++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to convert {Path.GetFileName(jsonPath)}: {ex.Message}");
+                skipped++;
+            }
+        }
+
+        if (converted > 0 || skipped > 0)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] JSON→JAML: {converted} converted, {skipped} skipped, {jsonFiles.Length} total");
+        }
+    }
+
     private void SaveFilter(string searchId, string jaml)
     {
         try
@@ -335,6 +479,19 @@ public class MotelyApiServer
             {
                 await HandleIndexAsync(response);
             }
+            else if (request.HttpMethod == "GET" && path == "/styles.css")
+            {
+                await ServeFileAsync(response, "wwwroot/styles.css", "text/css");
+            }
+            else if (request.HttpMethod == "GET" && path == "/script.js")  
+            {
+                await ServeFileAsync(response, "wwwroot/script.js", "application/javascript");
+            }
+            else if (path.StartsWith("/.well-known/"))
+            {
+                response.StatusCode = 404;
+                response.Close();
+            }
             else if (request.HttpMethod == "POST" && path == "/search")
             {
                 response.ContentType = "application/json";
@@ -345,15 +502,25 @@ public class MotelyApiServer
                 response.ContentType = "application/json";
                 await HandleSearchGetAsync(request, response);
             }
+            else if (request.HttpMethod == "POST" && path == "/search/continue")
+            {
+                response.ContentType = "application/json";
+                await HandleSearchContinueAsync(request, response);
+            }
+            else if (request.HttpMethod == "POST" && path == "/search/stop")
+            {
+                response.ContentType = "application/json";
+                await HandleSearchStopAsync(request, response);
+            }
             else if (request.HttpMethod == "POST" && path == "/analyze")
             {
                 response.ContentType = "application/json";
                 await HandleAnalyzeAsync(request, response);
             }
-            else if (request.HttpMethod == "POST" && path == "/genie")
+            else if (request.HttpMethod == "POST" && path == "/convert")
             {
                 response.ContentType = "application/json";
-                await HandleGenieAsync(request, response);
+                await HandleConvertAsync(request, response);
             }
             else if (request.HttpMethod == "GET" && path == "/filters")
             {
@@ -387,878 +554,14 @@ public class MotelyApiServer
 
     private async Task HandleIndexAsync(HttpListenerResponse response)
     {
-        response.ContentType = "text/html";
-        response.StatusCode = 200;
-
-        var html =
-            @"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset=""UTF-8"">
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>Motely Seed Search - Balatro Seed Oracle</title>
-    <style>
-        @font-face {
-            font-family: 'm6x11';
-            src: url('https://cdn.jsdelivr.net/gh/fonts/m6x11/m6x11.woff2') format('woff2');
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'm6x11', 'Courier New', monospace;
-            background: #1a1818;
-            color: #fff;
-            padding: 10px;
-            line-height: 1.4;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            text-align: center;
-            color: #ff4c40;
-            font-size: 2.5em;
-            margin-bottom: 5px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #0093ff;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-        }
-        
-        .modal {
-            background: #3e3d42;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-        }
-        
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .tab {
-            background: #ff4c40;
-            color: #fff;
-            border: none;
-            padding: 12px 24px;
-            font-size: 1.1em;
-            font-family: 'm6x11', 'Courier New', monospace;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-        
-        .tab:hover {
-            background: #ff6c60;
-            transform: translateY(-2px);
-        }
-        
-        .tab.active {
-            background: #cc3c30;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        label {
-            display: block;
-            color: #fff;
-            margin-bottom: 8px;
-            font-size: 1.1em;
-        }
-        
-        textarea, input, select {
-            width: 100%;
-            background: #1a1818;
-            color: #fff;
-            border: 2px solid #0093ff;
-            padding: 12px;
-            margin-bottom: 15px;
-            font-family: 'm6x11', 'Courier New', monospace;
-            border-radius: 6px;
-            font-size: 1em;
-        }
-        
-        textarea {
-            min-height: 200px;
-            resize: vertical;
-        }
-        
-        textarea:focus, input:focus, select:focus {
-            outline: none;
-            border-color: #00c3ff;
-        }
-        
-        .button-row {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 20px;
-        }
-        
-        button {
-            background: #ff4c40;
-            color: #fff;
-            border: none;
-            padding: 10px 24px;
-            font-size: 1.1em;
-            font-family: 'm6x11', 'Courier New', monospace;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-        
-        button:hover:not(:disabled) {
-            background: #ff6c60;
-            transform: translateY(-2px);
-        }
-        
-        button:active:not(:disabled) {
-            background: #cc3c30;
-            transform: translateY(0);
-        }
-        
-        button:disabled {
-            background: #666;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .button-blue {
-            background: #0093ff;
-        }
-        
-        .button-blue:hover:not(:disabled) {
-            background: #00a3ff;
-        }
-        
-        .button-green {
-            background: #00c851;
-        }
-        
-        .button-green:hover:not(:disabled) {
-            background: #00d861;
-        }
-        
-        .button-orange {
-            background: #ff9500;
-        }
-        
-        .button-red {
-            background: #ff4444;
-        }
-        
-        .button-red:hover:not(:disabled) {
-            background: #ff5555;
-        }
-        
-        .button-orange:hover:not(:disabled) {
-            background: #ffa520;
-        }
-        
-        .results-section {
-            background: #3e3d42;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        #resultsContainer {
-            max-height: 60vh;
-            overflow-y: auto;
-            overflow-x: auto;
-            scrollbar-gutter: stable;
-        }
-        
-        #resultsContainer::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-        }
-        
-        #resultsContainer::-webkit-scrollbar-track {
-            background: #1a1818;
-            border-radius: 6px;
-        }
-        
-        #resultsContainer::-webkit-scrollbar-thumb {
-            background: #ff4c40;
-            border-radius: 6px;
-            border: 2px solid #1a1818;
-        }
-        
-        #resultsContainer::-webkit-scrollbar-thumb:hover {
-            background: #ff6a60;
-        }
-        
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .results-title {
-            color: #ff4c40;
-            font-size: 1.5em;
-        }
-        
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #1a1818;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        
-        .results-table th {
-            background: #ff4c40;
-            color: #fff;
-            padding: 10px;
-            text-align: left;
-        }
-        
-        .results-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #3e3d42;
-        }
-        
-        .results-table tr:hover {
-            background: #2a2828;
-            cursor: pointer;
-        }
-        
-        .seed-cell {
-            color: #0093ff;
-        }
-        
-        .score-cell {
-            color: #00ff88;
-        }
-        
-        .info-text {
-            color: #fff;
-            font-size: 0.95em;
-            margin-top: 10px;
-        }
-        
-        .loading {
-            text-align: center;
-            color: #0093ff;
-            font-size: 1.2em;
-            padding: 20px;
-        }
-        
-        .error {
-            background: #331a1a;
-            color: #ff4c40;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
-        }
-        
-        @media (max-width: 768px) {
-            h1 { font-size: 1.8em; }
-            .tab { padding: 10px 16px; font-size: 1em; }
-            button { padding: 12px 20px; font-size: 1em; }
-        }
-    </style>
-</head>
-<body>
-    <div class=""container"">
-        <h1>MOTELY SEED SEARCH</h1>
-        <div class=""subtitle"">Balatro Seed Oracle - Find Your Perfect Run</div>
-
-        <div class=""modal"">
-            <div class=""tabs"">
-                <button class=""tab active"" onclick=""switchTab('genie', this)"">Genie</button>
-                <button class=""tab active"" onclick=""switchTab('jaml', this)"">JAML Search</button>
-                <button class=""tab"" onclick=""switchTab('analyze', this)"">Analyze</button>
-            </div>
-
-            <div id=""genie-tab"" class=""tab-content active"">
-                <label>Describe your ideal seed in plain English:</label>
-                <textarea id=""geniePrompt"" placeholder=""Example: Find seeds with negative Perkeo in antes 1-3, plus Blueprint and Observatory""></textarea>
-                <button onclick=""generateJAML()"" class=""button-blue"">Generate JAML</button>
-                <div id=""genieStatus""></div>
-            </div>
-
-            <div id=""jaml-tab"" class=""tab-content"">
-                <label>Load Saved Filter:</label>
-                <div style=""display: flex; gap: 8px; align-items: center;"">
-                    <select id=""filterDropdown"" onchange=""loadSelectedFilter()"" style=""flex: 1;"">
-                        <option value="""">-- New Filter --</option>
-                    </select>
-                    <button onclick=""deleteSelectedSearch()"" style=""background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"" title=""Delete selected search"">🗑</button>
-                </div>
-                <label>Filter (JAML Format):</label>
-                <textarea id=""filterJaml"" style=""font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', 'Cascadia Code', 'Roboto Mono', 'Courier New', monospace; font-size: 16px; line-height: 1.5;"">name: Negative Perkeo
-must:
-  - soulJoker: Perkeo
-    edition: Negative
-    antes: [1, 2, 3]
-should:
-  - joker: any
-    edition: Negative
-    antes: [1, 2, 3]
-    score: 100
-  - voucher: Observatory
-    antes: [2, 3, 4]
-    score: 50
-deck: Ghost
-stake: White</textarea>
-                <div class=""info-text"">Types: joker, soulJoker, voucher, tarot, planet, spectral, playingCard, boss, tag</div>
-            </div>
-
-            <div id=""analyze-tab"" class=""tab-content"">
-                <div id=""analyzeContent"">
-                    <p class=""info-text"">Click a seed from the results below to analyze it, or enter a seed manually:</p>
-                    <label>Seed:</label>
-                    <input type=""text"" id=""analyzeSeed"" placeholder=""ABCD1234"" />
-                    <button onclick=""analyzeSeedManual()"" class=""button-green"">Analyze Seed</button>
-                </div>
-                <div id=""analyzeResults""></div>
-            </div>
-        </div>
-
-        <div class=""button-row"">
-            <button id=""searchBtn"" onclick=""toggleSearch()"" class=""button-blue"">Start Search</button>
-            <button id=""shareBtn"" onclick=""shareSearch()"" class=""button-orange"" disabled>Share Search</button>
-        </div>
-
-        <div class=""results-section"">
-            <div class=""results-header"">
-                <div class=""results-title"" id=""resultsTitle"">Results</div>
-                <button onclick=""exportToCSV()"" class=""button-green"">Export CSV</button>
-            </div>
-            <div id=""resultsContainer""></div>
-        </div>
-    </div>
-
-    <script>
-        let currentSearchId = null;
-        let searchResults = [];
-        let searchColumns = ['seed', 'score'];
-        let currentDeck = 'Red';
-        let currentStake = 'White';
-        let isSearching = false;
-        let searchAborted = false;
-        let currentBatchSize = 1000000;
-        let totalSeedsSearched = 0;
-
-        function switchTab(tabName, btn) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            if (btn) btn.classList.add('active');
-            document.getElementById(tabName + '-tab').classList.add('active');
-        }
-
-        async function generateJAML() {
-            const prompt = document.getElementById('geniePrompt').value.trim();
-            const statusDiv = document.getElementById('genieStatus');
-
-            if (!prompt) {
-                statusDiv.innerHTML = '<div class=""error"">Please enter a description!</div>';
-                return;
-            }
-
-            statusDiv.innerHTML = '<div class=""loading"">Genie is thinking...</div>';
-
-            try {
-                const response = await fetch('/genie', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    statusDiv.innerHTML = `<div class=""error"">Genie error: ${data.error || 'Failed to generate JAML'}</div>`;
-                    return;
-                }
-
-                const jaml = data.jaml;
-
-                document.getElementById('filterJaml').value = jaml;
-                document.querySelector('.tab:nth-child(2)').click();
-
-                statusDiv.innerHTML = '<div style=""color: #00ff88;"">JAML generated! Switched to editor.</div>';
-            } catch (error) {
-                statusDiv.innerHTML = `<div class=""error"">Genie error: ${error.message}</div>`;
-            }
-        }
-
-        function toggleSearch() {
-            if (isSearching) {
-                stopSearch();
-            } else {
-                startSearch();
-            }
-        }
-
-        async function startSearch() {
-            let filterJaml = document.getElementById('filterJaml').value;
-            const searchBtn = document.getElementById('searchBtn');
-            const resultsContainer = document.getElementById('resultsContainer');
-
-            if (!filterJaml.trim()) {
-                resultsContainer.innerHTML = '<div class=""error"">Please enter a filter!</div>';
-                return;
-            }
-
-            // Auto-add should clause with easter egg if missing
-            if (!filterJaml.includes('should:') && !filterJaml.includes('should ')) {
-                const lines = filterJaml.split('\n');
-                const mustNotIndex = lines.findIndex(line => line.startsWith('mustNot'));
-                
-                const shouldClause = 'should:\n  - joker: Egg\n    score: 1';
-                
-                if (mustNotIndex >= 0) {
-                    lines.splice(mustNotIndex, 0, shouldClause, '');
-                } else {
-                    lines.push('', shouldClause);
-                }
-                
-                filterJaml = lines.join('\n');
-                document.getElementById('filterJaml').value = filterJaml;
-            }
-
-            // Wait for any existing search to finish (max 10s)
-            if (isSearching) {
-                searchBtn.textContent = 'Waiting for current search...';
-                let waitTime = 0;
-                while (isSearching && waitTime < 10000) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    waitTime += 100;
-                }
-                if (isSearching) {
-                    resultsContainer.innerHTML = '<div class=""error"">Another search is still running. Please wait.</div>';
-                    searchBtn.textContent = 'Start Search';
-                    return;
-                }
-            }
-
-            isSearching = true;
-            searchAborted = false;
-            currentBatchSize = 1000000;
-            totalSeedsSearched = 0;
-
-            searchBtn.disabled = true;
-            searchBtn.textContent = 'Searching...';
-
-            await runSearchLoop(filterJaml);
-        }
-
-        async function runSearchLoop(filterJaml) {
-            const searchBtn = document.getElementById('searchBtn');
-            let searchStarted = false;
-            let lastFilterJaml = filterJaml;
-
-            while (isSearching && !searchAborted) {
-                // Check if filter was edited - reset search if changed
-                const currentFilterJaml = document.getElementById('filterJaml').value;
-                if (currentFilterJaml !== lastFilterJaml) {
-                    searchStarted = false;
-                    lastFilterJaml = currentFilterJaml;
-                    filterJaml = currentFilterJaml;
-                }
-                const startTime = Date.now();
-
-                try {
-                    let response;
-                    if (!searchStarted) {
-                        // POST once to start the search
-                        response = await fetch('/search', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ filterJaml, seedCount: currentBatchSize })
-                        });
-                        searchStarted = true;
-                    } else {
-                        // GET to poll for results
-                        response = await fetch(`/search?id=${currentSearchId}`);
-                    }
-
-                    if (searchAborted) break;
-
-                    const data = await response.json();
-                    const elapsed = Date.now() - startTime;
-
-                    // Aggressive scaling: 1M → 10M → 100M → 1B for fast CPUs
-                    if (elapsed > 1000) {
-                        if (currentBatchSize < 1000000) {
-                            currentBatchSize = 1000000;
-                            searchBtn.textContent = `Scaling to 1M seeds... (${elapsed}ms)`;
-                        } else if (currentBatchSize < 10000000) {
-                            currentBatchSize = 10000000;
-                            searchBtn.textContent = `Scaling to 10M seeds... (${elapsed}ms)`;
-                        } else if (currentBatchSize < 100000000) {
-                            currentBatchSize = 100000000;
-                            searchBtn.textContent = `Scaling to 100M seeds... (${elapsed}ms)`;
-                        } else if (currentBatchSize < 1000000000) {
-                            currentBatchSize = 1000000000;
-                            searchBtn.textContent = `Scaling to 1B seeds... (${elapsed}ms)`;
-                        } else {
-                            searchBtn.textContent = `Searching ${(currentBatchSize/1000000).toFixed(0)}M seeds... (${elapsed}ms)`;
-                        }
-                    } else {
-                        searchBtn.textContent = `Searching ${(currentBatchSize/1000000).toFixed(0)}M seeds... (${elapsed}ms)`;
-                    }
-
-                    if (!response.ok) {
-                        if (data.error && data.error.includes('already taken')) {
-                            filterJaml = autoRenameFilter(filterJaml);
-                            document.getElementById('filterJaml').value = filterJaml;
-                            continue;
-                        }
-                        document.getElementById('resultsContainer').innerHTML = 
-                            `<div class=""error"">Error: ${data.error || 'Search failed'}</div>`;
-                        stopSearch();
-                        return;
-                    }
-
-                    currentSearchId = data.searchId;
-                    document.getElementById('shareBtn').disabled = false;
-                    totalSeedsSearched += currentBatchSize;
-
-                    mergeResults(data.results || []);
-                    displayResults({ 
-                        results: searchResults, 
-                        columns: data.columns || searchColumns,
-                        total: searchResults.length,
-                        pileSize: data.pileSize || 0,
-                        isBackgroundRunning: true
-                    });
-
-                    if (elapsed < 1000) {
-                        currentBatchSize = Math.min(currentBatchSize * 2, 100000000);
-                    } else {
-                        currentBatchSize = 1000000;
-                    }
-
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = 'Stop Search';
-                    searchBtn.classList.remove('button-blue');
-                    searchBtn.classList.add('button-red');
-
-                    // Wait before next poll - longer if background search is running
-                    const pollDelay = data.isBackgroundRunning ? 5000 : 2000;
-                    await new Promise(r => setTimeout(r, pollDelay));
-
-                } catch (error) {
-                    if (!searchAborted) {
-                        console.error('Search error:', error);
-                        await new Promise(r => setTimeout(r, 3000));
-                    }
-                }
-            }
-        }
-
-        function mergeResults(newResults) {
-            const existingSeeds = new Set(searchResults.map(r => r.seed));
-            for (const result of newResults) {
-                if (!existingSeeds.has(result.seed)) {
-                    searchResults.push(result);
-                    existingSeeds.add(result.seed);
-                }
-            }
-            searchResults.sort((a, b) => b.score - a.score);
-        }
-
-        function stopSearch() {
-            isSearching = false;
-            searchAborted = true;
-            const searchBtn = document.getElementById('searchBtn');
-            searchBtn.disabled = false;
-            searchBtn.textContent = 'Start Search';
-            searchBtn.classList.remove('button-red');
-            searchBtn.classList.add('button-blue');
-
-            document.getElementById('resultsTitle').textContent = 
-                `Results (${searchResults.length} found, ${(totalSeedsSearched/1000000).toFixed(1)}M searched) Stopped`;
-        }
-
-        let savedFilters = [];
-
-        async function loadFilters() {
-            try {
-                const response = await fetch('/filters');
-                if (response.ok) {
-                    savedFilters = await response.json();
-                    const dropdown = document.getElementById('filterDropdown');
-                    dropdown.innerHTML = '<option value="""">-- New Filter --</option>';
-                    savedFilters.forEach((filter, i) => {
-                        dropdown.innerHTML += `<option value=""${i}"">${filter.name}</option>`;
-                    });
-                }
-            } catch (e) {
-                console.error('Failed to load filters:', e);
-            }
-        }
-
-        function loadSelectedFilter() {
-            const dropdown = document.getElementById('filterDropdown');
-            const idx = dropdown.value;
-            if (idx === '') {
-                document.getElementById('filterJaml').value = '';
-                return;
-            }
-            const filter = savedFilters[parseInt(idx)];
-            if (filter && filter.filterJaml) {
-                document.getElementById('filterJaml').value = filter.filterJaml;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', loadFilters);
-
-        function autoRenameFilter(jaml) {
-            const nameMatch = jaml.match(/^name:\s*(.+)$/m);
-            if (!nameMatch) return jaml;
-            
-            const currentName = nameMatch[1].trim();
-            const editMatch = currentName.match(/_edit(\d+)$/);
-            
-            let newName;
-            if (editMatch) {
-                const num = parseInt(editMatch[1]) + 1;
-                newName = currentName.replace(/_edit\d+$/, `_edit${num}`);
-            } else {
-                newName = currentName + '_edit1';
-            }
-            
-            return jaml.replace(/^name:\s*.+$/m, `name: ${newName}`);
-        }
-
-        async function deleteSelectedSearch() {
-            const dropdown = document.getElementById('filterDropdown');
-            const idx = dropdown.value;
-            if (idx === '') {
-                alert('No filter selected');
-                return;
-            }
-            
-            const filter = savedFilters[parseInt(idx)];
-            if (!confirm('Delete filter ' + filter.name + '?')) return;
-            
-            try {
-                const response = await fetch('/filters/' + filter.filePath, { method: 'DELETE' });
-                if (response.ok) {
-                    await loadFilters();
-                    document.getElementById('filterJaml').value = '';
-                } else {
-                    alert('Delete failed');
-                }
-            } catch (e) {
-                alert('Delete failed: ' + e.message);
-            }
-        }
-
-        function displayResults(data) {
-            searchResults = data.results || [];
-            searchColumns = data.columns || ['seed', 'score'];
-            
-            const resultsContainer = document.getElementById('resultsContainer');
-            const isRunning = data.isBackgroundRunning ? 'Running...' : 'Done';
-            
-            document.getElementById('resultsTitle').textContent =
-                `Results (${data.total} found, pile: ${data.pileSize || 0}) ${isRunning}`;
-
-            if (searchResults.length === 0) {
-                resultsContainer.innerHTML = '<div class=""info-text"">No results yet. Background search running...</div>';
-                return;
-            }
-
-            let html = '<table class=""results-table""><thead><tr>';
-            html += '<th>#</th>';
-            searchColumns.forEach(col => {
-                html += `<th>${col}</th>`;
-            });
-            html += '</tr></thead><tbody>';
-
-            searchResults.forEach((result, i) => {
-                html += `<tr onclick=""selectSeed('${result.seed}')"">`;
-                html += `<td>${i + 1}</td>`;
-                html += `<td class=""seed-cell"">${result.seed}</td>`;
-                html += `<td class=""score-cell"">${result.score}</td>`;
-                (result.tallies || []).forEach(tally => {
-                    html += `<td>${tally}</td>`;
-                });
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            resultsContainer.innerHTML = html;
-        }
-
-        function selectSeed(seed) {
-            document.getElementById('analyzeSeed').value = seed;
-            switchTab('analyze');
-            document.querySelector('.tab:nth-child(3)').click();
-            analyzeSeedManual();
-        }
-
-        async function analyzeSeedManual() {
-            const seed = document.getElementById('analyzeSeed').value.trim();
-            const resultsDiv = document.getElementById('analyzeResults');
-
-            if (!seed) {
-                resultsDiv.innerHTML = '<div class=""error"">Please enter a seed!</div>';
-                return;
-            }
-
-            resultsDiv.innerHTML = '<div class=""loading"">Analyzing seed...</div>';
-
-            try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ seed, deck: currentDeck, stake: currentStake })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    resultsDiv.innerHTML = `<div class=""error"">Error: ${data.error || 'Analysis failed'}</div>`;
-                    return;
-                }
-
-                const blueprintUrl = `https://miaklwalker.github.io/balatro-planner/?seed=${seed}`;
-                
-                resultsDiv.innerHTML = `
-                    <pre style=""background: #1a1818; padding: 15px; border-radius: 6px; overflow-x: auto;"">${data.analysis}</pre>
-                    <div class=""button-row"" style=""margin-top: 15px;"">
-                        <button onclick=""window.open('${blueprintUrl}', '_blank')"" class=""button-blue"">Open in Blueprint</button>
-                        <button onclick=""copySeed('${seed}')"" class=""button-green"">Copy Seed</button>
-                    </div>
-                `;
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class=""error"">Error: ${error.message}</div>`;
-            }
-        }
-
-        function copySeed(seed) {
-            navigator.clipboard.writeText(seed);
-            alert(`Seed ${seed} copied to clipboard!`);
-        }
-
-        function shareSearch() {
-            if (!currentSearchId) return;
-            
-            const shareUrl = `${window.location.origin}${window.location.pathname}?search=${currentSearchId}`;
-            navigator.clipboard.writeText(`Search for Balatro seeds with me! ${shareUrl}`);
-            alert('Share link copied to clipboard!');
-        }
-
-        function exportToCSV() {
-            if (searchResults.length === 0) {
-                alert('No results to export!');
-                return;
-            }
-
-            let csv = searchColumns.join(',') + '\n';
-            searchResults.forEach(result => {
-                const row = [result.seed, result.score];
-                if (result.tallies) {
-                    result.tallies.forEach(t => row.push(t));
-                }
-                csv += row.join(',') + '\n';
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `motely-results-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const searchId = urlParams.get('search');
-            const autoLaunch = urlParams.get('autolaunch');
-
-            if (searchId) {
-                currentSearchId = searchId;
-                document.getElementById('shareBtn').disabled = false;
-
-                (async () => {
-                    const response = await fetch(`/search?id=${searchId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-
-                        // IMPORTANT: Populate the JAML editor so joining users can see the filter!
-                        if (data.filterJaml) {
-                            document.getElementById('filterJaml').value = data.filterJaml;
-                            // Update deck/stake globals if provided
-                            if (data.deck) currentDeck = data.deck;
-                            if (data.stake) currentStake = data.stake;
-                            // Switch to JAML tab so user sees what they're searching for
-                            document.querySelector('.tab:nth-child(2)').click();
-                            
-                            // Auto-launch 1M search if requested
-                            if (autoLaunch === '1' || autoLaunch === 'true') {
-                                setTimeout(() => startSearch(), 500);
-                            }
-                        }
-
-                        displayResults(data);
-                        startPolling();
-                    }
-                })();
-            }
-        });
-    </script>
-</body>
-</html>";
-
-        var buffer = System.Text.Encoding.UTF8.GetBytes(html);
-        response.ContentLength64 = buffer.Length;
-        await response.OutputStream.WriteAsync(buffer);
-        response.Close();
+        await ServeFileAsync(response, "wwwroot/index.html", "text/html");
     }
 
     private async Task HandleSearchAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
-        // Check if we're already running 2 searches (max concurrent)
-        var activeSearches = _backgroundSearches.Count(kvp => kvp.Value.IsRunning);
-        if (activeSearches >= 2)
-        {
-            response.StatusCode = 503; // Service Unavailable
-            await WriteJsonAsync(response, new { error = "Server busy - max 2 searches running. Try again soon." });
-            return;
-        }
+        // CRITICAL: Only ONE search can run at a time (SIMD/CPU constraint)
+        // Stop any running search first, dump seeds to fertilizer, save batch position
+        await StopRunningSearchAsync();
 
         using var reader = new StreamReader(request.InputStream);
         var body = await reader.ReadToEndAsync();
@@ -1294,8 +597,33 @@ stake: White</textarea>
         var stake = ExtractStakeFromJaml(filterJaml);
         var searchId = SanitizeSearchId($"{filterName}_{deck}_{stake}");
 
-        var isUpdated = _savedSearches.TryGetValue(searchId, out var existingSearch) 
+        var isUpdated = _savedSearches.TryGetValue(searchId, out var existingSearch)
             && existingSearch.FilterJaml.Trim() != filterJaml.Trim();
+
+        // If filter changed, reset the background search state AND delete stale DB
+        if (isUpdated)
+        {
+            if (_backgroundSearches.TryGetValue(searchId, out var existingBgState))
+            {
+                existingBgState.StartBatch = 0;
+                existingBgState.SeedsAdded = 0;
+                existingBgState.IsRunning = false;
+            }
+
+            // Delete stale DB file - filter changed so old results are invalid
+            var staleDbPath = $"{searchId}.db";
+            try
+            {
+                if (File.Exists(staleDbPath)) File.Delete(staleDbPath);
+                if (File.Exists(staleDbPath + ".wal")) File.Delete(staleDbPath + ".wal");
+            }
+            catch (Exception ex)
+            {
+                _logCallback($"[{DateTime.Now:HH:mm:ss}] Warning: Could not delete stale DB: {ex.Message}");
+            }
+
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Filter updated - cleared stale results, starting fresh");
+        }
 
         _savedSearches[searchId] = new SavedSearch
         {
@@ -1306,55 +634,15 @@ stake: White</textarea>
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
+        // Initialize or reuse background search state to preserve StartBatch
+        if (!_backgroundSearches.ContainsKey(searchId))
+        {
+            _backgroundSearches[searchId] = new BackgroundSearchState { StartBatch = 0, SeedsAdded = 0 };
+        }
+
         SaveFilter(searchId, filterJaml);
 
-        if (isUpdated)
-        {
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Filter '{filterName}' updated - fertilizer pile preserved");
-        }
-
-        // Check if search is already running for this searchId
-        if (_backgroundSearches.TryGetValue(searchId, out var runningSearch) && runningSearch.IsRunning)
-        {
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Stopping existing search for {searchId}");
-            
-            // Mark as stopped
-            runningSearch.IsRunning = false;
-            
-            // Save current batch to database for continuation
-            if (runningSearch.Search != null)
-            {
-                var currentBatch = runningSearch.Search.CompletedBatchCount;
-                runningSearch.CurrentBatch = currentBatch;
-                
-                // Save batch marker to database
-                var dbPath = $"{searchId}.db";
-                try
-                {
-                    using var conn = new DuckDBConnection($"Data Source={dbPath}");
-                    conn.Open();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = @"
-                        CREATE TABLE IF NOT EXISTS search_state (
-                            last_batch BIGINT,
-                            updated_at TIMESTAMP DEFAULT NOW()
-                        );
-                        INSERT OR REPLACE INTO search_state (last_batch) VALUES (?);
-                    ";
-                    cmd.Parameters.Add(currentBatch);
-                    cmd.ExecuteNonQuery();
-                    
-                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Saved batch {currentBatch} for search {searchId}");
-                }
-                catch (Exception ex)
-                {
-                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to save batch marker: {ex.Message}");
-                }
-            }
-            
-            // Dispose the existing search if possible
-            runningSearch.Search?.Dispose();
-        }
+        // NOTE: Running search already stopped at start of this handler via StopRunningSearchAsync()
 
         try
         {
@@ -1421,143 +709,125 @@ stake: White</textarea>
                 results = topResults,
                 total = results.Count,
                 columns = config!.GetColumnNames(),
-                pileSize = pileSize
+                pileSize = pileSize,
+                isBackgroundRunning = true // We JUST started it!
             });
 
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Immediate response sent with {topResults.Count} results");
 
+            // Smart cutoff from fertilizer results:
+            // - No results = rare filter, accept everything (cutoff = 0)
+            // - Has results = use 10th best score as cutoff threshold
+            int smartCutoff = 0;
+            if (topResults.Count >= 10)
+            {
+                smartCutoff = topResults[9].Score; // 10th best (0-indexed, already sorted desc)
+            }
+            else if (topResults.Count > 0)
+            {
+                smartCutoff = topResults[topResults.Count - 1].Score; // Worst of what we found
+            }
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Smart cutoff: {smartCutoff} (from {topResults.Count} fertilizer results)");
+
             var bgConfig = config!;
+            
+            // Get existing background state or the one we just created
+            if (!_backgroundSearches.TryGetValue(searchId, out var bgState))
+            {
+                bgState = new BackgroundSearchState { StartBatch = 0, SeedsAdded = 0 };
+                _backgroundSearches[searchId] = bgState;
+            }
+            
+            // Mark as running (preserve existing StartBatch for resume)  
+            bgState.IsRunning = true;
+            
+            // Store in background searches for GET endpoint to find
+            _backgroundSearches[searchId] = bgState;
+            
+            // Set up DuckDB connection and appender for this search
+            var dbPath = $"{searchId}.db";
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Creating DB at: {Path.GetFullPath(dbPath)}");
+            bgState.Connection = new DuckDBConnection($"Data Source={dbPath}");
+            bgState.Connection.Open();
+            
+            // Create simple table - just seed and score
+            using var createCmd = bgState.Connection.CreateCommand();
+            createCmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS results (
+                    seed VARCHAR,
+                    score INTEGER,
+                    PRIMARY KEY (seed)
+                )";
+            createCmd.ExecuteNonQuery();
+            
+            bgState.Appender = bgState.Connection.CreateAppender("results");
+            
+            _backgroundSearches[searchId] = bgState;
+
             _ = Task.Run(() =>
             {
-                var bgState = new BackgroundSearchState { IsRunning = true, SeedsAdded = 0 };
-                _backgroundSearches[searchId] = bgState;
-
                 try
                 {
-                    var bgResults = new List<SearchResult>();
-                    
-                    // Create DuckDB database for this search
-                    var dbPath = $"{searchId}.db";
-                    using var connection = new DuckDBConnection($"Data Source={dbPath}");
-                    connection.Open();
-                    
-                    // Create results table
-                    using var createCmd = connection.CreateCommand();
-                    createCmd.CommandText = @"
-                        CREATE TABLE IF NOT EXISTS results (
-                            seed VARCHAR,
-                            score INTEGER,
-                            tallies JSON,
-                            timestamp TIMESTAMP DEFAULT NOW()
-                        );
-                        CREATE TABLE IF NOT EXISTS search_state (
-                            last_batch BIGINT,
-                            updated_at TIMESTAMP DEFAULT NOW()
-                        );";
-                    createCmd.ExecuteNonQuery();
-                    
-                    // Check for saved batch to continue from
-                    ulong startBatch = 0;
-                    using var batchCmd = connection.CreateCommand();
-                    batchCmd.CommandText = "SELECT last_batch FROM search_state ORDER BY updated_at DESC LIMIT 1";
-                    var savedBatch = batchCmd.ExecuteScalar();
-                    if (savedBatch != null && savedBatch != DBNull.Value)
-                    {
-                        startBatch = (ulong)(long)savedBatch;
-                        _logCallback($"[{DateTime.Now:HH:mm:ss}] Continuing search from batch {startBatch}");
-                    }
-                    
-                    using var appender = connection.CreateAppender("results");
-
-                    var bgParams = new JsonSearchParams
+                    var bgExecutor = new JsonSearchExecutor(bgConfig, new JsonSearchParams
                     {
                         Threads = ThreadCount,
                         EnableDebug = false,
                         NoFancy = true,
                         Quiet = true,
                         BatchSize = 2, // Use 2-character sequential search
-                        StartBatch = startBatch,
+                        StartBatch = (ulong)bgState.StartBatch,
                         EndBatch = 0, // No end limit
                         AutoCutoff = false,
-                        Cutoff = 1,
-                    };
-
-                    Action<MotelySeedScoreTally> bgCallback = (tally) =>
-                    {
-                        lock (bgResults)
+                        Cutoff = smartCutoff, // Smart cutoff from fertilizer results
+                        ProgressCallback = (completed, total, seedsSearched, seedsPerMs) =>
                         {
-                            var result = new SearchResult
-                            {
-                                Seed = tally.Seed,
-                                Score = tally.Score,
-                                Tallies = tally.TallyColumns
-                            };
-                            bgResults.Add(result);
+                            // Update progress state for GET /search to read
+                            bgState.CurrentBatch = bgState.StartBatch + completed;
+                            bgState.TotalBatches = total;
+                            bgState.SeedsSearched = seedsSearched;
+                            bgState.SeedsPerMs = seedsPerMs;
+                        }
+                    }, (tally) => {
+                        if (!bgState.IsRunning) return;
+                        
+                        // Track seeds found
+                        bgState.SeedsAdded++;
+                        
+                        // Save to search-specific database that GET /search reads from
+                        try 
+                        {
+                            var row = bgState.Appender?.CreateRow();
+                            row?.AppendValue(tally.Seed);
+                            row?.AppendValue(tally.Score);
+                            row?.EndRow();
                             
-                            // Also write to DuckDB
-                            try
-                            {
-                                var row = appender.CreateRow();
-                                row.AppendValue(tally.Seed);
-                                row.AppendValue(tally.Score);
-                                row.AppendValue(JsonSerializer.Serialize(tally.TallyColumns));
-                                row.EndRow();
-                            }
-                            catch (Exception ex)
-                            {
-                                _logCallback($"[{DateTime.Now:HH:mm:ss}] DB write error: {ex.Message}");
-                            }
+                            // DuckDBAppender doesn't have Flush() - data is visible automatically
+                            // Increment count for progress tracking
+                            bgState.SeedsAdded++;
                         }
-                    };
-
-                    var bgExecutor = new JsonSearchExecutor(bgConfig, bgParams, bgCallback);
-                    
-                    // Start a progress monitoring task
-                    var progressCancellation = new CancellationTokenSource();
-                    _ = Task.Run(async () =>
-                    {
-                        try
+                        catch (Exception ex)
                         {
-                            while (bgState.IsRunning && !progressCancellation.Token.IsCancellationRequested)
-                            {
-                                await Task.Delay(2000, progressCancellation.Token); // Update every 2 seconds
-                                
-                                // For now, just calculate rough progress based on time (we'll improve this)
-                                // This is a placeholder until we can access the actual search progress
-                                var elapsed = DateTime.Now.Subtract(DateTime.Now.AddSeconds(-10)); // Rough estimate
-                                bgState.ProgressPercent = Math.Min(99, (int)(elapsed.TotalMinutes * 2)); // 2% per minute, max 99%
-                            }
+                            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to save to search DB: {ex.Message}");
                         }
-                        catch (OperationCanceledException)
+                        
+                        // Add just the seed to fertilizer pile  
+                        lock (_pileLock)
                         {
-                            // Expected when search completes
+                            _fertilizerPile.Add(tally.Seed);
                         }
-                    }, progressCancellation.Token);
-
-                    bgExecutor.Execute();
+                        
+                        _logCallback($"[{DateTime.Now:HH:mm:ss}] Found seed: {tally.Seed} (score: {tally.Score})");
+                    });
                     
-                    // Close the database appender to ensure all data is written
-                    appender.Close();
-                    connection.Close();
-                    
-                    progressCancellation.Cancel(); // Stop progress monitoring
+                    bgState.Search = bgExecutor;
+                    bgState.CurrentBatch = bgState.StartBatch;
 
-                    var bgTopResults = bgResults.OrderByDescending(r => r.Score).Take(1000).ToList();
-                    lock (_pileLock)
-                    {
-                        foreach (var result in bgTopResults)
-                        {
-                            _fertilizerPile.Add(result.Seed);
-                        }
-                    }
+                    // Execute without awaiting completion - it will run in background
+                    bgExecutor.Execute(awaitCompletion: false);
 
-                    if (_backgroundSearches.TryGetValue(searchId, out var state))
-                    {
-                        state.SeedsAdded = bgTopResults.Count;
-                        state.IsRunning = false;
-                    }
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Background search started for {searchId} from batch {bgState.StartBatch}");
 
-                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Background done: {bgTopResults.Count} seeds added to pile (total: {_fertilizerPile.Count})");
+                    // Background search will continue running until cancelled or completed
                 }
                 catch (Exception ex)
                 {
@@ -1605,21 +875,61 @@ stake: White</textarea>
             }
 
             // Get results from DuckDB database
+            var results = new List<SearchResult>();
             var dbPath = $"{searchId}.db";
-            var results = GetTopResultsFromDb(dbPath, 1000);
+
+            // If this search is running, use its open connection
+            // Otherwise, open a new connection to the .db file (no conflict - different DBs are independent)
+            if (_backgroundSearches.TryGetValue(searchId, out var bgState) && bgState.IsRunning && bgState.Connection != null)
+            {
+                // SAME search is running - use existing connection
+                try
+                {
+                    using var cmd = bgState.Connection.CreateCommand();
+                    cmd.CommandText = "SELECT * FROM results ORDER BY score DESC LIMIT 1000";
+                    using var reader = cmd.ExecuteReader();
+
+                    while (reader.Read())
+                    {
+                        results.Add(new SearchResult
+                        {
+                            Seed = reader.GetString(0),
+                            Score = reader.GetInt32(1),
+                            Tallies = ReadTallies(reader)
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to read from running search connection: {ex.Message}");
+                }
+            }
+            else if (File.Exists(dbPath))
+            {
+                // Search NOT running - open new connection to .db file (safe, no conflict)
+                results = GetTopResultsFromDb(dbPath, 1000);
+            }
             
             // Check if background search is running
             var isRunning = false;
-            var progressPercent = 0;
-            if (_backgroundSearches.TryGetValue(searchId, out var bgState))
+            long currentBatch = 0;
+            long totalBatches = 0;
+            long seedsSearched = 0;
+            double seedsPerMs = 0;
+            int seedsFound = 0;
+            if (_backgroundSearches.TryGetValue(searchId, out var bgSearchState))
             {
-                isRunning = bgState.IsRunning;
-                progressPercent = bgState.ProgressPercent;
+                isRunning = bgSearchState.IsRunning;
+                currentBatch = bgSearchState.CurrentBatch;
+                totalBatches = bgSearchState.TotalBatches;
+                seedsSearched = bgSearchState.SeedsSearched;
+                seedsPerMs = bgSearchState.SeedsPerMs;
+                seedsFound = bgSearchState.SeedsAdded;
             }
-            
+
             // Determine status
             var status = isRunning ? "RUNNING" : "STOPPED";
-            
+
             response.StatusCode = 200;
             await WriteJsonAsync(response, new
             {
@@ -1631,14 +941,121 @@ stake: White</textarea>
                 total = results.Count,
                 columns = config!.GetColumnNames(),
                 status = status,
-                progressPercent = progressPercent,
-                isBackgroundRunning = isRunning,
-                searchStatus = isRunning ? "running" : "stopped"
+                currentBatch = currentBatch,
+                totalBatches = totalBatches,
+                seedsSearched = seedsSearched,
+                seedsPerSecond = seedsPerMs * 1000, // Convert to per-second for UI
+                seedsFound = seedsFound,
+                isBackgroundRunning = isRunning
             });
         }
         catch (Exception ex)
         {
             _logCallback($"[{DateTime.Now:HH:mm:ss}] GET Search failed: {ex.Message}");
+            response.StatusCode = 500;
+            await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleSearchContinueAsync(HttpListenerRequest request, HttpListenerResponse response)
+    {
+        try
+        {
+            using var reader = new StreamReader(request.InputStream);
+            var body = await reader.ReadToEndAsync();
+            var requestData = JsonSerializer.Deserialize<Dictionary<string, object>>(body);
+            
+            if (!requestData!.TryGetValue("searchId", out var searchIdObj))
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "searchId required" });
+                return;
+            }
+            
+            var searchId = searchIdObj.ToString()!;
+            
+            if (!_backgroundSearches.TryGetValue(searchId, out var bgState))
+            {
+                response.StatusCode = 404;
+                await WriteJsonAsync(response, new { error = "background search not found" });
+                return;
+            }
+            
+            if (bgState.IsRunning)
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "search already running" });
+                return;
+            }
+            
+            // Restart the search
+            bgState.IsRunning = true;
+            var result = bgState.Search?.Execute(awaitCompletion: false);
+            
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Continued search for {searchId}");
+            
+            response.StatusCode = 200;
+            await WriteJsonAsync(response, new { 
+                message = "search continued",
+                searchId = searchId,
+                status = "running"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Continue search failed: {ex.Message}");
+            response.StatusCode = 500;
+            await WriteJsonAsync(response, new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleSearchStopAsync(HttpListenerRequest request, HttpListenerResponse response)
+    {
+        try
+        {
+            using var reader = new StreamReader(request.InputStream);
+            var body = await reader.ReadToEndAsync();
+            var requestData = JsonSerializer.Deserialize<Dictionary<string, object>>(body);
+            
+            if (!requestData!.TryGetValue("searchId", out var searchIdObj))
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "searchId required" });
+                return;
+            }
+            
+            var searchId = searchIdObj.ToString()!;
+            
+            if (!_backgroundSearches.TryGetValue(searchId, out var bgState))
+            {
+                response.StatusCode = 404;
+                await WriteJsonAsync(response, new { error = "background search not found" });
+                return;
+            }
+            
+            if (!bgState.IsRunning)
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "search not running" });
+                return;
+            }
+            
+            // Stop the search
+            bgState.IsRunning = false;
+            bgState.Search?.Cancel();
+            
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Stopped search for {searchId}");
+            
+            response.StatusCode = 200;
+            await WriteJsonAsync(response, new { 
+                message = "search stopped",
+                searchId = searchId,
+                status = "stopped"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Stop search failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
         }
@@ -1703,35 +1120,45 @@ stake: White</textarea>
         }
     }
 
-    private async Task HandleGenieAsync(HttpListenerRequest request, HttpListenerResponse response)
+
+    private async Task HandleConvertAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
         using var reader = new StreamReader(request.InputStream);
         var body = await reader.ReadToEndAsync();
 
-        var genieRequest = JsonSerializer.Deserialize<GenieRequest>(
+        var convertRequest = JsonSerializer.Deserialize<ConvertRequest>(
             body,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
         );
 
-        if (genieRequest == null || string.IsNullOrWhiteSpace(genieRequest.Prompt))
+        if (convertRequest == null || string.IsNullOrWhiteSpace(convertRequest.JsonContent))
         {
             response.StatusCode = 400;
-            await WriteJsonAsync(response, new { error = "prompt is required" });
+            await WriteJsonAsync(response, new { error = "jsonContent is required" });
             return;
         }
 
         try
         {
-            var jaml = JamlGenie.GenerateJaml(genieRequest.Prompt);
+            // Convert JSON to JAML using ConfigFormatConverter
+            var config = ConfigFormatConverter.LoadFromJsonString(convertRequest.JsonContent);
+            if (config == null)
+            {
+                response.StatusCode = 400;
+                await WriteJsonAsync(response, new { error = "Invalid JSON filter format" });
+                return;
+            }
+
+            var jaml = config.SaveAsJaml();
 
             response.StatusCode = 200;
             await WriteJsonAsync(response, new { jaml });
 
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Genie generated JAML for: {genieRequest.Prompt.Substring(0, Math.Min(50, genieRequest.Prompt.Length))}...");
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Converted JSON filter to JAML: {config.Name ?? "unnamed"}");
         }
         catch (Exception ex)
         {
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] Genie failed: {ex.Message}");
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Convert failed: {ex.Message}");
             response.StatusCode = 500;
             await WriteJsonAsync(response, new { error = ex.Message });
         }
@@ -1865,27 +1292,25 @@ stake: White</textarea>
             using var conn = new DuckDBConnection($"Data Source={dbPath}");
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"SELECT seed, score, tallies FROM results ORDER BY score DESC LIMIT {limit}";
+            cmd.CommandText = $"SELECT * FROM results ORDER BY score DESC LIMIT {limit}";
             
             var results = new List<SearchResult>();
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var talliesJson = reader.IsDBNull(2) ? "[]" : reader.GetString(2);
+                var seed = reader.GetString(0);
+                var score = reader.GetInt32(1);
+
                 var tallies = new List<int>();
-                try
+                for (int i = 2; i < reader.FieldCount; i++)
                 {
-                    tallies = JsonSerializer.Deserialize<List<int>>(talliesJson) ?? new List<int>();
+                    tallies.Add(reader.IsDBNull(i) ? 0 : reader.GetInt32(i));
                 }
-                catch
-                {
-                    // If JSON parsing fails, use empty list
-                }
-                
+
                 results.Add(new SearchResult
                 {
-                    Seed = reader.GetString(0),
-                    Score = reader.GetInt32(1),
+                    Seed = seed,
+                    Score = score,
                     Tallies = tallies
                 });
             }
@@ -1896,6 +1321,35 @@ stake: White</textarea>
         {
             _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to read from DB {dbPath}: {ex.Message}");
             return new List<SearchResult>();
+        }
+    }
+
+    private async Task ServeFileAsync(HttpListenerResponse response, string filePath, string contentType)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                response.StatusCode = 404;
+                await response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"File not found: {filePath}"));
+                return;
+            }
+
+            var content = await File.ReadAllTextAsync(filePath);
+            response.ContentType = contentType;
+            response.StatusCode = 200;
+            
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            response.ContentLength64 = bytes.Length;
+            await response.OutputStream.WriteAsync(bytes);
+            response.Close();
+        }
+        catch (Exception ex)
+        {
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] Failed to serve {filePath}: {ex.Message}");
+            response.StatusCode = 500;
+            await response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Server error"));
+            response.Close();
         }
     }
 
@@ -1951,10 +1405,11 @@ public class AnalyzeRequest
     public string? Stake { get; set; }
 }
 
-public class GenieRequest
+
+public class ConvertRequest
 {
-    [JsonPropertyName("prompt")]
-    public string Prompt { get; set; } = "";
+    [JsonPropertyName("jsonContent")]
+    public string JsonContent { get; set; } = "";
 }
 
 /// <summary>
@@ -2084,470 +1539,6 @@ public static class JamlGenie
     {
         "Foil", "Holo", "Polychrome", "Negative"
     };
-
-    // Mapping for common alternate names/variations
-    private static readonly Dictionary<string, string> NameAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // Soul jokers
-        { "legendary", "soulJoker" },
-        { "soul", "Soul" },
-
-        // Common variations
-        { "Neg", "Negative" },
-        { "Poly", "Polychrome" },
-        { "Holo", "Holo" },
-
-        // Joker variations
-        { "stencil", "JokerStencil" },
-        { "four fingers", "FourFingers" },
-        { "4 fingers", "FourFingers" },
-        { "ceremonial dagger", "CeremonialDagger" },
-        { "marble joker", "MarbleJoker" },
-        { "loyalty card", "LoyaltyCard" },
-        { "steel joker", "SteelJoker" },
-        { "space joker", "SpaceJoker" },
-        { "sixth sense", "SixthSense" },
-        { "card sharp", "CardSharp" },
-        { "midas mask", "MidasMask" },
-        { "gift card", "GiftCard" },
-        { "turtle bean", "TurtleBean" },
-        { "to the moon", "ToTheMoon" },
-        { "stone joker", "StoneJoker" },
-        { "lucky cat", "LuckyCat" },
-        { "diet cola", "DietCola" },
-        { "trading card", "TradingCard" },
-        { "flash card", "FlashCard" },
-        { "spare trousers", "SpareTrousers" },
-        { "mr bones", "MrBones" },
-        { "sock and buskin", "SockAndBuskin" },
-        { "smeared joker", "SmearedJoker" },
-        { "rough gem", "RoughGem" },
-        { "onyx agate", "OnyxAgate" },
-        { "glass joker", "GlassJoker" },
-        { "flower pot", "FlowerPot" },
-        { "merry andy", "MerryAndy" },
-        { "oops all 6s", "OopsAll6s" },
-        { "the idol", "TheIdol" },
-        { "seeing double", "SeeingDouble" },
-        { "invisible joker", "InvisibleJoker" },
-        { "drivers license", "DriversLicense" },
-        { "driver's license", "DriversLicense" },
-        { "burnt joker", "BurntJoker" },
-        { "ancient joker", "AncientJoker" },
-        { "baseball card", "BaseballCard" },
-        { "wee joker", "WeeJoker" },
-        { "hit the road", "HitTheRoad" },
-        { "the duo", "TheDuo" },
-        { "the trio", "TheTrio" },
-        { "the family", "TheFamily" },
-        { "the order", "TheOrder" },
-        { "the tribe", "TheTribe" },
-
-        // Common jokers with spaces
-        { "greedy joker", "GreedyJoker" },
-        { "lusty joker", "LustyJoker" },
-        { "wrathful joker", "WrathfulJoker" },
-        { "gluttonous joker", "GluttonousJoker" },
-        { "jolly joker", "JollyJoker" },
-        { "zany joker", "ZanyJoker" },
-        { "mad joker", "MadJoker" },
-        { "crazy joker", "CrazyJoker" },
-        { "droll joker", "DrollJoker" },
-        { "sly joker", "SlyJoker" },
-        { "wily joker", "WilyJoker" },
-        { "clever joker", "CleverJoker" },
-        { "devious joker", "DeviousJoker" },
-        { "crafty joker", "CraftyJoker" },
-        { "half joker", "HalfJoker" },
-        { "credit card", "CreditCard" },
-        { "mystic summit", "MysticSummit" },
-        { "eight ball", "EightBall" },
-        { "8 ball", "EightBall" },
-        { "raised fist", "RaisedFist" },
-        { "chaos the clown", "ChaostheClown" },
-        { "scary face", "ScaryFace" },
-        { "abstract joker", "AbstractJoker" },
-        { "delayed gratification", "DelayedGratification" },
-        { "gros michel", "GrosMichel" },
-        { "even steven", "EvenSteven" },
-        { "odd todd", "OddTodd" },
-        { "business card", "BusinessCard" },
-        { "ride the bus", "RideTheBus" },
-        { "ice cream", "IceCream" },
-        { "blue joker", "BlueJoker" },
-        { "faceless joker", "FacelessJoker" },
-        { "green joker", "GreenJoker" },
-        { "to do list", "ToDoList" },
-        { "todo list", "ToDoList" },
-        { "red card", "RedCard" },
-        { "square joker", "SquareJoker" },
-        { "riff raff", "RiffRaff" },
-        { "reserved parking", "ReservedParking" },
-        { "mail in rebate", "MailInRebate" },
-        { "fortune teller", "FortuneTeller" },
-        { "golden joker", "GoldenJoker" },
-        { "walkie talkie", "WalkieTalkie" },
-        { "smiley face", "SmileyFace" },
-        { "golden ticket", "GoldenTicket" },
-        { "hanging chad", "HangingChad" },
-        { "shoot the moon", "ShootTheMoon" },
-
-        // Vouchers with spaces
-        { "overstock plus", "OverstockPlus" },
-        { "clearance sale", "ClearanceSale" },
-        { "glow up", "GlowUp" },
-        { "reroll surplus", "RerollSurplus" },
-        { "reroll glut", "RerollGlut" },
-        { "crystal ball", "CrystalBall" },
-        { "omen globe", "OmenGlobe" },
-        { "nacho tong", "NachoTong" },
-        { "tarot merchant", "TarotMerchant" },
-        { "tarot tycoon", "TarotTycoon" },
-        { "planet merchant", "PlanetMerchant" },
-        { "planet tycoon", "PlanetTycoon" },
-        { "seed money", "SeedMoney" },
-        { "money tree", "MoneyTree" },
-        { "magic trick", "MagicTrick" },
-        { "directors cut", "DirectorsCut" },
-        { "director's cut", "DirectorsCut" },
-        { "paint brush", "PaintBrush" },
-
-        // Tags with spaces
-        { "uncommon tag", "UncommonTag" },
-        { "rare tag", "RareTag" },
-        { "negative tag", "NegativeTag" },
-        { "foil tag", "FoilTag" },
-        { "holographic tag", "HolographicTag" },
-        { "polychrome tag", "PolychromeTag" },
-        { "investment tag", "InvestmentTag" },
-        { "voucher tag", "VoucherTag" },
-        { "boss tag", "BossTag" },
-        { "standard tag", "StandardTag" },
-        { "charm tag", "CharmTag" },
-        { "meteor tag", "MeteorTag" },
-        { "buffoon tag", "BuffoonTag" },
-        { "handy tag", "HandyTag" },
-        { "garbage tag", "GarbageTag" },
-        { "ethereal tag", "EtherealTag" },
-        { "coupon tag", "CouponTag" },
-        { "double tag", "DoubleTag" },
-        { "juggle tag", "JuggleTag" },
-        { "d6 tag", "D6Tag" },
-        { "topup tag", "TopupTag" },
-        { "top up tag", "TopupTag" },
-        { "speed tag", "SpeedTag" },
-        { "orbital tag", "OrbitalTag" },
-        { "economy tag", "EconomyTag" },
-
-        // Tarot cards with spaces
-        { "the fool", "TheFool" },
-        { "the magician", "TheMagician" },
-        { "the high priestess", "TheHighPriestess" },
-        { "high priestess", "TheHighPriestess" },
-        { "the empress", "TheEmpress" },
-        { "the emperor", "TheEmperor" },
-        { "the hierophant", "TheHierophant" },
-        { "the lovers", "TheLovers" },
-        { "the chariot", "TheChariot" },
-        { "the hermit", "TheHermit" },
-        { "the wheel of fortune", "TheWheelOfFortune" },
-        { "wheel of fortune", "TheWheelOfFortune" },
-        { "the hanged man", "TheHangedMan" },
-        { "hanged man", "TheHangedMan" },
-        { "the devil", "TheDevil" },
-        { "the tower", "TheTower" },
-        { "the star", "TheStar" },
-        { "the moon", "TheMoon" },
-        { "the sun", "TheSun" },
-        { "the world", "TheWorld" },
-
-        // Spectrals with spaces
-        { "deja vu", "DejaVu" },
-        { "black hole", "BlackHole" },
-
-        // Bosses with spaces
-        { "amber acorn", "AmberAcorn" },
-        { "cerulean bell", "CeruleanBell" },
-        { "crimson heart", "CrimsonHeart" },
-        { "verdant leaf", "VerdantLeaf" },
-        { "violet vessel", "VioletVessel" },
-        { "the arm", "TheArm" },
-        { "the club", "TheClub" },
-        { "the eye", "TheEye" },
-        { "the fish", "TheFish" },
-        { "the flint", "TheFlint" },
-        { "the goad", "TheGoad" },
-        { "the head", "TheHead" },
-        { "the hook", "TheHook" },
-        { "the house", "TheHouse" },
-        { "the manacle", "TheManacle" },
-        { "the mark", "TheMark" },
-        { "the mouth", "TheMouth" },
-        { "the needle", "TheNeedle" },
-        { "the ox", "TheOx" },
-        { "the pillar", "ThePillar" },
-        { "the plant", "ThePlant" },
-        { "the psychic", "ThePsychic" },
-        { "the serpent", "TheSerpent" },
-        { "the tooth", "TheTooth" },
-        { "the wall", "TheWall" },
-        { "the water", "TheWater" },
-        { "the wheel", "TheWheel" },
-        { "the window", "TheWindow" },
-
-        // Planet X
-        { "planet x", "PlanetX" },
-    };
-
-    public static string GenerateJaml(string prompt)
-    {
-        var lowerPrompt = prompt.ToLowerInvariant();
-        var clauses = new List<JamlClause>();
-        var deck = "Red";
-        var stake = "White";
-
-        // Extract deck
-        foreach (var d in Decks)
-        {
-            if (lowerPrompt.Contains(d.ToLowerInvariant() + " deck") ||
-                lowerPrompt.Contains(d.ToLowerInvariant() + " stake"))
-            {
-                if (Decks.Contains(d))
-                    deck = d;
-            }
-        }
-
-        // Also check for just deck names at word boundaries
-        foreach (var d in Decks)
-        {
-            var pattern = $@"\b{d.ToLowerInvariant()}\b";
-            if (System.Text.RegularExpressions.Regex.IsMatch(lowerPrompt, pattern) && d != "Red" && d != "Blue" && d != "Green" && d != "Black")
-            {
-                deck = d;
-                break;
-            }
-        }
-
-        // Extract stake
-        foreach (var s in Stakes)
-        {
-            if (lowerPrompt.Contains(s.ToLowerInvariant() + " stake"))
-            {
-                stake = s;
-                break;
-            }
-        }
-
-        // Extract antes patterns
-        var defaultAntes = ExtractAntes(lowerPrompt) ?? new List<int> { 1, 2, 3 };
-
-        // Extract edition preference
-        string? globalEdition = null;
-        foreach (var edition in Editions)
-        {
-            if (lowerPrompt.Contains(edition.ToLowerInvariant()))
-            {
-                globalEdition = edition;
-                break;
-            }
-        }
-
-        // Process the prompt word by word looking for items
-        var words = System.Text.RegularExpressions.Regex.Split(prompt, @"[\s,;]+");
-
-        // First, try to find multi-word matches using aliases
-        var processedPrompt = prompt;
-        foreach (var alias in NameAliases.OrderByDescending(a => a.Key.Length))
-        {
-            if (processedPrompt.IndexOf(alias.Key, StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                processedPrompt = System.Text.RegularExpressions.Regex.Replace(
-                    processedPrompt,
-                    System.Text.RegularExpressions.Regex.Escape(alias.Key),
-                    alias.Value,
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
-                );
-            }
-        }
-
-        // Re-split after alias replacement
-        words = System.Text.RegularExpressions.Regex.Split(processedPrompt, @"[\s,;]+");
-
-        foreach (var word in words)
-        {
-            var cleanWord = word.Trim();
-            if (string.IsNullOrEmpty(cleanWord)) continue;
-
-            // Check for name aliases first
-            if (NameAliases.TryGetValue(cleanWord, out var aliased))
-            {
-                cleanWord = aliased;
-            }
-
-            // Check soul jokers
-            if (SoulJokers.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "soulJoker",
-                    Value = cleanWord,
-                    Edition = globalEdition,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check regular jokers
-            if (AllJokers.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "joker",
-                    Value = cleanWord,
-                    Edition = globalEdition,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check vouchers
-            if (Vouchers.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "voucher",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check tags
-            if (Tags.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "tag",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check tarots
-            if (Tarots.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "tarot",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check spectrals
-            if (Spectrals.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "spectral",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check planets
-            if (Planets.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "planet",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-
-            // Check bosses
-            if (Bosses.Contains(cleanWord))
-            {
-                clauses.Add(new JamlClause
-                {
-                    Type = "boss",
-                    Value = cleanWord,
-                    Antes = defaultAntes
-                });
-                continue;
-            }
-        }
-
-        // If no items found, provide a helpful default
-        if (clauses.Count == 0)
-        {
-            return GenerateHelpfulDefault(prompt, deck, stake);
-        }
-
-        // Build the JAML output
-        return BuildJaml(clauses, deck, stake, lowerPrompt);
-    }
-
-    private static List<int>? ExtractAntes(string prompt)
-    {
-        // Look for patterns like "ante 1", "antes 1-3", "ante 1, 2, 3", "early" (1-2), "late" (6-8)
-        var antes = new List<int>();
-
-        // Check for "early" / "early game"
-        if (prompt.Contains("early"))
-        {
-            return new List<int> { 1, 2, 3 };
-        }
-
-        // Check for "mid" / "mid game"
-        if (prompt.Contains("mid"))
-        {
-            return new List<int> { 3, 4, 5 };
-        }
-
-        // Check for "late" / "late game"
-        if (prompt.Contains("late"))
-        {
-            return new List<int> { 6, 7, 8 };
-        }
-
-        // Look for "ante X" or "antes X"
-        var anteMatch = System.Text.RegularExpressions.Regex.Match(prompt, @"antes?\s*(\d)(?:\s*[-,to]\s*(\d))?");
-        if (anteMatch.Success)
-        {
-            var start = int.Parse(anteMatch.Groups[1].Value);
-            var end = anteMatch.Groups[2].Success ? int.Parse(anteMatch.Groups[2].Value) : start;
-
-            for (var i = start; i <= end; i++)
-            {
-                if (i >= 1 && i <= 8) antes.Add(i);
-            }
-
-            if (antes.Count > 0) return antes;
-        }
-
-        // Look for explicit list like "1, 2, 3" or "1-3"
-        var rangeMatch = System.Text.RegularExpressions.Regex.Match(prompt, @"\b(\d)\s*-\s*(\d)\b");
-        if (rangeMatch.Success)
-        {
-            var start = int.Parse(rangeMatch.Groups[1].Value);
-            var end = int.Parse(rangeMatch.Groups[2].Value);
-
-            for (var i = start; i <= end; i++)
-            {
-                if (i >= 1 && i <= 8) antes.Add(i);
-            }
-
-            if (antes.Count > 0) return antes;
-        }
-
-        return null; // Use default
-    }
 
     private static string BuildJaml(List<JamlClause> clauses, string deck, string stake, string prompt)
     {

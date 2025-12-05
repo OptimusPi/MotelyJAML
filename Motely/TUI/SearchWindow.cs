@@ -235,8 +235,8 @@ public class SearchWindow : Window
                 parameters,
                 _configFormat,
                 resultCallback
-            );
-            var result = await Task.Run(() => _executor.Execute(), _cancellationTokenSource.Token);
+            ); var result = await Task.Run(() => _executor.Execute(), _cancellationTokenSource.Token);
+           
 
             // Restore original console output ALWAYS
             Console.SetOut(originalOut);

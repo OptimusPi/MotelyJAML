@@ -68,7 +68,7 @@ public class BalatroShaderBackground : View
         UpdateFrameBuffer();
 
         MotelyTUI.App?.AddTimeout(
-            TimeSpan.FromMilliseconds(41),
+            TimeSpan.FromMilliseconds(31),
             () =>
             {
                 if (!_isRunning)
@@ -120,7 +120,7 @@ public class BalatroShaderBackground : View
 
         var driver = MotelyTUI.App.Driver;
         var upperHalf = new System.Text.Rune('▀');
-        int maxRows = Math.Min(driver.Rows, _bufferHeight / 2);
+        int maxRows = Math.Min(driver.Rows - 1, _bufferHeight / 2); // -1 to leave room for status line
         int maxCols = Math.Min(driver.Cols, _bufferWidth);
 
         // Half-block: each char = 2 vertical pixels (top/bottom)

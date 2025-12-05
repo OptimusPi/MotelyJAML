@@ -712,6 +712,8 @@ public class MainMenuWindow : View
                     messageLabel.Text = reveal;
                     dialog.Title = "pifreak loves you!";
                     crudeBtn.Visible = true;
+                    crudeBtn.SetNeedsDraw();
+                    dialog.SetNeedsDraw();
                     crudeBtn.SetFocus();
                     return false; // Stop timer
                 }
@@ -719,56 +721,6 @@ public class MainMenuWindow : View
         );
 
         MotelyTUI.App?.Run(dialog);
-    }
-
-    private static bool ShowConfirmDialog(string title, string message)
-    {
-        var dialog = new Dialog()
-        {
-            Title = title,
-            Width = Math.Min(60, message.Length + 10),
-            Height = 9,
-        };
-        dialog.SetScheme(BalatroTheme.Window);
-
-        var label = new Label()
-        {
-            X = Pos.Center(),
-            Y = 2,
-            Text = message,
-            TextAlignment = Alignment.Center,
-        };
-        dialog.Add(label);
-
-        bool result = false;
-        var yesBtn = new CleanButton() { Text = " Yes " };
-        yesBtn.SetScheme(BalatroTheme.ModalButton);
-        yesBtn.Accept += (s, e) =>
-        {
-            result = true;
-            MotelyTUI.App?.RequestStop(dialog);
-        };
-
-        var noBtn = new CleanButton()
-        {
-            X = Pos.Right(yesBtn) + 2,
-            Y = Pos.AnchorEnd(1),
-            Text = " No ",
-        };
-        noBtn.SetScheme(BalatroTheme.BackButton);
-        noBtn.Accept += (s, e) =>
-        {
-            result = false;
-            MotelyTUI.App?.RequestStop(dialog);
-        };
-
-        yesBtn.X = 2;
-        yesBtn.Y = Pos.AnchorEnd(1);
-        dialog.Add(yesBtn);
-        dialog.Add(noBtn);
-
-        MotelyTUI.App?.Run(dialog);
-        return result;
     }
 
     private static void ShowErrorDialog(string title, string message)

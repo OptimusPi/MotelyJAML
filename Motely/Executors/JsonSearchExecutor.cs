@@ -14,6 +14,7 @@ namespace Motely.Executors
         private readonly string _format;
         private readonly Action<MotelySeedScoreTally>? _customCallback;
         private bool _cancelled = false;
+        private IMotelySearch? _runningSearch;
 
         public JsonSearchExecutor(
             string configPath,
@@ -48,6 +49,7 @@ namespace Motely.Executors
         public void Cancel()
         {
             _cancelled = true;
+            _runningSearch?.Pause();
         }
 
         /// <summary>
@@ -76,7 +78,7 @@ namespace Motely.Executors
             }
         }
 
-        public int Execute()
+        public int Execute(bool awaitCompletion = true)
         {
             DebugLogger.IsEnabled = _params.EnableDebug;
             FancyConsole.IsEnabled = !_params.NoFancy;
@@ -141,32 +143,40 @@ namespace Motely.Executors
 
                 search.Start();
 
-                // Wait for completion - progress shown by MotelySearch.PrintReport() in FancyConsole bottom line
-                while (search.Status != MotelySearchStatus.Completed && !_cancelled)
+                if (awaitCompletion)
                 {
+                    // Wait for completion - progress shown by MotelySearch.PrintReport() in FancyConsole bottom line
+                    while (search.Status != MotelySearchStatus.Completed && !_cancelled)
+                    {
+                        Thread.Sleep(100);
+                    }
+
+                    // Stop the search gracefully (if cancelled)
+                    if (_cancelled)
+                    {
+                        search.Dispose();
+
+                        // Wait for final batch to flush before showing stats
+                        // The search may have queued results that need to be written
+                        Console.Out.Flush();
+                        Thread.Sleep(500); // Give time for final batch flush
+                        Console.Out.Flush();
+                    }
+
+                    Console.Out.Flush();
                     Thread.Sleep(100);
-                }
-
-                // Stop the search gracefully (if cancelled)
-                if (_cancelled)
-                {
-                    search.Dispose();
-
-                    // Wait for final batch to flush before showing stats
-                    // The search may have queued results that need to be written
                     Console.Out.Flush();
-                    Thread.Sleep(500); // Give time for final batch flush
-                    Console.Out.Flush();
+
+                    // Suppress summary in quiet mode
+                    if (!_params.Quiet)
+                    {
+                        PrintResultsSummary(search, _cancelled);
+                    }
                 }
-
-                Console.Out.Flush();
-                Thread.Sleep(100);
-                Console.Out.Flush();
-
-                // Suppress summary in quiet mode
-                if (!_params.Quiet)
+                else
                 {
-                    PrintResultsSummary(search, _cancelled);
+                    // Store the search for later access/cancellation
+                    _runningSearch = search;
                 }
 
                 // Cleanup cancel handler if registered
@@ -436,6 +446,8 @@ namespace Motely.Executors
 
                     if (_params.Quiet)
                         compositeSettings = compositeSettings.WithQuietMode(true);
+                    if (_params.ProgressCallback != null)
+                        compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
                     if (seeds != null && seeds.Count > 0)
                         return (IMotelySearch)compositeSettings.WithListSearch(seeds).Start();
@@ -484,6 +496,8 @@ namespace Motely.Executors
 
                 if (_params.Quiet)
                     passthroughSettings = passthroughSettings.WithQuietMode(true);
+                if (_params.ProgressCallback != null)
+                    passthroughSettings = passthroughSettings.WithProgressCallback(_params.ProgressCallback);
 
                 if (seeds != null && seeds.Count > 0)
                     return passthroughSettings.WithListSearch(seeds).Start();
@@ -569,6 +583,8 @@ namespace Motely.Executors
                 {
                     compositeSettings = compositeSettings.WithQuietMode(true);
                 }
+                if (_params.ProgressCallback != null)
+                    compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
                 // Start search with composite filter (no chaining needed!)
                 if (_params.RandomSeeds.HasValue)
@@ -655,6 +671,8 @@ namespace Motely.Executors
 
                 if (_params.Quiet)
                     compositeSettings = compositeSettings.WithQuietMode(true);
+                if (_params.ProgressCallback != null)
+                    compositeSettings = compositeSettings.WithProgressCallback(_params.ProgressCallback);
 
                 // Start search with composite filter
                 if (_params.RandomSeeds.HasValue)
@@ -862,6 +880,8 @@ namespace Motely.Executors
             {
                 searchSettings = searchSettings.WithQuietMode(true);
             }
+            if (_params.ProgressCallback != null)
+                searchSettings = searchSettings.WithProgressCallback(_params.ProgressCallback);
 
             // Apply deck and stake
             if (
@@ -1078,5 +1098,9 @@ namespace Motely.Executors
         public string? Wordlist { get; set; }
         public List<string>? SeedList { get; set; }
         public int? RandomSeeds { get; set; }
+        /// <summary>
+        /// Progress callback: (completedBatches, totalBatches, seedsSearched, seedsPerMs)
+        /// </summary>
+        public Action<long, long, long, double>? ProgressCallback { get; set; }
     }
 }

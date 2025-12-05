@@ -56,8 +56,7 @@ public sealed class FertilizerDatabase : IDisposable
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS fertilizer_pile (
                     seed VARCHAR PRIMARY KEY,
-                    score INTEGER DEFAULT 0,
-                    added_timestamp TIMESTAMP DEFAULT NOW()
+                    score INTEGER DEFAULT 0
                 )";
             cmd.ExecuteNonQuery();
 
@@ -119,7 +118,6 @@ public sealed class FertilizerDatabase : IDisposable
                 var row = appender.CreateRow();
                 row.AppendValue(seed);
                 row.AppendValue(score);
-                row.AppendValue(DateTime.UtcNow);
                 row.EndRow();
             }
             appender.Close();

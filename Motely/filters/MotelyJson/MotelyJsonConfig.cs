@@ -168,6 +168,7 @@ public class MotelyJsonConfig
     public MotelyFilterDefaults? Defaults { get; set; }
 
     [JsonIgnore]
+    [YamlIgnore]
     public MotelyScoreAggregationMode ScoreAggregationMode { get; private set; } =
         MotelyScoreAggregationMode.Sum;
 
@@ -182,15 +183,19 @@ public class MotelyJsonConfig
 
     // PERFORMANCE: Pre-partitioned clauses to avoid repeated iteration
     [JsonIgnore]
+    [YamlIgnore]
     public MotleyJsonFilterClause[] MustVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
 
     [JsonIgnore]
+    [YamlIgnore]
     public MotleyJsonFilterClause[] MustNonVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
 
     [JsonIgnore]
+    [YamlIgnore]
     public MotleyJsonFilterClause[] ShouldVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
 
     [JsonIgnore]
+    [YamlIgnore]
     public MotleyJsonFilterClause[] ShouldNonVouchers { get; private set; } = Array.Empty<MotleyJsonFilterClause>();
 
     public class MotleyJsonFilterClause
@@ -216,11 +221,13 @@ public class MotelyJsonConfig
 
         // Inversion flag for mustNot clauses (set internally, not from JSON)
         [JsonIgnore]
+        [YamlIgnore]
         public bool IsInverted { get; set; } = false;
 
         // Track whether Antes was explicitly set by user vs defaulted by ProcessClause
         // This is critical for OR/AND clause helper behavior
         [JsonIgnore]
+        [YamlIgnore]
         public bool AntesWasExplicitlySet { get; set; } = false;
 
         [JsonPropertyName("score")]
@@ -744,9 +751,11 @@ public class MotelyJsonConfig
 
     // Pre-computed expensive calculations (set during PostProcess, immutable after)
     [JsonIgnore]
+    [YamlIgnore]
     public int MaxVoucherAnte { get; private set; }
 
     [JsonIgnore]
+    [YamlIgnore]
     public int MaxBossAnte { get; private set; }
 
     public class SourcesConfig

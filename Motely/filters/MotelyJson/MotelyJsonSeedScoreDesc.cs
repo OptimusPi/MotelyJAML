@@ -146,13 +146,14 @@ public struct MotelyJsonSeedScoreDesc(
 
 
                     // Generate and cache all bosses if needed
+                    // Game starts at Ante 1, so bosses are generated from ante 1 onwards
                     MotelyBossBlind[]? cachedBosses = null;
                     if (maxBossAnte > 0)
                     {
-                        cachedBosses = new MotelyBossBlind[maxBossAnte + 1]; // +1 to handle 0-based indexing
+                        cachedBosses = new MotelyBossBlind[maxBossAnte + 1]; // +1 to handle 1-based indexing
                         var bossStream = singleCtx.CreateBossStream();
                         var bossState = new MotelyRunState(); // Separate state for boss generation
-                        for (int ante = 0; ante <= maxBossAnte; ante++)
+                        for (int ante = 1; ante <= maxBossAnte; ante++)
                         {
                             cachedBosses[ante] = singleCtx.GetBossForAnte(
                                 ref bossStream,

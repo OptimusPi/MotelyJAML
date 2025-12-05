@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAML - Joker Ante Markup Language</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+
+        <!-- JAML Header -->
+        <header class="jaml-header">
+            <h1 class="jaml-logo">JAML</h1>
+            <p class="jaml-tagline" id="jaml-tagline">Joker Ante Markup Language</p>
+        </header>
+
+        <!-- Side by Side Container -->
+        <div class="side-by-side">
+
+            <!-- Left Side: Tabs and Content -->
+            <div class="left-panel">
+                <div class="tabs">
+                    <button class="tab" onclick="switchTab('builder', this)">Builder</button>
+                    <button class="tab active" onclick="switchTab('jaml', this)">Search</button>
+                    <button class="tab" onclick="switchTab('analyze', this)">Analyze</button>
+                </div>
+                <!-- Filter Builder Tab - FRIENDLY VERSION -->
+                <div id="builder-tab" class="tab-content">
+                    <div class="builder-friendly">
+                        <!-- Step 1: Name your search -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">1</span>
+                                <span class="section-title">Name Your Search</span>
+                            </div>
+                            <input type="text" id="builderName" placeholder="e.g., Early Perkeo Run" value="My Filter">
+                        </div>
+
+                        <!-- Step 2: Choose your run settings -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">2</span>
+                                <span class="section-title">Run Settings</span>
+                            </div>
+                            <div class="builder-row-2col">
+                                <div>
+                                    <label class="friendly-label">Deck</label>
+                                    <select id="builderDeck">
+                                        <option value="Red">Red</option>
+                                        <option value="Blue">Blue</option>
+                                        <option value="Yellow">Yellow</option>
+                                        <option value="Green">Green</option>
+                                        <option value="Black">Black</option>
+                                        <option value="Magic">Magic</option>
+                                        <option value="Nebula">Nebula</option>
+                                        <option value="Ghost" selected>Ghost</option>
+                                        <option value="Abandoned">Abandoned</option>
+                                        <option value="Checkered">Checkered</option>
+                                        <option value="Zodiac">Zodiac</option>
+                                        <option value="Painted">Painted</option>
+                                        <option value="Anaglyph">Anaglyph</option>
+                                        <option value="Plasma">Plasma</option>
+                                        <option value="Erratic">Erratic</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="friendly-label">Stake</label>
+                                    <select id="builderStake">
+                                        <option value="White" selected>White</option>
+                                        <option value="Red">Red</option>
+                                        <option value="Green">Green</option>
+                                        <option value="Black">Black</option>
+                                        <option value="Blue">Blue</option>
+                                        <option value="Purple">Purple</option>
+                                        <option value="Orange">Orange</option>
+                                        <option value="Gold">Gold</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: What are you looking for? -->
+                        <div class="builder-section">
+                            <div class="builder-section-header">
+                                <span class="section-number">3</span>
+                                <span class="section-title">Add Items to Find</span>
+                            </div>
+
+                            <!-- Requirement type - friendly buttons -->
+                            <div class="requirement-buttons">
+                                <button type="button" class="req-btn req-must active" onclick="setRequirement('must', this)" title="Seed MUST have this item">
+                                    I NEED this
+                                </button>
+                                <button type="button" class="req-btn req-should" onclick="setRequirement('should', this)" title="Nice to have, adds to score">
+                                    I WANT this
+                                </button>
+                                <button type="button" class="req-btn req-mustnot" onclick="setRequirement('mustNot', this)" title="Skip seeds with this item">
+                                    AVOID this
+                                </button>
+                            </div>
+                            <input type="hidden" id="builderSection2" value="must">
+
+                            <!-- Item selection -->
+                            <div class="builder-row-2col" style="margin-top: 12px;">
+                                <div>
+                                    <label class="friendly-label">Item Type</label>
+                                    <select id="builderType2" onchange="updateBuilderValues2()">
+                                        <option value="joker">Joker</option>
+                                        <option value="soulJoker">Legendary Joker</option>
+                                        <option value="voucher">Voucher</option>
+                                        <option value="tag">Tag (Skip Blind)</option>
+                                        <option value="tarot">Tarot Card</option>
+                                        <option value="spectral">Spectral Card</option>
+                                        <option value="planet">Planet Card</option>
+                                        <option value="boss">Boss Blind</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="friendly-label">Which One?</label>
+                                    <select id="builderValue2"></select>
+                                </div>
+                            </div>
+
+                            <!-- Edition (for jokers) -->
+                            <div class="builder-row" id="editionRow2">
+                                <label class="friendly-label">Special Edition?</label>
+                                <select id="builderEdition2">
+                                    <option value="">Any / Normal</option>
+                                    <option value="Foil">Foil (+50 Chips)</option>
+                                    <option value="Holo">Holo (+10 Mult)</option>
+                                    <option value="Polychrome">Polychrome (x1.5 Mult)</option>
+                                    <option value="Negative">Negative (+1 Joker Slot)</option>
+                                </select>
+                            </div>
+
+                            <!-- When to find it -->
+                            <div class="builder-row">
+                                <label class="friendly-label">When should it appear?</label>
+                                <p class="help-text">Check the antes where you want to find this item</p>
+                                <div class="ante-buttons">
+                                    <button type="button" class="ante-btn active" data-ante="1">Ante 1</button>
+                                    <button type="button" class="ante-btn active" data-ante="2">Ante 2</button>
+                                    <button type="button" class="ante-btn active" data-ante="3">Ante 3</button>
+                                    <button type="button" class="ante-btn" data-ante="4">Ante 4</button>
+                                    <button type="button" class="ante-btn" data-ante="5">Ante 5</button>
+                                    <button type="button" class="ante-btn" data-ante="6">Ante 6</button>
+                                    <button type="button" class="ante-btn" data-ante="7">Ante 7</button>
+                                    <button type="button" class="ante-btn" data-ante="8">Ante 8</button>
+                                </div>
+                                <div class="ante-quick-buttons">
+                                    <button type="button" class="ante-quick" onclick="selectAntes('early')">Early (1-3)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('mid')">Mid (4-5)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('late')">Late (6-8)</button>
+                                    <button type="button" class="ante-quick" onclick="selectAntes('all')">All</button>
+                                </div>
+                            </div>
+
+                            <!-- Score (only for "should") -->
+                            <div class="builder-row" id="scoreRow2" style="display:none;">
+                                <label class="friendly-label">How important is this? (Score)</label>
+                                <p class="help-text">Higher = more important. Seeds are ranked by total score.</p>
+                                <input type="number" id="builderScore2" value="100" min="1" max="1000">
+                            </div>
+
+                            <!-- Advanced options (hidden by default) -->
+                            <details class="advanced-options">
+                                <summary>Advanced Options</summary>
+                                <div class="builder-row" id="shopSlotsRow2">
+                                    <label class="friendly-label">Shop Position</label>
+                                    <p class="help-text">Which shop slots to check (left to right)</p>
+                                    <div class="slots-inline">
+                                        <label><input type="checkbox" class="shop-cb2" value="0" checked>1st</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="1" checked>2nd</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="2">3rd</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="3">4th</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="4">5th</label>
+                                        <label><input type="checkbox" class="shop-cb2" value="5">6th</label>
+                                    </div>
+                                </div>
+                                <div class="builder-row" id="packSlotsRow2">
+                                    <label class="friendly-label">Pack Position</label>
+                                    <p class="help-text">Which pack slots to check</p>
+                                    <div class="slots-inline">
+                                        <label><input type="checkbox" class="pack-cb2" value="0" checked>1st</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="1" checked>2nd</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="2">3rd</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="3">4th</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="4">5th</label>
+                                        <label><input type="checkbox" class="pack-cb2" value="5">6th</label>
+                                    </div>
+                                </div>
+                                <div class="builder-row" id="requireMegaRow2" style="display:none;">
+                                    <label><input type="checkbox" id="builderRequireMega2"> Must be in Mega Pack</label>
+                                </div>
+                            </details>
+
+                            <button onclick="addClauseFromBuilder()" class="button-primary add-item-btn">
+                                + Add This Item
+                            </button>
+                        </div>
+
+                        <!-- Create filter button -->
+                        <div class="builder-actions">
+                            <button onclick="newFilterFromBuilder()" class="button-primary">
+                                Create Filter & Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JAML Search Tab -->
+                <div id="jaml-tab" class="tab-content  active">
+                    <label>Saved Filters:</label>
+                    <div class="search-row">
+                        <select id="savedSearches" onchange="loadSavedSearch()">
+                            <option value="">Select a saved filter...</option>
+                        </select>
+                        <button onclick="deleteSelectedSearch()" class="delete-btn"
+                            title="Delete selected filter">Del</button>
+                    </div>
+                    <label>Filter (JAML):</label>
+                    <div id="monacoEditor" class="monaco-container"></div>
+                    <textarea id="filterJaml" style="display:none;">name: Negative Perkeo
+must:
+  - soulJoker: Perkeo
+    edition: Negative
+    antes: [1, 2, 3]
+  - voucher: Observatory
+    antes: [2, 3]
+should:
+  - joker: Blueprint
+    antes: [1, 2, 3]
+    score: 100
+deck: Ghost
+stake: White</textarea>
+                    <div class="action-buttons">
+                        <button id="searchBtn" onclick="toggleSearch()" class="button-primary">Start Search</button>
+                        <button id="shareBtn" onclick="shareSearch()" class="button-small" disabled>Share</button>
+                    </div>
+                </div>
+
+                <!-- Analyze Tab -->
+                <div id="analyze-tab" class="tab-content">
+                    <label>Analyze specific seed:</label>
+                    <input type="text" id="analyzeSeed" placeholder="Enter seed (e.g., ABCD1234)" maxlength="8">
+                    <div class="deck-stake-row">
+                        <div>
+                            <label>Deck:</label>
+                            <select id="analyzeDeck">
+                                <option value="Red">Red Deck</option>
+                                <option value="Blue">Blue Deck</option>
+                                <option value="Yellow">Yellow Deck</option>
+                                <option value="Green">Green Deck</option>
+                                <option value="Black">Black Deck</option>
+                                <option value="Magic">Magic Deck</option>
+                                <option value="Nebula">Nebula Deck</option>
+                                <option value="Ghost">Ghost Deck</option>
+                                <option value="Abandoned">Abandoned Deck</option>
+                                <option value="Checkered">Checkered Deck</option>
+                                <option value="Zodiac">Zodiac Deck</option>
+                                <option value="Painted">Painted Deck</option>
+                                <option value="Anaglyph">Anaglyph Deck</option>
+                                <option value="Plasma">Plasma Deck</option>
+                                <option value="Erratic">Erratic Deck</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Stake:</label>
+                            <select id="analyzeStake">
+                                <option value="White">White Stake</option>
+                                <option value="Red">Red Stake</option>
+                                <option value="Green">Green Stake</option>
+                                <option value="Black">Black Stake</option>
+                                <option value="Blue">Blue Stake</option>
+                                <option value="Purple">Purple Stake</option>
+                                <option value="Orange">Orange Stake</option>
+                                <option value="Gold">Gold Stake</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="analyzeSeed()" class="button-blue">Analyze</button>
+                    <div id="analyzeResult"></div>
+                </div>
+            </div>
+
+            <!-- Right Side: Results Panel -->
+            <div class="right-panel">
+                <div class="results-header">
+                    <span id="status" class="status-inline">Results</span>
+                    <div class="results-actions">
+                        <button onclick="exportResults()" class="button-small">Export CSV</button>
+                    </div>
+                </div>
+                <div id="resultsGrid" class="results-container">
+                    <div class="no-results">
+                        <p>No results yet</p>
+                        <p class="help-text">Start a search to see results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="script.js"></script>
+        <!-- Monaco Editor Loader -->
+        <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+        <script>
+            // Initialize Monaco Editor
+            require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+
+                // Register JAML autocomplete provider
+                monaco.languages.registerCompletionItemProvider('yaml', {
+                    provideCompletionItems: function(model, position) {
+                        const lineContent = model.getLineContent(position.lineNumber);
+                        const word = model.getWordUntilPosition(position);
+                        const range = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: word.startColumn,
+                            endColumn: word.endColumn
+                        };
+
+                        const suggestions = [];
+
+                        // Top-level JAML keywords
+                        const keywords = ['name:', 'deck:', 'stake:', 'must:', 'should:', 'mustNot:', 'defaults:'];
+                        keywords.forEach(k => suggestions.push({
+                            label: k,
+                            kind: monaco.languages.CompletionItemKind.Keyword,
+                            insertText: k + ' ',
+                            range: range
+                        }));
+
+                        // Item types (for clauses)
+                        const itemTypes = ['joker:', 'soulJoker:', 'voucher:', 'tag:', 'tarot:', 'spectral:', 'planet:', 'boss:', 'and:', 'or:'];
+                        itemTypes.forEach(t => suggestions.push({
+                            label: t,
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: t + ' ',
+                            range: range
+                        }));
+
+                        // Clause properties
+                        const props = ['antes:', 'edition:', 'score:', 'shopSlots:', 'packSlots:', 'sources:', 'label:', 'seal:', 'enhancement:', 'rank:', 'suit:'];
+                        props.forEach(p => suggestions.push({
+                            label: p,
+                            kind: monaco.languages.CompletionItemKind.Property,
+                            insertText: p + ' ',
+                            range: range
+                        }));
+
+                        // Decks
+                        const decks = ['Red', 'Blue', 'Yellow', 'Green', 'Black', 'Magic', 'Nebula', 'Ghost', 'Abandoned', 'Checkered', 'Zodiac', 'Painted', 'Anaglyph', 'Plasma', 'Erratic'];
+                        decks.forEach(d => suggestions.push({
+                            label: d,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: d,
+                            detail: 'Deck',
+                            range: range
+                        }));
+
+                        // Stakes
+                        const stakes = ['White', 'Red', 'Green', 'Black', 'Blue', 'Purple', 'Orange', 'Gold'];
+                        stakes.forEach(s => suggestions.push({
+                            label: s,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: s,
+                            detail: 'Stake',
+                            range: range
+                        }));
+
+                        // Editions
+                        const editions = ['Foil', 'Holo', 'Polychrome', 'Negative'];
+                        editions.forEach(e => suggestions.push({
+                            label: e,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: e,
+                            detail: 'Edition',
+                            range: range
+                        }));
+
+                        // Legendary Jokers
+                        const legendaries = ['Canio', 'Triboulet', 'Yorick', 'Chicot', 'Perkeo'];
+                        legendaries.forEach(j => suggestions.push({
+                            label: j,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: j,
+                            detail: 'Legendary Joker',
+                            range: range
+                        }));
+
+                        // Popular Jokers
+                        const jokers = ['Blueprint', 'Brainstorm', 'DNA', 'Vagabond', 'Baron', 'Obelisk', 'Campfire', 'WeeJoker', 'TheDuo', 'TheTrio', 'TheFamily', 'Hologram', 'Constellation', 'Vampire', 'Madness', 'Seance', 'Astronomer', 'Cartomancer'];
+                        jokers.forEach(j => suggestions.push({
+                            label: j,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: j,
+                            detail: 'Joker',
+                            range: range
+                        }));
+
+                        // Vouchers
+                        const vouchers = ['Overstock', 'OverstockPlus', 'ClearanceSale', 'Liquidation', 'Hone', 'GlowUp', 'RerollSurplus', 'RerollGlut', 'CrystalBall', 'OmenGlobe', 'Telescope', 'Observatory', 'Grabber', 'NachoTong', 'Wasteful', 'Recyclomancy', 'TarotMerchant', 'TarotTycoon', 'PlanetMerchant', 'PlanetTycoon', 'SeedMoney', 'MoneyTree', 'Blank', 'Antimatter', 'MagicTrick', 'Illusion', 'Hieroglyph', 'Petroglyph', 'DirectorsCut', 'Retcon', 'PaintBrush', 'Palette'];
+                        vouchers.forEach(v => suggestions.push({
+                            label: v,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: v,
+                            detail: 'Voucher',
+                            range: range
+                        }));
+
+                        // Tags
+                        const tags = ['NegativeTag', 'PolychromeTag', 'HolographicTag', 'FoilTag', 'RareTag', 'UncommonTag', 'VoucherTag', 'EtherealTag', 'CharmTag', 'MeteorTag', 'BuffoonTag', 'DoubleTag'];
+                        tags.forEach(t => suggestions.push({
+                            label: t,
+                            kind: monaco.languages.CompletionItemKind.Value,
+                            insertText: t,
+                            detail: 'Tag',
+                            range: range
+                        }));
+
+                        // Snippets
+                        suggestions.push({
+                            label: 'must-joker',
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: '- joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: 'Must have joker clause',
+                            range: range
+                        });
+                        suggestions.push({
+                            label: 'must-legendary',
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: '- soulJoker: ${1:Perkeo}\n    edition: ${2:Negative}\n    antes: [${3:1, 2, 3}]',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: 'Must have legendary joker',
+                            range: range
+                        });
+                        suggestions.push({
+                            label: 'should-joker',
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: '- joker: ${1:Blueprint}\n    antes: [${2:1, 2, 3}]\n    score: ${3:100}',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: 'Should have joker clause',
+                            range: range
+                        });
+
+                        return { suggestions: suggestions };
+                    }
+                });
+
+                window.jamlEditor = monaco.editor.create(document.getElementById('monacoEditor'), {
+                    value: document.getElementById('filterJaml').value,
+                    language: 'yaml',
+                    theme: 'vs-dark',
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    folding: true,
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    renderWhitespace: 'selection',
+                    tabSize: 2,
+                    quickSuggestions: true,
+                    suggestOnTriggerCharacters: true
+                });
+
+                // Sync Monaco content to hidden textarea AND check if search ID changed
+                window.jamlEditor.onDidChangeModelContent(() => {
+                    document.getElementById('filterJaml').value = window.jamlEditor.getValue();
+                    // If JAML changed in a way that affects search ID, reset button
+                    if (typeof checkJamlChanged === 'function') {
+                        checkJamlChanged();
+                    }
+                });
+
+                // Override getJamlValue to use Monaco
+                window.getJamlValue = () => window.jamlEditor.getValue();
+                window.setJamlValue = (val) => window.jamlEditor.setValue(val);
+            });
+        </script>
+    </div>
+</body>
+
+</html>

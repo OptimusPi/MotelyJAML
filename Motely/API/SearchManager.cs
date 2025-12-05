@@ -159,7 +159,7 @@ public class SearchManager
             var searchParams = new JsonSearchParams
             {
                 Threads = Environment.ProcessorCount,
-                BatchSize = 4, // Start with 4-character seeds
+                BatchSize = 2,
                 StartBatch = (ulong)search.CompletedBatches, // Continue from where we left off
                 EnableDebug = false,
                 NoFancy = true,
