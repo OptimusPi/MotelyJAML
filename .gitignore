@@ -14,7 +14,8 @@ Motely/filters/NegativeScore=2.ini
 /.vscode
 Motely/JsonItemFilters/perkeo-test.json
 /Terminal.Gui-2_develop
+/Motely/JsonItemFiltersArchive
 *.db
 *.wal
 /Motely/JamlFilters
-/Motely/JsonItemFiltersArchive
+Motely/fertilizer.txt
