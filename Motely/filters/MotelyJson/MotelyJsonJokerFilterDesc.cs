@@ -207,6 +207,110 @@ public partial struct MotelyJsonJokerFilterDesc(MotelyJsonJokerFilterCriteria cr
                     }
                 }
 
+                // Check Judgement/Tag sources for each clause
+                for (int clauseIndex = 0; clauseIndex < Clauses.Count; clauseIndex++)
+                {
+                    var clause = Clauses[clauseIndex];
+                    if (ante >= clause.WantedAntes.Length || !clause.WantedAntes[ante])
+                        continue;
+
+                    if (clause.Sources == null)
+                        continue;
+
+                    // Check Judgement tarot joker sources
+                    if (clause.Sources.Judgement != null && clause.Sources.Judgement.Length > 0)
+                    {
+                        var judgementStream = ctx.CreateJudgementJokerStream(ante);
+                        foreach (var rollIndex in clause.Sources.Judgement)
+                        {
+                            if (rollIndex < 0)
+                                continue;
+
+                            // Advance stream to the desired roll index
+                            for (int r = 0; r <= rollIndex; r++)
+                            {
+                                var jokerItem = ctx.GetNextJoker(ref judgementStream);
+
+                                if (r == rollIndex)
+                                {
+                                    // Check if this is an actual joker (not excluded)
+                                    var excludedValue = Vector256.Create((int)MotelyItemType.JokerExcludedByStream);
+                                    var isNotExcluded = ~Vector256.Equals(jokerItem.Value, excludedValue);
+                                    VectorMask isActualJoker = isNotExcluded;
+
+                                    if (!isActualJoker.IsAllFalse())
+                                    {
+                                        VectorMask matches = CheckJokerMatchesClause(jokerItem, clause);
+                                        clauseMasks[clauseIndex] |= (isActualJoker & matches);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check Rare Tag joker sources
+                    if (clause.Sources.RareTag != null && clause.Sources.RareTag.Length > 0)
+                    {
+                        var rareTagStream = ctx.CreateRareTagJokerStream(ante);
+                        foreach (var rollIndex in clause.Sources.RareTag)
+                        {
+                            if (rollIndex < 0)
+                                continue;
+
+                            // Advance stream to the desired roll index
+                            for (int r = 0; r <= rollIndex; r++)
+                            {
+                                var jokerItem = ctx.GetNextJoker(ref rareTagStream);
+
+                                if (r == rollIndex)
+                                {
+                                    // Check if this is an actual joker (not excluded)
+                                    var excludedValue = Vector256.Create((int)MotelyItemType.JokerExcludedByStream);
+                                    var isNotExcluded = ~Vector256.Equals(jokerItem.Value, excludedValue);
+                                    VectorMask isActualJoker = isNotExcluded;
+
+                                    if (!isActualJoker.IsAllFalse())
+                                    {
+                                        VectorMask matches = CheckJokerMatchesClause(jokerItem, clause);
+                                        clauseMasks[clauseIndex] |= (isActualJoker & matches);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check Uncommon Tag joker sources
+                    if (clause.Sources.UncommonTag != null && clause.Sources.UncommonTag.Length > 0)
+                    {
+                        var uncommonTagStream = ctx.CreateUncommonTagJokerStream(ante);
+                        foreach (var rollIndex in clause.Sources.UncommonTag)
+                        {
+                            if (rollIndex < 0)
+                                continue;
+
+                            // Advance stream to the desired roll index
+                            for (int r = 0; r <= rollIndex; r++)
+                            {
+                                var jokerItem = ctx.GetNextJoker(ref uncommonTagStream);
+
+                                if (r == rollIndex)
+                                {
+                                    // Check if this is an actual joker (not excluded)
+                                    var excludedValue = Vector256.Create((int)MotelyItemType.JokerExcludedByStream);
+                                    var isNotExcluded = ~Vector256.Equals(jokerItem.Value, excludedValue);
+                                    VectorMask isActualJoker = isNotExcluded;
+
+                                    if (!isActualJoker.IsAllFalse())
+                                    {
+                                        VectorMask matches = CheckJokerMatchesClause(jokerItem, clause);
+                                        clauseMasks[clauseIndex] |= (isActualJoker & matches);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Removed "early exit" - it ran at the END (ante >= maxAnte), not early!
                 // The final check below already handles this correctly.
             }
