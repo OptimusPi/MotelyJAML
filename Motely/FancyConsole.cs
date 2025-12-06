@@ -55,18 +55,26 @@ public static class FancyConsole
     [MethodImpl(MethodImplOptions.Synchronized)]
     public static void WriteLine(string? message)
     {
-        (int oldLeft, int oldTop) = Console.GetCursorPosition();
-
-        if (oldTop == Console.BufferHeight - 1)
+        try
         {
-            ClearBottomLine();
+            (int oldLeft, int oldTop) = Console.GetCursorPosition();
+
+            if (oldTop == Console.BufferHeight - 1)
+            {
+                ClearBottomLine();
+            }
+
+            Console.WriteLine(message ?? "null");
+
+            if (oldTop == Console.BufferHeight - 1)
+            {
+                SetBottomLine(_bottomLine);
+            }
         }
-
-        Console.WriteLine(message ?? "null");
-
-        if (oldTop == Console.BufferHeight - 1)
+        catch (System.IO.IOException)
         {
-            SetBottomLine(_bottomLine);
+            // No console available (e.g., running in test environment) - just write to stdout
+            Console.WriteLine(message ?? "null");
         }
     }
 }

@@ -75,11 +75,13 @@ unsafe partial struct MotelyVectorSearchContext
         bool isCached = false
     )
     {
+        // Include resample stream for handling duplicates in buffoon packs
         return CreateJokerStream(
             MotelyPrngKeys.BuffoonPackItemSource,
             MotelyPrngKeys.BuffoonJokerEternalPerishableSource,
             MotelyPrngKeys.BuffoonJokerRentalSource,
-            ante, flags, isCached
+            ante, flags, isCached,
+            includeResampleStream: true
         );
     }
 
@@ -92,7 +94,8 @@ unsafe partial struct MotelyVectorSearchContext
         string rentalSource,
         int ante,
         MotelyJokerStreamFlags flags,
-        bool isCached
+        bool isCached,
+        bool includeResampleStream = false
     )
     {
         string streamSuffix = source + ante;

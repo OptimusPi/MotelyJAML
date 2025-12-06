@@ -154,7 +154,8 @@ unsafe ref partial struct MotelySingleSearchContext
             UncommonJokerPrngStream = new(flags.HasFlag(MotelyJokerStreamFlags.ExcludeUncommonJokers) || flags.HasFlag(MotelyJokerStreamFlags.ExcludeJokerType) ? -2 : -1),
             RareJokerPrngStream = new(flags.HasFlag(MotelyJokerStreamFlags.ExcludeRareJokers) || flags.HasFlag(MotelyJokerStreamFlags.ExcludeJokerType) ? -2 : -1),
 
-            ResampleStreams = null,
+            ResampleKey = includeResampleStream ? (source + ante) : null,
+            ResampleStreams = includeResampleStream ? new() : null,
         };
     }
 
