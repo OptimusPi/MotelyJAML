@@ -68,10 +68,19 @@ ref partial struct MotelyVectorSearchContext
 #if !DEBUG
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-    public VectorMask GetNextArcanaPackHasTheSoul(
-        ref MotelyVectorTarotStream tarotStream,
-        MotelyBoosterPackSize size
-    )
+    public MotelyVectorTarotStream CreateEmperorTarotStream(int ante, bool isCached = false) =>
+        CreateTarotStream(MotelyPrngKeys.TarotEmperor, ante, true, false, isCached);
+
+#if !DEBUG
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+    public MotelyVectorTarotStream CreatePurpleSealTarotStream(int ante, bool isCached = false) =>
+        CreateTarotStream(MotelyPrngKeys.SealPurple, ante, true, false, isCached);
+
+#if !DEBUG
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+    public VectorMask GetNextArcanaPackHasTheSoul(ref MotelyVectorTarotStream tarotStream, MotelyBoosterPackSize size)
     {
         Debug.Assert(tarotStream.IsSoulable, "Tarot pack does not have the soul.");
         Debug.Assert(
@@ -106,6 +115,21 @@ ref partial struct MotelyVectorSearchContext
             pack.Append(GetNextTarot(ref tarotStream, pack));
 
         return pack;
+    }
+
+#if !DEBUG
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+    public MotelyVectorItemSet GetNextEmperorTarots(ref MotelyVectorTarotStream tarotStream)
+    {
+        Debug.Assert(!tarotStream.IsSoulable, "Emperor tarot stream should not have the soul.");
+
+        MotelyVectorItemSet items = new();
+
+        items.Append(GetNextTarot(ref tarotStream));
+        items.Append(GetNextTarot(ref tarotStream, items));
+
+        return items;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

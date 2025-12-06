@@ -1,3 +1,5 @@
+
+using System;
 using System.Runtime.CompilerServices;
 
 namespace Motely;
@@ -8,18 +10,13 @@ public readonly struct MotelyItem(int value) : IEquatable<MotelyItem>
     public readonly int Value = value;
 
     public readonly MotelyItemType Type => (MotelyItemType)(Value & Motely.ItemTypeMask);
-    public readonly MotelyItemTypeCategory TypeCategory =>
-        (MotelyItemTypeCategory)(Value & Motely.ItemTypeCategoryMask);
+    public readonly MotelyItemTypeCategory TypeCategory => (MotelyItemTypeCategory)(Value & Motely.ItemTypeCategoryMask);
     public readonly MotelyItemSeal Seal => (MotelyItemSeal)(Value & Motely.ItemSealMask);
-    public readonly MotelyItemEnhancement Enhancement =>
-        (MotelyItemEnhancement)(Value & Motely.ItemEnhancementMask);
-    public readonly MotelyItemEdition Edition =>
-        (MotelyItemEdition)(Value & Motely.ItemEditionMask);
+    public readonly MotelyItemEnhancement Enhancement => (MotelyItemEnhancement)(Value & Motely.ItemEnhancementMask);
+    public readonly MotelyItemEdition Edition => (MotelyItemEdition)(Value & Motely.ItemEditionMask);
 
-    public readonly MotelyPlayingCardSuit PlayingCardSuit =>
-        (MotelyPlayingCardSuit)(Value & Motely.PlayingCardSuitMask);
-    public readonly MotelyPlayingCardRank PlayingCardRank =>
-        (MotelyPlayingCardRank)(Value & Motely.PlayingCardRankMask);
+    public readonly MotelyPlayingCardSuit PlayingCardSuit => (MotelyPlayingCardSuit)(Value & Motely.PlayingCardSuitMask);
+    public readonly MotelyPlayingCardRank PlayingCardRank => (MotelyPlayingCardRank)(Value & Motely.PlayingCardRankMask);
 
     public readonly bool IsPerishable => (Value & (1 << Motely.PerishableStickerOffset)) != 0;
     public readonly bool IsEternal => (Value & (1 << Motely.EternalStickerOffset)) != 0;
@@ -28,16 +25,19 @@ public readonly struct MotelyItem(int value) : IEquatable<MotelyItem>
     public readonly bool IsInvalid => TypeCategory == MotelyItemTypeCategory.Invalid;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public MotelyItem(MotelyItemType type)
-        : this((int)type) { }
+    public MotelyItem(MotelyItemType type) : this((int)type) { }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public MotelyItem(MotelyPlayingCard card)
-        : this((int)card | (int)MotelyItemTypeCategory.PlayingCard) { }
+    public MotelyItem(MotelyPlayingCard card) : this(
+        (int)card | (int)MotelyItemTypeCategory.PlayingCard
+    )
+    { }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public MotelyItem(MotelyJoker joker, MotelyItemEdition edition = MotelyItemEdition.None)
-        : this((int)joker | (int)MotelyItemTypeCategory.Joker | (int)edition) { }
+    public MotelyItem(MotelyJoker joker, MotelyItemEdition edition = MotelyItemEdition.None) : this(
+        (int)joker | (int)MotelyItemTypeCategory.Joker | (int)edition
+    )
+    { }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public MotelyItem AsType(MotelyItemType type)
@@ -97,13 +97,10 @@ public readonly struct MotelyItem(int value) : IEquatable<MotelyItem>
         {
             stringified = Edition + " " + stringified;
         }
-
-        if (IsPerishable)
-            stringified = "Perishable " + stringified;
-        if (IsEternal)
-            stringified = "Eternal " + stringified;
-        if (IsRental)
-            stringified = "Rental " + stringified;
+        
+        if (IsPerishable) stringified = "Perishable " + stringified;
+        if (IsEternal) stringified = "Eternal " + stringified;
+        if (IsRental) stringified = "Rental " + stringified;
 
         if (Seal != MotelyItemSeal.None)
         {

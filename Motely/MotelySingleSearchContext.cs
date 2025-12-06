@@ -146,6 +146,8 @@ public readonly unsafe ref partial struct MotelySingleSearchContext
 #endif
     private static double Fract(double x)
     {
+        if (double.IsNaN(x)) return x;
+
         ref ulong xInt = ref Unsafe.As<double, ulong>(ref x);
 
         const ulong DblExpo = 0x7FF0000000000000;

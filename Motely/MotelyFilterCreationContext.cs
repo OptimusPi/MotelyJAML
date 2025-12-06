@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Motely;
 
 public ref struct MotelyFilterCreationContext
@@ -71,14 +73,9 @@ public ref struct MotelyFilterCreationContext
     public readonly void CacheAnteFirstVoucher(int ante, bool force = false) =>
         CacheVoucherStream(ante, force);
 
-    private readonly void CacheTarotStream(
-        int ante,
-        string source,
-        bool cacheTarot,
-        bool cacheResample,
-        bool cacheSoul,
-        bool force
-    )
+    public readonly void CacheErraticDeckPrngStream() => CachePseudoHash(MotelyPrngKeys.DeckErratic);
+
+    private readonly void CacheTarotStream(int ante, string source, bool cacheTarot, bool cacheResample, bool cacheSoul, bool force)
     {
         if (cacheTarot)
         {
@@ -179,21 +176,17 @@ public ref struct MotelyFilterCreationContext
         }
     }
 
-    private readonly void CacheJokerStream(
-        int ante,
-        string source,
-        string eternalPerishableSource,
-        string rentalSource,
-        MotelyJokerStreamFlags flags,
-        bool force
-    )
+
+    private readonly void CacheJokerStream(int ante,
+        string source, string eternalPerishableSource, string rentalSource,
+        bool excludeEdition, bool excludeStickers, bool force)
     {
-        if (!flags.HasFlag(MotelyJokerStreamFlags.ExcludeEdition))
+        if (!excludeEdition)
         {
             CachePseudoHash(MotelyPrngKeys.JokerEdition + source + ante, force);
         }
 
-        if (!flags.HasFlag(MotelyJokerStreamFlags.ExcludeStickers))
+        if (!excludeStickers)
         {
             if (Stake >= MotelyStake.Black)
             {
@@ -213,14 +206,16 @@ public ref struct MotelyFilterCreationContext
         bool force = false
     )
     {
-        CachePseudoHash(MotelyPrngKeys.JokerRarity + MotelyPrngKeys.ShopItemSource + ante, force);
+        if (!flags.HasFlag(MotelyJokerStreamFlags.ExcludeJokerType))
+            CachePseudoHash(MotelyPrngKeys.JokerRarity + MotelyPrngKeys.ShopItemSource + ante, force);
 
         CacheJokerStream(
             ante,
             MotelyPrngKeys.ShopItemSource,
-            MotelyPrngKeys.ShopJokerEternalPerishableSource,
-            MotelyPrngKeys.ShopJokerRentalSource,
-            flags,
+            MotelyPrngKeys.DefaultJokerEternalPerishableSource,
+            MotelyPrngKeys.DefaultJokerRentalSource,
+            flags.HasFlag(MotelyJokerStreamFlags.ExcludeEdition),
+            flags.HasFlag(MotelyJokerStreamFlags.ExcludeStickers),
             force
         );
 
@@ -233,26 +228,32 @@ public ref struct MotelyFilterCreationContext
         string eternalPerishableSource,
         string rentalSource,
         MotelyJokerRarity rarity,
-        MotelyJokerStreamFlags flags = MotelyJokerStreamFlags.Default,
+        MotelyJokerFixedRarityStreamFlags flags = MotelyJokerFixedRarityStreamFlags.Default,
         bool force = false
     )
     {
-        CachePseudoHash(MotelyPrngKeys.FixedRarityJoker(rarity, source, ante), force);
+        if (!flags.HasFlag(MotelyJokerFixedRarityStreamFlags.ExcludeJokerType))
+            CachePseudoHash(MotelyPrngKeys.FixedRarityJoker(rarity, source, ante), force);
 
-        CacheJokerStream(ante, source, eternalPerishableSource, rentalSource, flags, force);
+        CacheJokerStream(ante,
+            source, eternalPerishableSource, rentalSource,
+            flags.HasFlag(MotelyJokerFixedRarityStreamFlags.ExcludeEdition),
+            flags.HasFlag(MotelyJokerFixedRarityStreamFlags.ExcludeStickers),
+            force
+        );
     }
 
     public readonly void CacheSoulJokerStream(
         int ante,
-        MotelyJokerStreamFlags flags = MotelyJokerStreamFlags.Default,
+        MotelyJokerFixedRarityStreamFlags flags = MotelyJokerFixedRarityStreamFlags.Default,
         bool force = false
     )
     {
         CacheFixedRarityJokerStream(
             ante,
             MotelyPrngKeys.JokerSoulSource,
-            MotelyPrngKeys.ShopJokerEternalPerishableSource,
-            MotelyPrngKeys.ShopJokerRentalSource,
+            MotelyPrngKeys.DefaultJokerEternalPerishableSource,
+            MotelyPrngKeys.DefaultJokerRentalSource,
             MotelyJokerRarity.Legendary,
             flags,
             force

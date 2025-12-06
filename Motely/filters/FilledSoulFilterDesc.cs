@@ -3,14 +3,14 @@ using System.Runtime.Intrinsics;
 
 namespace Motely;
 
-public struct FilledSoulFilterDesc() : IMotelySeedFilterDesc<FilledSoulFilterDesc.SoulFilter>
+public struct FilledSoulFilterDesc() : IMotelySeedFilterDesc<FilledSoulFilterDesc.FilterStruct>
 {
     public const int MinAnte = 0;
     public const int MaxAnte = 0;
     public const int SoulsInARow = 2;
     public const int hAnte = 1;
 
-    public SoulFilter CreateFilter(ref MotelyFilterCreationContext ctx)
+    public FilterStruct CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         ctx.CachePseudoHash(MotelyPrngKeys.TarotSoul + MotelyPrngKeys.Tarot + 0);
         ctx.CachePseudoHash(MotelyPrngKeys.TarotSoul + MotelyPrngKeys.Tarot + 1);
@@ -19,10 +19,10 @@ public struct FilledSoulFilterDesc() : IMotelySeedFilterDesc<FilledSoulFilterDes
             ctx.CacheAnteFirstVoucher(ante);
             ctx.CacheBoosterPackStream(ante);
         }
-        return new SoulFilter();
+        return new FilterStruct();
     }
 
-    public struct SoulFilter() : IMotelySeedFilter
+    public struct FilterStruct() : IMotelySeedFilter
     {
         [MethodImpl(
             MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization

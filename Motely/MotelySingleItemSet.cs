@@ -1,3 +1,6 @@
+
+using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -27,6 +30,17 @@ public ref struct MotelySingleItemSet
         // Be fast and skip the bounds check
         return ref Unsafe.Add(ref Unsafe.As<ItemSet, MotelyItem>(ref set.Items), index);
 #endif
+    }
+
+#if !DEBUG
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+    public MotelySingleItemSet(params ReadOnlySpan<MotelyItem> items)
+    {
+        Debug.Assert(items.Length <= MaxLength);
+        Length = items.Length;
+        for (int i = 0; i < Length; i++)
+            GetItemRef(ref this, i) = items[i];
     }
 
 #if !DEBUG
@@ -85,8 +99,7 @@ public ref struct MotelySingleItemSet
 
         for (int i = 0; i < Length; i++)
         {
-            if (i != 0)
-                sb.Append(", ");
+            if (i != 0) sb.Append(", ");
             sb.Append(GetItemRef(ref this, i).ToString());
         }
 

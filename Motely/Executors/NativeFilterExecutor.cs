@@ -169,6 +169,7 @@ namespace Motely.Executors
                 NegativeCopyFilterDesc d => BuildSearch(d, progressCallback, seeds),
                 NegativeTagFilterDesc d => BuildSearch(d, progressCallback, seeds),
                 FilledSoulFilterDesc d => BuildSearch(d, progressCallback, seeds),
+                ErraticFinderDesc d => BuildSearch(d, progressCallback, seeds),
                 _ => throw new ArgumentException($"Unknown filter type: {filterDesc.GetType()}"),
             };
         }
@@ -220,24 +221,15 @@ namespace Motely.Executors
             {
                 "nanseed" => new NaNSeedFilterDesc(),
                 "perkeoobservatory" => new PerkeoObservatoryFilterDesc(),
+                "erraticfinder" => new ErraticFinderDesc(),
                 "observatory" => new ObservatoryDesc(),
-                "passthrough" => new PassthroughFilterDesc(),
+                "passthrough" => new PassthroughFilterDesc(), // for testing chaining but im leaving it cuz im lazy and cuz it might be useful some day?
                 "trickeoglyph" => new TrickeoglyphFilterDesc(),
                 "negativecopy" => new NegativeCopyFilterDesc(),
-                "negativetags" => new NegativeTagFilterDesc(),
                 "negativetag" => new NegativeTagFilterDesc(),
                 "filledsoul" => new FilledSoulFilterDesc(),
                 _ => throw new ArgumentException($"Unknown filter: {filterName}"),
             };
-        }
-
-        private bool IsJsonFilter(string filter)
-        {
-            // Check if JSON file exists
-            string fileName = filter.EndsWith(".json") ? filter : filter + ".json";
-            string jsonItemFiltersPath = Path.Combine("JsonFilters", fileName);
-            return File.Exists(jsonItemFiltersPath)
-                || (Path.IsPathRooted(filter) && File.Exists(filter));
         }
 
         private MotelySearchSettings<T> ApplyScoring<T>(MotelySearchSettings<T> settings)

@@ -170,6 +170,7 @@ should:
 **Note:** Ante 1 automatically limits pack slots to [0-3] and shop slots to [0-3] (4 slots max in ante 1).
 
 ## Native Filters
+- `ErraticFinder`: Erratic Deck with 32+ cards of a specific suit
 - `negativecopy`: Showman + copy jokers with negatives
 - `PerkeoObservatory`: Telescope/Observatory + soul jokers
 - `trickeoglyph`: Cartomancer + Hieroglyph
