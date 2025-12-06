@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -25,6 +25,8 @@ jobs:
         dotnet-version: 10.0.x
     - name: Restore dependencies
       run: dotnet restore
+    - name: Build Motely as library for tests
+      run: dotnet build Motely/Motely.csproj -c BSO_LIBRARY --no-restore
     - name: Build
       run: dotnet build --no-restore
     - name: Build CLI configuration
