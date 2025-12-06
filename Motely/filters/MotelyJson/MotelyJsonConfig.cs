@@ -278,6 +278,13 @@ public class MotelyJsonConfig
         [JsonPropertyName("tags")]
         public bool? Tags { get; set; }
 
+        // Event-specific properties
+        [JsonPropertyName("eventType")]
+        public string? EventType { get; set; }
+
+        [JsonPropertyName("rolls")]
+        public int[]? Rolls { get; set; }
+
         [JsonIgnore]
         [YamlIgnore]
         public int[] EffectiveAntes
@@ -340,6 +347,10 @@ public class MotelyJsonConfig
         [JsonIgnore]
         [YamlIgnore]
         public MotelyBossBlind? BossEnum { get; set; }
+
+        [JsonIgnore]
+        [YamlIgnore]
+        public MotelyEventType? EventTypeEnum { get; set; }
 
         // Multi-value enum arrays for "values" property
         [JsonIgnore]
@@ -472,6 +483,24 @@ public class MotelyJsonConfig
                         case MotelyFilterItemType.Boss:
                             if (Enum.TryParse<MotelyBossBlind>(Value, true, out var boss))
                                 BossEnum = boss;
+                            break;
+                        case MotelyFilterItemType.Event:
+                            // Event type uses eventType property, not value
+                            if (!string.IsNullOrEmpty(EventType))
+                            {
+                                if (Enum.TryParse<MotelyEventType>(EventType, true, out var eventType))
+                                    EventTypeEnum = eventType;
+                            }
+                            break;
+                        case MotelyFilterItemType.ErraticRank:
+                            // Parse rank from Value
+                            if (Enum.TryParse<MotelyPlayingCardRank>(Value, true, out var erraticRank))
+                                RankEnum = erraticRank;
+                            break;
+                        case MotelyFilterItemType.ErraticSuit:
+                            // Parse suit from Value
+                            if (Enum.TryParse<MotelyPlayingCardSuit>(Value, true, out var erraticSuit))
+                                SuitEnum = erraticSuit;
                             break;
                         case MotelyFilterItemType.SmallBlindTag:
                         case MotelyFilterItemType.BigBlindTag:
@@ -783,6 +812,18 @@ public class MotelyJsonConfig
 
         [JsonPropertyName("requireMega")]
         public bool? RequireMega { get; set; }
+
+        /// <summary>Judgement tarot joker roll indices (e.g. [0, 1] for first two uses)</summary>
+        [JsonPropertyName("judgement")]
+        public int[]? Judgement { get; set; }
+
+        /// <summary>Rare tag joker roll indices (e.g. [0] for first rare tag)</summary>
+        [JsonPropertyName("rareTag")]
+        public int[]? RareTag { get; set; }
+
+        /// <summary>Uncommon tag joker roll indices (e.g. [0] for first uncommon tag)</summary>
+        [JsonPropertyName("uncommonTag")]
+        public int[]? UncommonTag { get; set; }
     }
 
     /// <summary>

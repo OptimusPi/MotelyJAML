@@ -101,6 +101,18 @@ public struct MotelyCompositeFilterDesc(List<MotelyJsonConfig.MotleyJsonFilterCl
                 FilterCategory.Tag => new MotelyJsonTagFilterDesc(
                     MotelyJsonFilterClauseExtensions.CreateTagCriteria(clauses)
                 ).CreateFilter(ref ctx),
+                FilterCategory.Event => new MotelyJsonEventFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateEventCriteria(clauses)
+                ).CreateFilter(ref ctx),
+                FilterCategory.ErraticRank => new MotelyJsonErraticRankFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticRankCriteria(clauses)
+                ).CreateFilter(ref ctx),
+                FilterCategory.ErraticSuit => new MotelyJsonErraticSuitFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticSuitCriteria(clauses)
+                ).CreateFilter(ref ctx),
+                FilterCategory.ErraticRankAndSuit => new MotelyJsonErraticRankAndSuitFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticRankAndSuitCriteria(clauses)
+                ).CreateFilter(ref ctx),
                 _ => throw new ArgumentException($"Unsupported filter category: {category}"),
             };
             filterEntries.Add((filter, isInverted));

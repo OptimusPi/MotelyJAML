@@ -33,6 +33,9 @@ public static class MotelyJsonPerformanceUtils
         ["playingcard"] = MotelyFilterItemType.PlayingCard,
         ["standardcard"] = MotelyFilterItemType.PlayingCard,
         ["boss"] = MotelyFilterItemType.Boss,
+        ["event"] = MotelyFilterItemType.Event,
+        ["erraticrank"] = MotelyFilterItemType.ErraticRank,
+        ["erraticsuit"] = MotelyFilterItemType.ErraticSuit,
         ["and"] = MotelyFilterItemType.And,
         ["or"] = MotelyFilterItemType.Or,
     };

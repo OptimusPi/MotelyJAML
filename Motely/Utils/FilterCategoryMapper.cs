@@ -27,6 +27,9 @@ namespace Motely.Utils
                 MotelyFilterItemType.SmallBlindTag or MotelyFilterItemType.BigBlindTag =>
                     FilterCategory.Tag,
                 MotelyFilterItemType.Boss => FilterCategory.Boss,
+                MotelyFilterItemType.Event => FilterCategory.Event,
+                MotelyFilterItemType.ErraticRank => FilterCategory.ErraticRank,
+                MotelyFilterItemType.ErraticSuit => FilterCategory.ErraticSuit,
                 MotelyFilterItemType.And => FilterCategory.And,
                 MotelyFilterItemType.Or => FilterCategory.Or,
                 _ => throw new Exception($"Unknown item type: {itemType}"),
@@ -73,6 +76,22 @@ namespace Motely.Utils
                 }
 
                 grouped[category].Add(clause);
+            }
+
+            // CRITICAL OPTIMIZATION: Combine ErraticRank and ErraticSuit into single filter for max performance
+            // If we have BOTH rank and suit clauses, merge them into ErraticRankAndSuit to avoid double-looping
+            if (
+                grouped.ContainsKey(FilterCategory.ErraticRank)
+                && grouped.ContainsKey(FilterCategory.ErraticSuit)
+            )
+            {
+                var combinedClauses = new List<MotelyJsonConfig.MotleyJsonFilterClause>();
+                combinedClauses.AddRange(grouped[FilterCategory.ErraticRank]);
+                combinedClauses.AddRange(grouped[FilterCategory.ErraticSuit]);
+
+                grouped[FilterCategory.ErraticRankAndSuit] = combinedClauses;
+                grouped.Remove(FilterCategory.ErraticRank);
+                grouped.Remove(FilterCategory.ErraticSuit);
             }
 
             return grouped;

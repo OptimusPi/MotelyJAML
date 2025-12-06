@@ -104,7 +104,8 @@ public static class JamlConfigLoader
         // Support plural values arrays: "jokers: [Blueprint, Brainstorm]" expands to multiple clauses
         var typeKeys = new[] { "joker", "soulJoker", "souljoker", "voucher", "tarot", "tarotCard", "tarotcard",
             "planet", "planetCard", "planetcard", "spectral", "spectralCard", "spectralcard",
-            "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag", "and", "or" };
+            "playingCard", "playingcard", "standardCard", "standardcard", "boss", "tag", "smallBlindTag", "bigBlindTag",
+            "erraticRank", "erraticrank", "erraticSuit", "erraticsuit", "event", "and", "or" };
         
         var pluralTypeKeys = new[] { "jokers", "soulJokers", "vouchers", "tarots", "tarotCards", 
             "planets", "planetCards", "spectrals", "spectralCards", "playingCards", "standardCards", "bosses", "tags" };
@@ -232,6 +233,9 @@ public static class JamlConfigLoader
             "boss" => "Boss",
             "smallblindtag" => "SmallBlindTag",
             "bigblindtag" => "BigBlindTag",
+            "event" => "Event",
+            "erraticrank" => "ErraticRank",
+            "erraticsuit" => "ErraticSuit",
             "and" => "And",
             "or" => "Or",
             _ => typeKey

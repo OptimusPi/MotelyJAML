@@ -1038,7 +1038,7 @@ public class MotelyJsonPlanetFilterClause : MotelyJsonFilterClause
 /// <summary>
 /// Extension methods for creating criteria from generic clause lists (Boss, Tag, PlayingCard)
 /// </summary>
-public static class MotelyJsonFilterClauseExtensions
+public static partial class MotelyJsonFilterClauseExtensions
 {
     /// <summary>
     /// Create Boss filter criteria from generic clauses
@@ -1151,4 +1151,61 @@ public static class MotelyJsonFilterClauseExtensions
             MaxAnte = maxAnte,
         };
     }
+
+    /// <summary>
+    /// Create Event filter criteria from generic clauses
+    /// </summary>
+    public static MotelyJsonEventFilterCriteria CreateEventCriteria(
+        List<MotelyJsonConfig.MotleyJsonFilterClause> clauses
+    )
+    {
+        if (clauses == null || clauses.Count == 0)
+            throw new ArgumentException("Clauses cannot be null or empty");
+
+        var eventClauses = new List<MotelyJsonEventFilterClause>();
+        foreach (var clause in clauses)
+        {
+            if (clause.EventTypeEnum.HasValue)
+            {
+                bool[] wantedAntes = new bool[40];
+                foreach (var ante in clause.EffectiveAntes)
+                {
+                    if (ante >= 0 && ante < wantedAntes.Length)
+                        wantedAntes[ante] = true;
+                }
+
+                eventClauses.Add(
+                    new MotelyJsonEventFilterClause
+                    {
+                        EventTypeEnum = clause.EventTypeEnum.Value,
+                        Rolls = clause.Rolls ?? Array.Empty<int>(),
+                        WantedAntes = wantedAntes,
+                    }
+                );
+            }
+        }
+
+        if (eventClauses.Count == 0)
+            throw new ArgumentException("No event clauses found");
+
+        return new MotelyJsonEventFilterCriteria { Clauses = eventClauses };
+    }
+}
+
+/// <summary>
+/// Specific clause type for Event filters
+/// </summary>
+public class MotelyJsonEventFilterClause
+{
+    public MotelyEventType EventTypeEnum { get; init; }
+    public int[] Rolls { get; init; } = Array.Empty<int>();
+    public bool[] WantedAntes { get; init; } = new bool[40];
+}
+
+/// <summary>
+/// Criteria DTO for Event filters
+/// </summary>
+public class MotelyJsonEventFilterCriteria
+{
+    public List<MotelyJsonEventFilterClause> Clauses { get; init; } = new();
 }

@@ -641,6 +641,18 @@ namespace Motely.Filters
                         }
                         break;
 
+                    case "event":
+                        // Event filters don't need value validation here - handled in ProcessClause
+                        break;
+
+                    case "erraticrank":
+                        // ErraticRank filters don't need value validation here - handled in ProcessClause
+                        break;
+
+                    case "erraticsuit":
+                        // ErraticSuit filters don't need value validation here - handled in ProcessClause
+                        break;
+
                     case "and":
                     case "or":
                         // Validate that nested clauses exist
@@ -675,7 +687,7 @@ namespace Motely.Filters
                         else
                         {
                             errors.Add(
-                                $"{prefix}: Unknown type '{item.Type}'. Valid types: joker, souljoker, tarot, planet, spectral, playingcard, tag, smallblindtag, bigblindtag, voucher, boss, and, or"
+                                $"{prefix}: Unknown type '{item.Type}'. Valid types: joker, souljoker, tarot, planet, spectral, playingcard, tag, smallblindtag, bigblindtag, voucher, boss, event, erraticrank, erraticsuit, and, or"
                             );
                         }
                         break;

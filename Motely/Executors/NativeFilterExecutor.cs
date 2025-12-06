@@ -277,28 +277,47 @@ namespace Motely.Executors
                 return jsonConfig;
             }
 
-            // Try .jaml first (prefer JAML over JSON)
-            string jamlFileName = configPath.EndsWith(".jaml") ? configPath : configPath + ".jaml";
-            string jamlPath = Path.Combine("JamlFilters", jamlFileName);
-            if (File.Exists(jamlPath))
+            // Try .jaml first (prefer JAML over JSON) - case-insensitive search
+            string jamlFileName = configPath.EndsWith(".jaml", StringComparison.OrdinalIgnoreCase) ? configPath : configPath + ".jaml";
+            string jamlDir = "JamlFilters";
+
+            // Case-insensitive file search
+            if (Directory.Exists(jamlDir))
             {
-                if (!JamlConfigLoader.TryLoadFromJaml(jamlPath, out var jamlConfig, out var error))
-                    throw new InvalidOperationException($"JAML loading failed: {error}");
-                return jamlConfig!;
+                var matchingJamlFiles = Directory.GetFiles(jamlDir, "*.jaml", SearchOption.TopDirectoryOnly)
+                    .Where(f => Path.GetFileName(f).Equals(jamlFileName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (matchingJamlFiles.Count > 0)
+                {
+                    string jamlPath = matchingJamlFiles[0];
+                    if (!JamlConfigLoader.TryLoadFromJaml(jamlPath, out var jamlConfig, out var error))
+                        throw new InvalidOperationException($"JAML loading failed: {error}");
+                    return jamlConfig!;
+                }
             }
 
-            // Fall back to .json
-            string jsonFileName = configPath.EndsWith(".json") ? configPath : configPath + ".json";
-            string jsonPath = Path.Combine("JsonFilters", jsonFileName);
-            if (File.Exists(jsonPath))
+            // Fall back to .json - case-insensitive search
+            string jsonFileName = configPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? configPath : configPath + ".json";
+            string jsonDir = "JsonFilters";
+
+            if (Directory.Exists(jsonDir))
             {
-                if (!MotelyJsonConfig.TryLoadFromJsonFile(jsonPath, out var jsonConfig))
-                    throw new InvalidOperationException($"JSON loading failed: {jsonPath}");
-                return jsonConfig;
+                var matchingJsonFiles = Directory.GetFiles(jsonDir, "*.json", SearchOption.TopDirectoryOnly)
+                    .Where(f => Path.GetFileName(f).Equals(jsonFileName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (matchingJsonFiles.Count > 0)
+                {
+                    string jsonPath = matchingJsonFiles[0];
+                    if (!MotelyJsonConfig.TryLoadFromJsonFile(jsonPath, out var jsonConfig))
+                        throw new InvalidOperationException($"JSON loading failed: {jsonPath}");
+                    return jsonConfig;
+                }
             }
 
             throw new FileNotFoundException(
-                $"Scoring config not found (tried {jamlPath} and {jsonPath})"
+                $"Scoring config not found in {jamlDir} or {jsonDir} (searched for: {jamlFileName} or {jsonFileName})"
             );
         }
 

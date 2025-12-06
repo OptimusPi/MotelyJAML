@@ -6,7 +6,7 @@ public struct ErraticFinderDesc() : IMotelySeedFilterDesc<ErraticFinderDesc.Filt
 {
 
     public const MotelyPlayingCardSuit CardSuit = MotelyPlayingCardSuit.Heart;
-    public const int RequiredCount = 32;
+    public const int RequiredCount = 28;
 
     public FilterStruct CreateFilter(ref MotelyFilterCreationContext ctx)
     {

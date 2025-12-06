@@ -158,7 +158,7 @@ function formatJaml() {
         //     - 2
         // And convert to: antes: [1, 2]
         formatted = formatted.replace(
-            /^(\s*)(antes|shopSlots|packSlots|sources):\n((?:\1  - \d+\n?)+)/gm,
+            /^(\s*)(antes|shopSlots|packSlots|sources|rolls):\n((?:\1  - \d+\n?)+)/gm,
             (match, indent, key, items) => {
                 const values = items.match(/\d+/g);
                 if (values) {
@@ -505,9 +505,8 @@ async function pollSearchStatus(delay = 1000) {
 
             // Update cutoff field with effective cutoff from server
             const cutoffInput = document.getElementById('cutoffOverride');
-            if (cutoffInput && data.cutoff !== undefined) {
-                cutoffInput.value = data.cutoff;
-                cutoffInput.placeholder = `Current: ${data.cutoff}`;
+            if (cutoffInput && data.cutoff !== undefined && cutoffInput.value === '') {
+                cutoffInput.placeholder = `Auto (current: ${data.cutoff})`;
             }
 
             // Update results from DB FIRST so count is accurate
@@ -830,11 +829,13 @@ async function loadSavedSearch() {
                     batchOverrideInput.placeholder = `Current: ${data.currentBatch}`;
                 }
 
-                // Auto-fill cutoff with current effective cutoff (CRITICAL to preserve progress!)
+                // Show current effective cutoff in placeholder (don't auto-fill to avoid spam)
                 const cutoffOverrideInput = document.getElementById('cutoffOverride');
                 if (cutoffOverrideInput && data.cutoff !== undefined) {
-                    cutoffOverrideInput.value = data.cutoff;
-                    cutoffOverrideInput.placeholder = `Current: ${data.cutoff}`;
+                    // Only set value if user hasn't filled it in yet
+                    if (cutoffOverrideInput.value === '') {
+                        cutoffOverrideInput.placeholder = `Auto (current: ${data.cutoff})`;
+                    }
                 }
 
                 // Update button based on search status
@@ -945,9 +946,8 @@ async function checkExistingSearchStatus(searchId) {
 
         // Update cutoff field with effective cutoff from server
         const cutoffInput = document.getElementById('cutoffOverride');
-        if (cutoffInput && data.cutoff !== undefined) {
-            cutoffInput.value = data.cutoff;
-            cutoffInput.placeholder = `Current: ${data.cutoff}`;
+        if (cutoffInput && data.cutoff !== undefined && cutoffInput.value === '') {
+            cutoffInput.placeholder = `Auto (current: ${data.cutoff})`;
         }
 
         if (running) {

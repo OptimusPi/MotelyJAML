@@ -1,0 +1,60 @@
+name: Daily Wee Erratic
+description: Erratic Deck with 10+ Rank 2 cards, Wee Joker, Hanging Chad, and Hack
+author: pifreak
+dateCreated: 2025-12-06T00:00:00Z
+
+deck: Erratic
+stake: White
+
+must:
+  # Erratic Deck starting state must have at least 10 cards of Rank 2
+  - erraticRank: Two
+    min: 10
+
+  # Wee Joker in ante 1
+  - joker: WeeJoker
+    antes: [1]
+
+  # Hanging Chad in antes 1 or 2
+  - joker: HangingChad
+    antes: [1, 2]
+
+  # Hack in antes 1 or 2
+  - joker: Hack
+    antes: [1, 2]
+
+should:
+  # Showman in ante 2
+  - joker: Showman
+    antes: [2]
+    score: 10
+
+  # Red Seal Two (playing card with red seal)
+  - playingCard: Two
+    seal: Red
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    score: 20
+
+  # Polychrome Red Seal Two
+  - playingCard: Two
+    seal: Red
+    enhancement: Polychrome
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    score: 15
+
+  # Invisible Joker in antes 1-5
+  - joker: InvisibleJoker
+    antes: [1, 2, 3, 4, 5]
+    score: 2
+
+  # Temperance tarot card
+  - tarot: Temperance
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    score: 1
+
+  # Ankh spectral card in ante 1 (pack slots ONLY, no shop slots on Erratic)
+  - spectral: Ankh
+    antes: [1]
+    sources:
+      packSlots: [0, 1, 2, 3]
+    score: 1

@@ -759,6 +759,18 @@ namespace Motely.Executors
                 FilterCategory.Tag => new MotelyJsonTagFilterDesc(
                     MotelyJsonFilterClauseExtensions.CreateTagCriteria(primaryClauses)
                 ),
+                FilterCategory.Event => new MotelyJsonEventFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateEventCriteria(primaryClauses)
+                ),
+                FilterCategory.ErraticRank => new MotelyJsonErraticRankFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticRankCriteria(primaryClauses)
+                ),
+                FilterCategory.ErraticSuit => new MotelyJsonErraticSuitFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticSuitCriteria(primaryClauses)
+                ),
+                FilterCategory.ErraticRankAndSuit => new MotelyJsonErraticRankAndSuitFilterDesc(
+                    MotelyJsonFilterClauseExtensions.CreateErraticRankAndSuitCriteria(primaryClauses)
+                ),
                 FilterCategory.And or FilterCategory.Or => new MotelyCompositeFilterDesc(
                     primaryClauses
                 ),
@@ -809,6 +821,22 @@ namespace Motely.Executors
                 FilterCategory.Tag =>
                     new MotelySearchSettings<MotelyJsonTagFilterDesc.MotelyJsonTagFilter>(
                         (MotelyJsonTagFilterDesc)filterDesc
+                    ),
+                FilterCategory.Event =>
+                    new MotelySearchSettings<MotelyJsonEventFilterDesc.MotelyJsonEventFilter>(
+                        (MotelyJsonEventFilterDesc)filterDesc
+                    ),
+                FilterCategory.ErraticRank =>
+                    new MotelySearchSettings<MotelyJsonErraticRankFilterDesc.MotelyJsonErraticRankFilter>(
+                        (MotelyJsonErraticRankFilterDesc)filterDesc
+                    ),
+                FilterCategory.ErraticSuit =>
+                    new MotelySearchSettings<MotelyJsonErraticSuitFilterDesc.MotelyJsonErraticSuitFilter>(
+                        (MotelyJsonErraticSuitFilterDesc)filterDesc
+                    ),
+                FilterCategory.ErraticRankAndSuit =>
+                    new MotelySearchSettings<MotelyJsonErraticRankAndSuitFilterDesc.MotelyJsonErraticRankAndSuitFilter>(
+                        (MotelyJsonErraticRankAndSuitFilterDesc)filterDesc
                     ),
                 FilterCategory.And or FilterCategory.Or =>
                     new MotelySearchSettings<MotelyCompositeFilterDesc.MotelyCompositeFilter>(
@@ -877,6 +905,18 @@ namespace Motely.Executors
                     ),
                     FilterCategory.Tag => new MotelyJsonTagFilterDesc(
                         MotelyJsonFilterClauseExtensions.CreateTagCriteria(clauses)
+                    ),
+                    FilterCategory.Event => new MotelyJsonEventFilterDesc(
+                        MotelyJsonFilterClauseExtensions.CreateEventCriteria(clauses)
+                    ),
+                    FilterCategory.ErraticRank => new MotelyJsonErraticRankFilterDesc(
+                        MotelyJsonFilterClauseExtensions.CreateErraticRankCriteria(clauses)
+                    ),
+                    FilterCategory.ErraticSuit => new MotelyJsonErraticSuitFilterDesc(
+                        MotelyJsonFilterClauseExtensions.CreateErraticSuitCriteria(clauses)
+                    ),
+                    FilterCategory.ErraticRankAndSuit => new MotelyJsonErraticRankAndSuitFilterDesc(
+                        MotelyJsonFilterClauseExtensions.CreateErraticRankAndSuitCriteria(clauses)
                     ),
                     FilterCategory.And or FilterCategory.Or => new MotelyCompositeFilterDesc(
                         clauses

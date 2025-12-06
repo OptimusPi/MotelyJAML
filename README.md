@@ -175,6 +175,53 @@ should:
 - `PerkeoObservatory`: Telescope/Observatory + soul jokers
 - `trickeoglyph`: Cartomancer + Hieroglyph
 
+## Advanced Filter Features
+
+### Alternative Joker Sources
+
+Beyond standard shop and pack slots, jokers can also come from special sources:
+
+```yaml
+must:
+  - type: Joker
+    value: Blueprint
+    antes: [1]
+    sources:
+      judgement: [0]      # First Judgement tarot usage
+      rareTag: [0]        # First Rare Tag
+      uncommonTag: [0, 1] # First two Uncommon Tags
+```
+
+**Available Sources:**
+- `shopSlots`: Shop item slots (default: auto-detected per ante)
+- `packSlots`: Booster pack slots (default: 0-5)
+- `judgement`: Judgement tarot card joker rolls (gives random joker)
+- `rareTag`: Rare Tag joker rolls (guarantees rare joker)
+- `uncommonTag`: Uncommon Tag joker rolls (guarantees uncommon joker)
+
+### Event Filters
+
+Filter seeds by specific random event outcomes:
+
+```yaml
+must:
+  - type: Event
+    eventType: LuckyMoney
+    antes: [1, 2]
+    rolls: [0, 1]  # Check first two Lucky money triggers
+    score: 10
+```
+
+**Available Event Types:**
+- `LuckyMoney` - Lucky enhancement triggers $1 money drop
+- `LuckyMult` - Lucky enhancement triggers +mult bonus
+- `MisprintMult` - Misprint joker mult value roll
+- `WheelOfFortune` - Wheel of Fortune tarot edition roll
+- `CavendishExtinct` - Cavendish banana extinction check
+- `GrosMichelExtinct` - Gros Michel banana extinction check
+
+The `rolls` array specifies which roll indices to check (0-indexed). For example, `rolls: [0, 1]` checks the first and second occurrences of that event.
+
 ## Tweak the Batch Size
 1. `--batchSize 1`: 35^1 = 35 seeds per batch
 2. `--batchSize 2`: 35^2 = 1,225 seeds per batch

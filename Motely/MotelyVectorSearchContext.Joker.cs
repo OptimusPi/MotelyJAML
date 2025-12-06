@@ -69,6 +69,20 @@ unsafe partial struct MotelyVectorSearchContext
         );
     }
 
+    public MotelyVectorJokerStream CreateBuffoonPackJokerStream(
+        int ante,
+        MotelyJokerStreamFlags flags = MotelyJokerStreamFlags.Default,
+        bool isCached = false
+    )
+    {
+        return CreateJokerStream(
+            MotelyPrngKeys.BuffoonPackItemSource,
+            MotelyPrngKeys.BuffoonJokerEternalPerishableSource,
+            MotelyPrngKeys.BuffoonJokerRentalSource,
+            ante, flags, isCached
+        );
+    }
+
 #if !DEBUG
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif

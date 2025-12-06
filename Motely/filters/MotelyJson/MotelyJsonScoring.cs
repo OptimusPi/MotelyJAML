@@ -750,6 +750,152 @@ public static class MotelyJsonScoring
             }
         }
 
+        // Check Judgement tarot joker sources if specified
+        if (clause.Sources?.Judgement != null && clause.Sources.Judgement.Length > 0)
+        {
+            var judgementStream = ctx.CreateJudgementJokerStream(ante);
+            foreach (var rollIndex in clause.Sources.Judgement)
+            {
+                // Advance stream to the specified roll index
+                var jokerStream = judgementStream;
+                for (int i = 0; i < rollIndex; i++)
+                {
+                    ctx.GetNextJoker(ref jokerStream);
+                }
+
+                var item = ctx.GetNextJoker(ref jokerStream);
+                bool matches = false;
+
+                if (!clause.IsWildcard)
+                {
+                    if (clause.JokerTypes != null && clause.JokerTypes.Count > 0)
+                    {
+                        foreach (var jokerType in clause.JokerTypes)
+                        {
+                            var targetType = (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)jokerType);
+                            if (item.Type == targetType)
+                            {
+                                matches = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (clause.JokerType.HasValue)
+                    {
+                        matches = item.Type == (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)clause.JokerType.Value);
+                    }
+                }
+                else
+                {
+                    matches = CheckWildcardMatch((MotelyJoker)item.Type, originalClause?.WildcardEnum ?? clause.WildcardEnum);
+                }
+
+                if (matches && CheckEditionAndStickers(item, clause))
+                {
+                    runState.AddOwnedJoker((MotelyJoker)item.Type);
+                    tally++;
+                    if (earlyExit)
+                        return tally;
+                }
+            }
+        }
+
+        // Check Rare Tag joker sources if specified
+        if (clause.Sources?.RareTag != null && clause.Sources.RareTag.Length > 0)
+        {
+            foreach (var rollIndex in clause.Sources.RareTag)
+            {
+                var rareTagStream = ctx.CreateRareTagJokerStream(ante);
+                for (int i = 0; i < rollIndex; i++)
+                {
+                    ctx.GetNextJoker(ref rareTagStream);
+                }
+
+                var item = ctx.GetNextJoker(ref rareTagStream);
+                bool matches = false;
+
+                if (!clause.IsWildcard)
+                {
+                    if (clause.JokerTypes != null && clause.JokerTypes.Count > 0)
+                    {
+                        foreach (var jokerType in clause.JokerTypes)
+                        {
+                            var targetType = (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)jokerType);
+                            if (item.Type == targetType)
+                            {
+                                matches = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (clause.JokerType.HasValue)
+                    {
+                        matches = item.Type == (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)clause.JokerType.Value);
+                    }
+                }
+                else
+                {
+                    matches = CheckWildcardMatch((MotelyJoker)item.Type, originalClause?.WildcardEnum ?? clause.WildcardEnum);
+                }
+
+                if (matches && CheckEditionAndStickers(item, clause))
+                {
+                    runState.AddOwnedJoker((MotelyJoker)item.Type);
+                    tally++;
+                    if (earlyExit)
+                        return tally;
+                }
+            }
+        }
+
+        // Check Uncommon Tag joker sources if specified
+        if (clause.Sources?.UncommonTag != null && clause.Sources.UncommonTag.Length > 0)
+        {
+            foreach (var rollIndex in clause.Sources.UncommonTag)
+            {
+                var uncommonTagStream = ctx.CreateUncommonTagJokerStream(ante);
+                for (int i = 0; i < rollIndex; i++)
+                {
+                    ctx.GetNextJoker(ref uncommonTagStream);
+                }
+
+                var item = ctx.GetNextJoker(ref uncommonTagStream);
+                bool matches = false;
+
+                if (!clause.IsWildcard)
+                {
+                    if (clause.JokerTypes != null && clause.JokerTypes.Count > 0)
+                    {
+                        foreach (var jokerType in clause.JokerTypes)
+                        {
+                            var targetType = (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)jokerType);
+                            if (item.Type == targetType)
+                            {
+                                matches = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (clause.JokerType.HasValue)
+                    {
+                        matches = item.Type == (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)clause.JokerType.Value);
+                    }
+                }
+                else
+                {
+                    matches = CheckWildcardMatch((MotelyJoker)item.Type, originalClause?.WildcardEnum ?? clause.WildcardEnum);
+                }
+
+                if (matches && CheckEditionAndStickers(item, clause))
+                {
+                    runState.AddOwnedJoker((MotelyJoker)item.Type);
+                    tally++;
+                    if (earlyExit)
+                        return tally;
+                }
+            }
+        }
+
         return tally;
     }
 
@@ -1150,6 +1296,52 @@ public static class MotelyJsonScoring
     }
 
     /// <summary>
+    /// Counts how many cards of a specific rank appear in the Erratic Deck's starting composition
+    /// </summary>
+    public static int CountErraticRankOccurrences(
+        ref MotelySingleSearchContext ctx,
+        MotelyPlayingCardRank rank
+    )
+    {
+        var stream = ctx.CreateErraticDeckPrngStream(isCached: false);
+        int count = 0;
+
+        for (int i = 0; i < 52; i++)
+        {
+            var card = ctx.GetNextErraticDeckCard(ref stream);
+            if (card.PlayingCardRank == rank)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Counts how many cards of a specific suit appear in the Erratic Deck's starting composition
+    /// </summary>
+    public static int CountErraticSuitOccurrences(
+        ref MotelySingleSearchContext ctx,
+        MotelyPlayingCardSuit suit
+    )
+    {
+        var stream = ctx.CreateErraticDeckPrngStream(isCached: false);
+        int count = 0;
+
+        for (int i = 0; i < 52; i++)
+        {
+            var card = ctx.GetNextErraticDeckCard(ref stream);
+            if (card.PlayingCardSuit == suit)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// COUNTS how many times a tag appears (0, 1, or 2 for generic "tag" type)
     /// Generic "tag" type should tally BOTH small and big blind!
     /// </summary>
@@ -1270,6 +1462,22 @@ public static class MotelyJsonScoring
             // Convert to typed clause - PRE-OPTIMIZED!
             var voucherClause = MotelyJsonVoucherFilterClause.FromJsonClause(clause);
             return CountVoucherOccurrences(ref ctx, voucherClause, ref runState);
+        }
+
+        // Special case for ErraticRank - check starting deck composition (not ante-specific)
+        if (clause.ItemTypeEnum == MotelyFilterItemType.ErraticRank)
+        {
+            if (!clause.RankEnum.HasValue)
+                return 0;
+            return CountErraticRankOccurrences(ref ctx, clause.RankEnum.Value);
+        }
+
+        // Special case for ErraticSuit - check starting deck composition (not ante-specific)
+        if (clause.ItemTypeEnum == MotelyFilterItemType.ErraticSuit)
+        {
+            if (!clause.SuitEnum.HasValue)
+                return 0;
+            return CountErraticSuitOccurrences(ref ctx, clause.SuitEnum.Value);
         }
 
         // Special case for AND - gates with nested scoring

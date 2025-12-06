@@ -1,0 +1,52 @@
+name: Perkeo Judgement Negatives
+description: Perkeo in ante 1 + Judgement tarot, score negative jokers
+author: pifreak
+dateCreated: 2025-12-06T00:00:00Z
+
+deck: Checkered
+stake: White
+
+must:
+  # Judgement tarot card must appear in ante 1 shop ONLY (so Perkeo can duplicate it!)
+  - type: TarotCard
+    value: Judgement
+    antes: [1]
+    sources:
+      shopSlots: [0, 1, 2, 3]
+
+  # Perkeo soul joker in ante 1 shop (slots 1-3, skip slot 0 since Judgement might be there)
+  - type: SoulJoker
+    value: Perkeo
+    antes: [1]
+    sources:
+      shopSlots: [1, 2, 3]
+
+should:
+  # Oops All 6s from Judgement tarot (first usage gives random joker)
+  - type: Joker
+    value: Oops All 6s
+    antes: [1]
+    sources:
+      judgement: [0]
+    score: 1
+
+  # Any joker with Negative edition
+  - type: Joker
+    value: Any
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    edition: Negative
+    score: 10
+
+  # Any Uncommon joker with Negative edition
+  - type: Joker
+    value: AnyUncommon
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    edition: Negative
+    score: 20
+
+  # Any Rare joker with Negative edition
+  - type: Joker
+    value: AnyRare
+    antes: [1, 2, 3, 4, 5, 6, 7, 8]
+    edition: Negative
+    score: 69

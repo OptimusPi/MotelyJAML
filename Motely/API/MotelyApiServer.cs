@@ -496,6 +496,9 @@ public class MotelyApiServer
     {
         try
         {
+            // Clear existing filters to prevent duplicates on API restart
+            _savedSearches.Clear();
+
             var jamlFiles = Directory.GetFiles(_filtersDir, "*.jaml");
             foreach (var file in jamlFiles)
             {
@@ -1185,7 +1188,7 @@ public class MotelyApiServer
                         Quiet = true,
                         BatchSize = 4, // Use 4-character sequential search
                         StartBatch = (ulong)bgState.StartBatch,
-                        EndBatch = 0, // No end limit
+                        EndBatch = searchRequest?.EndBatch ?? 0, // User-specified end batch or no limit
                         AutoCutoff = false,
                         Cutoff = effectiveCutoff, // User override or smart cutoff from fertilizer results
                         ProgressCallback = (completed, total, seedsSearched, seedsPerMs) =>
@@ -1953,6 +1956,9 @@ public class SearchRequest
 
     [JsonPropertyName("startBatch")]
     public long? StartBatch { get; set; }
+
+    [JsonPropertyName("endBatch")]
+    public ulong? EndBatch { get; set; }
 
     [JsonPropertyName("cutoff")]
     public int? Cutoff { get; set; }
