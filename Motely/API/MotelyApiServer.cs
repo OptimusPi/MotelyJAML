@@ -534,10 +534,10 @@ public class MotelyApiServer
 
     private void ConvertJsonFiltersToJaml()
     {
-        var jsonFiltersDir = "JsonItemFilters";
+        var jsonFiltersDir = "JsonFilters";
         if (!Directory.Exists(jsonFiltersDir))
         {
-            _logCallback($"[{DateTime.Now:HH:mm:ss}] No JsonItemFilters directory found, skipping conversion");
+            _logCallback($"[{DateTime.Now:HH:mm:ss}] No JsonFilters directory found, skipping conversion");
             return;
         }
 

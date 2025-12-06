@@ -1,8 +1,8 @@
-# Motely
+# MotelyJAML
 
-The fastest Balatro seed searcher with JSON, JAML support and an interactive TUI.
+The fastest Balatro seed searcher with JAML (or JSON) support and an interactive TUI.
 
-Based on [@tacodiva](https://github.com/tacodiva)'s incredible [Motely](https://github.com/tacodiva/Motely) - a blazing-fast SIMD-powered seed searcher. This fork extends it with multiple configuration formats (JSON, JAML) and a Terminal User Interface for easy filter creation.
+Based on [@tacodiva](https://github.com/tacodiva)'s incredible [Motely](https://github.com/tacodiva/Motely) - a blazing-fast SIMD-powered seed searcher. MotelyJAML extends it with multiple configuration formats (JAML, JSON) and a Terminal User Interface for easy filter creation.
 
 ## Installation
 
@@ -26,50 +26,73 @@ dotnet run
 ```
 
 The TUI provides an interactive menu for:
-- Building custom filters visually
-- Quick search with predefined filters
-- Loading config files
+- Building custom filters
+  - It's really simple, supports all item types
+  - TODO: add support for edition, stickers/sealts, etc.
+- Loading config files and searching
+  - P.S. Sorry about the BalatroShaderBackground, I just had to
+  - shader background PAUSES during API Host or Search
 - Starting the API server
+  - Optional:[Install cloudflared](https://github.com/cloudflare/cloudflared?tab=readme-ov-file#installing-cloudflared)
+  - Navigate to SETTINGS and change search/api as needed.
+  - Host
+    - set the host. usually `127.0.0.1` or `localhost`
+    - host is sometimes `+` on some linux distros/VMs.
+    - TODO: I'm new to Apple so still learning pitfalls of local networking?
+    - set the port to whatever you want. 
+  - Search
+    - lower the search to avoid 100% CPU load
+    - Example: if you have a 16-core CPU but you are playing a game, doing homework, browsing the web, you could set `--threads 8` to save a lot of system resources for yourself. 
+    - Example: if you have a really tiny box to put this on, maybe it needs less threads to save a little wiggle room for SSH/VNC/Parsec/Steamlink/ to still function with good performance
+    - Example: if you have an 8 core CPU but want 2 different search instances running you can run 2 different terminals each with `-- threads 4`
+    - NOTE: Never set the threads past what your CPU has. You'll lower performance.
+    - NOTE: if your filter is very permissive, you'll bottleneck on console.writeline()
+    - NOTE: see below for more options; 
 
 ### Command Line Usage
+
+#### Search with JSON/JAML filters
 ```bash
-# Search with a JSON filter
 dotnet run -- --json PerkeoObservatory --threads 16 --cutoff 2
-
-# Search with a JAML filter
 dotnet run -- --jaml MyFilter --threads 16 --cutoff 2
-
-# Use a native filter
-dotnet run -- --native PerkeoObservatory --threads 16
-
-# Analyze a specific seed
-is
 ```
 
-## Command Line Options
+#### Use Native C# Filters
+Built-in filters from [tacodiva's original Motely](https://github.com/tacodiva/Motely):
+```bash
+dotnet run -- --native PerkeoObservatory --threads 16
+```
 
-### Core Options
-- `--json <filename>`: JSON config from JsonItemFilters/ (without .json extension)
-- `--jaml <filename>`: JAML config from JamlFilters/ (without .jaml extension)
-- `--native <filter name>`: Built-in native filter (without .cs extension)
-- `--analyze <SEED>`: Analyze specific seed
-- **Note:** No args launches TUI by default
+#### Analyze Seeds
+Following the `analyzer.cl` convention from [Immolate](https://github.com/SpectralPack/Immolate), [TheSoul](https://github.com/SpectralPack/TheSoul), and [Blueprint](https://miaklwalker.github.io/Blueprint/):
+```bash
+dotnet run -- --analyze 5SC1HR14
+```
 
-### Performance Options
-- `--threads <N>`: Thread count (default: CPU cores)
-- `--batchSize <1-8>`: Vectorization batch size
-- `--startBatch/--endBatch`: Search range control
+### Available Options
 
-### Filter Options
-- `--cutoff <N|auto>`: Minimum score threshold
-- `--deck <DECK>`: Deck selection
-- `--stake <STAKE>`: Stake level
+**Core:**
+- `--json <name>` - Load filter from JsonFilters/
+- `--jaml <name>` - Load filter from JamlFilters/
+- `--native <name>` - Use built-in C# filter
+- `--analyze <SEED>` - Analyze specific seed
+- _(no args)_ - Launch TUI
+
+**Performance:**
+- `--threads <N>` - Thread count (default: CPU cores)
+- `--batchSize <1-8>` - Batch size for vectorization
+- `--startBatch <N>` / `--endBatch <N>` - Search range
+
+**Filtering:**
+- `--cutoff <N|auto>` - Minimum score (JSON/JAML only)
+- `--deck <DECK>` - Override filter's deck
+- `--stake <STAKE>` - Override filter's stake
 
 ## Filter Formats
 
 ### JSON Filter Format
 
-Create in `JsonItemFilters/`:
+Create in `JsonFilters/`:
 ```json
 {
   "name": "Example",
@@ -151,12 +174,13 @@ should:
 - `PerkeoObservatory`: Telescope/Observatory + soul jokers
 - `trickeoglyph`: Cartomancer + Hieroglyph
 
-## Tweak the Batch Size 
-1. For the most responsive option, Use `--batchSize 1` to batch by one character count (35^1 = 35 seeds) 
-2. Use `--batchSize 2` to batch by two character count (35^2 = 1225 seeds)
-3. Use `--batchSize 3` to batch by three character count (35^3 = 42875 seeds)
-4. Use `--batchSize 4` to batch by four character count (35^4 = 1500625 seeds)
+## Tweak the Batch Size
+1. `--batchSize 1`: 35^1 = 35 seeds per batch
+2. `--batchSize 2`: 35^2 = 1,225 seeds per batch
+3. `--batchSize 3`: 35^3 = 42,875 seeds per batch
+4. `--batchSize 4`: 35^4 = 1,500,625 seeds per batch
+5. `--batchSize 5`: 35^5 = 52,521,875 seeds per batch
+6. `--batchSize 6`: 35^6 = 1,838,265,625 seeds per batch
+7. `--batchSize 7`: 35^7 = 64,339,296,875 seeds per batch
 
-Above this is senseless and not recommended.
-Use a higher batch size for less responsive CLI updates but faster searching!
-I like to use --batchSize 2 or maybe 3 usually for a good balance, but I would use --batchSize 4 for overnight searches.
+Higher batch sizes = less responsive updates but faster overall search. Recommended: 2-4 for interactive use, 4-5 for overnight searches.

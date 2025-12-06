@@ -193,10 +193,10 @@ public class MainMenuWindow : View
         // Scan for available filters
         var currentDir = Directory.GetCurrentDirectory();
 
-        if (Directory.Exists(Path.Combine(currentDir, "JsonItemFilters")))
+        if (Directory.Exists(Path.Combine(currentDir, "JsonFilters")))
         {
             var jsonFiles = Directory.GetFiles(
-                Path.Combine(currentDir, "JsonItemFilters"),
+                Path.Combine(currentDir, "JsonFilters"),
                 "*.json"
             );
             foreach (var file in jsonFiles)
@@ -224,7 +224,7 @@ public class MainMenuWindow : View
         {
             ShowErrorDialog(
                 "No Filters Found",
-                "No filter files found in JsonItemFilters/ or JamlFilters/"
+                "No filter files found in JsonFilters/ or JamlFilters/"
             );
             return;
         }

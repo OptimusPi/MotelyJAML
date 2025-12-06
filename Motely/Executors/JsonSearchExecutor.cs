@@ -279,7 +279,7 @@ namespace Motely.Executors
             string configPath;
             bool isJamlFormat = _format == "jaml";
             string extension = isJamlFormat ? ".jaml" : ".json";
-            string filterDir = isJamlFormat ? "JamlFilters" : "JsonItemFilters";
+            string filterDir = isJamlFormat ? "JamlFilters" : "JsonFilters";
 
             bool hasDirectory = !string.IsNullOrEmpty(Path.GetDirectoryName(_configPath));
             if (Path.IsPathRooted(_configPath) || hasDirectory)

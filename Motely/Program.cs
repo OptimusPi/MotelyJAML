@@ -30,7 +30,7 @@ namespace Motely
             // Core options
             var jsonOption = app.Option<string>(
                 "-j|--json <JSON>",
-                "JSON config file (JsonItemFilters/)",
+                "JSON config file (JsonFilters/)",
                 CommandOptionType.SingleValue
             );
             var jamlOption = app.Option<string>(

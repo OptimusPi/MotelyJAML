@@ -235,7 +235,7 @@ namespace Motely.Executors
         {
             // Check if JSON file exists
             string fileName = filter.EndsWith(".json") ? filter : filter + ".json";
-            string jsonItemFiltersPath = Path.Combine("JsonItemFilters", fileName);
+            string jsonItemFiltersPath = Path.Combine("JsonFilters", fileName);
             return File.Exists(jsonItemFiltersPath)
                 || (Path.IsPathRooted(filter) && File.Exists(filter));
         }
@@ -297,7 +297,7 @@ namespace Motely.Executors
 
             // Fall back to .json
             string jsonFileName = configPath.EndsWith(".json") ? configPath : configPath + ".json";
-            string jsonPath = Path.Combine("JsonItemFilters", jsonFileName);
+            string jsonPath = Path.Combine("JsonFilters", jsonFileName);
             if (File.Exists(jsonPath))
             {
                 if (!MotelyJsonConfig.TryLoadFromJsonFile(jsonPath, out var jsonConfig))

@@ -449,9 +449,9 @@ public class FilterBuilderWindow : Window
         }
 
         // JSON files second
-        if (Directory.Exists(Path.Combine(currentDir, "JsonItemFilters")))
+        if (Directory.Exists(Path.Combine(currentDir, "JsonFilters")))
         {
-            var jsonFiles = Directory.GetFiles(Path.Combine(currentDir, "JsonItemFilters"), "*.json");
+            var jsonFiles = Directory.GetFiles(Path.Combine(currentDir, "JsonFilters"), "*.json");
             foreach (var file in jsonFiles)
             {
                 var name = Path.GetFileNameWithoutExtension(file);
@@ -461,7 +461,7 @@ public class FilterBuilderWindow : Window
 
         if (filters.Count == 0)
         {
-            ShowErrorDialog("No Filters Found", "No filter files found in JamlFilters/ or JsonItemFilters/");
+            ShowErrorDialog("No Filters Found", "No filter files found in JamlFilters/ or JsonFilters/");
             return;
         }
 
