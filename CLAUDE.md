@@ -132,8 +132,5 @@ not build.
 ## Repo notes
 
 - `origin` is `OptimusPi/MotelyJAML`; `upstream` is `Tacodiva/Motely`, the project this forked from.
-- `.gitmodules` declares a `jaml-ui` submodule (`OptimusPi/jaml-ui`) at `jaml-ui/`, but it is not
-  initialized in this checkout. That repo is the UI.
 - `JamlFilters/*.jaml` are real filter definitions used as inputs and examples. Seed strings in
   them are base-32 and can spell things by accident.
-- `scratch/` is scratch work and is not in the solution.
