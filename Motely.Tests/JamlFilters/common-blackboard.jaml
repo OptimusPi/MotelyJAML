@@ -1,6 +1,7 @@
 name: Blackboard Checkered Deck
 author: jammy
-description: Blackboard common with Checkered Deck for X3 Mult if all held cards
+description: >
+  Blackboard common with Checkered Deck for X3 Mult if all held cards
   are Spades or Clubs
 deck: Checkered
 stake: White

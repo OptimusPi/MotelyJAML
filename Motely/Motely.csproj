@@ -10,6 +10,9 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- So VS Code / C# Dev Kit can see JamlSchema (CS0103 without this). -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <!-- Packages (versions from Directory.Packages.props) -->

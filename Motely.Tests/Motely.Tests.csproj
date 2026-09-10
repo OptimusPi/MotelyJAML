@@ -48,8 +48,9 @@
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Test JAML files travel to the output so data-driven tests can load them by name. -->
-    <None Update="JamlFilters/**/*.jaml">
+    <!-- Test JAML files travel to the output so data-driven tests can load them by name.
+         Include (not Update): new files in JamlFilters must enter the item list to copy. -->
+    <None Include="JamlFilters/**/*.jaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

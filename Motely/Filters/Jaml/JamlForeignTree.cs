@@ -30,9 +30,9 @@ internal static class JamlForeignTree
     {
         try
         {
-            // VYaml 1.1.1 tokenizes a bare "joker:" / "tarotCard:" (implicit null) into
-            // an unbounded token queue. Quote the empty value before the tokenizer.
-            text = QuoteEmptyMappingValues(text);
+            // VYaml 1.1.1 tokenizes a bare "joker:" (implicit null) into an unbounded
+            // token queue. The wire meaning is Any (JamlDisc) — write that before tokenize.
+            text = FillEmptyMappingValuesWithAny(text);
             var parser = YamlParser.FromBytes(Encoding.UTF8.GetBytes(text));
             parser.SkipAfter(ParseEventType.DocumentStart);
             if (parser.End
@@ -74,7 +74,7 @@ internal static class JamlForeignTree
             _ => new JScalar(""),
         };
 
-    private static string QuoteEmptyMappingValues(string text)
+    private static string FillEmptyMappingValuesWithAny(string text)
     {
         var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
         var lines = normalized.Split('\n');
@@ -93,7 +93,7 @@ internal static class JamlForeignTree
                 j++;
             if (j < lines.Length && IndentWidth(lines[j]) > indent)
                 continue;
-            lines[i] = trimmed + " \"\"";
+            lines[i] = trimmed + " Any";
         }
         return string.Join("\n", lines);
     }
