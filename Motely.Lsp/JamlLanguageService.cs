@@ -1,6 +1,6 @@
 using Motely.Filters.Jaml;
 
-namespace Motely.Lsp.Core;
+namespace Motely.Lsp;
 
 /// <summary>
 /// The JAML language brain: diagnostics, hover, and completion computed directly off the

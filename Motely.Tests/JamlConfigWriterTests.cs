@@ -97,7 +97,7 @@ public sealed class JamlConfigWriterTests
 
     private static string TestJamlDir()
     {
-        var dir = Path.Join(AppContext.BaseDirectory, "GoldenJamlFiles");
+        var dir = Path.Join(AppContext.BaseDirectory, "JamlFilters");
         if (!Directory.Exists(dir))
             throw new DirectoryNotFoundException($"Test JAML files not in output: {dir}");
         return dir;

@@ -1,4 +1,4 @@
-namespace Motely.Lsp.Core;
+namespace Motely.Lsp;
 
 using Motely.Filters.Jaml;
 

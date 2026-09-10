@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using Motely.Lsp;
-using Motely.Lsp.Core;
 
 namespace Motely.Tests;
 

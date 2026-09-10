@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Motely.Lsp;
-using Motely.Lsp.Core;
 
 // One-shot engine jobs (do not open the stdio LSP loop).
 //   Motely.Lsp --diagnose <file.jaml> | -

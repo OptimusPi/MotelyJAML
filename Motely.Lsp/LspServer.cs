@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
 using Motely.Filters.Jaml;
-using Motely.Lsp.Core;
+using Motely.Lsp;
 
 namespace Motely.Lsp;
 

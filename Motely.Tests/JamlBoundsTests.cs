@@ -1,5 +1,5 @@
 using Motely.Filters.Jaml;
-using Motely.Lsp.Core;
+using Motely.Lsp;
 
 namespace Motely.Tests;
 

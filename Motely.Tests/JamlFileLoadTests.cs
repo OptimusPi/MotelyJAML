@@ -8,7 +8,7 @@ public sealed class JamlFileLoadTests
     [Fact]
     public void TestJamlFiles_AllLoadAndPlan()
     {
-        var dir = Path.Join(AppContext.BaseDirectory, "GoldenJamlFiles");
+        var dir = Path.Join(AppContext.BaseDirectory, "JamlFilters");
         Assert.True(Directory.Exists(dir), $"Test JAML files not in output: {dir}");
 
         var files = Directory

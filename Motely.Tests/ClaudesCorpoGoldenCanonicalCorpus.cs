@@ -4,11 +4,11 @@ using Motely.Filters.Jaml;
 namespace Motely.Tests;
 
 /// <summary>
-/// Canonical golden corpus. Every name the engine ships must load as JAML and plan.
+/// Every name the engine ships must load as JAML and plan.
 /// Names come from <see cref="JamlSchema"/> / the enums — never a hand-typed list.
 /// The RAG copies live in seedfinder.app/corpus; this is the engine lock.
 /// </summary>
-public sealed class GoldenCorpusCompletenessTests
+public sealed class ClaudesCorpoGoldenCanonicalCorpus
 {
     public static TheoryData<string, string> EveryNamedItem()
     {

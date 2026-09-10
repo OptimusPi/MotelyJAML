@@ -49,7 +49,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- Test JAML files travel to the output so data-driven tests can load them by name. -->
-    <None Update="GoldenJamlFiles/**/*.jaml">
+    <None Update="JamlFilters/**/*.jaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

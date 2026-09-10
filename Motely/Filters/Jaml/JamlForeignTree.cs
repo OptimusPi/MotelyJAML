@@ -30,6 +30,9 @@ internal static class JamlForeignTree
     {
         try
         {
+            // VYaml 1.1.1 tokenizes a bare "joker:" / "tarotCard:" (implicit null) into
+            // an unbounded token queue. Quote the empty value before the tokenizer.
+            text = QuoteEmptyMappingValues(text);
             var parser = YamlParser.FromBytes(Encoding.UTF8.GetBytes(text));
             parser.SkipAfter(ParseEventType.DocumentStart);
             if (parser.End
@@ -71,37 +74,87 @@ internal static class JamlForeignTree
             _ => new JScalar(""),
         };
 
-    private static JNode ReadYaml(ref YamlParser parser) =>
-        parser.CurrentEventType switch
+    private static string QuoteEmptyMappingValues(string text)
+    {
+        var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var lines = normalized.Split('\n');
+        for (var i = 0; i < lines.Length; i++)
         {
-            ParseEventType.Scalar => new JScalar(
-                parser.GetScalarAsString() ?? "",
-                parser.TryGetScalarAsInt32(out _) ? JScalarKind.Integer : JScalarKind.Bare
-            ),
-            ParseEventType.MappingStart => ReadYamlMap(ref parser),
-            ParseEventType.SequenceStart => ReadYamlSeq(ref parser),
-            ParseEventType.Alias => throw new InvalidOperationException(
-                "YAML aliases are not supported."
-            ),
-            _ => throw new InvalidOperationException(
-                $"Unexpected YAML event {parser.CurrentEventType}."
-            ),
-        };
+            var trimmed = lines[i].TrimEnd();
+            var colon = trimmed.LastIndexOf(':');
+            if (colon < 0)
+                continue;
+            if (trimmed.AsSpan(colon + 1).Trim().Length != 0)
+                continue;
+            // "must:" then an indented child is a nested map/seq, not an empty value.
+            var indent = IndentWidth(trimmed);
+            var j = i + 1;
+            while (j < lines.Length && IndentWidth(lines[j]) == int.MaxValue)
+                j++;
+            if (j < lines.Length && IndentWidth(lines[j]) > indent)
+                continue;
+            lines[i] = trimmed + " \"\"";
+        }
+        return string.Join("\n", lines);
+    }
+
+    private static int IndentWidth(string line)
+    {
+        var n = 0;
+        while (n < line.Length && line[n] is ' ' or '\t')
+            n++;
+        return n == line.Length ? int.MaxValue : n;
+    }
+
+    // Each ReadYaml call consumes exactly one node (same contract as VYaml's
+    // PrimitiveObjectFormatter). Extra Read() after a child was the desync:
+    // empty "joker:" is EmptyScalar, not MappingEnd.
+    private const int YamlPairCap = 65_536;
+
+    private static JNode ReadYaml(ref YamlParser parser)
+    {
+        switch (parser.CurrentEventType)
+        {
+            case ParseEventType.Scalar:
+            {
+                var text = parser.GetScalarAsString() ?? "";
+                var kind = parser.TryGetScalarAsInt32(out _)
+                    ? JScalarKind.Integer
+                    : JScalarKind.Bare;
+                parser.Read();
+                return new JScalar(text, kind);
+            }
+            case ParseEventType.MappingStart:
+                return ReadYamlMap(ref parser);
+            case ParseEventType.SequenceStart:
+                return ReadYamlSeq(ref parser);
+            case ParseEventType.Alias:
+                throw new InvalidOperationException("YAML aliases are not supported.");
+            default:
+                throw new InvalidOperationException(
+                    $"Unexpected YAML event {parser.CurrentEventType}."
+                );
+        }
+    }
 
     private static JMap ReadYamlMap(ref YamlParser parser)
     {
         var map = new JMap();
         parser.Read();
+        var n = 0;
         while (!parser.End && parser.CurrentEventType != ParseEventType.MappingEnd)
         {
+            if (++n > YamlPairCap)
+                throw new InvalidOperationException("YAML mapping did not terminate.");
             if (parser.CurrentEventType != ParseEventType.Scalar)
                 throw new InvalidOperationException("YAML mapping key must be a scalar.");
             string key = parser.GetScalarAsString() ?? "";
             if (!parser.Read())
                 throw new InvalidOperationException($"YAML mapping '{key}' is missing a value.");
             map.Set(key, ReadYaml(ref parser), default);
-            parser.Read();
         }
+        if (parser.CurrentEventType == ParseEventType.MappingEnd)
+            parser.Read();
         return map;
     }
 
@@ -109,11 +162,15 @@ internal static class JamlForeignTree
     {
         var seq = new JSeq();
         parser.Read();
+        var n = 0;
         while (!parser.End && parser.CurrentEventType != ParseEventType.SequenceEnd)
         {
+            if (++n > YamlPairCap)
+                throw new InvalidOperationException("YAML sequence did not terminate.");
             seq.Items.Add(ReadYaml(ref parser));
-            parser.Read();
         }
+        if (parser.CurrentEventType == ParseEventType.SequenceEnd)
+            parser.Read();
         return seq;
     }
 

@@ -1,4 +1,4 @@
-using Motely.Lsp.Core;
+using Motely.Lsp;
 
 namespace Motely.Tests;
 

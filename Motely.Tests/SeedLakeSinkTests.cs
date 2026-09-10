@@ -234,7 +234,7 @@ public sealed class SeedLakeSinkTests : IDisposable
     {
         // A real corpus filter with a seeds: block — no fabricated JAML. The provider's seed count
         // must equal what the loader parses from the same file, cross-checking the two readers.
-        var jamlPath = Path.Combine(AppContext.BaseDirectory, "GoldenJamlFiles", "Zerkeo_Pure.jaml");
+        var jamlPath = Path.Combine(AppContext.BaseDirectory, "JamlFilters", "Zerkeo_Pure.jaml");
         Assert.True(
             JamlConfigLoader.TryLoad(File.ReadAllText(jamlPath), out var config, out var error),
             error

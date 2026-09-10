@@ -13,13 +13,13 @@ namespace Motely.Tests;
 /// you mumble the antes, the engine understands it the same way. So every variant must (a) load and
 /// list-search its own seeds without throwing, and (b) match the identical set of seeds.
 ///
-/// The variant list is DISCOVERED from GoldenJamlFiles/Zerkeo*.jaml, not hard-coded — drop a new
+/// The variant list is DISCOVERED from JamlFilters/Zerkeo*.jaml, not hard-coded — drop a new
 /// Zerkeo_*.jaml in the folder and it joins the gate automatically, no test edit. If a change breaks
 /// either property, JUMMY regressed, and this fails the build to say so.
 /// </summary>
 public class JummyEquivalenceTests
 {
-    private static string TestJamlDir => Path.Join(AppContext.BaseDirectory, "GoldenJamlFiles");
+    private static string TestJamlDir => Path.Join(AppContext.BaseDirectory, "JamlFilters");
 
     /// <summary>Every Zerkeo variant on disk, discovered — the single source of truth is the folder.</summary>
     public static IEnumerable<object[]> ZerkeoVariants() =>

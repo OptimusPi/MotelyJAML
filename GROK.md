@@ -11,14 +11,14 @@
 - SDK pinned by `global.json` (10.0.x). Solution is `Motely.slnx`.
 - `dotnet build`
 - `dotnet test` — xunit + Verify. A `*.received.*` next to a `*.verified.*` is a snapshot diff, not a pass.
-- `dotnet test --filter GoldenCorpusCompletenessTests` — every engine-named item loads as JAML and plans.
+- `dotnet test --filter ClaudesCorpoGoldenCanonicalCorpus` — every engine-named item loads as JAML and plans.
 - `dotnet run --project Motely.CLI -- --jaml JamlFilters/AlwaysPass.jaml --collect 1`
 - WASM: `dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release` — always `-c Release` (LLVM). `-c Debug` is Mono. See AGENTS.md.
 
 ## Corpus
 
-- Engine lock: `Motely.Tests/GoldenCorpusCompletenessTests.cs`. Names come from `JamlSchema` / the enums. Never hand-type a list the engine already knows.
-- `Motely.Tests/GoldenJamlFiles` is leftover strategy fixtures, not the complete catalog.
+- Engine lock: `Motely.Tests/ClaudesCorpoGoldenCanonicalCorpus.cs`. Names come from `JamlSchema` / the enums. Never hand-type a list the engine already knows.
+- `Motely.Tests/JamlFilters` is leftover strategy fixtures, not the complete catalog.
 - `JamlFilters/` is the operator’s filter folder, not a test fixture.
 - RAG copies: `../seedfinder.app/corpus/` (jokers, consumables, decks, vouchers, tags, bosses, cards).
 - UI vocab: `../jaml-ui/src/vocab.ts` + `../jaml-ui/scripts/check-vocab-drift.mjs`.

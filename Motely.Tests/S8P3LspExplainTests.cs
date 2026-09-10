@@ -1,4 +1,4 @@
-using Motely.Lsp.Core;
+using Motely.Lsp;
 using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
