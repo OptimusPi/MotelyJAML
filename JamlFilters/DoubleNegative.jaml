@@ -1,0 +1,7 @@
+name: Double Negative
+must:
+  - tag: NegativeTag
+    antes: [10]
+    min: 2
+seeds:
+  - 16661

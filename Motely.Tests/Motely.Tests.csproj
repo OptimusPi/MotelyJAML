@@ -12,7 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="../Motely/Motely.csproj" />
     <ProjectReference Include="../Motely.DataLake/Motely.DataLake.csproj" />
-    <ProjectReference Include="../Motely.Lsp.Core/Motely.Lsp.Core.csproj" />
     <ProjectReference Include="../Motely.Lsp/Motely.Lsp.csproj" />
   </ItemGroup>
 

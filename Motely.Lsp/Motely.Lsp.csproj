@@ -6,6 +6,15 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <AssemblyName>Motely.Lsp</AssemblyName>
 
+    <!-- NativeAOT, and only on an explicit -r publish: the Claude Code plugin ships this as a
+         real binary on PATH (no node, no Mono), while `dotnet build` and `dotnet pack` (the
+         PackAsTool path below) stay IL and unaffected. Declared here rather than passed as
+         -p:PublishAot=true, which propagates into Motely.Generators (netstandard2.0) and
+         fails with NETSDK1207. -->
+    <PublishAot Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'browser-wasm' and '$(DesignTimeBuild)' != 'true'">true</PublishAot>
+    <!-- IL2104 = a referenced assembly has trim warnings; TreatWarningsAsErrors is repo-wide. -->
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+
     <!-- Packed as a .NET tool so the Claude Code plugin can run it as
          `dotnet dnx -y MotelyJAML.Lsp` — no absolute paths, no bin/Debug,
          works on any machine that installs the plugin. -->
@@ -17,12 +26,12 @@
     <Authors>pifreak</Authors>
     <PackageTags>jaml;lsp;balatro;motely</PackageTags>
     <!-- Hand-rolled JSON-RPC 2.0 over stdio. Thin shell: every answer comes from
-         Motely.Lsp.Core to the Motely engine. Publish self-contained for the VS Code extension:
+         the folded-in JamlLanguageService to the Motely engine. Publish self-contained for the VS Code extension:
          dotnet publish Motely.Lsp -c Release -r osx-arm64 -p:SelfContained=true -p:PublishSingleFile=true -->
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Motely.Lsp.Core\Motely.Lsp.Core.csproj" />
+    <ProjectReference Include="..\Motely\Motely.csproj" />
   </ItemGroup>
 
 </Project>

@@ -96,3 +96,10 @@ scripts/token_ab/results/
 /ducklake.sqlite-journal
 /ducklake.sqlite-wal
 /ducklake.sqlite-shm
+
+# Claude Code plugin payload. `bin/` above ignores build output everywhere, and git will not
+# descend into an excluded directory — so the repo-root bin/ is re-included first, its contents
+# re-excluded, and only the shipped language-server binary allowed back through.
+!/bin/
+/bin/*
+!/bin/motely-lsp*

@@ -1,0 +1,18 @@
+{
+  "name": "jaml",
+  "displayName": "Jimbo's Ante Markup Language",
+  "description": "JAML filter authoring for Balatro seed search — diagnostics, completion, and hover computed from Motely's own clause registry.",
+  "version": "26.0.2",
+  "author": { "name": "pifreak" },
+  "repository": "https://github.com/OptimusPi/MotelyJAML",
+  "license": "MIT",
+  "keywords": ["jaml", "balatro", "motely", "lsp", "seed-search"],
+  "lspServers": {
+    "jaml": {
+      "command": "motely-lsp",
+      "args": ["--stdio"],
+      "transport": "stdio",
+      "extensionToLanguage": { ".jaml": "jaml" }
+    }
+  }
+}

@@ -16,18 +16,19 @@ if (args is ["--diagnose", var pathArg])
                 : File.ReadAllText(pathArg);
         var diags = JamlLanguageService.Diagnose(text);
         var payload = diags
-            .Select(d => new
-            {
-                message = d.Message,
-                code = d.Code,
-                severity = d.Severity.ToString(),
-                startLine = d.Span.StartLine,
-                startColumn = d.Span.StartColumn,
-                endLine = d.Span.EndLine,
-                endColumn = d.Span.EndColumn,
-            })
+            .Select(d => new DiagnosticDto(
+                d.Message,
+                d.Code,
+                d.Severity.ToString(),
+                d.Span.StartLine,
+                d.Span.StartColumn,
+                d.Span.EndLine,
+                d.Span.EndColumn
+            ))
             .ToArray();
-        Console.Out.WriteLine(JsonSerializer.Serialize(payload));
+        Console.Out.WriteLine(
+            JsonSerializer.Serialize(payload, LspJsonContext.Default.DiagnosticDtoArray)
+        );
         return diags.Count == 0 ? 0 : 1;
     }
     catch (Exception ex)
@@ -49,11 +50,16 @@ if (args.Length >= 1 && args[0] == "--explain")
     if (md is null)
     {
         Console.Out.WriteLine(
-            JsonSerializer.Serialize(new { ok = false, topic, markdown = (string?)null })
+            JsonSerializer.Serialize(
+                new ExplainDto(false, topic, null),
+                LspJsonContext.Default.ExplainDto
+            )
         );
         return 2;
     }
-    Console.Out.WriteLine(JsonSerializer.Serialize(new { ok = true, topic, markdown = md }));
+    Console.Out.WriteLine(
+        JsonSerializer.Serialize(new ExplainDto(true, topic, md), LspJsonContext.Default.ExplainDto)
+    );
     return 0;
 }
 

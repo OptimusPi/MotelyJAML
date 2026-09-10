@@ -1,7 +1,6 @@
 <Solution>
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
   <Project Path="Motely.Generators/Motely.Generators.csproj" />
-  <Project Path="Motely.Lsp.Core/Motely.Lsp.Core.csproj" />
   <Project Path="Motely.Lsp/Motely.Lsp.csproj" />
   <Project Path="Motely.MCP/Motely.MCP.csproj" />
   <Project Path="Motely.Tests/Motely.Tests.csproj" />

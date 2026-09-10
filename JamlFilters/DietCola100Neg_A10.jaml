@@ -1,0 +1,129 @@
+name: Diet Cola 100 Neg — A10 cashout
+deck: Ghost
+stake: White
+must:
+  - smallBlindTag: NegativeTag
+    antes: [10]
+  - spectralCard: Ankh
+    antes: [1]
+    sources:
+      shopItems: [0, 1, 2, 3]
+  - joker: DietCola
+    antes: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  - legendaryJoker: Perkeo
+    antes: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    min: 2
+    sources:
+      boosterPacks: [0, 1, 2, 3, 4, 5]
+
+should:
+  - joker: Blueprint
+    antes: [1, 2, 3]
+    score: 120
+    label: bp_early
+  - joker: Brainstorm
+    antes: [1, 2, 3]
+    score: 120
+    label: bs_early
+
+  - legendaryJoker: Perkeo
+    antes: [1]
+    score: 15
+    label: perkeo_a1
+    sources:
+      boosterPacks: [0, 1, 2, 3]
+  - spectralCard: Ankh
+    antes: [1]
+    sources:
+      shopItems: [0, 1]
+    score: 8
+    label: ankh_front
+  - joker: DietCola
+    antes: [1]
+    score: 6
+    label: cola_a1
+
+  - rareJoker: []
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 1
+    score: 8
+    label: rare10_1
+  - rareJoker: []
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 2
+    score: 12
+    label: rare10_2
+  - rareJoker: []
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 5
+    score: 25
+    label: rare10_5
+  - rareJoker: []
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 10
+    score: 40
+    label: rare10_10
+
+  - jokers: [Blueprint, Brainstorm, InvisibleJoker, OopsAll6s, SockAndBuskin,
+             HangingChad, Showman, LuckyCat, Baron, Mime]
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    score: 18
+    label: cool10
+  - joker: OopsAll6s
+    antes: [10]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    score: 22
+    label: oops10
+
+  - rareJoker: []
+    antes: [11, 12, 13, 14, 15, 16]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 2
+    score: 10
+    label: rare_post_2
+  - rareJoker: []
+    antes: [11, 12, 13, 14, 15, 16]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    min: 5
+    score: 20
+    label: rare_post_5
+
+  - jokers: [Blueprint, Brainstorm, InvisibleJoker, OopsAll6s, SockAndBuskin,
+             HangingChad, Showman, LuckyCat, Baron, Mime]
+    antes: [11, 12, 13, 14, 15, 16]
+    sources:
+      shopItems: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                  21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    score: 14
+    label: cool_post
+
+  - legendaryJoker: Perkeo
+    antes: [11, 12, 13, 14, 15, 16]
+    score: 20
+    label: perkeo_post
+    sources:
+      boosterPacks: [0, 1, 2, 3]
+
+seeds:
+  - GKG5K827

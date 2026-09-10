@@ -255,7 +255,7 @@ public sealed class LspServer(Stream input, Stream output, TextWriter log)
                     ["range"] = Range(item.ReplaceSpan),
                     ["newText"] = item.Label,
                 };
-                items.Add(obj);
+                items.Add((JsonNode)obj);
             }
         return items;
     }
@@ -264,7 +264,7 @@ public sealed class LspServer(Stream input, Stream output, TextWriter log)
     {
         var diagnostics = new JsonArray();
         foreach (var d in JamlLanguageService.Diagnose(_documents[uri]))
-            diagnostics.Add(new JsonObject
+            diagnostics.Add((JsonNode)new JsonObject
             {
                 ["range"] = Range(d.Span),
                 ["severity"] = (int)d.Severity,
