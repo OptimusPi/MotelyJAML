@@ -29,18 +29,40 @@ public sealed class JamlConfigWriterTests
             .ToArray();
 
         Assert.NotEmpty(files);
-        AssertCorpusRoundTrips(dir, files);
+        AssertCorpusRoundTrips(dir, files, RepoCorpusLoaderRejections);
     }
 
-    private static void AssertCorpusRoundTrips(string dir, string[] files)
+    // Corpus files the strict loader rejects as written. Each is a defect in the file itself
+    // (master's lenient reader silently read the value as its default), so the file is left
+    // alone and the exact positioned error is pinned here; fixing the file must remove its row.
+    private static readonly Dictionary<string, string> RepoCorpusLoaderRejections = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ColaOopsLite.jaml"] = "line 35, col 12: 'score': '1|' is not a whole number.",
+    };
+
+    private static void AssertCorpusRoundTrips(
+        string dir,
+        string[] files,
+        IReadOnlyDictionary<string, string>? expectedLoaderRejections = null)
     {
         var failures = new List<string>();
+        var pendingRejections = new Dictionary<string, string>(
+            expectedLoaderRejections ?? new Dictionary<string, string>(),
+            StringComparer.OrdinalIgnoreCase);
         foreach (var file in files)
         {
             var relative = Path.GetRelativePath(dir, file);
             if (!JamlConfigLoader.TryLoad(File.ReadAllText(file), out var original, out var loadError))
             {
-                failures.Add($"{relative}: load failed: {loadError}");
+                if (pendingRejections.Remove(relative, out var expected))
+                {
+                    if (loadError is null || !loadError.Contains(expected, StringComparison.Ordinal))
+                        failures.Add($"{relative}: expected the loader to reject it with \"{expected}\" but got: {loadError}");
+                }
+                else
+                {
+                    failures.Add($"{relative}: load failed: {loadError}");
+                }
                 continue;
             }
 
@@ -75,6 +97,9 @@ public sealed class JamlConfigWriterTests
             if (rewritten != written)
                 failures.Add($"{relative}: second write differs from first.\n--- first ---\n{written}\n--- second ---\n{rewritten}");
         }
+
+        foreach (var (file, expected) in pendingRejections)
+            failures.Add($"{file} now loads; remove its pinned loader rejection (\"{expected}\").");
 
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
