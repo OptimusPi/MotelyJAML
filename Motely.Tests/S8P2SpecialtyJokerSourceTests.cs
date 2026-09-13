@@ -98,7 +98,10 @@ public sealed class S8P2SpecialtyJokerSourceTests
     /// <summary>
     /// Pinned from the engine's own deterministic run. The spread (36–72) is the proof the
     /// specialty streams discriminate: every seed walks all nine stream families, and the
-    /// per-seed tally is the count of jokers those PRNG streams actually produce.
+    /// per-seed tally is the count of jokers those PRNG streams actually produce. A wildcard
+    /// <c>joker: []</c> also counts legendaries off the default pack slots, so each ante-1/2 Soul
+    /// adds nine; CUC and FMF each hold one Soul in ante 1's fourth rolled pack, which no run
+    /// offers (slot 0 there is the fixed Buffoon), so it does not count.
     /// </summary>
     [Fact]
     public void SpecialtySources_ScoreEverySurvivingSeed_PinnedTallies()
@@ -108,7 +111,7 @@ public sealed class S8P2SpecialtyJokerSourceTests
             ["111"] = 45, ["2A2"] = 45, ["3X3"] = 46, ["474"] = 45, ["4C4"] = 45,
             ["5X5"] = 36, ["616"] = 37, ["696"] = 36, ["6J6"] = 36, ["7H7"] = 38,
             ["88"] = 36, ["99"] = 37, ["AAAAAAAA"] = 37, ["ALEEB"] = 72, ["CC"] = 36,
-            ["CUC"] = 45, ["F"] = 37, ["FMF"] = 54, ["GHG"] = 45, ["H"] = 36,
+            ["CUC"] = 36, ["F"] = 37, ["FMF"] = 45, ["GHG"] = 45, ["H"] = 36,
             ["I"] = 36, ["MOTELY"] = 36, ["MOTELY77"] = 36, ["Q"] = 36, ["R"] = 36,
             ["UNITTEST"] = 36, ["VV"] = 37, ["Z"] = 36,
         };

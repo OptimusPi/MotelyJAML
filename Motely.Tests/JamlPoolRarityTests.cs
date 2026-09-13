@@ -311,18 +311,27 @@ public sealed class JamlPoolRarityTests
             + 0.07 * (1 - Math.Pow(0.997, 4))
         ) / PackWeightSum;
 
-    /// <summary>Ante 1 on the soul path is four weighted slots — slot 0 is rolled there, not a fixed Buffoon.</summary>
+    /// <summary>
+    /// Ante 1 on the soul path is three weighted slots: slot 0 is the same fixed Buffoon every
+    /// other family sees there, and a Buffoon never holds The Soul.
+    /// </summary>
     [Fact]
-    public void Legendary_AnteOne_IsFourWeightedSlots()
+    public void Legendary_AnteOne_IsThreeWeightedSlots_BehindTheFixedBuffoon()
     {
         var any = new LegendaryJokerClause { Antes = [1] };
-        Assert.Equal(1.0 - Math.Pow(1.0 - SoulPerSlot, 4), LegendaryJokerFilterDesc.EstimateRarity(any, RedWhite), Tol);
+        Assert.Equal(1.0 - Math.Pow(1.0 - SoulPerSlot, 3), LegendaryJokerFilterDesc.EstimateRarity(any, RedWhite), Tol);
 
         var perkeo = new LegendaryJokerClause { Jokers = [MotelyJoker.Perkeo], Antes = [1] };
-        Assert.Equal(1.0 - Math.Pow(1.0 - SoulPerSlot / 5.0, 4), LegendaryJokerFilterDesc.EstimateRarity(perkeo, RedWhite), Tol);
+        Assert.Equal(1.0 - Math.Pow(1.0 - SoulPerSlot / 5.0, 3), LegendaryJokerFilterDesc.EstimateRarity(perkeo, RedWhite), Tol);
 
         var soulOnly = new LegendaryJokerClause { Antes = [1], SoulCardOnly = true };
         Assert.Equal(LegendaryJokerFilterDesc.EstimateRarity(any, RedWhite), LegendaryJokerFilterDesc.EstimateRarity(soulOnly, RedWhite), Tol);
+
+        var slotZero = new LegendaryJokerClause { Antes = [1], Sources = new() { BoosterPacks = [0] } };
+        Assert.Equal(0.0, LegendaryJokerFilterDesc.EstimateRarity(slotZero, RedWhite));
+
+        var anteZeroSlotZero = new LegendaryJokerClause { Antes = [0], Sources = new() { BoosterPacks = [0] } };
+        Assert.Equal(SoulPerSlot, LegendaryJokerFilterDesc.EstimateRarity(anteZeroSlotZero, RedWhite), Tol);
     }
 
     [Fact]

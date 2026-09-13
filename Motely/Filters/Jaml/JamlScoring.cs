@@ -2400,10 +2400,13 @@ public static class JamlScoring
         MotelyRunState runState
     )
     {
+        // Ante 1 has two shops; a Hieroglyph/Petroglyph bought in ante 2's first shop sends the
+        // run back through both of them, so the extended ante 1 offers its normal packs twice over.
         int anteMaxPack =
-            ante == 1 && !runState.IsExtendedPackAnteActive(ante)
-                ? MotelyGlobals.EarlyAnteMaxPackSlot
-                : MotelyGlobals.LateAntesMaxPackSlot;
+            ante != 1 ? MotelyGlobals.LateAntesMaxPackSlot
+            : runState.IsExtendedPackAnteActive(ante)
+                ? 2 * (MotelyGlobals.EarlyAnteMaxPackSlot + 1) - 1
+                : MotelyGlobals.EarlyAnteMaxPackSlot;
         return requestedMaxPack < anteMaxPack ? requestedMaxPack : anteMaxPack;
     }
 

@@ -5,13 +5,12 @@ namespace Motely.Tests;
 
 /// <summary>
 /// Regression tests for the Hieroglyph / Petroglyph scenario: these vouchers reset progression
-/// one ante backward and re-open the shop, effectively unlocking pack slots 4 and 5 in ante 1
-/// (which normally caps at 4 packs / slots 0..3). The booster-pack PRNG stream actually has six
-/// packs of output at every ante — the per-ante gameplay limit is just the default reachability.
+/// one ante backward and re-open the shop, effectively unlocking pack slots 4..7 in ante 1
+/// (which normally caps at 4 packs / slots 0..3, slot 0 being the fixed first-shop Buffoon).
 ///
 /// Seed <c>KHTW99TC</c> is the canonical example: a Negative-edition Perkeo appears in the
-/// ante-1 Arcana at pack slot 5, only accessible after buying Hieroglyph in ante 2 to rewind
-/// to ante 1.
+/// ante-1 Arcana at pack slot 6 (the sixth rolled pack, behind the Buffoon), only accessible
+/// after buying Hieroglyph in ante 2 to rewind to ante 1.
 ///
 /// These tests pin the filter's ability to match that seed so future per-ante clamping work
 /// does not silently remove Hieroglyph-accessible matches.
@@ -42,12 +41,12 @@ public class HieroglyphPackSlotTests
     }
 
     /// <summary>
-    /// KHTW99TC: ante-1 pack slot 5 contains a Negative Perkeo (Hieroglyph-reachable only).
+    /// KHTW99TC: ante-1 pack slot 6 contains a Negative Perkeo (Hieroglyph-reachable only).
     /// Scoring extends ante-1 reachability only because the seed's actual voucher path rewinds
     /// back to ante 1.
     /// </summary>
     [Fact]
-    public void KHTW99TC_HasNegativePerkeo_InAnte1_Slot5_WhenRunStateRewindsAnte()
+    public void KHTW99TC_HasNegativePerkeo_InAnte1_Slot6_WhenRunStateRewindsAnte()
     {
         var jaml = """
             name: HieroglyphPerkeo
@@ -58,7 +57,7 @@ public class HieroglyphPackSlotTests
                 edition: Negative
                 antes: [1]
                 sources:
-                  boosterPacks: [5]
+                  boosterPacks: [6]
             """;
 
         var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
@@ -67,7 +66,7 @@ public class HieroglyphPackSlotTests
     }
 
     /// <summary>
-    /// Full slot range [0..5] on ante 1 with actual voucher rewind — must match.
+    /// Full extended slot range [0..7] on ante 1 with actual voucher rewind — must match.
     /// </summary>
     [Fact]
     public void KHTW99TC_HasNegativePerkeo_InAnte1_FullSlotRange_WithRunStateRewind()
@@ -81,7 +80,7 @@ public class HieroglyphPackSlotTests
                 edition: Negative
                 antes: [1]
                 sources:
-                  boosterPacks: [0, 1, 2, 3, 4, 5]
+                  boosterPacks: [0, 1, 2, 3, 4, 5, 6, 7]
             """;
 
         var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
@@ -91,7 +90,7 @@ public class HieroglyphPackSlotTests
 
     /// <summary>
     /// Clamping sanity: restricting to slots [0..3] on ante 1 must NOT match this seed, because
-    /// the Perkeo is specifically at slot 5 (only reachable with Hieroglyph). This pins the
+    /// the Perkeo is specifically at slot 6 (only reachable with Hieroglyph). This pins the
     /// behaviour that an explicit restricted list is honoured exactly.
     /// </summary>
     [Fact]
@@ -129,8 +128,8 @@ public class HieroglyphPackSlotTests
                 edition: Negative
                 antes: [1]
                 sources:
-                  boosterPacks: [5]
-                  earlyAntesMaxPack: 5
+                  boosterPacks: [6]
+                  earlyAntesMaxPack: 6
             """;
 
         Assert.False(JamlConfigLoader.TryLoad(jaml, out _, out var error));
