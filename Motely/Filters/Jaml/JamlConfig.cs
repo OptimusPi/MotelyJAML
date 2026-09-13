@@ -27,23 +27,15 @@ public sealed record JamlConfig
 
 /// <summary>
 /// A clause's <c>with:</c> block — its modifiers. The third axis alongside WHAT (the value) and
-/// WHERE (<c>sources</c>): HOW the roll behaves under owned run-state. Two kinds:
-/// <list type="bullet">
-///   <item><b>Probability</b> — <see cref="Luck"/>: same roll, better odds (Oops! All 6s).</item>
-///   <item><b>Availability</b> — <see cref="Vouchers"/>: things appear that otherwise can't.</item>
-/// </list>
+/// WHERE (<c>sources</c>): HOW the roll behaves under owned run-state. Today that is
+/// <see cref="Luck"/>: same roll, better odds (Oops! All 6s). Owned-voucher availability (Omen
+/// Globe) is spelled per source instead (<c>sources: {omenGlobe: true}</c>), so nothing here is
+/// parsed without being read.
 /// </summary>
 public sealed record JamlWith
 {
     /// <summary>Oops! All 6s multiplier — each Oops doubles the odds (X2, X4, X8…). X1 = base odds.</summary>
     public MotelyLuck Luck { get; set; } = MotelyLuck.X1;
-
-    /// <summary>
-    /// Vouchers assumed owned, changing availability/rates this clause can see (e.g. Omen Globe →
-    /// Spectrals in Arcana packs). Wiring each voucher into the affected source streams is
-    /// per-voucher work — not done by declaring it here.
-    /// </summary>
-    public MotelyVoucher[] Vouchers { get; set; } = [];
 }
 
 public static class JamlConfigExtensions

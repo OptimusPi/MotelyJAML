@@ -387,8 +387,6 @@ public static partial class JamlConfigLoader
         var mapping = new JMap();
         if (with.Luck != MotelyLuck.X1)
             mapping.Set("luck", new JScalar(with.Luck.ToString()), default);
-        if (with.Vouchers.Length > 0)
-            mapping.Set("vouchers", StringArrayNode(with.Vouchers.Select(v => v.ToString())), default);
         return mapping.Keys.Count == 0 ? null : mapping;
     }
 
@@ -422,7 +420,6 @@ public static partial class JamlConfigLoader
         WriteIntArrayIfAny(mapping, "boosterPacks", sources.BoosterPacks);
         WriteIntArrayIfAny(mapping, "arcanaPacks", sources.ArcanaPacks);
         WriteIntArrayIfAny(mapping, "spectralPacks", sources.SpectralPacks);
-        WriteIntArrayIfAny(mapping, "soulCard", sources.SoulCard);
         if (sources.RequireMegaPack)
             mapping.Set("requireMegaPack", JScalar.Of(true), default);
         return mapping;
@@ -483,11 +480,6 @@ public static partial class JamlConfigLoader
         WriteIntArrayIfAny(mapping, "boosterPacks", sources.BoosterPacks);
         if (sources.RequireMegaPack)
             mapping.Set("requireMegaPack", JScalar.Of(true), default);
-        WriteIntArrayIfAny(mapping, "certificate", sources.Certificate);
-        WriteIntArrayIfAny(mapping, "incantation", sources.Incantation);
-        WriteIntArrayIfAny(mapping, "familiar", sources.Familiar);
-        WriteIntArrayIfAny(mapping, "grim", sources.Grim);
-        WriteIntArrayIfAny(mapping, "deckDraw", sources.DeckDraw);
         return mapping;
     }
 

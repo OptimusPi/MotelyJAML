@@ -443,8 +443,8 @@ public static partial class JamlConfigLoader
         }
     }
 
-    // Luck/vouchers live under `with: { luck, vouchers }`. Bare `luck:`/`vouchers:` and
-    // `sources: {luck}` are unknown keys and die in ValidateClauseKeys before this runs.
+    // Luck lives under `with: { luck }`. Bare `luck:` and `sources: {luck}` are unknown keys and
+    // die in ValidateClauseKeys before this runs.
     private static JamlWith ParseWith(IReader data)
     {
         var with = data.GetObject("with");
@@ -457,10 +457,6 @@ public static partial class JamlConfigLoader
             result.Luck = ParseLuck(luckText, with.ValueSpan("luck"));
         else if (with.GetInt("luck") is { } luckInt)
             result.Luck = ParseLuck(luckInt, with.ValueSpan("luck"));
-        if (with.GetStringArray("vouchers") is { } vouchers)
-            result.Vouchers = vouchers
-                .Select(v => ParseEnum<MotelyVoucher>(v, with.ValueSpan("vouchers")))
-                .ToArray();
         return result;
     }
 
@@ -660,36 +656,65 @@ public static partial class JamlConfigLoader
 
         public string? GetString(string key) => Scalar(_map.Get(key));
 
-        public int? GetInt(string key) =>
-            int.TryParse(
-                GetString(key),
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var value
-            )
-                ? value
-                : null;
+        // Null means the key is absent (or written blank: `max:`), so callers may default it.
+        // A key that is there with a value of the wrong shape is a positioned error: every
+        // caller treats null as "not written", so returning it for `min: two` would be a default.
+        public int? GetInt(string key)
+        {
+            if (WrittenScalar(key) is not { } text)
+                return null;
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                return value;
+            throw new JamlSemanticException($"'{key}': '{text}' is not a whole number.", ValueSpan(key));
+        }
 
-        public bool? GetBool(string key) =>
-            bool.TryParse(GetString(key), out var value) ? value : null;
+        public bool? GetBool(string key)
+        {
+            if (WrittenScalar(key) is not { } text)
+                return null;
+            if (JamlLoaderValueReader.TryParseBool(text, out var value))
+                return value;
+            throw new JamlSemanticException($"'{key}': '{text}' is not a bool. Write true or false.", ValueSpan(key));
+        }
 
+        // The scalar text under `key`, or null when nothing was written there. A bare `key:` parses
+        // as an empty block and an inline value can be all whitespace; both are "blank", not wrong.
+        private string? WrittenScalar(string key)
+        {
+            switch (_map.Get(key))
+            {
+                case null:
+                case JMap { Keys.Count: 0 }:
+                    return null;
+                case JScalar scalar:
+                    return string.IsNullOrWhiteSpace(scalar.Value) ? null : scalar.Value;
+                default:
+                    throw new JamlSemanticException(
+                        $"'{key}' takes a single value, not a list or a block.",
+                        ValueSpan(key)
+                    );
+            }
+        }
+
+        // A block under the key reads as absent: a nested-block discriminator value
+        // (`joker:` followed by its own keys) is read through GetObject, and the disc value
+        // reader probes GetIntArray on the same key expecting "nothing here" for it.
         public int[]? GetIntArray(string key)
         {
             var value = _map.Get(key);
-            if (value is null)
+            if (value is null or JMap)
                 return null;
+            var span = ValueSpan(key);
             if (value is JSeq sequence)
                 return sequence.Items
-                    .SelectMany(item => ParseIntOrRange(Scalar(item) ?? "", key))
+                    .SelectMany(item => ParseIntOrRange(Scalar(item) ?? "", key, span))
                     .ToArray();
-            if (Scalar(value) is { } scalar)
-                return ParseIntOrRange(scalar, key).ToArray();
-            return null;
+            return ParseIntOrRange(((JScalar)value).Value, key, span).ToArray();
         }
 
         // A range token ("0-39", "1..8", "3–6", ascending or descending) expands inclusively through
         // JamlLine.TrySplitRange, the same grammar the one-liner syntax reads. Plain "N" is one value.
-        private static IEnumerable<int> ParseIntOrRange(string token, string key)
+        private static IEnumerable<int> ParseIntOrRange(string token, string key, JamlSpan span)
         {
             if (JamlLine.TrySplitRange(token, out int lo, out int hi))
             {
@@ -701,7 +726,10 @@ public static partial class JamlConfigLoader
             if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var single))
                 return [single];
 
-            throw new InvalidOperationException($"'{key}': '{token}' is not a valid integer or range (e.g. '0-39' or '1..8').");
+            throw new JamlSemanticException(
+                $"'{key}': '{token}' is not a valid integer or range (e.g. '0-39' or '1..8').",
+                span
+            );
         }
 
         public string[]? GetStringArray(string key)

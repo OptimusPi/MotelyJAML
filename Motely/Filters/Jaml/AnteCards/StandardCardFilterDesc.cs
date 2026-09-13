@@ -77,20 +77,11 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     /// 20% to carry one of the four seals — <c>GetNextStandardCard</c>. A shop card is bare: face
     /// only, no enhancement, edition or seal, and it appears with the Magic Trick weight, which no
     /// deck starts with — so on the engine's scoring path a shop slot never yields a playing card
-    /// at all. The Certificate, Incantation, Familiar, Grim and deck-draw sources are not modelled;
-    /// a clause naming any of them is reported as unmodelled rather than undercounted.
+    /// at all.
     /// </summary>
     public static double EstimateRarity(StandardCardClause clause, in JamlRarityContext ctx)
     {
         var sources = clause.Sources ?? DefaultSources;
-        if (
-            sources.Certificate.Length > 0
-            || sources.Incantation.Length > 0
-            || sources.Familiar.Length > 0
-            || sources.Grim.Length > 0
-            || sources.DeckDraw.Length > 0
-        )
-            return double.NaN;
 
         // Face: the share of the 52-card pool whose rank and suit the clause accepts, judged the
         // way MatchStandardCard judges a drawn card.
@@ -202,11 +193,6 @@ public sealed record StandardCardSourceConfig
     [
         "shopItems",
         "boosterPacks",
-        "certificate",
-        "incantation",
-        "familiar",
-        "grim",
-        "deckDraw",
         "requireMega",
         "requireMegaPack",
     ];
@@ -216,10 +202,4 @@ public sealed record StandardCardSourceConfig
 
     /// <summary>When true, only Mega-sized Standard packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
-
-    public int[] Certificate { get; set; } = [];
-    public int[] Incantation { get; set; } = [];
-    public int[] Familiar { get; set; } = [];
-    public int[] Grim { get; set; } = [];
-    public int[] DeckDraw { get; set; } = [];
 }

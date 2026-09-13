@@ -443,10 +443,6 @@ public static class JamlScoring
     private static int CountBossOccurrences(BossClause clause, MotelyRunState runState)
     {
         Debug.Assert(
-            runState.CachedBosses != null,
-            "Boss scoring requires PrepareRunState to populate CachedBosses (loader / run-state bug)."
-        );
-        Debug.Assert(
             clause.Bosses.Length > 0,
             "BossClause.Bosses must be non-empty after JAML load (validator / loader bug)."
         );
@@ -455,15 +451,24 @@ public static class JamlScoring
             "BossClause.Antes must be non-empty after JAML load (validator / loader bug)."
         );
 
+        // Not Debug.Assert: ApplyPrepareRunState allocates CachedBosses only when some clause
+        // named a boss ante >= 1, so a clause that slipped past the loader must fail with the
+        // cause in Release too, not with a null dereference.
+        var bosses =
+            runState.CachedBosses
+            ?? throw new InvalidOperationException(
+                "Boss scoring ran before PrepareRunState cached any boss: no boss ante >= 1 was in the plan."
+            );
+
         int count = 0;
         foreach (int ante in clause.Antes)
         {
-            Debug.Assert(
-                ante >= 1 && ante < runState.CachedBosses!.Length,
-                $"BossClause ante {ante} is out of range for CachedBosses (validator / loader bug)."
-            );
+            if (ante < 1 || ante >= bosses.Length)
+                throw new InvalidOperationException(
+                    $"Boss ante {ante} is outside the cached range 1..{bosses.Length - 1}; bosses start at ante 1."
+                );
             for (int i = 0; i < clause.Bosses.Length; i++)
-                if (clause.Bosses[i] == runState.CachedBosses[ante])
+                if (clause.Bosses[i] == bosses[ante])
                 {
                     count++;
                 }

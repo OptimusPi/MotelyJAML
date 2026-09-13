@@ -129,7 +129,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
                 BoosterPacks = src.BoosterPacks,
                 ArcanaPacks = src.ArcanaPacks,
                 SpectralPacks = src.SpectralPacks,
-                SoulCard = src.SoulCard,
                 RequireMegaPack = src.RequireMegaPack,
             },
         };
@@ -196,7 +195,7 @@ public sealed record LegendaryJokerSourceConfig
     /// property, and it's a deliberate alias, not drift.
     /// </summary>
     public static readonly string[] SourceKeys =
-        ["boosterPacks", "arcanaPacks", "spectralPacks", "soulCard", "requireMega", "requireMegaPack"];
+        ["boosterPacks", "arcanaPacks", "spectralPacks", "requireMega", "requireMegaPack"];
 
     // No ShopItems: shops never offer legendary/Soul jokers, so a shop slot would silently match
     // nothing. The loader rejects a `shopItems:` key on legendaryJoker sources outright.
@@ -214,8 +213,6 @@ public sealed record LegendaryJokerSourceConfig
 
     /// <summary>Only listed slots on the Spectral pack path.</summary>
     public int[] SpectralPacks { get; set; } = [];
-
-    public int[] SoulCard { get; set; } = [];
 
     /// <summary>If true, only Mega-sized booster packs (e.g. Charm Tag Mega arcana) match.</summary>
     public bool RequireMegaPack { get; set; }
