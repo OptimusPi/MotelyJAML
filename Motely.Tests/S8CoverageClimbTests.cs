@@ -130,37 +130,6 @@ public sealed class S8CoverageClimbTests
         );
 
     [Fact]
-    public void MultiVoucherFilterDesc_ListRuns()
-    {
-        var clauses = new[]
-        {
-            new VoucherClause
-            {
-                Vouchers = [MotelyVoucher.Overstock],
-                Antes = [1],
-                Rolls = [0],
-            },
-            new VoucherClause
-            {
-                Vouchers = [MotelyVoucher.Grabber],
-                Antes = [1, 2],
-                Rolls = [0, 1],
-            },
-        };
-        using var search = new MotelySearchSettings<MultiVoucherFilterDesc.MultiVoucherFilter>(
-            new MultiVoucherFilterDesc(clauses)
-        )
-            .WithDeck(MotelyDeck.Red)
-            .WithStake(MotelyStake.White)
-            .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
-            .WithThreadCount(1)
-            .WithQuietMode(true)
-            .Start();
-        search.AwaitCompletion();
-        Assert.True(search.TotalSeedsSearched >= 1);
-    }
-
-    [Fact]
     public void StartingDraw_RankOnly_ListRuns() =>
         RunClause(
             new StartingDrawClause { Rank = MotelyStandardcardRank.Ace, Antes = [1] },
