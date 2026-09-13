@@ -3,21 +3,23 @@ using System.Text;
 namespace Motely.Filters.Jaml;
 
 // Write-side mirror of JamlClausePopulator: JamlConfig → JAML text via typed switches.
-// FromJaml(ToJaml(config)) preserves clause data. Text shape may differ (e.g. smallBlindTag
-// rewrites as tag + rolls; erraticRanks as or) — still valid, parseable, same meaning.
+// FromJaml(ToJaml(config)) preserves clause data. Text shape may differ (e.g. `tags:` rewrites
+// as `tag:`; erraticRanks as or) — still valid, parseable, same meaning. Defaults the loader
+// fills in (rolls per wire, antes hoisted from an enclosing and/or) are elided again on the way
+// out, so a second write reproduces the first instead of growing.
 // No GetProperty / PropertyInfo — every clause family is a concrete write arm.
 public static partial class JamlConfigLoader
 {
     public static string ToJaml(JamlConfig config)
     {
         var root = new JMap();
-        root.Set("id", new JScalar(config.Id), default);
+        root.Set("id", TextScalar(config.Id), default);
         if (config.Name != null)
-            root.Set("name", new JScalar(config.Name), default);
+            root.Set("name", TextScalar(config.Name), default);
         if (config.Description != null)
-            root.Set("description", new JScalar(config.Description), default);
+            root.Set("description", TextScalar(config.Description), default);
         if (config.Author != null)
-            root.Set("author", new JScalar(config.Author), default);
+            root.Set("author", TextScalar(config.Author), default);
         if (config.Deck != MotelyDeck.Red)
             root.Set("deck", new JScalar(config.Deck.ToString()), default);
         if (config.Stake != MotelyStake.White)
@@ -25,13 +27,13 @@ public static partial class JamlConfigLoader
         if (config.Seeds.Count > 0)
             root.Set("seeds", StringArrayNode(config.Seeds), default);
         if (config.Filter is { Length: > 0 })
-            root.Set("filter", new JScalar(config.Filter), default);
+            root.Set("filter", TextScalar(config.Filter), default);
         if (config.Must.Count > 0)
-            root.Set("must", ClauseListNode(config.Must), default);
+            root.Set("must", ClauseListNode(config.Must, scope: []), default);
         if (config.Should.Count > 0)
-            root.Set("should", ClauseListNode(config.Should), default);
+            root.Set("should", ClauseListNode(config.Should, scope: []), default);
         if (config.MustNot.Count > 0)
-            root.Set("mustNot", ClauseListNode(config.MustNot), default);
+            root.Set("mustNot", ClauseListNode(config.MustNot, scope: []), default);
 
         var sb = new StringBuilder();
         WriteMap(sb, root, 0);
@@ -53,7 +55,8 @@ public static partial class JamlConfigLoader
         switch (value)
         {
             case JScalar scalar:
-                sb.Append(pad).Append(key).Append(": ").Append(ScalarText(scalar)).Append('\n');
+                sb.Append(pad);
+                WriteScalarEntry(sb, key, scalar, indent);
                 break;
             case JMap { Keys.Count: 0 }:
                 sb.Append(pad).Append(key).Append(": {}\n");
@@ -106,7 +109,7 @@ public static partial class JamlConfigLoader
         switch (value)
         {
             case JScalar scalar:
-                sb.Append(key).Append(": ").Append(ScalarText(scalar)).Append('\n');
+                WriteScalarEntry(sb, key, scalar, indent);
                 break;
             case JMap { Keys.Count: 0 }:
                 sb.Append(key).Append(": {}\n");
@@ -127,57 +130,38 @@ public static partial class JamlConfigLoader
         }
     }
 
-    private static JSeq ClauseListNode(IEnumerable<IJamlClause> clauses)
+    // `scope` is the ante window an enclosing and/or would hoist into this list on reload
+    // (JamlConfigLoader.HoistAntes); empty at the root.
+    private static JSeq ClauseListNode(IEnumerable<IJamlClause> clauses, int[] scope)
     {
         var seq = new JSeq();
         foreach (var clause in clauses)
-            seq.Items.Add(WriteClause(clause));
+            seq.Items.Add(WriteClause(clause, scope));
         return seq;
     }
 
-    private static JMap WriteClause(IJamlClause clause) =>
+    private static JMap WriteClause(IJamlClause clause, int[] scope) =>
         clause switch
         {
-            AndClause logic => WriteLogic("and", logic),
-            OrClause logic => WriteLogic("or", logic),
-            JokerClause c => WriteJokerFamily("joker", c.Jokers, c.Edition, c.Stickers, c.Sources, c),
-            CommonJokerClause c => WriteJokerFamily("commonJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c),
-            UncommonJokerClause c => WriteJokerFamily("uncommonJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c),
-            RareJokerClause c => WriteJokerFamily("rareJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c),
-            LegendaryJokerClause c => WriteLegendary(c),
-            VoucherClause c => WriteItems("voucher", c.Vouchers, c, rolls: c.Rolls, rollsDefault: [0]),
-            TarotCardClause c => WriteConsumable(
-                "tarotCard",
-                c.Tarots,
-                c.Sources,
-                c
-            ),
-            SpectralCardClause c => WriteConsumable(
-                "spectralCard",
-                c.Spectrals,
-                c.Sources,
-                c
-            ),
-            PlanetCardClause c => WriteConsumable(
-                "planetCard",
-                c.Planets,
-                c.Sources,
-                c
-            ),
-            StandardCardClause c => WriteStandardCard(c),
-            BossClause c => WriteItems("boss", c.Bosses, c),
-            TagClause c => WriteItems("tag", c.Tags, c, rolls: c.Rolls, rollsDefault: [0, 1]),
-            BoosterPackClause c => WriteItems(
-                "boosterPack",
-                c.Packs,
-                c,
-                rolls: c.Rolls,
-                rollsDefault: [0, 1]
-            ),
-            ErraticRankClause c => WriteErraticRank(c),
-            ErraticSuitClause c => WriteErraticSuit(c),
-            StartingDrawClause c => WriteStartingDraw(c),
-            PokerHandClause c => WriteItems("pokerHand", c.PokerHands, c),
+            AndClause logic => WriteLogic("and", logic, scope),
+            OrClause logic => WriteLogic("or", logic, scope),
+            JokerClause c => WriteJokerFamily("joker", c.Jokers, c.Edition, c.Stickers, c.Sources, c, scope),
+            CommonJokerClause c => WriteJokerFamily("commonJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c, scope),
+            UncommonJokerClause c => WriteJokerFamily("uncommonJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c, scope),
+            RareJokerClause c => WriteJokerFamily("rareJoker", c.Jokers, c.Edition, c.Stickers, c.Sources, c, scope),
+            LegendaryJokerClause c => WriteLegendary(c, scope),
+            VoucherClause c => WriteItems("voucher", c.Vouchers, c, scope, rolls: c.Rolls),
+            TarotCardClause c => WriteConsumable("tarotCard", c.Tarots, WriteTarotSources(c.Sources), c, scope),
+            SpectralCardClause c => WriteConsumable("spectralCard", c.Spectrals, WriteSpectralSources(c.Sources), c, scope),
+            PlanetCardClause c => WriteConsumable("planetCard", c.Planets, WritePlanetSources(c.Sources), c, scope),
+            StandardCardClause c => WriteStandardCard(c, scope),
+            BossClause c => WriteItems("boss", c.Bosses, c, scope),
+            TagClause c => WriteItems(TagWire(c.Rolls), c.Tags, c, scope, rolls: c.Rolls),
+            BoosterPackClause c => WriteItems("boosterPack", c.Packs, c, scope, rolls: c.Rolls),
+            ErraticRankClause c => WriteErraticRank(c, scope),
+            ErraticSuitClause c => WriteErraticSuit(c, scope),
+            StartingDrawClause c => WriteStartingDraw(c, scope),
+            PokerHandClause c => WriteItems("pokerHand", c.PokerHands, c, scope, rolls: c.Rolls),
             LuckyMoneyClause c => WriteInlineRollEvent("luckyMoney", c, c.With),
             LuckyMultClause c => WriteInlineRollEvent("luckyMult", c, c.With),
             MisprintMultClause c => WriteMisprint(c),
@@ -195,15 +179,29 @@ public static partial class JamlConfigLoader
             ),
         };
 
-    private static JMap WriteLogic(string discriminator, LogicClause logic)
+    // TagClause has no wire-name field; the blind-specific spellings are exactly the rolls their
+    // attributes default to, so the rolls pick the wire back (same rule as JamlLine.FromTag).
+    private static string TagWire(int[] rolls)
+    {
+        foreach (var wire in TagFilterDesc.Discriminators)
+        {
+            if (JamlSchema.RollsDefaultFor(wire) is { } wireDefault && wireDefault.SequenceEqual(rolls))
+                return wire;
+        }
+        return TagFilterDesc.Discriminators[0];
+    }
+
+    private static JMap WriteLogic(string discriminator, LogicClause logic, int[] scope)
     {
         var mapping = new JMap();
-        mapping.Set(discriminator, ClauseListNode(logic.Clauses), default);
+        // HoistAntes fills an empty logic window from the parent, then hoists the logic's own
+        // window into its arms — so the arms see this window whether or not it is written.
+        int[] childScope = logic.Antes.Length > 0 ? logic.Antes : scope;
+        mapping.Set(discriminator, ClauseListNode(logic.Clauses, childScope), default);
         WriteCommonKeys(mapping, logic);
         if (logic.Mode != JamlLogicScoreMode.Sum)
             mapping.Set("mode", new JScalar(logic.Mode.ToString().ToLowerInvariant()), default);
-        if (logic.Antes.Length > 0)
-            mapping.Set("antes", IntArrayNode(logic.Antes), default);
+        WriteAntes(mapping, logic.Antes, scope);
         return mapping;
     }
 
@@ -213,15 +211,16 @@ public static partial class JamlConfigLoader
         MotelyItemEdition? edition,
         MotelyJokerSticker[] stickers,
         JokerSourceConfig? sources,
-        IJamlClause clause
+        IJamlClause clause,
+        int[] scope
     )
         where TEnum : struct, Enum
     {
         var mapping = new JMap();
-        // Empty jokers = category any → `joker:` (empty scalar), not `joker: []`.
+        // Empty jokers = category any → `joker: ""` (empty scalar), not `joker: []`.
         mapping.Set(discriminator, DiscValueNode(jokers), default);
         WriteCommonKeys(mapping, clause);
-        WriteAntes(mapping, clause);
+        WriteAntes(mapping, clause, scope);
         if (edition is { } ed)
             mapping.Set("edition", new JScalar(ed.ToString()), default);
         if (stickers.Length > 0)
@@ -231,12 +230,12 @@ public static partial class JamlConfigLoader
         return mapping;
     }
 
-    private static JMap WriteLegendary(LegendaryJokerClause c)
+    private static JMap WriteLegendary(LegendaryJokerClause c, int[] scope)
     {
         var mapping = new JMap();
         mapping.Set("legendaryJoker", DiscValueNode(c.Jokers), default);
         WriteCommonKeys(mapping, c);
-        WriteAntes(mapping, c);
+        WriteAntes(mapping, c, scope);
         if (c.Edition is { } ed)
             mapping.Set("edition", new JScalar(ed.ToString()), default);
         if (c.SoulCardOnly)
@@ -252,16 +251,18 @@ public static partial class JamlConfigLoader
         string discriminator,
         TEnum[] items,
         IJamlClause clause,
-        int[]? rolls = null,
-        int[]? rollsDefault = null
+        int[] scope,
+        int[]? rolls = null
     )
         where TEnum : struct, Enum
     {
         var mapping = new JMap();
         mapping.Set(discriminator, DiscValueNode(items), default);
         WriteCommonKeys(mapping, clause);
-        WriteAntes(mapping, clause);
-        if (rolls is { } r && (rollsDefault is null || !r.SequenceEqual(rollsDefault)))
+        WriteAntes(mapping, clause, scope);
+        // Populate reads a missing rolls: key back as the wire's RollsDefault, so only a
+        // departure from it needs to be on the page.
+        if (rolls is { } r && !r.SequenceEqual(JamlSchema.RollsDefaultFor(discriminator) ?? []))
             mapping.Set("rolls", IntArrayNode(r), default);
         return mapping;
     }
@@ -269,33 +270,27 @@ public static partial class JamlConfigLoader
     private static JMap WriteConsumable<TEnum>(
         string discriminator,
         TEnum[] items,
-        object? sources,
-        IJamlClause clause
+        JMap? sources,
+        IJamlClause clause,
+        int[] scope
     )
         where TEnum : struct, Enum
     {
         var mapping = new JMap();
         mapping.Set(discriminator, DiscValueNode(items), default);
         WriteCommonKeys(mapping, clause);
-        WriteAntes(mapping, clause);
-        var sourcesNode = sources switch
-        {
-            TarotCardSourceConfig t => WriteTarotSources(t),
-            SpectralCardSourceConfig s => WriteSpectralSources(s),
-            PlanetSourceConfig p => WritePlanetSources(p),
-            _ => null,
-        };
-        if (sourcesNode is not null)
-            mapping.Set("sources", sourcesNode, default);
+        WriteAntes(mapping, clause, scope);
+        if (sources is not null)
+            mapping.Set("sources", sources, default);
         return mapping;
     }
 
-    private static JMap WriteStandardCard(StandardCardClause c)
+    private static JMap WriteStandardCard(StandardCardClause c, int[] scope)
     {
         var mapping = new JMap();
         mapping.Set("standardCard", new JMap(), default);
         WriteCommonKeys(mapping, c);
-        WriteAntes(mapping, c);
+        WriteAntes(mapping, c, scope);
         if (c.Rank is { } rank)
             mapping.Set("rank", new JScalar(rank.ToString()), default);
         if (c.Suit is { } suit)
@@ -311,30 +306,30 @@ public static partial class JamlConfigLoader
         return mapping;
     }
 
-    private static JMap WriteErraticRank(ErraticRankClause c)
+    private static JMap WriteErraticRank(ErraticRankClause c, int[] scope)
     {
         var mapping = new JMap();
         mapping.Set("erraticRank", new JScalar(c.Rank.ToString()), default);
         WriteCommonKeys(mapping, c);
-        WriteAntes(mapping, c);
+        WriteAntes(mapping, c, scope);
         return mapping;
     }
 
-    private static JMap WriteErraticSuit(ErraticSuitClause c)
+    private static JMap WriteErraticSuit(ErraticSuitClause c, int[] scope)
     {
         var mapping = new JMap();
         mapping.Set("erraticSuit", new JScalar(c.Suit.ToString()), default);
         WriteCommonKeys(mapping, c);
-        WriteAntes(mapping, c);
+        WriteAntes(mapping, c, scope);
         return mapping;
     }
 
-    private static JMap WriteStartingDraw(StartingDrawClause c)
+    private static JMap WriteStartingDraw(StartingDrawClause c, int[] scope)
     {
         var mapping = new JMap();
         mapping.Set("startingDraw", new JMap(), default);
         WriteCommonKeys(mapping, c);
-        WriteAntes(mapping, c);
+        WriteAntes(mapping, c, scope);
         if (c.Rank is { } rank)
             mapping.Set("rank", new JScalar(rank.ToString()), default);
         if (c.Suit is { } suit)
@@ -367,7 +362,7 @@ public static partial class JamlConfigLoader
     private static void WriteCommonKeys(JMap mapping, IJamlClause clause)
     {
         if (clause.Label != null)
-            mapping.Set("label", new JScalar(clause.Label), default);
+            mapping.Set("label", TextScalar(clause.Label), default);
         if (clause.Min != 1)
             mapping.Set("min", JScalar.Of(clause.Min), default);
         if (clause.Max.HasValue)
@@ -376,10 +371,18 @@ public static partial class JamlConfigLoader
             mapping.Set("score", JScalar.Of(clause.Score), default);
     }
 
-    private static void WriteAntes(JMap mapping, IJamlClause clause)
+    private static void WriteAntes(JMap mapping, IJamlClause clause, int[] scope)
     {
-        if (clause is IAnteScopedClause { Antes.Length: > 0 } anteScoped)
-            mapping.Set("antes", IntArrayNode(anteScoped.Antes), default);
+        if (clause is IAnteScopedClause anteScoped)
+            WriteAntes(mapping, anteScoped.Antes, scope);
+    }
+
+    // A window equal to the enclosing scope is what HoistAntes would fill in anyway; writing it
+    // back would make every trip through the writer restate the parent's antes on each arm.
+    private static void WriteAntes(JMap mapping, int[] antes, int[] scope)
+    {
+        if (antes.Length > 0 && !antes.SequenceEqual(scope))
+            mapping.Set("antes", IntArrayNode(antes), default);
     }
 
     private static JMap? WriteWith(JamlWith with)
@@ -491,7 +494,7 @@ public static partial class JamlConfigLoader
 
     private static JNode DiscValueNode<TEnum>(TEnum[] values)
         where TEnum : struct, Enum =>
-        values.Length == 0 ? new JScalar("") : EnumArrayNode(values);
+        values.Length == 0 ? new JScalar("", JScalarKind.Quoted) : EnumArrayNode(values);
 
     private static JSeq EnumArrayNode<TEnum>(IEnumerable<TEnum> values)
         where TEnum : struct, Enum
@@ -518,18 +521,66 @@ public static partial class JamlConfigLoader
         return seq;
     }
 
-    private static string ScalarText(JScalar scalar) =>
-        scalar.Kind == JScalarKind.Integer ? scalar.Value : ScalarText(scalar.Value);
+    // Author-written text (id, name, description, author, filter, label). Enum names, ints and
+    // bools go through the other node builders as Bare/Integer and are never quoted; the quoting
+    // decision for free text is made once, here, and carried on the node as its kind.
+    private static JScalar TextScalar(string value) =>
+        new(value, NeedsQuotes(value) ? JScalarKind.Quoted : JScalarKind.Bare);
 
-    private static string ScalarText(string value)
+    // What the parser would misread inline: an empty value opens a nested block, a leading '['
+    // opens a flow array, "{}" is an explicit empty map, '|' / '>' open a block scalar, an outer
+    // quote pair is stripped, and Trim() eats padding. ": " and leading indicator characters are
+    // quoted for the YAML reader the block form stays compatible with.
+    private static bool NeedsQuotes(string value) =>
+        value.Length == 0
+        || value.Trim() != value
+        || value == "{}"
+        || value.Contains(": ")
+        || value.EndsWith(':')
+        || "[]{}|>-?!&*%@`'\"".Contains(value[0])
+        || (value.Length >= 2 && (value[0] == '"' && value[^1] == '"' || value[0] == '\'' && value[^1] == '\''));
+
+    private static void WriteScalarEntry(StringBuilder sb, string key, JScalar scalar, int indent)
     {
-        bool needsQuote =
-            value.Length == 0
-            || value.Contains(':')
-            || value.Contains('#')
-            || value.StartsWith('-')
-            || value.StartsWith('[')
-            || value.Trim() != value;
-        return needsQuote ? "\"" + value.Replace("\"", "\\\"") + "\"" : value;
+        if (NeedsBlockScalar(scalar))
+        {
+            // Literal block: the only inline-proof spelling. Every line is taken raw by
+            // ParseBlockScalar, so neither a newline nor a '#' the line-level comment stripper
+            // would otherwise cut at (even inside quotes) can reach the value.
+            string pad = new(' ', indent + 2);
+            sb.Append(key).Append(": |\n");
+            foreach (var line in scalar.Value.Split('\n'))
+            {
+                if (line.Length > 0)
+                    sb.Append(pad).Append(line);
+                sb.Append('\n');
+            }
+            return;
+        }
+        sb.Append(key).Append(": ").Append(ScalarText(scalar)).Append('\n');
     }
+
+    private static bool NeedsBlockScalar(JScalar scalar) =>
+        scalar.Kind != JScalarKind.Integer
+        && (scalar.Value.Contains('\n') || HasCommentStart(scalar.Value));
+
+    // Mirror of JamlDocumentParser.StripComment: a '#' at the start or after whitespace ends the
+    // line before any quote handling runs.
+    private static bool HasCommentStart(string value)
+    {
+        for (int j = 0; j < value.Length; j++)
+        {
+            if (value[j] == '#' && (j == 0 || char.IsWhiteSpace(value[j - 1])))
+                return true;
+        }
+        return false;
+    }
+
+    private static string ScalarText(JScalar scalar) =>
+        scalar.Kind == JScalarKind.Quoted ? Quote(scalar.Value) : scalar.Value;
+
+    // The parser strips one matching outer pair and honors no escapes, so a value holding '"' is
+    // wrapped in single quotes instead of escaped — the inner characters are never inspected.
+    private static string Quote(string value) =>
+        value.Contains('"') ? "'" + value + "'" : "\"" + value + "\"";
 }
