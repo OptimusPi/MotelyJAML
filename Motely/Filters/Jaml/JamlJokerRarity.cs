@@ -191,10 +191,10 @@ internal static class JamlJokerRarity
     /// <summary>
     /// The count of legendary matches across the clause's antes, as a pmf. Mirrors
     /// <see cref="LegendarySoulMatcher.CountAnte"/>: every reachable pack slot is a weighted roll
-    /// (that path opens the stream with the first pack already generated, so ante 1 slot 0 is a
-    /// roll, not the certain Buffoon); a targeted arcana or spectral pack holds The Soul with
-    /// 0.003 per card; The Soul then names one of the five legendaries uniformly, with an
-    /// edition off the soul stream. Each slot yields at most one match.
+    /// except the certain Buffoon at ante 1 slot 0, which can never hold The Soul; a targeted
+    /// arcana or spectral pack holds The Soul with 0.003 per card; The Soul then names one of the
+    /// five legendaries uniformly, with an edition off the soul stream. Each slot yields at most
+    /// one match.
     /// </summary>
     public static double[] LegendaryDistribution(LegendaryJokerClause clause, in JamlRarityContext ctx)
     {
@@ -229,7 +229,7 @@ internal static class JamlJokerRarity
         {
             for (int slot = 0; slot <= MotelyGlobals.LateAntesMaxPackSlot; slot++)
             {
-                if (!JamlPoolRarity.SlotIsReachable(ante, slot))
+                if (!JamlPoolRarity.SlotIsReachable(ante, slot) || JamlPoolRarity.SlotIsFixedBuffoon(ante, slot))
                     continue;
 
                 bool arcana = JamlPoolRarity.Contains(split ? src.ArcanaPacks : src.BoosterPacks, slot);

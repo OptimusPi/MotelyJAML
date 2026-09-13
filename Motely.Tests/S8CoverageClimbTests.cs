@@ -130,37 +130,6 @@ public sealed class S8CoverageClimbTests
         );
 
     [Fact]
-    public void MultiVoucherFilterDesc_ListRuns()
-    {
-        var clauses = new[]
-        {
-            new VoucherClause
-            {
-                Vouchers = [MotelyVoucher.Overstock],
-                Antes = [1],
-                Rolls = [0],
-            },
-            new VoucherClause
-            {
-                Vouchers = [MotelyVoucher.Grabber],
-                Antes = [1, 2],
-                Rolls = [0, 1],
-            },
-        };
-        using var search = new MotelySearchSettings<MultiVoucherFilterDesc.MultiVoucherFilter>(
-            new MultiVoucherFilterDesc(clauses)
-        )
-            .WithDeck(MotelyDeck.Red)
-            .WithStake(MotelyStake.White)
-            .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
-            .WithThreadCount(1)
-            .WithQuietMode(true)
-            .Start();
-        search.AwaitCompletion();
-        Assert.True(search.TotalSeedsSearched >= 1);
-    }
-
-    [Fact]
     public void StartingDraw_RankOnly_ListRuns() =>
         RunClause(
             new StartingDrawClause { Rank = MotelyStandardcardRank.Ace, Antes = [1] },
@@ -792,7 +761,9 @@ public sealed class S8CoverageClimbTests
     /// Legendary soul routes over a 20-seed list (3 vector batches — the P2 multi-batch
     /// regression). Split-mode arcana/spectral slots, soulCardOnly counting, the
     /// requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
-    /// the same pack-order law.
+    /// the same pack-order law — and the same slot numbering as <c>spectralCard: TheSoul</c>,
+    /// so the two counts agree. CUC's only Soul is ante 1's fourth rolled pack, which no run
+    /// offers: ante 1 slot 0 is the fixed Buffoon, so slots 0–3 hold three rolls, not four.
     /// </summary>
     [Fact]
     public void LegendarySoul_KnownSeedCounts_MultiBatch()
@@ -856,10 +827,10 @@ public sealed class S8CoverageClimbTests
                   - legendaryJoker: Perkeo
                     antes: [0]
                 """);
-        Assert.Equal(9, split);
-        Assert.Equal(9, soulOnly);
+        Assert.Equal(8, split);
+        Assert.Equal(8, soulOnly);
         Assert.Equal(0, mega);
-        Assert.Equal(9, legacy);
+        Assert.Equal(8, legacy);
         Assert.Equal(0, perkeo);
         Assert.Equal(8, theSoulClause);
         Assert.Equal(0, ante0);

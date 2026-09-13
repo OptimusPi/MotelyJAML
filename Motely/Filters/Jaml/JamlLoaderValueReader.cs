@@ -59,16 +59,22 @@ internal sealed class JamlLoaderValueReader : IJamlValueReader
         return false;
     }
 
-    public bool TryBool(out bool value)
+    public bool TryBool(out bool value) => TryParseBool(_text, out value);
+
+    /// <summary>
+    /// The one bool spelling JAML accepts, shared with the block loader's <c>GetBool</c> so a
+    /// flag reads the same whether it sits on a clause key or inside a <c>sources:</c> block.
+    /// </summary>
+    internal static bool TryParseBool(string text, out bool value)
     {
-        if (bool.TryParse(_text, out value))
+        if (bool.TryParse(text, out value))
             return true;
-        if (string.Equals(_text, "yes", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(text, "yes", StringComparison.OrdinalIgnoreCase))
         {
             value = true;
             return true;
         }
-        if (string.Equals(_text, "no", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(text, "no", StringComparison.OrdinalIgnoreCase))
         {
             value = false;
             return true;

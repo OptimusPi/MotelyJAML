@@ -49,9 +49,9 @@ public sealed class JamlRarityValidationTests
         yield return new("tarotCard: TheFool", new TarotCardClause { Tarots = [MotelyTarotCard.TheFool], Antes = [1] });
         yield return new("tarotCard: any", new TarotCardClause { Antes = [1] });
         yield return new("planetCard: Mercury", new PlanetCardClause { Planets = [MotelyPlanetCard.Mercury], Antes = [1] });
-        yield return new("spectralCard: Familiar (Red shop)", new SpectralCardClause { Spectrals = [MotelySpectralCard.Familiar], Antes = [1] });
+        yield return new("spectralCard: Familiar (Red, default sources)", new SpectralCardClause { Spectrals = [MotelySpectralCard.Familiar], Antes = [1] });
         yield return new("spectralCard: TheSoul", new SpectralCardClause { Spectrals = [MotelySpectralCard.TheSoul], Antes = [1] });
-        yield return new("standardCard: Two (shop only)", new StandardCardClause { Rank = MotelyStandardcardRank.Two, Antes = [1] });
+        yield return new("standardCard: Two (default sources)", new StandardCardClause { Rank = MotelyStandardcardRank.Two, Antes = [1] });
         yield return new(
             "standardCard: Two in packs 1-3",
             new StandardCardClause { Rank = MotelyStandardcardRank.Two, Antes = [1], Sources = new() { BoosterPacks = [1, 2, 3] } }

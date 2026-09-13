@@ -89,6 +89,10 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
         var shopIndices = sources.ShopItems;
         var boosterIndices = sources.BoosterPacks;
 
+        // Only shop slots and buffoon packs are walked in SIMD here; everything else the
+        // clause can name is counted per seed by the scalar law.
+        bool confirmPerSeed = sources.HasSpawnSources || sources.HasRawShopJokerSources;
+
         int maxShopItem = 0;
         foreach (var idx in shopIndices)
             if (idx > maxShopItem)
@@ -106,7 +110,8 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             [.. boosterIndices],
             maxShopItem,
             maxBoosterPack,
-            sources.RequireMegaPack
+            sources.RequireMegaPack,
+            confirmPerSeed
         );
     }
 
@@ -117,7 +122,8 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
         int[] boosterIndices,
         int maxShopItem,
         int maxBoosterPack,
-        bool requireMegaPack
+        bool requireMegaPack,
+        bool confirmPerSeed
     ) : IMotelySeedFilter
     {
         private readonly CommonJokerClause _clause = clause;
@@ -127,6 +133,7 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
         private readonly int _maxShopItem = maxShopItem;
         private readonly int _maxBoosterPack = maxBoosterPack;
         private readonly bool _requireMegaPack = requireMegaPack;
+        private readonly bool _confirmPerSeed = confirmPerSeed;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
@@ -134,6 +141,16 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             // empty Jokers = category any
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "CommonJokerClause.Min must be > 0 — loader bug.");
+
+            if (_confirmPerSeed)
+            {
+                var clause = _clause;
+                return ctx.SearchIndividualSeeds(
+                    (MotelySingleSearchContext singleCtx) =>
+                        JamlScoring.ClauseMeetsMinForFilter(ref singleCtx, clause) ? 1 : 0
+                );
+            }
+
             Vector256<int> matchCounts = Vector256<int>.Zero;
 
             var shopIndices = _shopIndices;
@@ -298,25 +315,21 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            if (_clause.Stickers.Length > 0)
+            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
+            for (int s = 0; s < _clause.Stickers.Length; s++)
             {
-                VectorMask stickerMatch = VectorMask.NoBitsSet;
-                for (int s = 0; s < _clause.Stickers.Length; s++)
+                switch (_clause.Stickers[s])
                 {
-                    switch (_clause.Stickers[s])
-                    {
-                        case MotelyJokerSticker.Eternal:
-                            stickerMatch |= item.IsEternal;
-                            break;
-                        case MotelyJokerSticker.Perishable:
-                            stickerMatch |= item.IsPerishable;
-                            break;
-                        case MotelyJokerSticker.Rental:
-                            stickerMatch |= item.IsRental;
-                            break;
-                    }
+                    case MotelyJokerSticker.Eternal:
+                        jokerMatch &= item.IsEternal;
+                        break;
+                    case MotelyJokerSticker.Perishable:
+                        jokerMatch &= item.IsPerishable;
+                        break;
+                    case MotelyJokerSticker.Rental:
+                        jokerMatch &= item.IsRental;
+                        break;
                 }
-                jokerMatch &= stickerMatch;
             }
 
             return jokerMatch;

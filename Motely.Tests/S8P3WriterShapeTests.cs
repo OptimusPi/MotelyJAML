@@ -6,7 +6,7 @@ namespace Motely.Tests;
 /// S8.P3 — <c>ToJaml</c> canonical fixed point for clause shapes the corpus round-trip
 /// misses: event rolls clauses, startingDraw, pokerHand, misprint, erratic, planet, and
 /// nested logic. Law: load → write → reload → write reproduces the identical text, and the
-/// reload carries the same clause counts.
+/// reload carries every field the first load did.
 /// </summary>
 public sealed class S8P3WriterShapeTests
 {
@@ -62,6 +62,28 @@ public sealed class S8P3WriterShapeTests
                   - voucher: Overstock
                   - tag: [CharmTag]
         """)]
+    [InlineData("""
+        must:
+          - or:
+              - smallBlindTag: NegativeTag
+              - bigBlindTag: [CharmTag, DoubleTag]
+              - tags: [NegativeTag]
+                rolls: [0, 1, 2]
+            antes: [1, 2, 3]
+        """)]
+    [InlineData("""
+        must:
+          - pokerHand: [Flush]
+            rolls: [0, 1, 2]
+        """)]
+    [InlineData("""
+        description: |
+          Two lines,
+          one of them with a # hash.
+        must:
+          - joker: [Blueprint]
+            label: 'a "quoted" label: with a colon'
+        """)]
     public void ToJaml_IsACanonicalFixedPoint(string jaml)
     {
         var original = JamlConfigLoader.FromJaml(jaml);
@@ -77,6 +99,7 @@ public sealed class S8P3WriterShapeTests
             original.Must.Select(c => c.GetType()).ToArray(),
             reloaded.Must.Select(c => c.GetType()).ToArray()
         );
+        JamlConfigEquality.AssertEqual(original, reloaded);
 
         var rewritten = JamlConfigLoader.ToJaml(reloaded);
         Assert.Equal(written, rewritten);

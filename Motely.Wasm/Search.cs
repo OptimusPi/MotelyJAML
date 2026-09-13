@@ -139,5 +139,4 @@ public sealed class SearchSettings
     public long TotalBatchCount => _search?.TotalBatchCount ?? 0;
     public long CompletedBatchCount => _search?.CompletedBatchCount ?? 0;
     public long ResumeBatchIndex => _search?.ResumeBatchIndex ?? -1;
-    public MotelySeedScore[] Results => _search is null ? [] : [.. _search.Results];
 }

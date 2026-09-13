@@ -152,9 +152,9 @@ public sealed class JamlSimdPackSupportTests
     }
 
     [Fact]
-    public void HieroglyphSeed_StillMatches_Slot5_Legendary()
+    public void HieroglyphSeed_StillMatches_Slot6_Legendary()
     {
-        // Regression: ante-1 slot 5 clamp must not drop Hieroglyph-extended KHTW99TC.
+        // Regression: the ante-1 slot clamp must not drop Hieroglyph-extended KHTW99TC.
         const string seed = "KHTW99TC";
         var jaml = """
             name: HieroglyphPerkeo
@@ -165,7 +165,7 @@ public sealed class JamlSimdPackSupportTests
                 edition: Negative
                 antes: [1]
                 sources:
-                  boosterPacks: [5]
+                  boosterPacks: [6]
             """;
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         var settings = JamlSearchBuilder

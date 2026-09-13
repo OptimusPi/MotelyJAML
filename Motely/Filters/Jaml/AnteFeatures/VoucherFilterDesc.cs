@@ -188,17 +188,11 @@ public struct VoucherFilterDesc(VoucherClause clause)
             VectorMask? includeMask = null
         )
         {
+            // Vector256.Equals lanes are all-ones (-1) or 0, so the union of the per-name
+            // masks is a bitwise OR; a signed Max would pick 0 over -1 and empty the union.
             Vector256<int> matchMask = Vector256<int>.Zero;
-
-            if (clause.Vouchers.Length == 1)
-            {
-                matchMask = VectorEnum256.Equals(vouchers, clause.Vouchers[0]);
-            }
-            else
-            {
-                foreach (var v in clause.Vouchers)
-                    matchMask = Vector256.Max(matchMask, VectorEnum256.Equals(vouchers, v));
-            }
+            foreach (var v in clause.Vouchers)
+                matchMask = Vector256.BitwiseOr(matchMask, VectorEnum256.Equals(vouchers, v));
 
             if (includeMask.HasValue)
             {
@@ -212,108 +206,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
                 counts,
                 Vector256.ConditionalSelect(matchMask, Vector256.Create(1), Vector256<int>.Zero)
             );
-        }
-    }
-}
-
-/// <summary>
-/// Combines multiple <see cref="VoucherClause"/>s into a single ante-loop filter so voucher
-/// PRNG state is built only once. Use when two or more voucher clauses appear in the same
-/// Must/MustNot set (e.g. Telescope@ante1 + Observatory@ante2).
-/// </summary>
-public struct MultiVoucherFilterDesc(VoucherClause[] clauses)
-    : IMotelySeedFilterDesc<MultiVoucherFilterDesc.MultiVoucherFilter>
-{
-    private readonly VoucherClause[] _clauses = clauses;
-
-    public readonly MultiVoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)
-    {
-        int maxAnte = 0;
-        foreach (var c in _clauses)
-            for (int i = 0; i < c.Antes.Length; i++)
-                if (c.Antes[i] > maxAnte)
-                    maxAnte = c.Antes[i];
-
-        for (int ante = 1; ante <= maxAnte; ante++)
-            ctx.CacheAnteFirstVoucher(ante);
-
-        return new MultiVoucherFilter(_clauses, maxAnte);
-    }
-
-    public struct MultiVoucherFilter(VoucherClause[] clauses, int maxAnte) : IMotelySeedFilter
-    {
-        private readonly VoucherClause[] _clauses = clauses;
-        private readonly int _maxAnte = maxAnte;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly VectorMask Filter(ref MotelyVectorSearchContext ctx)
-        {
-            var clauses = _clauses;
-            int maxAnte = _maxAnte;
-            var voucherState = new MotelyVectorRunState();
-
-            Span<Vector256<int>> matchCounts = stackalloc Vector256<int>[clauses.Length];
-
-            for (int ante = 1; ante <= maxAnte; ante++)
-            {
-                var vouchers = ctx.GetAnteFirstVoucher(ante, voucherState);
-                voucherState.ActivateVoucher(vouchers);
-
-                // Determine which clauses target this ante
-                bool anyTarget = false;
-                for (int ci = 0; ci < clauses.Length; ci++)
-                {
-                    var anteList = clauses[ci].Antes;
-                    for (int ai = 0; ai < anteList.Length; ai++)
-                    {
-                        if (anteList[ai] == ante)
-                        {
-                            anyTarget = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!anyTarget)
-                    continue;
-
-                // Accumulate matches for each targeting clause
-                for (int ci = 0; ci < clauses.Length; ci++)
-                {
-                    var clause = clauses[ci];
-                    bool isTarget = false;
-                    for (int ai = 0; ai < clause.Antes.Length; ai++)
-                        if (clause.Antes[ai] == ante)
-                        {
-                            isTarget = true;
-                            break;
-                        }
-                    if (!isTarget)
-                        continue;
-
-                    matchCounts[ci] = VoucherFilterDesc.VoucherFilter.AccumulateVoucherRolls(
-                        ref ctx,
-                        ante,
-                        ref voucherState,
-                        vouchers,
-                        clause,
-                        matchCounts[ci]
-                    );
-                }
-            }
-
-            // AND all clause pass masks together
-            VectorMask result = VectorMask.AllBitsSet;
-            for (int ci = 0; ci < clauses.Length; ci++)
-            {
-                var clause = clauses[ci];
-                VectorMask clauseMask = Vector256.GreaterThan(
-                    matchCounts[ci],
-                    Vector256.Subtract(Vector256.Create(clause.Min), Vector256.Create(1))
-                );
-                result &= clauseMask;
-            }
-            return result;
         }
     }
 }

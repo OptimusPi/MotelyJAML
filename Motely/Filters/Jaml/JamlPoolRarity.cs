@@ -87,7 +87,7 @@ internal static class JamlPoolRarity
 
     /// <summary>
     /// Whether a shop ever offers pack slot <paramref name="slot"/> in <paramref name="ante"/>:
-    /// four packs in ante 1, six after. Ante 1 can reach slots 4–5 only under Hieroglyph or
+    /// four packs in ante 1, six after. Ante 1 can reach slots past 3 only under Hieroglyph or
     /// Petroglyph, which the model does not follow; those slots are left out, which understates
     /// a clause that asks for them at ante 1 by the small chance that voucher was awarded.
     /// </summary>
@@ -98,9 +98,9 @@ internal static class JamlPoolRarity
     /// <summary>
     /// True for the one pack the engine hands out without rolling: a stream opened with
     /// <c>CreateBoosterPackStream(ante)</c> returns a plain Buffoon pack as ante 1's first offer
-    /// before touching the PRNG. Every family that reads packs that way must treat slot 0 of
-    /// ante 1 as a certainty, not a draw. (The legendary path opens its stream differently and
-    /// rolls that slot — see <see cref="JamlJokerRarity.LegendaryDistribution"/>.)
+    /// before touching the PRNG. Every family — legendaries included — reads packs that way, so
+    /// slot 0 of ante 1 is a certainty, not a draw, and it can never hold The Soul. Ante 0, which
+    /// only exists after Hieroglyph is bought in that first shop, has no fixed pack.
     /// </summary>
     public static bool SlotIsFixedBuffoon(int ante, int slot) => ante == 1 && slot == 0;
 

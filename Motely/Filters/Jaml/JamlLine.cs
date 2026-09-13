@@ -264,8 +264,9 @@ public static class JamlLine
         if (!TryToClauseCore(withoutScore, out clause, out error))
             return false;
 
-        if (score is { } s)
-            clause!.Score = s;
+        // No tail → the same default the block mapping gets, so both spellings load equal. The
+        // clause types themselves default Score to 0, which is not what "unscored" means.
+        clause!.Score = score ?? JamlConfigLoader.DefaultScore;
         return true;
     }
 

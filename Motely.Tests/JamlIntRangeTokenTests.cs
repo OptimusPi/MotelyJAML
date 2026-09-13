@@ -56,6 +56,8 @@ public sealed class JamlIntRangeTokenTests
         Assert.Equal([0, 2, 3, 4, 9], rolls);
     }
 
+    // On a shop family: ante 0 is Hieroglyph's extra pack round there, while voucher/boss/tag
+    // start at ante 1 and the loader now refuses 0 for them.
     [Fact]
     public void Antes_ZeroToThirtyNine_IsTheWholeAnteSpace()
     {
@@ -64,7 +66,7 @@ public sealed class JamlIntRangeTokenTests
             deck: Red
             stake: White
             must:
-              - voucher: Overstock
+              - joker: Blueprint
                 antes: [0..39]
             """;
 

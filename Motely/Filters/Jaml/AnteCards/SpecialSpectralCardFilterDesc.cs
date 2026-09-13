@@ -17,7 +17,9 @@ namespace Motely.Filters.Jaml;
 /// the card can spawn in is present) and then confirms the exact count per surviving seed via
 /// <see cref="MotelyVectorSearchContext.SearchIndividualSeeds"/> + the scalar spectral counter in
 /// <see cref="JamlScoring"/> (which walks Arcana/Celestial packs too). Same shape as
-/// <see cref="Motely.Filters.Native.TwoBlackHoleFilterDesc"/>.
+/// <see cref="Motely.Filters.Native.TwoBlackHoleFilterDesc"/>. A clause with no <c>sources:</c>
+/// resolves to <see cref="SpectralCardFilterDesc.DefaultSpecialSources"/> — pack slots only, see
+/// <see cref="SpectralCardFilterDesc.ResolveSources"/> — on both the narrow and the confirm.
 ///
 /// <b>KEEP — real SIMD, not dead code.</b> Reuses <see cref="SpectralCardClause"/> (no separate
 /// JAML keyword). Live route: <c>spectralCard:</c> → <see cref="Handles"/> true →

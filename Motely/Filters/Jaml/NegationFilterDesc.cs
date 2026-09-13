@@ -4,7 +4,10 @@ namespace Motely.Filters.Jaml;
 
 /// <summary>
 /// Wraps an inner filter and inverts its result (mustNot semantics).
-/// Seeds matching any inner filter are REJECTED.
+/// Seeds matching any inner filter are REJECTED. Only sound over an inner filter whose SIMD
+/// pass is exact (<see cref="JamlScoring.IsExactFilterConfirm"/>); a coarse prefilter negated
+/// here would reject every seed that merely might hold the item, so the builder keeps those
+/// clauses out of the chain and rejects them in <see cref="JamlShouldScoreDesc"/> instead.
 /// </summary>
 public struct NegationFilterDesc(IMotelySeedFilterDesc inner)
     : IMotelySeedFilterDesc<NegationFilterDesc.NegationFilter>

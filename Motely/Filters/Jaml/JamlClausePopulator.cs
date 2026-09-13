@@ -27,13 +27,22 @@ public static partial class JamlConfigLoader
         clause.Score = score;
 
         if (clause is IAnteScopedClause anteScoped)
+        {
             anteScoped.Antes = antes;
+            if (clause is BossClause or VoucherClause or TagClause)
+                RejectPreRunAntes(discriminator, antes, data);
+        }
 
         if (clause is IRollScopedClause rollScoped)
         {
-            rollScoped.Rolls = JamlSchema.RollsAreInlineFor(discriminator)
+            bool inline = JamlSchema.RollsAreInlineFor(discriminator);
+            rollScoped.Rolls = inline
                 ? node.GetIntArray(discriminator) ?? []
                 : data.GetIntArray("rolls") ?? JamlSchema.RollsDefaultFor(discriminator) ?? [];
+            RejectNegativeRolls(
+                rollScoped.Rolls,
+                inline ? node.ValueSpan(discriminator) : data.ValueSpan("rolls")
+            );
         }
 
         ApplyWith(clause, data);
@@ -127,6 +136,63 @@ public static partial class JamlConfigLoader
     private static bool KeyPresent(IReader data, string key) =>
         data.Keys.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
 
+    // Ante 0 is the pre-run state: shop and pack families read it (Hieroglyph's extra pack
+    // round), but the boss, voucher and tag streams all begin at ante 1 — GetBossForAnte,
+    // GetAnteFirstVoucher and the tag stream are all keyed by ante >= 1, and PrepareRunState
+    // sizes CachedBosses from the highest ante named, so an ante below 1 here would index a
+    // buffer that was never allocated.
+    private static void RejectPreRunAntes(string discriminator, int[] antes, IReader data)
+    {
+        foreach (var ante in antes)
+        {
+            if (ante >= 1)
+                continue;
+            var key = KeyPresent(data, "antes") ? "antes" : "ante";
+            throw new JamlSemanticException(
+                $"'{discriminator}' has no ante {ante}: bosses, vouchers and tags start at ante 1.",
+                data.ValueSpan(key)
+            );
+        }
+    }
+
+    // A roll is a zero-based draw index on its stream (0 is the first draw). The scalar counters
+    // index a draw buffer by it (voucher: streamDraws[roll]), so a negative one would fault
+    // mid-search instead of at load.
+    private static void RejectNegativeRolls(int[] rolls, JamlSpan span)
+    {
+        foreach (var roll in rolls)
+        {
+            if (roll < 0)
+                throw new JamlSemanticException(
+                    $"rolls: {roll} is negative. A roll is a zero-based draw index; the first draw is 0.",
+                    span
+                );
+        }
+    }
+
+    // Keys that only shape a slot list the block also names; none opens a source by itself
+    // (charmTag/etherealTag act inside the boosterPacks walk, requireMega filters pack size).
+    // omenGlobe is deliberately absent: alone, it walks every arcana slot
+    // (CountOmenGlobeArcanaSpectrals), so it is a source in its own right.
+    private static readonly HashSet<string> SlotModifierKeys =
+        new(StringComparer.OrdinalIgnoreCase) { "requireMega", "requireMegaPack", "charmTag", "etherealTag" };
+
+    // `sources: {}` is the documented match-nowhere override. A block that only turns on
+    // modifiers has no slot for them to act on and would match nowhere by accident.
+    private static IReader? SourcesBlock(IReader data, string[] sourceKeys, string scope)
+    {
+        var block = data.GetObject("sources");
+        if (block is null)
+            return null;
+        ValidateKeys(block, sourceKeys, scope);
+        if (block.Keys.Count > 0 && block.Keys.All(SlotModifierKeys.Contains))
+            throw new JamlSemanticException(
+                $"sources names no slots: {string.Join(", ", block.Keys)} only modifies a slot list. Name the slots to look in (e.g. shopItems, boosterPacks), or write sources: {{}} to match nowhere.",
+                data.KeySpan("sources")
+            );
+        return block;
+    }
+
     private static JamlLoaderValueReader ValueReaderForKey(IReader data, string key)
     {
         var span = data.ValueSpan(key);
@@ -149,10 +215,9 @@ public static partial class JamlConfigLoader
 
     private static JokerSourceConfig? PopulateJokerSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, JokerSourceConfig.SourceKeys, $"{nameof(JokerSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, JokerSourceConfig.SourceKeys, $"{nameof(JokerSourceConfig)} source");
         return new JokerSourceConfig
         {
             ShopItems = block.GetIntArray("shopItems") ?? [],
@@ -175,16 +240,14 @@ public static partial class JamlConfigLoader
 
     private static LegendaryJokerSourceConfig? PopulateLegendaryJokerSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, LegendaryJokerSourceConfig.SourceKeys, $"{nameof(LegendaryJokerSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, LegendaryJokerSourceConfig.SourceKeys, $"{nameof(LegendaryJokerSourceConfig)} source");
         return new LegendaryJokerSourceConfig
         {
             BoosterPacks = block.GetIntArray("boosterPacks") ?? [],
             ArcanaPacks = block.GetIntArray("arcanaPacks") ?? [],
             SpectralPacks = block.GetIntArray("spectralPacks") ?? [],
-            SoulCard = block.GetIntArray("soulCard") ?? [],
             RequireMegaPack =
                 block.GetBool("requireMegaPack")
                 ?? block.GetBool("requireMega")
@@ -194,10 +257,9 @@ public static partial class JamlConfigLoader
 
     private static TarotCardSourceConfig? PopulateTarotSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, TarotCardSourceConfig.SourceKeys, $"{nameof(TarotCardSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, TarotCardSourceConfig.SourceKeys, $"{nameof(TarotCardSourceConfig)} source");
         return new TarotCardSourceConfig
         {
             ShopItems = block.GetIntArray("shopItems") ?? [],
@@ -214,10 +276,9 @@ public static partial class JamlConfigLoader
 
     private static SpectralCardSourceConfig? PopulateSpectralSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, SpectralCardSourceConfig.SourceKeys, $"{nameof(SpectralCardSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, SpectralCardSourceConfig.SourceKeys, $"{nameof(SpectralCardSourceConfig)} source");
         return new SpectralCardSourceConfig
         {
             ShopItems = block.GetIntArray("shopItems") ?? [],
@@ -235,10 +296,9 @@ public static partial class JamlConfigLoader
 
     private static PlanetSourceConfig? PopulatePlanetSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, PlanetSourceConfig.SourceKeys, $"{nameof(PlanetSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, PlanetSourceConfig.SourceKeys, $"{nameof(PlanetSourceConfig)} source");
         return new PlanetSourceConfig
         {
             ShopItems = block.GetIntArray("shopItems") ?? [],
@@ -252,19 +312,13 @@ public static partial class JamlConfigLoader
 
     private static StandardCardSourceConfig? PopulateStandardSources(IReader data)
     {
-        var block = data.GetObject("sources");
+        var block = SourcesBlock(data, StandardCardSourceConfig.SourceKeys, $"{nameof(StandardCardSourceConfig)} source");
         if (block is null)
             return null;
-        ValidateKeys(block, StandardCardSourceConfig.SourceKeys, $"{nameof(StandardCardSourceConfig)} source");
         return new StandardCardSourceConfig
         {
             ShopItems = block.GetIntArray("shopItems") ?? [],
             BoosterPacks = block.GetIntArray("boosterPacks") ?? [],
-            Certificate = block.GetIntArray("certificate") ?? [],
-            Incantation = block.GetIntArray("incantation") ?? [],
-            Familiar = block.GetIntArray("familiar") ?? [],
-            Grim = block.GetIntArray("grim") ?? [],
-            DeckDraw = block.GetIntArray("deckDraw") ?? [],
             RequireMegaPack =
                 block.GetBool("requireMegaPack")
                 ?? block.GetBool("requireMega")

@@ -49,28 +49,45 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     }
 
     /// <summary>
-    /// Filter-layer default when Sources is null for ordinary spectrals. Shop only;
-    /// packs/specialty need explicit <c>sources:</c>.
+    /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
+    /// every booster-pack slot (Spectral packs). The shop half only ever pays on the Ghost deck —
+    /// its spectral weight is zero everywhere else (<see cref="JamlRarityContext.ShopSpectralRate"/>)
+    /// — so the packs are what make the default matchable on the other fourteen decks. Sixth Sense,
+    /// Séance, Ethereal and Omen Globe need an explicit <c>sources:</c>. Slot range is the engine's
+    /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.
     /// </summary>
     internal static readonly SpectralCardSourceConfig DefaultSources = new()
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
+        BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
     };
 
     /// <summary>
     /// Null-sources default for TheSoul / BlackHole: those cards never appear in shop —
-    /// only Arcana/Celestial/Spectral packs. Shop-only <see cref="DefaultSources"/> would
-    /// make <c>spectralCard: TheSoul</c> match nothing.
+    /// only Arcana/Celestial/Spectral packs — so the shop half of <see cref="DefaultSources"/>
+    /// would be wasted reads.
     /// </summary>
     internal static readonly SpectralCardSourceConfig DefaultSpecialSources = new()
     {
-        BoosterPacks = [0, 1, 2, 3, 4, 5],
+        BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
     };
 
     /// <summary>
+    /// The one place null sources become a source block: explicit <c>sources:</c> wins; otherwise
+    /// <see cref="DefaultSpecialSources"/> when the clause names TheSoul or BlackHole, else
+    /// <see cref="DefaultSources"/>. <c>JamlScoring.ResolveSpectralSources</c> makes the same
+    /// choice from the same two fields, so filter and scorer read identical slots.
+    /// </summary>
+    internal static SpectralCardSourceConfig ResolveSources(SpectralCardClause clause) =>
+        clause.Sources
+        ?? (JamlScoring.TargetsSpecialSpectral(clause) ? DefaultSpecialSources : DefaultSources);
+
+    /// <summary>
     /// Ordinary spectrals are a uniform draw of sixteen — the plain draw re-rolls past The Soul and
-    /// Black Hole — off the shop (only Ghost offers them), Sixth Sense and Séance; in a spectral
-    /// pack each card first rolls The Soul at 0.003 and then Black Hole at 0.003 before that draw.
+    /// Black Hole — off the shop, Sixth Sense and Séance; in a spectral pack each card first rolls
+    /// The Soul at 0.003 and then Black Hole at 0.003 before that draw. The shop term carries the
+    /// deck's spectral weight (<see cref="JamlRarityContext.ShopSpectralRate"/>), which is zero off
+    /// the Ghost deck, so the default's shop slots add nothing there and its pack slots do the work.
     /// The two specials are counted per pack, at most once each: in spectral packs, and — as the
     /// scorer does — The Soul in arcana packs and Black Hole in celestial ones. A category-any
     /// clause counts every card of a spectral pack, specials included. The Ethereal-tag bonus
@@ -79,9 +96,7 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     /// </summary>
     public static double EstimateRarity(SpectralCardClause clause, in JamlRarityContext ctx)
     {
-        var sources =
-            clause.Sources
-            ?? (JamlScoring.TargetsSpecialSpectral(clause) ? DefaultSpecialSources : DefaultSources);
+        var sources = ResolveSources(clause);
         if (sources.EtherealTag || sources.OmenGlobe)
             return double.NaN;
 
@@ -164,12 +179,14 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 
     public SpectralCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
-        var sources = _clause.Sources ?? DefaultSources;
+        var sources = ResolveSources(_clause);
 
         foreach (var ante in _clause.Antes)
         {
-            ctx.CacheShopStream(ante);
-            ctx.CacheBoosterPackStream(ante);
+            if (sources.ShopItems.Length > 0)
+                ctx.CacheShopStream(ante);
+            if (sources.BoosterPacks.Length > 0)
+                ctx.CacheBoosterPackStream(ante);
         }
 
         int maxShopItem = 0;
@@ -236,7 +253,7 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
             Debug.Assert(needed > 0, "SpectralCardClause.Min must be > 0 — loader bug.");
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
-            var sources = clause.Sources ?? DefaultSources;
+            var sources = ResolveSources(clause);
             // Mega / Ethereal / OmenGlobe: Arcana or pack-size rules live in scoring.
             if (sources.RequireMegaPack || sources.EtherealTag || sources.OmenGlobe)
                 return ctx.SearchIndividualSeeds(
@@ -266,7 +283,9 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
             foreach (var ante in clause.Antes)
             {
                 // ── Shop items SIMD ──
-                if (shopIndices.Length > 0)
+                // Only Ghost gives the shop a spectral weight (CreateShopItemStream), so on any
+                // other deck these slots can never match and the stream is not worth walking.
+                if (shopIndices.Length > 0 && ctx.Deck == MotelyDeck.Ghost)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
 
