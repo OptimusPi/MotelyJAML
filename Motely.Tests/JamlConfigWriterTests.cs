@@ -330,7 +330,6 @@ public sealed class JamlConfigWriterTests
                 soulEditionRolls: 3
                 sources:
                   arcanaPacks: [0, 1]
-                  soulCard: [0]
               - tarotCard: [TheFool]
                 sources:
                   shopItems: [0]
@@ -355,9 +354,8 @@ public sealed class JamlConfigWriterTests
                 seal: Red
                 edition: Polychrome
                 sources:
-                  deckDraw: [0, 1]
-                  certificate: [0]
-                  grim: [0]
+                  shopItems: [0, 1]
+                  boosterPacks: [0]
               - voucher: [Overstock]
                 rolls: [0, 1]
               - boss: [TheEye]
@@ -372,7 +370,6 @@ public sealed class JamlConfigWriterTests
                 min: 2
                 with:
                   luck: X4
-                  vouchers: [Hieroglyph]
               - misprintMult: [0]
                 mult: 23
             should:
@@ -471,7 +468,6 @@ internal static class JamlConfigEquality
         {
             var aw = ((IWithScopedClause)actual).With;
             Field(path, "with.luck", ew.With.Luck, aw.Luck);
-            Field(path, "with.vouchers", ew.With.Vouchers, aw.Vouchers);
         }
 
         switch (expected)
@@ -603,7 +599,6 @@ internal static class JamlConfigEquality
         Field(path, "sources.boosterPacks", e!.BoosterPacks, a!.BoosterPacks);
         Field(path, "sources.arcanaPacks", e.ArcanaPacks, a.ArcanaPacks);
         Field(path, "sources.spectralPacks", e.SpectralPacks, a.SpectralPacks);
-        Field(path, "sources.soulCard", e.SoulCard, a.SoulCard);
         Field(path, "sources.requireMegaPack", e.RequireMegaPack, a.RequireMegaPack);
     }
 
@@ -648,11 +643,6 @@ internal static class JamlConfigEquality
         Field(path, "sources.shopItems", e!.ShopItems, a!.ShopItems);
         Field(path, "sources.boosterPacks", e.BoosterPacks, a.BoosterPacks);
         Field(path, "sources.requireMegaPack", e.RequireMegaPack, a.RequireMegaPack);
-        Field(path, "sources.certificate", e.Certificate, a.Certificate);
-        Field(path, "sources.incantation", e.Incantation, a.Incantation);
-        Field(path, "sources.familiar", e.Familiar, a.Familiar);
-        Field(path, "sources.grim", e.Grim, a.Grim);
-        Field(path, "sources.deckDraw", e.DeckDraw, a.DeckDraw);
     }
 
     // null (engine defaults) and an explicit block are different meanings; both sides must agree
