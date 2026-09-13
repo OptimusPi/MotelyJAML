@@ -1,0 +1,15 @@
+name: Even Steven Even Cards
+author: jammy
+description: Even Steven common for +4 Mult per even card scored
+deck: Red
+stake: White
+must:
+  - commonJoker: EvenSteven
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: WalkieTalkie
+    score: 40

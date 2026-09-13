@@ -1,0 +1,17 @@
+name: Shoot TheMoon Queens
+author: jammy
+description: Shoot TheMoon common joker for +13 Mult per Queen held
+deck: Red
+stake: White
+must:
+  - commonJoker: ShootTheMoon
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Baron
+    score: 40
+  - legendaryJoker: Triboulet
+    score: 50

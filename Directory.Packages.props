@@ -46,8 +46,6 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.5" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.1.7" />
-    <!-- Motely.MCP — verified current via `dotnet package search ModelContextProtocol` (2026-08-19). -->
-    <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.5" />
   </ItemGroup>
