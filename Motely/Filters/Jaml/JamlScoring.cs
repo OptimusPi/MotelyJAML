@@ -275,6 +275,17 @@ public static class JamlScoring
         return 0;
     }
 
+    /// <summary>
+    /// A child arm of <c>and:</c>/<c>or:</c> counts as matched only when its occurrence count sits
+    /// inside the child's own <c>min</c>/<c>max</c>. Nested logic arms gate themselves (they
+    /// return 0 below their arm-count <c>min</c>, and their return is an aggregate, not an
+    /// occurrence count), so for those any positive return is a match; the scored callers then
+    /// cap a nested arm at its own <c>max</c> as <see cref="CountOccurrences"/> does.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ChildMatches(int count, IJamlClause child) =>
+        child is LogicClause ? count > 0 : MeetsOccurrenceBounds(count, child);
+
     private static int CountAndOccurrences(
         ref MotelySingleSearchContext ctx,
         AndClause clause,
@@ -291,9 +302,10 @@ public static class JamlScoring
         int combos = int.MaxValue;
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
-            int count = CountOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (count <= 0)
+            int count = CountOccurrencesUncapped(ref ctx, clause.Clauses[i], runState);
+            if (!ChildMatches(count, clause.Clauses[i]))
                 return 0;
+            count = CapScoreCount(count, clause.Clauses[i]);
             if (count < combos)
                 combos = count;
         }
@@ -323,18 +335,14 @@ public static class JamlScoring
 
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
-            int count = CountOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (count > 0)
-            {
-                matched++;
-                int w = clause.Clauses[i].Score;
-                if (w == 0)
-                    w = 1;
-                int contribution = count * w;
-                total += contribution;
-                if (contribution > best)
-                    best = contribution;
-            }
+            int count = CountOccurrencesUncapped(ref ctx, clause.Clauses[i], runState);
+            if (!ChildMatches(count, clause.Clauses[i]))
+                continue;
+            matched++;
+            int contribution = CapScoreCount(count, clause.Clauses[i]) * OrArmWeight(clause.Clauses[i]);
+            total += contribution;
+            if (contribution > best)
+                best = contribution;
         }
 
         if (matched < clause.Min)
@@ -343,6 +351,10 @@ public static class JamlScoring
         int aggregate = useMax ? best : total;
         return clause.Score != 0 ? aggregate : matched;
     }
+
+    /// <summary>An unscored arm weighs 1, the same default the loader gives a bare should clause.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int OrArmWeight(IJamlClause arm) => arm.Score != 0 ? arm.Score : 1;
 
     public static int CountRawOccurrences(
         ref MotelySingleSearchContext ctx,
@@ -374,7 +386,7 @@ public static class JamlScoring
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountRawOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (count <= 0)
+            if (!ChildMatches(count, clause.Clauses[i]))
                 return 0;
             if (count < combos)
                 combos = count;
@@ -400,25 +412,31 @@ public static class JamlScoring
 
         int matched = 0;
         int total = 0;
-        int best = 0;
+        int bestCount = 0;
+        int bestContribution = 0;
         bool useMax = clause.Mode == JamlLogicScoreMode.Max;
 
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountRawOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (count > 0)
+            if (!ChildMatches(count, clause.Clauses[i]))
+                continue;
+            matched++;
+            total += count;
+            // mode: max picks the arm with the largest count×weight (the arm CountOrOccurrences
+            // scores) and reports that arm's raw count, so tally and score describe one arm.
+            int contribution = count * OrArmWeight(clause.Clauses[i]);
+            if (contribution > bestContribution)
             {
-                matched++;
-                total += count;
-                if (count > best)
-                    best = count;
+                bestContribution = contribution;
+                bestCount = count;
             }
         }
 
         if (matched < clause.Min)
             return 0;
 
-        int aggregate = useMax ? best : total;
+        int aggregate = useMax ? bestCount : total;
         return clause.Score != 0 ? aggregate : matched;
     }
 
