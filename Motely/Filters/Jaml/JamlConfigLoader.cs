@@ -211,6 +211,17 @@ public static partial class JamlConfigLoader
             );
     }
 
+    /// <summary>
+    /// An unspecified score is worth 1, not 0 — a should clause you bothered to write should
+    /// count for something. Explicit scores (including negative penalties) still win; this only
+    /// fills the blank. Defaulting to 0 silently made unscored should clauses contribute nothing,
+    /// the bug that zeroed whole filters for ~10 months. Both spellings fill from here: the block
+    /// mapping in <see cref="ParseClause"/> and the one-line form in
+    /// <see cref="JamlLine.TryToClause"/>, so "- Blueprint in ante 1" and
+    /// "- joker: Blueprint / ante: 1" load to the same clause and the writer elides the same value.
+    /// </summary>
+    internal const int DefaultScore = 1;
+
     private static IJamlClause ParseLineClause(string line)
     {
         if (!JamlLine.TryToClause(line, out var clause, out var error))
@@ -233,11 +244,7 @@ public static partial class JamlConfigLoader
         var min = data.GetInt("min") ?? 1;
         var max = data.GetInt("max");
         ValidateBounds(min, max, data);
-        // An unspecified score is worth 1, not 0 — a should clause you bothered to write should
-        // count for something. Explicit scores (including negative penalties) still win; this
-        // only fills the blank. Defaulting to 0 silently made unscored should clauses contribute
-        // nothing, the bug that zeroed whole filters for ~10 months.
-        var score = data.GetInt("score") ?? 1;
+        var score = data.GetInt("score") ?? DefaultScore;
         var label = data.GetString("label");
 
         // One construction path for every desc family. Logic + the multi-rank erratic
