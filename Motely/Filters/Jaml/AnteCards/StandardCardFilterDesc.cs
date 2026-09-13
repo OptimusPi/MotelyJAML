@@ -64,20 +64,25 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     }
 
     /// <summary>
-    /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.
+    /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.
+    /// The shop is left out because its playing-card weight is the Magic Trick weight and no deck
+    /// starts with that voucher (<see cref="JamlRarityContext.ShopStandardCardRate"/>), so a
+    /// shop-only default matched nothing on every deck. Shop slots need an explicit
+    /// <c>sources:</c>. Slot range is the engine's
+    /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.
     /// </summary>
     internal static readonly StandardCardSourceConfig DefaultSources = new()
     {
-        ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
+        BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
     };
 
     /// <summary>
     /// A standard-pack card is a uniform 1 of 52 for its face, then 40% to carry one of the eight
     /// enhancements, an edition off the 0.92 / 0.04 / 0.028 / 0.012 bands (never Negative), and
     /// 20% to carry one of the four seals — <c>GetNextStandardCard</c>. A shop card is bare: face
-    /// only, no enhancement, edition or seal, and it appears with the Magic Trick weight, which no
-    /// deck starts with — so on the engine's scoring path a shop slot never yields a playing card
-    /// at all.
+    /// only, no enhancement, edition or seal, and it appears with the deck's Magic Trick weight
+    /// (<see cref="JamlRarityContext.ShopStandardCardRate"/>), which is zero for every deck — so an
+    /// explicit <c>shopItems:</c> source contributes nothing unless that ever changes.
     /// </summary>
     public static double EstimateRarity(StandardCardClause clause, in JamlRarityContext ctx)
     {
@@ -157,10 +162,13 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 
     public StandardCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
+        var sources = _clause.Sources ?? DefaultSources;
         foreach (var ante in _clause.Antes)
         {
-            ctx.CacheShopStream(ante);
-            ctx.CacheBoosterPackStream(ante);
+            if (sources.ShopItems.Length > 0)
+                ctx.CacheShopStream(ante);
+            if (sources.BoosterPacks.Length > 0)
+                ctx.CacheBoosterPackStream(ante);
         }
 
         return new StandardCardFilter(_clause);
