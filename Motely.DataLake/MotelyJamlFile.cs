@@ -120,51 +120,7 @@ public static class MotelyJamlFile
             return false;
         }
 
-        if (JamlConfigLoader.TryLoad(content, FormatFromPath(resolved), out config, out error))
-            return true;
-
-        error = $"{resolved}: {error}";
-        return false;
-    }
-
-    public static JamlLoadFormat FormatFromPath(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() switch
-        {
-            ".json" => JamlLoadFormat.Json,
-            ".yaml" or ".yml" => JamlLoadFormat.Yaml,
-            _ => JamlLoadFormat.Jaml,
-        };
-
-    public static bool TryLoad(
-        string? path,
-        JamlLoadFormat format,
-        [NotNullWhen(true)] out JamlConfig? config,
-        out string? error
-    )
-    {
-        config = null;
-
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            error = "No filter path provided.";
-            return false;
-        }
-
-        var resolved = ResolvePath(path);
-
-        string content;
-        try
-        {
-            content = File.ReadAllText(resolved);
-        }
-        catch (System.Exception ex)
-        {
-            error = $"Error reading '{resolved}': {ex.Message}";
-            return false;
-        }
-
-        var use = format == JamlLoadFormat.Auto ? FormatFromPath(resolved) : format;
-        if (JamlConfigLoader.TryLoad(content, use, out config, out error))
+        if (JamlConfigLoader.TryLoad(content, out config, out error))
             return true;
 
         error = $"{resolved}: {error}";

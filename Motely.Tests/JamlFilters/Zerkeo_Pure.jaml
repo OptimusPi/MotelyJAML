@@ -15,13 +15,13 @@ must:
       boosterPacks: [0,1]
     antes: [0]
 should:
-  - Perkeo
-  - Triboulet
-  - Canio
-  - Chicot
-  - Yorick
-  - Blueprint
-  - Brainstorm
+  - joker: Perkeo
+  - joker: Triboulet
+  - joker: Canio
+  - joker: Chicot
+  - joker: Yorick
+  - joker: Blueprint
+  - joker: Brainstorm
 
 seeds:
   - F2U88X11

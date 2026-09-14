@@ -120,45 +120,13 @@ public class DefaultFallbackTests
     }
 
     [Fact]
-    public void TallyLabels_UnlabeledClause_UsesJamlLine()
+    public void TallyLabels_UnlabeledClause_FallsBackToScoreIndex()
     {
-        var clause = new JokerClause { Jokers = [MotelyJoker.Blueprint], Antes = [1, 2] };
-        var expected = Motely.Filters.Jaml.JamlLine.FromClause(clause);
-
-        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(clause));
-
-        Assert.NotNull(expected); // a single named joker always renders as one line
-        Assert.Equal([expected!], plan.TallyLabels);
-        Assert.DoesNotContain("score0", plan.TallyLabels);
-    }
-
-    [Fact]
-    public void TallyLabels_JamlLineUnrenderableClause_FallsBackToScoreIndex()
-    {
-        // Two jokers in one clause has no single-line form (FromClause returns null),
-        // so the column keeps its positional name.
-        var unrenderable = new JokerClause
-        {
-            Jokers = [MotelyJoker.Blueprint, MotelyJoker.Brainstorm],
-        };
-        Assert.Null(Motely.Filters.Jaml.JamlLine.FromClause(unrenderable));
-
         var labeled = new JokerClause { Jokers = [MotelyJoker.Blueprint], Label = "bp" };
-        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(labeled, unrenderable));
+        var unlabeled = new JokerClause { Jokers = [MotelyJoker.Blueprint], Antes = [1, 2] };
+
+        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(labeled, unlabeled));
 
         Assert.Equal(["bp", "score1"], plan.TallyLabels);
-    }
-
-    [Fact]
-    public void TallyLabels_LegendaryJokerClause_RendersLikeItsJokerLine()
-    {
-        // The one-line spelling keeps LegendaryJokerClause out of its round-trip grammar, so
-        // the label path views it through an equivalent JokerClause instead of falling to scoreN.
-        var legendary = new LegendaryJokerClause { Jokers = [MotelyJoker.Perkeo], Antes = [1, 2] };
-        var asJoker = new JokerClause { Jokers = [MotelyJoker.Perkeo], Antes = [1, 2] };
-
-        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(legendary));
-
-        Assert.Equal([Motely.Filters.Jaml.JamlLine.FromClause(asJoker)!], plan.TallyLabels);
     }
 }

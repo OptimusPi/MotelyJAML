@@ -57,27 +57,10 @@ public static class JamlSearchBuilder
 
     /// <summary>
     /// The tally-column label for a should clause: the author's explicit label when given,
-    /// otherwise the clause rendered as its terse one-line JAML spelling (e.g. "Blueprint in ante 1"),
-    /// with "score{index}" as the last-resort name for clauses that spelling can't render.
+    /// otherwise "score{index}".
     /// </summary>
     public static string DefaultTallyLabel(IJamlClause clause, int index) =>
-        clause.Label ?? JamlLine.FromClause(LabelRenderable(clause)) ?? $"score{index}";
-
-    /// <summary>
-    /// The one-line spelling renders JokerClause but keeps LegendaryJokerClause out of its
-    /// round-trip grammar (parsing a joker line always yields a JokerClause). For labeling only,
-    /// view a legendary clause through an equivalent JokerClause so "Perkeo in ante 1 or 2" still
-    /// names its column.
-    /// </summary>
-    private static IJamlClause LabelRenderable(IJamlClause clause) =>
-        clause is LegendaryJokerClause { Jokers.Length: > 0 } lj
-            ? new JokerClause
-            {
-                Jokers = lj.Jokers,
-                Antes = lj.Antes,
-                Edition = lj.Edition,
-            }
-            : clause;
+        clause.Label ?? $"score{index}";
 
     /// <summary>
     /// The ante normalization every scoring pass assumes, applied in place:

@@ -13,7 +13,8 @@ must:
     antes: [1,2,3,4]
     sources:
       shopItems: [0,1,2,3]
-  - Perkeo in Ante 1
+  - joker: Perkeo
+    antes: [1]
   - joker: DietCola
     antes: [1,2,3,4,5]
   - smallBlindTag: NegativeTag

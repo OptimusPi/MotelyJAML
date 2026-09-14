@@ -21,13 +21,6 @@ public static class JamlFileLoader
         out string? error
     ) => MotelyJamlFile.TryLoad(path, out config, out error);
 
-    public static bool TryLoadFromPath(
-        string path,
-        JamlLoadFormat format,
-        [NotNullWhen(true)] out JamlConfig? config,
-        out string? error
-    ) => MotelyJamlFile.TryLoad(path, format, out config, out error);
-
     /// <summary>
     /// Rewrite the top-level <c>seeds:</c> block of the JAML at <paramref name="path"/> with the
     /// given seeds and write it back (resolved and validated by <see cref="MotelyJamlFile"/>).

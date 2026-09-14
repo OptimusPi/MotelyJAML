@@ -96,8 +96,8 @@ internal sealed class JamlLoaderValueReader : IJamlValueReader
         var list = new List<int>(tokens.Length);
         foreach (var token in tokens)
         {
-            if (JamlLine.TrySplitRange(token, out int lo, out int hi))
-                JamlLine.AppendRange(list, lo, hi);
+            if (JamlIntRange.TrySplit(token, out int lo, out int hi))
+                JamlIntRange.Append(list, lo, hi);
             else if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var one))
                 list.Add(one);
             else

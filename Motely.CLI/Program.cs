@@ -489,28 +489,15 @@ partial class Program
                     return 1;
                 }
 
-                string docPath;
-                JamlLoadFormat docFormat;
-                if (jsonOption.HasValue())
-                {
-                    docPath = jsonOption.ParsedValue;
-                    docFormat = JamlLoadFormat.Json;
-                }
-                else if (yamlOption.HasValue())
-                {
-                    docPath = yamlOption.ParsedValue;
-                    docFormat = JamlLoadFormat.Yaml;
-                }
-                else
-                {
-                    docPath = jamlOption.ParsedValue;
-                    docFormat = JamlLoadFormat.Jaml;
-                }
+                // One YAML loader for all three flags; JSON is read as YAML.
+                string docPath =
+                    jsonOption.HasValue() ? jsonOption.ParsedValue
+                    : yamlOption.HasValue() ? yamlOption.ParsedValue
+                    : jamlOption.ParsedValue;
 
                 if (
                     !JamlFileLoader.TryLoadFromPath(
                         docPath,
-                        docFormat,
                         out var config,
                         out var loadError
                     )

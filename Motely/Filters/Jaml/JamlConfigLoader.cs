@@ -9,18 +9,11 @@ public static partial class JamlConfigLoader
         string content,
         [NotNullWhen(true)] out JamlConfig? config,
         out string? error
-    ) => TryLoad(content, JamlLoadFormat.Auto, out config, out error);
-
-    public static bool TryLoad(
-        string content,
-        JamlLoadFormat format,
-        [NotNullWhen(true)] out JamlConfig? config,
-        out string? error
     )
     {
         try
         {
-            config = From(content, format);
+            config = FromJaml(content);
             error = null;
             return true;
         }
@@ -38,42 +31,9 @@ public static partial class JamlConfigLoader
         }
     }
 
-    public static JamlConfig FromJaml(string content) => From(content, JamlLoadFormat.Jaml);
-
-    public static JamlConfig From(string content, JamlLoadFormat format)
-    {
-        var resolved = format == JamlLoadFormat.Auto ? Sniff(content) : format;
-        try
-        {
-            JMap root = resolved switch
-            {
-                JamlLoadFormat.Json => JamlForeignTree.ParseJson(content),
-                JamlLoadFormat.Yaml => JamlForeignTree.ParseYaml(content),
-                _ => JamlDocumentParser.ParseJaml(content),
-            };
-            return ParseConfig(new NodeReader(root));
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"{resolved} parse error: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>Leading <c>{</c> is JSON. Everything else is JAML (YAML files use FromYaml / .yaml).</summary>
-    public static JamlLoadFormat Sniff(string content)
-    {
-        foreach (char c in content)
-        {
-            if (char.IsWhiteSpace(c))
-                continue;
-            return c == '{' ? JamlLoadFormat.Json : JamlLoadFormat.Jaml;
-        }
-        return JamlLoadFormat.Jaml;
-    }
+    /// <summary>Loads a filter document. YAML only; JSON is valid YAML and reads the same way.</summary>
+    public static JamlConfig FromJaml(string content) =>
+        ParseConfig(new NodeReader(JamlYamlTree.Parse(content)));
 
     public static LegendaryJokerSourceConfig CreateLegendaryJokerSources(
         LegendaryJokerSourceConfig? userConfig
@@ -118,74 +78,7 @@ public static partial class JamlConfigLoader
     private static IEnumerable<IJamlClause> ParseClauseList(NodeReader root, string key)
     {
         foreach (var item in root.GetClauseList(key) ?? [])
-            yield return ParseClauseSource(item);
-    }
-
-    // A clause in a list is either a structured mapping (joker: …) or a single-line JAML clause
-    // ("Eternal Blueprint in antes 1 or 2"), turned into a real clause through the engine's own
-    // line converter off MotelyItem identity — no second grammar.
-    private static IJamlClause ParseClauseSource(ClauseSource source) =>
-        (source.Line, source.Mapping) switch
-        {
-            ({ } line, null) => ParseLineClause(line),
-            ({ } line, { } keys) => ApplyKeys(ParseLineClause(line), keys),
-            _ => ParseClause(source.Mapping!),
-        };
-
-    /// <summary>
-    /// Applies continuation keys to a clause the line converter already built, so the terse
-    /// spelling reaches every key its family owns ("- Negative Perkeo" then "    ante: 0").
-    /// Common keys land directly; the rest go through the clause's own desc, the same rail the
-    /// structured spelling uses.
-    /// </summary>
-    private static IJamlClause ApplyKeys(IJamlClause clause, NodeReader keys)
-    {
-        foreach (var key in keys.Keys)
-        {
-            if (key == JamlDocumentParser.TerseLineKey)
-                continue;
-
-            switch (key)
-            {
-                case "ante" or "antes":
-                    if (clause is IAnteScopedClause anteScoped)
-                        anteScoped.Antes = keys.GetIntArray(key) ?? anteScoped.Antes;
-                    else
-                        throw new InvalidOperationException(
-                            $"'{key}' is not a key of this clause: it is not ante-scoped."
-                        );
-                    break;
-                case "min":
-                    clause.Min = keys.GetInt(key) ?? clause.Min;
-                    break;
-                case "max":
-                    clause.Max = keys.GetInt(key) ?? clause.Max;
-                    break;
-                case "score":
-                    clause.Score = keys.GetInt(key) ?? clause.Score;
-                    break;
-                case "label":
-                    clause.Label = keys.GetString(key) ?? clause.Label;
-                    break;
-                default:
-                    if (
-                        !JamlClauseDescDispatch.TrySet(
-                            clause,
-                            key,
-                            JamlLoaderValueReader.FromScalar(
-                                keys.GetString(key),
-                                keys.ValueSpan(key)
-                            )
-                        )
-                    )
-                        throw new InvalidOperationException(
-                            $"Unknown key '{key}' for a one-line clause of type {clause.GetType().Name}."
-                        );
-                    break;
-            }
-        }
-        ValidateBounds(clause.Min, clause.Max, keys);
-        return clause;
+            yield return ParseClause(item);
     }
 
     /// <summary>
@@ -215,19 +108,9 @@ public static partial class JamlConfigLoader
     /// An unspecified score is worth 1, not 0 — a should clause you bothered to write should
     /// count for something. Explicit scores (including negative penalties) still win; this only
     /// fills the blank. Defaulting to 0 silently made unscored should clauses contribute nothing,
-    /// the bug that zeroed whole filters for ~10 months. Both spellings fill from here: the block
-    /// mapping in <see cref="ParseClause"/> and the one-line form in
-    /// <see cref="JamlLine.TryToClause"/>, so "- Blueprint in ante 1" and
-    /// "- joker: Blueprint / ante: 1" load to the same clause and the writer elides the same value.
+    /// the bug that zeroed whole filters for ~10 months. Filled in <see cref="ParseClause"/>.
     /// </summary>
     internal const int DefaultScore = 1;
-
-    private static IJamlClause ParseLineClause(string line)
-    {
-        if (!JamlLine.TryToClause(line, out var clause, out var error))
-            throw new InvalidOperationException($"Invalid JAML line '{line}': {error}");
-        return clause!;
-    }
 
     private static IJamlClause ParseClause(NodeReader node)
     {
@@ -361,7 +244,7 @@ public static partial class JamlConfigLoader
     )
     {
         var sources = data.GetClauseList("clauses") ?? data.GetClauseList(discriminator) ?? [];
-        var children = sources.Select(ParseClauseSource).ToArray();
+        var children = sources.Select(ParseClause).ToArray();
         clause.Antes = antes;
         HoistAntes(children, antes);
         clause.Clauses = children;
@@ -582,9 +465,6 @@ public static partial class JamlConfigLoader
 
     private static string Slugify(string name) => Normalize(name);
 
-    // One entry in a clause list: a structured mapping, or a single-line JAML clause.
-    private readonly record struct ClauseSource(NodeReader? Mapping, string? Line);
-
     private interface IReader
     {
         IReadOnlyList<string> Keys { get; }
@@ -597,7 +477,7 @@ public static partial class JamlConfigLoader
         string[]? GetStringArray(string key);
         IReader? GetObject(string key);
         IReadOnlyList<NodeReader>? GetObjectList(string key);
-        IReadOnlyList<ClauseSource>? GetClauseList(string key);
+        IReadOnlyList<NodeReader>? GetClauseList(string key);
     }
 
     private sealed class OverlayReader(IReader primary, IReader fallback) : IReader
@@ -630,11 +510,11 @@ public static partial class JamlConfigLoader
         public IReadOnlyList<NodeReader>? GetObjectList(string key) =>
             primary.GetObjectList(key) ?? fallback.GetObjectList(key);
 
-        public IReadOnlyList<ClauseSource>? GetClauseList(string key) =>
+        public IReadOnlyList<NodeReader>? GetClauseList(string key) =>
             primary.GetClauseList(key) ?? fallback.GetClauseList(key);
     }
 
-    // Backed by JAML's own tree (JMap/JSeq/JScalar from JamlDocumentParser).
+    // Backed by the document tree (JMap/JSeq/JScalar from JamlYamlTree).
     private sealed class NodeReader : IReader
     {
         private readonly JMap _map;
@@ -702,7 +582,7 @@ public static partial class JamlConfigLoader
         public int[]? GetIntArray(string key)
         {
             var value = _map.Get(key);
-            if (value is null or JMap)
+            if (value is null or JMap or JScalar { IsNull: true })
                 return null;
             var span = ValueSpan(key);
             if (value is JSeq sequence)
@@ -713,13 +593,13 @@ public static partial class JamlConfigLoader
         }
 
         // A range token ("0-39", "1..8", "3–6", ascending or descending) expands inclusively through
-        // JamlLine.TrySplitRange, the same grammar the one-liner syntax reads. Plain "N" is one value.
+        // JamlIntRange.TrySplit. Plain "N" is one value.
         private static IEnumerable<int> ParseIntOrRange(string token, string key, JamlSpan span)
         {
-            if (JamlLine.TrySplitRange(token, out int lo, out int hi))
+            if (JamlIntRange.TrySplit(token, out int lo, out int hi))
             {
                 var values = new List<int>(Math.Abs(hi - lo) + 1);
-                JamlLine.AppendRange(values, lo, hi);
+                JamlIntRange.Append(values, lo, hi);
                 return values;
             }
 
@@ -760,36 +640,21 @@ public static partial class JamlConfigLoader
             return null;
         }
 
-        // A clause-list entry is either a mapping (structured clause) or a scalar (a single-line
-        // JAML clause). Anything else fails loudly — the loader never silently drops a list entry.
-        public IReadOnlyList<ClauseSource>? GetClauseList(string key)
+        // Every clause-list entry is a mapping. Anything else fails loudly — the loader never
+        // silently drops a list entry.
+        public IReadOnlyList<NodeReader>? GetClauseList(string key)
         {
             if (_map.Get(key) is not JSeq sequence)
                 return null;
-            var items = new List<ClauseSource>();
+            var items = new List<NodeReader>();
             foreach (var element in sequence.Items)
             {
-                switch (element)
-                {
-                    case JMap map:
-                        // A terse line with continuation keys arrives as a mapping carrying the
-                        // line under TerseLineKey; both halves travel so the clause is built from
-                        // JamlLine and then the keys are applied on top.
-                        items.Add(
-                            new ClauseSource(
-                                new NodeReader(map),
-                                (map.Get(JamlDocumentParser.TerseLineKey) as JScalar)?.Value
-                            )
-                        );
-                        break;
-                    case JScalar { Value: { } raw }:
-                        items.Add(new ClauseSource(null, raw));
-                        break;
-                    default:
-                        throw new InvalidOperationException(
-                            $"Clause list '{key}' has an entry that is neither a clause mapping nor a one-line clause."
-                        );
-                }
+                if (element is not JMap map)
+                    throw new JamlSemanticException(
+                        $"Clause list '{key}' has an entry that is not a clause mapping (e.g. '- joker: Blueprint').",
+                        element.Span
+                    );
+                items.Add(new NodeReader(map));
             }
             return items;
         }
@@ -797,7 +662,7 @@ public static partial class JamlConfigLoader
         private static string? Scalar(JNode? element) =>
             element switch
             {
-                JScalar value => value.Value,
+                JScalar { IsNull: false } value => value.Value,
                 _ => null,
             };
     }

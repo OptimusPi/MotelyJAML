@@ -46,21 +46,6 @@ public sealed class JamlBoundsTests
         Assert.Contains(expectedInMessage, error);
     }
 
-    /// <summary>The terse spelling reaches the same gate through its continuation keys.</summary>
-    [Fact]
-    public void Load_TerseContinuation_IsHeldToTheSameWindow()
-    {
-        const string text = """
-            deck: Red
-            stake: White
-            must:
-              - Blueprint
-                max: 0
-            """;
-        Assert.False(JamlConfigLoader.TryLoad(text, out _, out var error));
-        Assert.Contains("max: 0", error);
-    }
-
     // ── the LSP ─────────────────────────────────────────────────────────────────────────────────
 
     [Fact]

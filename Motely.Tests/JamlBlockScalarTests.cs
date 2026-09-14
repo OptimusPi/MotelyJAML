@@ -4,39 +4,33 @@ using Xunit;
 namespace Motely.Tests;
 
 /// <summary>
-/// JAML has two block styles and honors both: '|' keeps the line breaks an author typed,
-/// '>' folds them into spaces. YAML's chomping indicators ('|-', '|+', '>-', '>+') tune how many
-/// trailing newlines survive, which JAML has no way to express — so it refuses them by name
-/// rather than reading '|+' and quietly doing what '|' does.
+/// Block scalars follow YAML: '|' keeps the line breaks an author typed, '>' folds them into
+/// spaces, and the chomping indicators ('-' strip, '+' keep) decide the trailing newline.
 /// </summary>
 public sealed class JamlBlockScalarTests
 {
     private static string Doc(string indicator) =>
         $"name: probe\ndescription: {indicator}\n  line one\n  line two\nstake: White\n";
 
-    [Fact]
-    public void Literal_KeepsLineBreaks()
+    private static string Description(string indicator)
     {
-        Assert.True(JamlConfigLoader.TryLoad(Doc("|"), out var config, out var error), error);
-        Assert.Equal("line one\nline two", config!.Description);
-    }
-
-    [Fact]
-    public void Folded_JoinsLinesWithSpaces()
-    {
-        Assert.True(JamlConfigLoader.TryLoad(Doc(">"), out var config, out var error), error);
-        Assert.Equal("line one line two", config!.Description);
+        Assert.True(JamlConfigLoader.TryLoad(Doc(indicator), out var config, out var error), error);
+        return config!.Description!;
     }
 
     [Theory]
-    [InlineData("|-")]
-    [InlineData("|+")]
-    [InlineData(">-")]
-    [InlineData(">+")]
-    public void ChompingIndicators_AreRefusedByName(string indicator)
+    [InlineData("|", "line one\nline two\n")]
+    [InlineData("|-", "line one\nline two")]
+    [InlineData(">", "line one line two\n")]
+    [InlineData(">-", "line one line two")]
+    public void BlockStyles_FollowYaml(string indicator, string expected) =>
+        Assert.Equal(expected, Description(indicator));
+
+    [Fact]
+    public void BlockText_LineEndingInColon_IsKeptAsTyped()
     {
-        Assert.False(JamlConfigLoader.TryLoad(Doc(indicator), out _, out var error));
-        Assert.Contains(indicator, error);
-        Assert.Contains("block style", error);
+        const string doc = "name: probe\ndescription: |\n  Options:\n  more text\nstake: White\n";
+        Assert.True(JamlConfigLoader.TryLoad(doc, out var config, out var error), error);
+        Assert.Equal("Options:\nmore text\n", config!.Description);
     }
 }

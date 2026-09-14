@@ -16,7 +16,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromJson_HappyPath_ParsesDeckStakeAndClauses()
     {
-        var config = JamlConfigLoader.From("""
+        var config = JamlConfigLoader.FromJaml("""
             {
               "name": "json happy",
               "deck": "Erratic",
@@ -25,7 +25,7 @@ public class JamlJsonLoaderTests
               "should": [{ "voucher": "Telescope", "score": 5 }],
               "mustNot": [{ "joker": "Vagabond" }]
             }
-            """, JamlLoadFormat.Json);
+            """);
 
         Assert.Equal(MotelyDeck.Erratic, config.Deck);
         Assert.Equal(MotelyStake.Gold, config.Stake);
@@ -37,7 +37,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void TryLoadFromJson_UnknownRootKey_IsRejected()
     {
-        var ok = JamlConfigLoader.TryLoad("""{ "must": [{ "joker": "Blueprint" }], "boses": [] }""", JamlLoadFormat.Json,
+        var ok = JamlConfigLoader.TryLoad("""{ "must": [{ "joker": "Blueprint" }], "boses": [] }""",
             out _,
             out var error
         );
@@ -49,31 +49,31 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromJson_NullJoker_IsCategoryAny()
     {
-        var config = JamlConfigLoader.From("""{ "must": [{ "joker": null }] }""", JamlLoadFormat.Json);
+        var config = JamlConfigLoader.FromJaml("""{ "must": [{ "joker": null }] }""");
         AssertSingleMustIsAnyJoker(config);
     }
 
     [Fact]
     public void FromYaml_BareJoker_IsCategoryAny()
     {
-        var config = JamlConfigLoader.From("""
+        var config = JamlConfigLoader.FromJaml("""
             must:
               - joker:
-            """, JamlLoadFormat.Yaml);
+            """);
         AssertSingleMustIsAnyJoker(config);
     }
 
     [Fact]
     public void FromYaml_FoldedParagraph_LandsOnDescription()
     {
-        var config = JamlConfigLoader.From("""
+        var config = JamlConfigLoader.FromJaml("""
             name: folded
             description: >
               hello
               world
             must:
               - joker: Any
-            """, JamlLoadFormat.Yaml);
+            """);
         Assert.Equal("hello world\n", config.Description);
         AssertSingleMustIsAnyJoker(config);
     }
@@ -81,24 +81,24 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromYaml_AnyKeyword_IsCategoryAny()
     {
-        var config = JamlConfigLoader.From("""
+        var config = JamlConfigLoader.FromJaml("""
             must:
               - joker: Any
-            """, JamlLoadFormat.Yaml);
+            """);
         AssertSingleMustIsAnyJoker(config);
     }
 
     [Fact]
     public void FromYaml_HappyPath_MatchesJson()
     {
-        var fromYaml = JamlConfigLoader.From("""
+        var fromYaml = JamlConfigLoader.FromJaml("""
             name: yaml happy
             deck: red
             stake: white
             must:
               - joker: Blueprint
-            """, JamlLoadFormat.Yaml);
-        var fromJson = JamlConfigLoader.From("""{ "name": "yaml happy", "deck": "red", "stake": "white", "must": [{ "joker": "Blueprint" }] }""", JamlLoadFormat.Json);
+            """);
+        var fromJson = JamlConfigLoader.FromJaml("""{ "name": "yaml happy", "deck": "red", "stake": "white", "must": [{ "joker": "Blueprint" }] }""");
 
         Assert.Equal(fromJson.Deck, fromYaml.Deck);
         Assert.Equal(fromJson.Stake, fromYaml.Stake);   
@@ -109,8 +109,8 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromJson_InvalidJson_ThrowsWithMessage()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            JamlConfigLoader.From("{ not json", JamlLoadFormat.Json)
+        var ex = Assert.ThrowsAny<InvalidOperationException>(() =>
+            JamlConfigLoader.FromJaml("{ not json")
         );
         Assert.NotEmpty(ex.Message);
     }
@@ -118,8 +118,8 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromYaml_InvalidYaml_ThrowsWithMessage()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            JamlConfigLoader.From("must: [", JamlLoadFormat.Yaml)
+        var ex = Assert.ThrowsAny<InvalidOperationException>(() =>
+            JamlConfigLoader.FromJaml("must: [")
         );
         Assert.NotEmpty(ex.Message);
     }

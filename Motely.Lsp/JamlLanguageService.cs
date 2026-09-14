@@ -41,11 +41,11 @@ public static class JamlLanguageService
         // inner chain (FromJaml can wrap) and paint the squiggle exactly where it belongs.
         for (Exception? walk = ex; walk is not null; walk = walk.InnerException)
         {
-            // Syntax: the tokenizer's own span, message without the "at line N" preamble.
+            // Syntax: not valid YAML. The line the scanner stopped on.
             if (walk is JamlSyntaxException syntax)
                 return new JamlDiagnostic(
                     ClampSpan(syntax.Span, text),
-                    syntax.RawMessage,
+                    syntax.Message,
                     JamlDiagnosticSeverity.Error,
                     "JAML0001"
                 );
@@ -680,15 +680,7 @@ public static class JamlLanguageService
 
             var colon = body.IndexOf(':');
             if (colon <= 0)
-            {
-                // A one-line clause carries its discriminator in prose instead of a `key:` —
-                // "- Perkeo in ante 1" is a joker clause though the word "joker" never appears.
-                // Without this, keys indented under a line clause saw no enclosing clause and
-                // completed to nothing.
-                if (fromListItem && discriminator is null && blockKey is null)
-                    discriminator = DiscriminatorForLine(body);
                 continue;
-            }
             var key = body[..colon].Trim();
 
             if (discriminator is null && IsDiscriminator(key))
@@ -711,22 +703,6 @@ public static class JamlLanguageService
     {
         var indent = CountIndent(line);
         return line.TrimStart().StartsWith('-') ? indent + 2 : indent;
-    }
-
-    /// <summary>
-    /// The discriminator a one-line clause stands for. Asks the engine's own line reader
-    /// (<see cref="JamlLine.TryToClause"/>) rather than pattern-matching the prose here, so the
-    /// completion list can never disagree with what the loader will actually build. Answers only
-    /// with a discriminator <see cref="JamlSchema"/> knows, so a rename on either side degrades
-    /// to "no completion" instead of to a confidently wrong key list.
-    /// </summary>
-    private static string? DiscriminatorForLine(string lineBody)
-    {
-        if (lineBody.Length == 0)
-            return null;
-        if (!JamlLine.TryToClause(lineBody, out var clause, out _) || clause is null)
-            return null;
-        return JamlLine.DiscriminatorOf(clause);
     }
 
     private static bool IsDiscriminator(string word) =>

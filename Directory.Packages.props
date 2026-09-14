@@ -33,8 +33,8 @@
     <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
     <!-- JAML loading. Source-generated, reflection-free: survives the WASM trimmer, unlike
          YamlDotNet. Confirm the version with `dotnet package search VYaml`. -->
-    <PackageVersion Include="VYaml" Version="1.1.1" />
-    <PackageVersion Include="VYaml.Annotations" Version="1.1.1" />
+    <PackageVersion Include="VYaml" Version="1.4.0" />
+    <PackageVersion Include="VYaml.Annotations" Version="1.4.0" />
     <!-- Motely.Generators. Referenced at the floor, not the SDK's Roslyn: this DLL loads into
          whatever Roslyn the host carries, and Rider/VS ship their own on their own schedule. -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />

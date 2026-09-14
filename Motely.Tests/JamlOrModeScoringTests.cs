@@ -168,7 +168,7 @@ public class JamlOrModeScoringTests
     }
 
     [Fact]
-    public void OrMode_RoundTrip_WritesMax()
+    public void OrMode_Max_Loads()
     {
         Assert.True(
             JamlConfigLoader.TryLoad(
@@ -189,12 +189,7 @@ public class JamlOrModeScoringTests
             error
         );
 
-        var text = JamlConfigLoader.ToJaml(config!);
-        Assert.Contains("mode", text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("max", text, StringComparison.OrdinalIgnoreCase);
-
-        Assert.True(JamlConfigLoader.TryLoad(text, out var again, out var err2), err2);
-        var or = Assert.IsType<OrClause>(Assert.Single(again!.Should));
+        var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
         Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
     }
 
