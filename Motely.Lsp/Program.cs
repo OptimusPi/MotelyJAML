@@ -62,6 +62,9 @@ if (args.Length >= 1 && args[0] == "--explain")
     return 0;
 }
 
+if (args is ["--stdio"])
+    args = [];
+
 if (args.Length > 0)
 {
     Console.Error.WriteLine(
