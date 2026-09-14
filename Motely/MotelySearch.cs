@@ -357,6 +357,8 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         char[]? paddingAlphabet = null
     )
     {
+        if (aesthetic == JamlAesthetic.Repeater)
+            return WithProviderSearch(new MotelyRepeaterSeedProvider(paddingAlphabet));
         return WithProviderSearch(new MotelyAestheticSeedProvider(aesthetic, paddingAlphabet));
     }
 

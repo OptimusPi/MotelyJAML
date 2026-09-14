@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Collections.Concurrent;
 using McMaster.Extensions.CommandLineUtils;
 using Motely;
 using Motely.Analysis;
@@ -261,7 +262,22 @@ partial class Program
         );
         var cutoffOption = app.Option<string>(
             "--cutoff <VALUE>",
-            "Minimum score to print, or 'auto' for running maximum (every seed at or above the best score so far, ties included)",
+            "Minimum score to print, 'auto' to learn one from an initial sequential sample, or 'off' to print every scored match.",
+            CommandOptionType.SingleValue
+        );
+        var cutoffSampleOption = app.Option<double>(
+            "--cutoff-sample <PCT>",
+            "With --cutoff auto on a full sequential sweep: percent of batch space to sample before selecting and replaying a fixed score floor (default: 1).",
+            CommandOptionType.SingleValue
+        );
+        var cutoffSampleBatchesOption = app.Option<long>(
+            "--cutoff-sample-batches <N>",
+            "With --cutoff auto: sample exactly N sequential batches before selecting and replaying a fixed score floor. Overrides --cutoff-sample.",
+            CommandOptionType.SingleValue
+        );
+        var cutoffTargetOption = app.Option<long>(
+            "--cutoff-target <N>",
+            "With --cutoff auto: choose the lowest score projected to print at most N matches across the full sweep (default: 1000).",
             CommandOptionType.SingleValue
         );
         var keywordOption = app.Option<string>(
@@ -628,6 +644,30 @@ partial class Program
                     || drown
                     || replay;
 
+                double cutoffSamplePercent = cutoffSampleOption.HasValue()
+                    ? cutoffSampleOption.ParsedValue
+                    : 1.0;
+                if (cutoffSamplePercent <= 0 || cutoffSamplePercent > 100)
+                {
+                    Console.Error.WriteLine("--cutoff-sample must be greater than 0 and at most 100.");
+                    return 1;
+                }
+
+                long cutoffTarget = cutoffTargetOption.HasValue()
+                    ? cutoffTargetOption.ParsedValue
+                    : 1000;
+                if (cutoffTarget < 1)
+                {
+                    Console.Error.WriteLine("--cutoff-target requires N >= 1.");
+                    return 1;
+                }
+
+                if (cutoffSampleBatchesOption.HasValue() && cutoffSampleBatchesOption.ParsedValue < 1)
+                {
+                    Console.Error.WriteLine("--cutoff-sample-batches requires N >= 1.");
+                    return 1;
+                }
+
                 // Only the untouched sequential sweep can state its size. Every other mode draws
                 // from a list whose length is not known until it loads, or from a slice this block
                 // would have to re-derive from batch indices — so they name the mode instead of
@@ -717,6 +757,111 @@ partial class Program
 
                 using var _jamlSourceLifetime = jamlSourceLifetime;
 
+                // Auto sampling deliberately stays a CLI policy: the engine still only receives
+                // ordinary sequential ranges and fixed score floors. It applies only where this
+                // invocation owns the complete range, so a provider or user-selected slice is
+                // never silently sampled and replayed.
+                bool autoSampleSequential =
+                    cutoff.IsAuto
+                    && !namedExplicitSeedInput
+                    && !collectSequentialOnly
+                    && collectLimit == 0;
+
+                bool cancelled = false;
+                IMotelySearch search;
+
+                async Task<bool> RunPass(IMotelySearch pass)
+                {
+                    try
+                    {
+                        await pass.WaitForCompletionAsync(_cts.Token);
+                        return false;
+                    }
+                    catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
+                    {
+                        return true;
+                    }
+                }
+
+                if (autoSampleSequential)
+                {
+                    long totalBatches = (long)Math.Pow(
+                        MotelyGlobals.SeedDigits.Length,
+                        MotelyGlobals.MaxSeedLength - batchCharCount
+                    );
+                    long sampleBatches = cutoffSampleBatchesOption.HasValue()
+                        ? Math.Min(cutoffSampleBatchesOption.ParsedValue, totalBatches)
+                        : Math.Clamp(
+                            (long)Math.Ceiling(totalBatches * (cutoffSamplePercent / 100.0)),
+                            1,
+                            totalBatches
+                        );
+                    var scores = new ConcurrentDictionary<int, long>();
+                    long sampledMatches = 0;
+
+                    settings = settings
+                        .WithEndBatchIndex(sampleBatches)
+                        .WithAutoScoreCutoff(false)
+                        .WithScoredResultCallback(tally =>
+                        {
+                            scores.AddOrUpdate(tally.Score, 1, static (_, count) => count + 1);
+                            Interlocked.Increment(ref sampledMatches);
+                        });
+
+                    if (!quietOption.HasValue())
+                    {
+                        Console.Error.WriteLine(
+                            $"Auto cutoff: sampling {sampleBatches:N0} / {totalBatches:N0} batches ({100.0 * sampleBatches / totalBatches:F3}%) to choose a projected output floor."
+                        );
+                    }
+
+                    search = settings.Start(_cts.Token);
+                    cancelled = await RunPass(search);
+                    if (cancelled)
+                        return 1;
+
+                    long cumulative = 0;
+                    int? selectedFloor = null;
+                    long selectedSampledMatches = 0;
+                    foreach (var (score, count) in scores.OrderByDescending(pair => pair.Key))
+                    {
+                        cumulative += count;
+                        // Avoid floating point drift on trillion-seed runs: projected count <= target.
+                        if (cumulative <= cutoffTarget * (double)sampleBatches / totalBatches)
+                        {
+                            selectedFloor = score;
+                            selectedSampledMatches = cumulative;
+                        }
+                    }
+
+                    if (selectedFloor is null)
+                    {
+                        Console.Error.WriteLine(
+                            $"Auto cutoff: sample produced {sampledMatches:N0} scored matches but none fit the target of {cutoffTarget:N0}; using the best sampled score."
+                        );
+                        selectedFloor = scores.Count == 0 ? 0 : scores.Keys.Max();
+                        selectedSampledMatches = scores.TryGetValue(selectedFloor.Value, out var count)
+                            ? count
+                            : 0;
+                    }
+
+                    cutoff = MotelyScoreCutoff.Fixed(selectedFloor.Value);
+                    settings = settings
+                        .WithStartBatchIndex(0)
+                        .WithEndBatchIndex(totalBatches)
+                        .WithAutoScoreCutoff(false);
+
+                    if (!quietOption.HasValue())
+                    {
+                        long projected = (long)Math.Ceiling(
+                            selectedSampledMatches * (double)totalBatches / sampleBatches
+                        );
+                        Console.Error.WriteLine(
+                            $"Auto cutoff: {sampledMatches:N0} sampled matches; selected score >= {selectedFloor.Value}, projected {projected:N0} output matches (target {cutoffTarget:N0}). Replaying the sample, then continuing the full sweep."
+                        );
+                    }
+                }
+
                 string? lakeRoot = resultsPathOption.HasValue()
                     ? resultsPathOption.ParsedValue
                     : null;
@@ -753,22 +898,6 @@ partial class Program
                     Console.Error.WriteLine(
                         $"Motely: {config.Name ?? docPath} | {deck} {stake} | threads={threads} | batchCharCount={batchCharCount} {(drown ? "| drown=entire seed lake" : replay ? "| replay=JAML seeds: block" : "(sequential only)")}"
                     );
-                }
-
-                bool cancelled = false;
-                IMotelySearch search;
-
-                async Task<bool> RunPass(IMotelySearch pass)
-                {
-                    try
-                    {
-                        await pass.WaitForCompletionAsync(_cts.Token);
-                        return false;
-                    }
-                    catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
-                    {
-                        return true;
-                    }
                 }
 
                 if (collectLimit > 0 && collectSequentialOnly)

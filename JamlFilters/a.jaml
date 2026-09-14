@@ -5,13 +5,7 @@ deck: Anaglyph
 stake: White
 must:
   - smallBlindTag: NegativeTag
-    antes: [4]
-  - joker: Perkeo
-    antes: [1,2]
-  - joker: Showman
-    antes: [1,2,3]
-  - joker: LuckyCat
-    antes: [1,2,3,4,5,6,7]
+ 
 should:
   - jokers: [OopsAll6s, Blueprint, Brainstorm, InvisibleJoker, SockAndBuskin, HangingChad]
     antes: [1,2,3,4]
@@ -92,3 +86,22 @@ should:
 
 seeds:
   - 1F5WEAYR
+  - ZB52ZB52
+  - 8UF18UF1
+  - 6BRA6BRA
+  - 4D864D86
+  - 7BNA7BNA
+  - 4AX84AX8
+  - 83CB83CB
+  - 72I172I1
+  - 6Z5L6Z5L
+  - 2YZM2YZM
+  - 4YZC4YZC
+  - 7Z1S7Z1S
+  - 1S1S1S1S
+  - 2YZ92YZ9
+  - 5YZ85YZ8
+  - 6YZ16YZ1
+  - 1YZ11YZ1
+  - 4YZ14YZ1
+  - 3YZ43YZ4

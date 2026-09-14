@@ -20,6 +20,7 @@ public static class JamlAestheticParser
         ("nsfw", JamlAesthetic.Nsfw),
         ("mirror", JamlAesthetic.Mirror),
         ("repeater", JamlAesthetic.Repeater),
+        ("runs", JamlAesthetic.Runs),
         ("palindrome", JamlAesthetic.Palindrome),
         ("step", JamlAesthetic.Step),
         ("leet", JamlAesthetic.Leet),

@@ -190,6 +190,91 @@ public sealed class MotelyAestheticSeedProvider : IMotelySeedProvider
     }
 }
 
+/// <summary>
+/// Generates repeater patterns directly from their ordinal rather than through a shared iterator.
+/// Provider search workers claim independent chunks, so pattern production does not serialize on
+/// one enumerator lock before the SIMD search can begin.
+/// </summary>
+public sealed class MotelyRepeaterSeedProvider : IMotelySeedProvider
+{
+    private static readonly int[] PatternLengths = [1, 2, 4];
+    private readonly char[] _alphabet;
+    private readonly long[] _firstIndexByPatternLength = new long[PatternLengths.Length];
+    private long _nextIndex;
+
+    public long SeedCount { get; }
+
+    public MotelyRepeaterSeedProvider(char[]? paddingAlphabet = null)
+    {
+        _alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+
+        long total = 0;
+        long patterns = 1;
+        checked
+        {
+            for (int i = 0; i < PatternLengths.Length; i++)
+            {
+                int patternLength = PatternLengths[i];
+                _firstIndexByPatternLength[i] = total;
+                while (patterns < Math.Pow(_alphabet.Length, patternLength))
+                    patterns *= _alphabet.Length;
+                total += patterns;
+            }
+        }
+        SeedCount = total;
+    }
+
+    public string NextSeed()
+    {
+        long index = Interlocked.Increment(ref _nextIndex) - 1;
+        return index < SeedCount ? SeedAt(index) : string.Empty;
+    }
+
+    public int NextSeeds(string[] seeds)
+    {
+        if (seeds is not { Length: > 0 })
+            return 0;
+
+        long start = Interlocked.Add(ref _nextIndex, seeds.Length) - seeds.Length;
+        if (start >= SeedCount)
+            return 0;
+
+        int count = (int)Math.Min(seeds.Length, SeedCount - start);
+        for (int i = 0; i < count; i++)
+            seeds[i] = SeedAt(start + i);
+        return count;
+    }
+
+    internal string SeedAt(long index)
+    {
+        if (index < 0 || index >= SeedCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        int patternLengthIndex = 0;
+        for (; patternLengthIndex < PatternLengths.Length - 1; patternLengthIndex++)
+            if (index < _firstIndexByPatternLength[patternLengthIndex + 1])
+                break;
+
+        int patternLength = PatternLengths[patternLengthIndex];
+        long patternIndex = index - _firstIndexByPatternLength[patternLengthIndex];
+        return string.Create(
+            MotelyGlobals.MaxSeedLength,
+            (_alphabet, patternLength, patternIndex),
+            static (seed, state) =>
+            {
+                Span<char> pattern = stackalloc char[state.patternLength];
+                for (int i = state.patternLength - 1; i >= 0; i--)
+                {
+                    pattern[i] = state._alphabet[(int)(state.patternIndex % state._alphabet.Length)];
+                    state.patternIndex /= state._alphabet.Length;
+                }
+                for (int i = 0; i < seed.Length; i++)
+                    seed[i] = pattern[i % pattern.Length];
+            }
+        );
+    }
+}
+
 public sealed class MotelyKeywordSeedProvider : IMotelySeedProvider
 {
     public long SeedCount { get; }

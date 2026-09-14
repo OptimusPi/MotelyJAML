@@ -167,6 +167,51 @@ public sealed class SeedProviderTests
     }
 
     [Fact]
+    public void RepeaterProvider_MatchesTheCanonicalAestheticOrder()
+    {
+        char[] smallAlphabet = "123".ToCharArray();
+        var expected = JamlAesthetics
+            .EnumerateSeeds(JamlAesthetic.Repeater, smallAlphabet)
+            .ToArray();
+        var provider = new MotelyRepeaterSeedProvider(smallAlphabet);
+        var actual = new string[expected.Length];
+
+        Assert.Equal(actual.Length, provider.NextSeeds(actual));
+        Assert.Equal(expected, actual);
+        Assert.Equal(
+            JamlAesthetics.GetSeedCount(JamlAesthetic.Repeater, smallAlphabet),
+            provider.SeedCount
+        );
+
+        var fullProvider = new MotelyRepeaterSeedProvider();
+        Assert.Equal("11111111", fullProvider.SeedAt(0));
+        Assert.Equal("ZZZYZZZY", fullProvider.SeedAt(fullProvider.SeedCount - 2));
+        Assert.Equal("ZZZZZZZZ", fullProvider.SeedAt(fullProvider.SeedCount - 1));
+    }
+
+    [Fact]
+    public void RunsAesthetic_GeneratesFourCharacterChunksAtEveryOffset()
+    {
+        char[] pad = "12".ToCharArray();
+        var seeds = JamlAesthetics.EnumerateSeeds(JamlAesthetic.Runs, pad).ToArray();
+
+        Assert.Equal(
+            JamlAesthetics.GetSeedCount(JamlAesthetic.Runs, pad),
+            seeds.LongLength
+        );
+        Assert.Contains("11111111", seeds);
+        Assert.Contains("21111112", seeds);
+        Assert.Contains("12111111", seeds);
+        Assert.All(
+            seeds,
+            seed => Assert.True(
+                MotelyGlobals.SeedDigits.Any(character => seed.Contains(new string(character, 4))),
+                $"'{seed}' has no four-character run"
+            )
+        );
+    }
+
+    [Fact]
     public void KeywordSeedProvider_PadsKeywordsAndExhausts()
     {
         var keywords = new[] { "FART", "UNIT" };
