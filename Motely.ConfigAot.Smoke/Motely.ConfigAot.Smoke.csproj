@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Motely.ConfigAot.Smoke</RootNamespace>
+    <AssemblyName>Motely.ConfigAot.Smoke</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- PublishAot only when -r is set (same pattern as Motely.Lsp / Motely.CLI). -->
+    <PublishAot Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'browser-wasm' and '$(DesignTimeBuild)' != 'true'">true</PublishAot>
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <!-- VYaml carries third-party AOT analysis warnings (IL3053); same as Motely.CLI. -->
+    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Motely.Config\Motely.Config.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\*.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
