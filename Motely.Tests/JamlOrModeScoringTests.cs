@@ -194,26 +194,26 @@ public class JamlOrModeScoringTests
     }
 
     /// <summary>
-    /// Parent <c>antes:</c> on <c>or:</c> must hoist into every bare child arm (chunk convenience).
-    /// MOTELY77 Red/White: ante-1 small blind tag is Polychrome, voucher is Tarot Merchant —
-    /// same real seed as the mode sum/max pins, but antes written once on the <c>or</c>.
+    /// Each <c>or:</c> arm writes its own antes. MOTELY77 Red/White: ante-1 small blind tag is
+    /// Polychrome, voucher is Tarot Merchant — same real seed as the mode sum/max pins.
     /// </summary>
     [Fact]
-    public void Or_ParentAntes_SpreadToChildren_LoadAndScore_MOTELY77()
+    public void Or_ArmsWriteTheirOwnAntes_LoadAndScore_MOTELY77()
     {
         const string jaml = """
-            name: or-antes-spread
+            name: or-arm-antes
             deck: Red
             stake: White
             should:
               - or:
                   mode: max
-                  antes: [1]
                   score: 1
                   clauses:
                     - smallBlindTag: PolychromeTag
+                      antes: [1]
                       score: 3
                     - voucher: TarotMerchant
+                      antes: [1]
                       score: 5
             """;
 
@@ -226,7 +226,6 @@ public class JamlOrModeScoringTests
         Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
         Assert.Equal(2, or.Clauses.Length);
 
-        // Hoist: neither arm authored antes; both must receive parent [1].
         var tag = Assert.IsAssignableFrom<IAnteScopedClause>(or.Clauses[0]);
         var voucher = Assert.IsAssignableFrom<IAnteScopedClause>(or.Clauses[1]);
         Assert.Equal([1], tag.Antes);
@@ -234,18 +233,17 @@ public class JamlOrModeScoringTests
 
         var (matching, score, tally) = RunSingleSeed(jaml);
         Assert.Equal(1, matching);
-        Assert.Equal(5, score); // max(3, 5) via hoisted ante-1 hits only
+        Assert.Equal(5, score); // max(3, 5) via ante-1 hits only
         Assert.Equal(1, tally);
     }
 
     /// <summary>
-    /// Wrong parent ante must zero both arms after hoist — proves spread is search-live.
-    /// Analyzer MOTELY77 Red/White: ante 1 = Polychrome Tag + Tarot Merchant; ante 2 =
-    /// Rare/Foil tags + Blank voucher (not that pair). Cutoff is 0 so matching may still
+    /// Arm antes are search-live: the wrong ante zeroes both arms. Analyzer MOTELY77 Red/White:
+    /// ante 2 = Rare/Foil tags + Blank voucher (not that pair). Cutoff is 0 so matching may still
     /// count the seed; score/tally are the live signal.
     /// </summary>
     [Fact]
-    public void Or_ParentAntes_WrongAnte_NoScore_MOTELY77()
+    public void Or_ArmAntes_WrongAnte_NoScore_MOTELY77()
     {
         var (_, score, tally) = RunSingleSeed(
             """
@@ -255,18 +253,19 @@ public class JamlOrModeScoringTests
             should:
               - or:
                   mode: sum
-                  antes: [2]
                   score: 1
                   clauses:
                     - smallBlindTag: PolychromeTag
+                      antes: [2]
                       score: 3
                     - voucher: TarotMerchant
+                      antes: [2]
                       score: 5
             """
         );
 
-        Assert.True((score ?? 0) == 0, $"expected no score after wrong ante hoist, got {score}");
-        Assert.True((tally ?? 0) == 0, $"expected no tally after wrong ante hoist, got {tally}");
+        Assert.True((score ?? 0) == 0, $"expected no score at the wrong ante, got {score}");
+        Assert.True((tally ?? 0) == 0, $"expected no tally at the wrong ante, got {tally}");
     }
 }
 

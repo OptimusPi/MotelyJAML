@@ -20,7 +20,7 @@ public sealed class PokerHandClause : IJamlClause, IAnteScopedClause, IRollScope
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPokerHand[] PokerHands { get; set; } = [];
 
     /// <summary>

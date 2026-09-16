@@ -14,9 +14,6 @@ public sealed class JamlSearchPlan
 
 public static class JamlSearchBuilder
 {
-    /// <summary>Default ante scope for an ante-scoped clause that named no antes: all 8.</summary>
-    private static readonly int[] DefaultAntes = [1, 2, 3, 4, 5, 6, 7, 8];
-
     public static JamlSearchPlan CreatePlan(JamlConfig config, int engineCutoff = 0)
     {
         var settings = CreateSettings(config, engineCutoff);
@@ -29,62 +26,16 @@ public static class JamlSearchBuilder
     }
 
     /// <summary>
-    /// Re-apply <see cref="LogicClause.Antes"/> down the tree (same law as loader HoistAntes).
-    /// </summary>
-    private static void RehoistLogicAntes(IJamlClause clause)
-    {
-        if (clause is not LogicClause logic)
-            return;
-        if (logic.Antes.Length > 0)
-            JamlConfigLoader.HoistAntes(logic.Clauses, logic.Antes);
-        for (int i = 0; i < logic.Clauses.Length; i++)
-            RehoistLogicAntes(logic.Clauses[i]);
-    }
-
-    /// <summary>
-    /// Fill empty <c>antes</c> with 1..8 on this clause and every nested <c>and:</c>/<c>or:</c> arm.
-    /// </summary>
-    private static void FillDefaultAntes(IJamlClause clause)
-    {
-        if (clause is IAnteScopedClause { Antes.Length: 0 } anteScoped)
-            anteScoped.Antes = DefaultAntes;
-        if (clause is LogicClause logic)
-        {
-            for (int i = 0; i < logic.Clauses.Length; i++)
-                FillDefaultAntes(logic.Clauses[i]);
-        }
-    }
-
-    /// <summary>
     /// The tally-column label for a should clause: the author's explicit label when given,
     /// otherwise "score{index}".
     /// </summary>
     public static string DefaultTallyLabel(IJamlClause clause, int index) =>
         clause.Label ?? $"score{index}";
 
-    /// <summary>
-    /// The ante normalization every scoring pass assumes, applied in place:
-    /// 1) Parent and:/or: antes pass through nested arms that did not override (re-hoist so
-    ///    programmatic clause trees match loader shape).
-    /// 2) Still-empty antes → default 1..8 (sourceless == "anywhere"). Neg Tag authors
-    ///    2..8 explicitly so they never ride this default. Event clauses are roll-scoped.
-    /// <see cref="CreateSettings"/> does this before building; the standalone Jamlyzer does it
-    /// before scoring, so both report the same score for the same JAML and seed. Idempotent.
-    /// </summary>
-    internal static void NormalizeAntes(JamlConfig config)
-    {
-        foreach (var clause in config.Must.Concat(config.Should).Concat(config.MustNot))
-            RehoistLogicAntes(clause);
-        foreach (var clause in config.Must.Concat(config.Should).Concat(config.MustNot))
-            FillDefaultAntes(clause);
-    }
-
     public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = 0)
     {
         // A JAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
         // and nothing else, with the host's own predicate free to drive the whole decision.
-        NormalizeAntes(config);
-
         IMotelySearchSettings settings =
             config.Filter is { Length: > 0 } filterName
                 && MotelyNativeFilterNames.TryParse(filterName, out var nativeFilter)
