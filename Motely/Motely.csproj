@@ -19,6 +19,7 @@
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="VYaml" />
+    <PackageReference Include="VYaml.Annotations" />
   </ItemGroup>
 
   <!-- JamlGrammarGenerator produces JamlSchema.g.cs from [JamlDiscriminator] attributes -->

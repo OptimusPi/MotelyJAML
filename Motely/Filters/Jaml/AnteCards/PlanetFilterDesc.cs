@@ -6,13 +6,14 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("planetCard", "planetCards",
     ValueEnum = typeof(MotelyPlanetCard), SourceConfigType = typeof(PlanetSourceConfig))]
-public sealed class PlanetCardClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class PlanetCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPlanetCard[] Planets { get; set; } = [];
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
@@ -319,7 +320,8 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>planetCard:</c>. Colocated with <see cref="PlanetCardFilterDesc"/> (T5).
 /// </summary>
-public sealed record PlanetSourceConfig
+[YamlObject]
+public sealed partial record PlanetSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =

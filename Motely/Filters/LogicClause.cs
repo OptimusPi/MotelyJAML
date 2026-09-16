@@ -17,24 +17,16 @@ public enum JamlLogicScoreMode
 
 public abstract class LogicClause : IJamlClause
 {
-    /// <summary>Shared by AndClause/OrClause — complete clause-level keys.
-    /// Parent <c>antes</c> are stored here and pass through every nested arm that did not
-    /// override (loader + CreateSettings re-hoist). <c>mode</c> is sum|max for <c>or:</c>.</summary>
+    /// <summary>Shared by AndClause/OrClause. No antes: each child clause writes its own.
+    /// <c>mode</c> is sum|max for <c>or:</c>.</summary>
     public static readonly string[] ClauseKeys =
-        ["min", "max", "score", "label", "ante", "antes", "clauses", "mode"];
+        ["min", "max", "score", "label", "clauses", "mode"];
 
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
     public JamlLogicScoreMode Mode { get; set; } = JamlLogicScoreMode.Sum;
-
-    /// <summary>
-    /// Parent ante scope for this <c>and:</c>/<c>or:</c>. Empty = no parent scope (children
-    /// keep their own or get default 1..8 later). Non-empty passes into every nested clause
-    /// that left <c>antes</c> empty — including nested logic — unless a child overrides.
-    /// </summary>
-    public int[] Antes { get; set; } = [];
 
     public IJamlClause[] Clauses { get; set; } = [];
 }

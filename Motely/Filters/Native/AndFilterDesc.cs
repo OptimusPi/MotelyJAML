@@ -5,7 +5,8 @@ using Motely.Filters.Jaml;
 namespace Motely.Filters;
 
 [JamlDiscriminator("and")]
-public sealed class AndClause : LogicClause { }
+[YamlObject]
+public sealed partial class AndClause : LogicClause { }
 
 public struct AndFilterDesc(IMotelySeedFilterDesc[] filters)
     : IMotelySeedFilterDesc<AndFilterDesc.AndFilter>

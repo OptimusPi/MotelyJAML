@@ -2,19 +2,18 @@ name: Neg free Four Oops
 author: nat / grok
 description: >
   ONLY Negative-Tag free Oops! All 6s — and: is the package (Neg free path +
-  four Oops), not sugar. Parent antes [2..8] on the and pass into every nested
-  arm unless it overrides (Neg never ante 1). should or mode:max = best deep
-  shop window; or parent antes 1..8 spread into every chunk.
+  four Oops), not sugar. Each clause writes its own antes (Neg never ante 1,
+  so [2..8]). should or mode:max = best deep shop window; arms default 1..8.
 deck: Anaglyph
 stake: White
 
 must:
   - and:
-      # Once on the and — flows into Neg + Oops unless a child overrides.
-      antes: [2, 3, 4, 5, 6, 7, 8]
       clauses:
         - smallBlindTag: NegativeTag
+          antes: [2, 3, 4, 5, 6, 7, 8]
         - uncommonJoker: OopsAll6s
+          antes: [2, 3, 4, 5, 6, 7, 8]
           min: 4
           sources:
             shopItems:
@@ -34,7 +33,6 @@ must:
 should:
   - or:
       mode: max
-      antes: [1, 2, 3, 4, 5, 6, 7, 8]
       score: 1
       clauses:
         - uncommonJoker: OopsAll6s

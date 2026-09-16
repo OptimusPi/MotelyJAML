@@ -3,13 +3,14 @@ using System.Runtime.CompilerServices;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("startingDraw")]
-public sealed class StartingDrawClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class StartingDrawClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
 }

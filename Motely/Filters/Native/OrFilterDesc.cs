@@ -7,7 +7,8 @@ using static Motely.MotelyVectorUtils;
 namespace Motely.Filters;
 
 [JamlDiscriminator("or")]
-public sealed class OrClause : LogicClause { }
+[YamlObject]
+public sealed partial class OrClause : LogicClause { }
 
 public static class MotelySeedFilterDescExtensions
 {

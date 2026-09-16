@@ -204,12 +204,7 @@ public static class MotelyJamlyzer
         int shopSlots = 0
     )
     {
-        // Walk window first, off the raw scope (an unscoped clause means "walk 0..8, pre-run shop
-        // included"). Then normalize the clauses the way the search builder does before scoring,
-        // so an unscoped `should:` counts across 1..8 here exactly as it does in a search — without
-        // this, its antes are empty and the standalone Jamlyzer scores the seed 0.
         var antesToAnalyze = ComputeAntes(config);
-        Motely.Filters.JamlSearchBuilder.NormalizeAntes(config);
         bool hasScore = config.Must.Count + config.Should.Count > 0;
         var results = new List<MotelyJamlyzerSeedResult>(config.Seeds.Count);
 

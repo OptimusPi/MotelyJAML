@@ -111,9 +111,16 @@ internal static class MotelyJamlyzerSeedWalk
         MotelyRunState voucherState = new();
         MotelySingleBossStream bossStream = ctx.CreateBossStream();
 
-        var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - window.StartAnte + 1];
+        // Ante 0 is walked when the window names it, or when this seed's ante-1 voucher is
+        // Hieroglyph/Petroglyph — buying it eases the run back to ante 0, so that round is real.
+        int startAnte = window.StartAnte;
+        if (startAnte == 1
+            && ctx.GetAnteFirstVoucher(1, new MotelyRunState()) is MotelyVoucher.Hieroglyph or MotelyVoucher.Petroglyph)
+            startAnte = 0;
 
-        for (int ante = window.StartAnte; ante <= window.MaxAnte; ante++)
+        var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - startAnte + 1];
+
+        for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
             // Ante 0 is the pre-run shop, reached by ante reduction (Hieroglyph / Petroglyph):
             // its shop, packs and tags are exactly what a JAML `antes: [0]` clause searches.
@@ -184,7 +191,7 @@ internal static class MotelyJamlyzerSeedWalk
             if (!isPreRunShop)
                 voucherState.ActivateVoucher(voucher);
 
-            antes[ante - window.StartAnte] = new(
+            antes[ante - startAnte] = new(
                 ante,
                 boss,
                 voucher,
