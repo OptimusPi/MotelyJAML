@@ -3,7 +3,8 @@ using System.Runtime.CompilerServices;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("startingDraw")]
-public sealed class StartingDrawClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class StartingDrawClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

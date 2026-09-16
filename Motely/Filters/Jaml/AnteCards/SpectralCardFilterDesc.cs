@@ -6,7 +6,8 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("spectralCard", "spectralCards",
     ValueEnum = typeof(MotelySpectralCard), SourceConfigType = typeof(SpectralCardSourceConfig))]
-public sealed class SpectralCardClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class SpectralCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -497,7 +498,8 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>spectralCard:</c>. Colocated with <see cref="SpectralCardFilterDesc"/> (T5).
 /// </summary>
-public sealed record SpectralCardSourceConfig
+[YamlObject]
+public sealed partial record SpectralCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =

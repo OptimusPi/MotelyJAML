@@ -248,17 +248,43 @@ internal static class JamlYamlTree
         }
         catch (Exception ex)
         {
-            // The scanner's mark is where it gave up; step back over blank lines to the one to fix.
-            var lines = text.Split('\n');
-            var line = Math.Clamp(parser.CurrentMark.Line - 1, 0, lines.Length - 1);
-            while (line > 0 && string.IsNullOrWhiteSpace(lines[line]))
-                line--;
-            throw new JamlSyntaxException(
-                $"YAML parse error at '{lines[line].Trim()}': {ex.Message}",
-                JamlSpan.WholeLine(line, Math.Max(lines[line].Length, 1)),
-                ex
-            );
+            throw Wrap(ex, text, ref parser);
         }
+    }
+
+    /// <summary>One node from an already-positioned VYaml parser (after <c>SkipHeader</c>).</summary>
+    public static JNode ReadCurrent(ref YamlParser parser, string text)
+    {
+        var locator = new Locator(text);
+        try
+        {
+            if (parser.End
+                || parser.CurrentEventType is ParseEventType.DocumentEnd or ParseEventType.StreamEnd)
+                return new JMap();
+            return Read(ref parser, locator);
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw Wrap(ex, text, ref parser);
+        }
+    }
+
+    private static JamlSyntaxException Wrap(Exception ex, string text, ref YamlParser parser)
+    {
+        // The scanner's mark is where it gave up; step back over blank lines to the one to fix.
+        var lines = text.Split('\n');
+        var line = Math.Clamp(parser.CurrentMark.Line - 1, 0, lines.Length - 1);
+        while (line > 0 && string.IsNullOrWhiteSpace(lines[line]))
+            line--;
+        return new JamlSyntaxException(
+            $"YAML parse error at '{lines[line].Trim()}': {ex.Message}",
+            JamlSpan.WholeLine(line, Math.Max(lines[line].Length, 1)),
+            ex
+        );
     }
 
     // Each Read consumes exactly one node.

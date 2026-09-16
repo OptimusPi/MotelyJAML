@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
+using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
 
@@ -46,7 +48,20 @@ public static class JamlConfigLoader
     /// <summary>Loads a filter document. YAML only; JSON is valid YAML and reads the same way.</summary>
     public static JamlConfig FromJaml(string content)
     {
-        var root = JamlYamlTree.Parse(content);
+        content = JamlYaml.NormalizeText(content);
+        JamlYaml.SourceText = content;
+        try
+        {
+            return YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(content), JamlYaml.Options);
+        }
+        finally
+        {
+            JamlYaml.SourceText = null;
+        }
+    }
+
+    internal static JamlConfig FromMap(JMap root)
+    {
         ValidateKeys(root, JamlConfig.RootKeys, "JAML root");
 
         var name = GetString(root, "name");
@@ -81,7 +96,7 @@ public static class JamlConfigLoader
 
     // ── clauses ────────────────────────────────────────────────────────────────────────────
 
-    private static IJamlClause ParseClause(JMap node)
+    internal static IJamlClause ParseClause(JMap node)
     {
         var disc =
             node.Keys.FirstOrDefault(JamlSchema.IsKnownDiscriminator)

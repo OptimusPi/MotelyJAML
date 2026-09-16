@@ -6,7 +6,8 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("legendaryJoker", "legendaryJokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(LegendaryJokerSourceConfig))]
-public sealed class LegendaryJokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class LegendaryJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -187,7 +188,8 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 /// <c>sources:</c> block for <c>legendaryJoker:</c>. Colocated with
 /// <see cref="LegendaryJokerFilterDesc"/> (T5).
 /// </summary>
-public sealed record LegendaryJokerSourceConfig
+[YamlObject]
+public sealed partial record LegendaryJokerSourceConfig
 {
     /// <summary>
     /// requireMega/requireMegaPack are both real aliases the loader accepts for the one

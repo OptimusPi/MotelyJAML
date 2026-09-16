@@ -7,7 +7,8 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("voucher", "vouchers",
     ValueEnum = typeof(MotelyVoucher), RollsDefault = new[] { 0 })]
-public sealed class VoucherClause : IJamlClause, IAnteScopedClause, IRollScopedClause
+[YamlObject]
+public sealed partial class VoucherClause : IJamlClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

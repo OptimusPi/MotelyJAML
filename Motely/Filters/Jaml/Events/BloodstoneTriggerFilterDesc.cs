@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("bloodstoneTrigger", RollsAreInlineValue = true)]
-public sealed class BloodstoneTriggerClause : IRollScopedClause
+[YamlObject]
+public sealed partial class BloodstoneTriggerClause : IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

@@ -11,7 +11,8 @@ namespace Motely.Filters.Jaml;
     ValueEnum = typeof(MotelyTag), RollsDefault = new[] { 0 })]
 [JamlDiscriminator("bigBlindTag",
     ValueEnum = typeof(MotelyTag), RollsDefault = new[] { 1 })]
-public sealed class TagClause : IJamlClause, IAnteScopedClause, IRollScopedClause
+[YamlObject]
+public sealed partial class TagClause : IJamlClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

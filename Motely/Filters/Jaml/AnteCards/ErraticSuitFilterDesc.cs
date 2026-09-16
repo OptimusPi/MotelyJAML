@@ -7,7 +7,8 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("erraticSuit", "erraticSuits",
     ValueEnum = typeof(MotelyStandardcardSuit))]
-public sealed class ErraticSuitClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class ErraticSuitClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
