@@ -22,7 +22,7 @@ Search.onAnalyzed = (r) => (breakdown[r.seed] = r);
 await Search.settings(jaml).withAnalysis(0).withSeedList(seeds).start(token);
 ```
 
-`[RenameModule] => index`. `[RenameNode]` erases `Boot`, `Names`, specialization Import/Export proxies.
+`[RenameModule] => index`. `[RenameNode]` erases `Boot`, `Names`, specialization Import/Export proxies. `Motely*` enums emit without the prefix in TS (`Joker`, `TarotCard`, `SpectralCard`, …). Engine enum names stay.
 
 ```sh
 dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release

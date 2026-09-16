@@ -24,6 +24,9 @@ public static class Names
         if (type.Name is "Boot" or "Names") return null!;
         if (typeof(SpecializedImport).IsAssignableFrom(type)) return null!;
         if (typeof(SpecializedExport).IsAssignableFrom(type)) return null!;
+        // C# stays Motely*. TS enum names match Balatro: Joker, TarotCard, SpectralCard, …
+        if (type.IsEnum && @default.StartsWith("Motely", StringComparison.Ordinal))
+            return @default["Motely".Length..];
         return @default;
     }
 }
