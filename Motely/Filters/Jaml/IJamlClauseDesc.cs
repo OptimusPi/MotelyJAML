@@ -32,28 +32,6 @@ public interface IJamlClauseDesc<TClause> where TClause : class, IJamlClause
     /// Returns false when the value doesn't fit, having already reported why — a desc that
     /// can't read its own value must say so, not leave the clause half-built and quiet.</summary>
     static virtual bool SetDiscriminatorValue(TClause clause, IJamlValueReader value) => true;
-
-    /// <summary>
-    /// The share of seeds this clause lets through, computed from the clause and the run's deck
-    /// and stake before any seed is searched. Only the desc knows its own pool and its own odds,
-    /// so only the desc can answer — the same reason <see cref="Set"/> lives here rather than in
-    /// a table. The <paramref name="ctx"/> is there for the families whose pools move with the
-    /// run (shop rates, sticker gates); the roll-scoped events ignore it.
-    /// <para>
-    /// Always in <c>[0, 1]</c>, and the two ends of that range say different things. A zero is a
-    /// <em>modelled</em> answer meaning provably impossible — <c>min</c> above the number of rolls
-    /// offered, a misprint threshold past the top of its range — and the report prints it as such,
-    /// which is why it must not be softened into NaN. Never exact at the other end either: it is
-    /// the rarity counterpart to <c>EstimateCrunches</c>, an estimate for planning, not a promise.
-    /// </para>
-    /// <para>
-    /// Defaults to <see cref="double.NaN"/>, meaning "this family has not declared its odds
-    /// yet". NaN is deliberate: it poisons any arithmetic it touches and is trivially
-    /// detectable, where a plausible default like 1.0 would quietly claim the clause filters
-    /// nothing and corrupt every total downstream. Callers must check.
-    /// </para>
-    /// </summary>
-    static virtual double EstimateRarity(TClause clause, in JamlRarityContext ctx) => double.NaN;
 }
 
 /// <summary>

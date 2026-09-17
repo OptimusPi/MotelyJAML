@@ -16,11 +16,6 @@ internal static class JamlClauseDescDispatch
         where TClause : class, IJamlClause =>
         TDesc.Set(clause, key, value);
 
-    private static double Estimate<TDesc, TClause>(TClause clause, in JamlRarityContext ctx)
-        where TDesc : IJamlClauseDesc<TClause>
-        where TClause : class, IJamlClause =>
-        TDesc.EstimateRarity(clause, in ctx);
-
     /// <summary>
     /// Apply a non-common clause key via the family's <c>Set</c>.
     /// Returns <c>false</c> when this family does not claim the key (caller may fall back).
