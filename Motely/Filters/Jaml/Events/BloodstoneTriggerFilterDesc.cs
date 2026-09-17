@@ -19,8 +19,7 @@ public sealed partial class BloodstoneTriggerClause : IRollScopedClause
 }
 
 public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
-    : IMotelySeedFilterDesc<BloodstoneTriggerFilterDesc.BloodstoneTriggerFilter>,
-      IJamlClauseDesc<BloodstoneTriggerClause>
+    : IMotelySeedFilterDesc<BloodstoneTriggerFilterDesc.BloodstoneTriggerFilter>
 {
     private readonly BloodstoneTriggerClause _clause = clause;
 
@@ -29,9 +28,6 @@ public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
-    /// <inheritdoc/>
-    public static bool Set(BloodstoneTriggerClause clause, string key, IJamlValueReader value) => false;
 
     public BloodstoneTriggerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

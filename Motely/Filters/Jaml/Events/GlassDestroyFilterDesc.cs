@@ -17,8 +17,7 @@ public sealed partial class GlassDestroyClause : IRollScopedClause, IWithScopedC
 }
 
 public struct GlassDestroyFilterDesc(GlassDestroyClause clause)
-    : IMotelySeedFilterDesc<GlassDestroyFilterDesc.GlassDestroyFilter>,
-      IJamlClauseDesc<GlassDestroyClause>
+    : IMotelySeedFilterDesc<GlassDestroyFilterDesc.GlassDestroyFilter>
 {
     private readonly GlassDestroyClause _clause = clause;
 
@@ -27,9 +26,6 @@ public struct GlassDestroyFilterDesc(GlassDestroyClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(GlassDestroyClause clause, string key, IJamlValueReader value) => false;
 
     public GlassDestroyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

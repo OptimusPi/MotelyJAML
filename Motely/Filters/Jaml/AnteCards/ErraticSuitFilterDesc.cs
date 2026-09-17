@@ -19,8 +19,7 @@ public sealed partial class ErraticSuitClause : IJamlClause, IAnteScopedClause
 }
 
 public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
-    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>,
-      IJamlClauseDesc<ErraticSuitClause>
+    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>
 {
     private readonly ErraticSuitClause _clause = clause;
 
@@ -29,18 +28,6 @@ public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
-
-    /// <summary>Erratic-suit clauses carry no keys beyond the common set.</summary>
-    public static bool Set(ErraticSuitClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(ErraticSuitClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnum<MotelyStandardcardSuit>(out var suit))
-            return false;
-        clause.Suit = suit;
-        return true;
-    }
 
     public ErraticSuitFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

@@ -36,8 +36,7 @@ public sealed partial class PokerHandClause : IJamlClause, IAnteScopedClause, IR
 }
 
 public struct PokerHandFilterDesc(PokerHandClause clause)
-    : IMotelySeedFilterDesc<PokerHandFilterDesc.PokerHandFilter>,
-      IJamlClauseDesc<PokerHandClause>
+    : IMotelySeedFilterDesc<PokerHandFilterDesc.PokerHandFilter>
 {
     private readonly PokerHandClause _clause = clause;
 
@@ -66,18 +65,6 @@ public struct PokerHandFilterDesc(PokerHandClause clause)
 
     /// <summary>Hieroglyph and Petroglyph — the vouchers that call <c>ease_ante(-1)</c>.</summary>
     public const int AnteReductionVouchers = 2;
-
-    /// <inheritdoc/>
-    public static bool Set(PokerHandClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(PokerHandClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnumArray<MotelyPokerHand>(out var hands))
-            return false;
-        clause.PokerHands = hands;
-        return true;
-    }
 
     public PokerHandFilter CreateFilter(ref MotelyFilterCreationContext ctx) =>
         new PokerHandFilter(_clause);

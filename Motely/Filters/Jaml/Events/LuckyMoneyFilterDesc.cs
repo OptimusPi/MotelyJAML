@@ -17,8 +17,7 @@ public sealed partial class LuckyMoneyClause : IRollScopedClause, IWithScopedCla
 }
 
 public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
-    : IMotelySeedFilterDesc<LuckyMoneyFilterDesc.LuckyMoneyFilter>,
-      IJamlClauseDesc<LuckyMoneyClause>
+    : IMotelySeedFilterDesc<LuckyMoneyFilterDesc.LuckyMoneyFilter>
 {
     private readonly LuckyMoneyClause _clause = clause;
 
@@ -27,9 +26,6 @@ public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(LuckyMoneyClause clause, string key, IJamlValueReader value) => false;
 
     public LuckyMoneyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

@@ -25,8 +25,7 @@ public sealed partial class VoucherClause : IJamlClause, IAnteScopedClause, IRol
 }
 
 public struct VoucherFilterDesc(VoucherClause clause)
-    : IMotelySeedFilterDesc<VoucherFilterDesc.VoucherFilter>,
-      IJamlClauseDesc<VoucherClause>
+    : IMotelySeedFilterDesc<VoucherFilterDesc.VoucherFilter>
 {
     private readonly VoucherClause _clause = clause;
 
@@ -35,18 +34,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
-
-    /// <summary>Voucher clauses carry no keys beyond the common set.</summary>
-    public static bool Set(VoucherClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(VoucherClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnumArray<MotelyVoucher>(out var vouchers))
-            return false;
-        clause.Vouchers = vouchers;
-        return true;
-    }
 
     public readonly VoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

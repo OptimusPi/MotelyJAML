@@ -21,8 +21,7 @@ public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct TarotCardFilterDesc(TarotCardClause clause)
-    : IMotelySeedFilterDesc<TarotCardFilterDesc.TarotCardFilter>,
-      IJamlClauseDesc<TarotCardClause>
+    : IMotelySeedFilterDesc<TarotCardFilterDesc.TarotCardFilter>
 {
     private readonly TarotCardClause _clause = clause;
 
@@ -31,23 +30,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
-    /// <inheritdoc/>
-    public static bool Set(TarotCardClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(TarotCardClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyTarotCard>(out var tarots)) return false;
-        clause.Tarots = tarots;
-        return true;
-    }
 
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.

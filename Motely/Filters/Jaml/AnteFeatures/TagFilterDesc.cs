@@ -29,8 +29,7 @@ public sealed partial class TagClause : IJamlClause, IAnteScopedClause, IRollSco
 }
 
 public struct TagFilterDesc(TagClause clause)
-    : IMotelySeedFilterDesc<TagFilterDesc.TagFilter>,
-      IJamlClauseDesc<TagClause>
+    : IMotelySeedFilterDesc<TagFilterDesc.TagFilter>
 {
     private readonly TagClause _clause = clause;
 
@@ -39,18 +38,6 @@ public struct TagFilterDesc(TagClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
-
-    /// <summary>Tag clauses carry no keys beyond the common set.</summary>
-    public static bool Set(TagClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(TagClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnumArray<MotelyTag>(out var tags))
-            return false;
-        clause.Tags = tags;
-        return true;
-    }
 
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

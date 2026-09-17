@@ -22,8 +22,7 @@ public sealed partial class PlanetCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct PlanetCardFilterDesc(PlanetCardClause clause)
-    : IMotelySeedFilterDesc<PlanetCardFilterDesc.PlanetCardFilter>,
-      IJamlClauseDesc<PlanetCardClause>
+    : IMotelySeedFilterDesc<PlanetCardFilterDesc.PlanetCardFilter>
 {
     private readonly PlanetCardClause _clause = clause;
 
@@ -32,23 +31,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
-    /// <inheritdoc/>
-    public static bool Set(PlanetCardClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(PlanetCardClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyPlanetCard>(out var planets)) return false;
-        clause.Planets = planets;
-        return true;
-    }
 
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs need explicit sources:.

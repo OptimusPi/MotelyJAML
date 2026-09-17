@@ -21,8 +21,7 @@ public sealed partial class SpectralCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct SpectralCardFilterDesc(SpectralCardClause clause)
-    : IMotelySeedFilterDesc<SpectralCardFilterDesc.SpectralCardFilter>,
-      IJamlClauseDesc<SpectralCardClause>
+    : IMotelySeedFilterDesc<SpectralCardFilterDesc.SpectralCardFilter>
 {
     private readonly SpectralCardClause _clause = clause;
 
@@ -31,23 +30,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
-    /// <inheritdoc/>
-    public static bool Set(SpectralCardClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(SpectralCardClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelySpectralCard>(out var spectrals)) return false;
-        clause.Spectrals = spectrals;
-        return true;
-    }
 
     /// <summary>
     /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus

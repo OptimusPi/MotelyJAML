@@ -17,8 +17,7 @@ public sealed partial class WheelOfFortuneClause : IRollScopedClause, IWithScope
 }
 
 public struct WheelOfFortuneFilterDesc(WheelOfFortuneClause clause)
-    : IMotelySeedFilterDesc<WheelOfFortuneFilterDesc.WheelOfFortuneFilter>,
-      IJamlClauseDesc<WheelOfFortuneClause>
+    : IMotelySeedFilterDesc<WheelOfFortuneFilterDesc.WheelOfFortuneFilter>
 {
     private readonly WheelOfFortuneClause _clause = clause;
 
@@ -27,9 +26,6 @@ public struct WheelOfFortuneFilterDesc(WheelOfFortuneClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(WheelOfFortuneClause clause, string key, IJamlValueReader value) => false;
 
     public WheelOfFortuneFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

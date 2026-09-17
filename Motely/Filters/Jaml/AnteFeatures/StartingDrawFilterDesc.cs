@@ -16,8 +16,7 @@ public sealed partial class StartingDrawClause : IJamlClause, IAnteScopedClause
 }
 
 public struct StartingDrawFilterDesc(StartingDrawClause clause)
-    : IMotelySeedFilterDesc<StartingDrawFilterDesc.StartingDrawFilter>,
-      IJamlClauseDesc<StartingDrawClause>
+    : IMotelySeedFilterDesc<StartingDrawFilterDesc.StartingDrawFilter>
 {
     private readonly StartingDrawClause _clause = clause;
 
@@ -26,26 +25,6 @@ public struct StartingDrawFilterDesc(StartingDrawClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rank", "suit"];
-
-    /// <summary>startingDraw carries its rank and suit as keys, not as a discriminator value.</summary>
-    public static bool Set(StartingDrawClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "rank":
-                if (!value.TryRank(out var rank))
-                    return false;
-                clause.Rank = rank;
-                return true;
-            case "suit":
-                if (!value.TryEnum<MotelyStandardcardSuit>(out var suit))
-                    return false;
-                clause.Suit = suit;
-                return true;
-            default:
-                return false;
-        }
-    }
 
     public StartingDrawFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

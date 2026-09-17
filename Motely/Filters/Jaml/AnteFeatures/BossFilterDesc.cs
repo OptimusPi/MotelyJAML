@@ -19,8 +19,7 @@ public sealed partial class BossClause : IJamlClause, IAnteScopedClause
 }
 
 public readonly struct BossFilterDesc(BossClause clause)
-    : IMotelySeedFilterDesc<BossFilterDesc.BossFilter>,
-      IJamlClauseDesc<BossClause>
+    : IMotelySeedFilterDesc<BossFilterDesc.BossFilter>
 {
     private readonly BossClause _clause = clause;
 
@@ -29,18 +28,6 @@ public readonly struct BossFilterDesc(BossClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
-
-    /// <summary>Boss clauses carry no keys beyond the common set, so nothing is claimed here.</summary>
-    public static bool Set(BossClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(BossClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnumArray<MotelyBossBlind>(out var bosses))
-            return false;
-        clause.Bosses = bosses;
-        return true;
-    }
 
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 

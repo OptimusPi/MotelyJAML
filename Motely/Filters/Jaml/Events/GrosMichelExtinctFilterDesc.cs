@@ -17,8 +17,7 @@ public sealed partial class GrosMichelExtinctClause : IRollScopedClause, IWithSc
 }
 
 public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
-    : IMotelySeedFilterDesc<GrosMichelExtinctFilterDesc.GrosMichelExtinctFilter>,
-      IJamlClauseDesc<GrosMichelExtinctClause>
+    : IMotelySeedFilterDesc<GrosMichelExtinctFilterDesc.GrosMichelExtinctFilter>
 {
     private readonly GrosMichelExtinctClause _clause = clause;
 
@@ -27,9 +26,6 @@ public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(GrosMichelExtinctClause clause, string key, IJamlValueReader value) => false;
 
     public GrosMichelExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

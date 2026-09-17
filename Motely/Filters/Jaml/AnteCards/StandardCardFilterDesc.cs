@@ -23,8 +23,7 @@ public sealed partial class StandardCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct StandardCardFilterDesc(StandardCardClause clause)
-    : IMotelySeedFilterDesc<StandardCardFilterDesc.StandardCardFilter>,
-      IJamlClauseDesc<StandardCardClause>
+    : IMotelySeedFilterDesc<StandardCardFilterDesc.StandardCardFilter>
 {
     private readonly StandardCardClause _clause = clause;
 
@@ -33,36 +32,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources", "rank", "suit", "enhancement", "seal", "edition"];
-
-    /// <inheritdoc/>
-    public static bool Set(StandardCardClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "rank":
-                if (!value.TryEnum<MotelyStandardcardRank>(out var rank)) return false;
-                clause.Rank = rank;
-                return true;
-            case "suit":
-                if (!value.TryEnum<MotelyStandardcardSuit>(out var suit)) return false;
-                clause.Suit = suit;
-                return true;
-            case "enhancement":
-                if (!value.TryEnum<MotelyItemEnhancement>(out var enh)) return false;
-                clause.Enhancement = enh;
-                return true;
-            case "seal":
-                if (!value.TryEnum<MotelyItemSeal>(out var seal)) return false;
-                clause.Seal = seal;
-                return true;
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            default:
-                return false;
-        }
-    }
 
     /// <summary>
     /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.

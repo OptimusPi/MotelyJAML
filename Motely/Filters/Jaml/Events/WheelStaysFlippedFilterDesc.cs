@@ -17,8 +17,7 @@ public sealed partial class WheelStaysFlippedClause : IRollScopedClause, IWithSc
 }
 
 public struct WheelStaysFlippedFilterDesc(WheelStaysFlippedClause clause)
-    : IMotelySeedFilterDesc<WheelStaysFlippedFilterDesc.WheelStaysFlippedFilter>,
-      IJamlClauseDesc<WheelStaysFlippedClause>
+    : IMotelySeedFilterDesc<WheelStaysFlippedFilterDesc.WheelStaysFlippedFilter>
 {
     private readonly WheelStaysFlippedClause _clause = clause;
 
@@ -27,9 +26,6 @@ public struct WheelStaysFlippedFilterDesc(WheelStaysFlippedClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(WheelStaysFlippedClause clause, string key, IJamlValueReader value) => false;
 
     public WheelStaysFlippedFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

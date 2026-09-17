@@ -21,8 +21,7 @@ public sealed partial class MisprintMultClause : IRollScopedClause
 }
 
 public struct MisprintMultFilterDesc(MisprintMultClause clause)
-    : IMotelySeedFilterDesc<MisprintMultFilterDesc.MisprintMultFilter>,
-      IJamlClauseDesc<MisprintMultClause>
+    : IMotelySeedFilterDesc<MisprintMultFilterDesc.MisprintMultFilter>
 {
     private readonly MisprintMultClause _clause = clause;
 
@@ -31,21 +30,6 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "mult", "value"];
-
-    /// <inheritdoc/>
-    public static bool Set(MisprintMultClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "mult":
-            case "value":
-                if (!value.TryInt(out var mult)) return false;
-                clause.Mult = mult;
-                return true;
-            default:
-                return false;
-        }
-    }
 
     public MisprintMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

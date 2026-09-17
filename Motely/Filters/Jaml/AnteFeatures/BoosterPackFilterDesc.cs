@@ -37,8 +37,7 @@ public sealed partial class BoosterPackClause : IJamlClause, IAnteScopedClause, 
 }
 
 public struct BoosterPackFilterDesc(BoosterPackClause clause)
-    : IMotelySeedFilterDesc<BoosterPackFilterDesc.BoosterPackFilter>,
-      IJamlClauseDesc<BoosterPackClause>
+    : IMotelySeedFilterDesc<BoosterPackFilterDesc.BoosterPackFilter>
 {
     private readonly BoosterPackClause _clause = clause;
 
@@ -47,22 +46,6 @@ public struct BoosterPackFilterDesc(BoosterPackClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys =>
-        ["min", "max", "score", "label", "ante", "antes", "rolls"];
-
-    /// <inheritdoc/>
-    public static bool Set(BoosterPackClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(BoosterPackClause clause, IJamlValueReader value)
-    {
-        // Empty disc = any pack kind/size in the listed slots.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyBoosterPack>(out var packs))
-            return false;
-        clause.Packs = packs;
-        return true;
-    }
 
     public BoosterPackFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

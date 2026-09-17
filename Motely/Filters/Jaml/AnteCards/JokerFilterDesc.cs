@@ -28,8 +28,7 @@ public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
 }
 
 public struct JokerFilterDesc(JokerClause clause)
-    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>,
-      IJamlClauseDesc<JokerClause>
+    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>
 {
     private readonly JokerClause _clause = clause;
 
@@ -38,37 +37,6 @@ public struct JokerFilterDesc(JokerClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys =>
-        ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
-
-    /// <inheritdoc/>
-    public static bool Set(JokerClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            case "stickers":
-                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
-                clause.Stickers = stickers;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(JokerClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyJoker>(out var jokers))
-            return false;
-        clause.Jokers = jokers;
-        return true;
-    }
 
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).

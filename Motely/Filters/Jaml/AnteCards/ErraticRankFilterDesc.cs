@@ -19,8 +19,7 @@ public sealed partial class ErraticRankClause : IJamlClause, IAnteScopedClause
 }
 
 public struct ErraticRankFilterDesc(ErraticRankClause clause)
-    : IMotelySeedFilterDesc<ErraticRankFilterDesc.ErraticRankFilter>,
-      IJamlClauseDesc<ErraticRankClause>
+    : IMotelySeedFilterDesc<ErraticRankFilterDesc.ErraticRankFilter>
 {
     private readonly ErraticRankClause _clause = clause;
 
@@ -29,20 +28,6 @@ public struct ErraticRankFilterDesc(ErraticRankClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
-
-    /// <inheritdoc/>
-    public static bool Set(ErraticRankClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(ErraticRankClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnum<MotelyStandardcardRank>(out var rank)) return false;
-        clause.Rank = rank;
-        return true;
-    }
 
     public ErraticRankFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
