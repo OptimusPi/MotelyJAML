@@ -14,6 +14,9 @@
 - `dotnet test --filter ClaudesCorpoGoldenCanonicalCorpus` — every engine-named item loads as JAML and plans.
 - `dotnet run --project Motely.CLI -- --jaml JamlFilters/AlwaysPass.jaml --collect 1`
 - WASM: `dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release` — always `-c Release` (LLVM). `-c Debug` is Mono. See AGENTS.md.
+- YAML config (NativeAOT): `Motely.Config.YamlConfigLoader` — file/stream/bytes → `JamlConfig` via VYaml. Smoke: `dotnet run --project Motely.ConfigAot.Smoke -- Fixtures/smoke-config.yaml` (or publish below).
+- NativeAOT publish (ILC, linux-x64 example): `dotnet publish Motely.ConfigAot.Smoke/Motely.ConfigAot.Smoke.csproj -c Release -r linux-x64` then run `bin/Release/net10.0/linux-x64/publish/Motely.ConfigAot.Smoke`.
+- NativeAOT-LLVM (experimental, not in-box SDK): requires `Microsoft.DotNet.ILCompiler.LLVM` + `runtime.<RID>.Microsoft.DotNet.ILCompiler.LLVM` from the `dotnet-experimental` feed, `PublishTrimmed`+`SelfContained` (not `PublishAot`). WASM Release path (`Motely.Wasm -c Release`) is the in-repo LLVM consumer. On Mac for native LLVM: add the runtimelab packages per https://github.com/dotnet/runtimelab/blob/feature/NativeAOT-LLVM/docs/using-nativeaot/compiling.md — same VYaml loader, different ILC backend.
 
 ## Corpus
 

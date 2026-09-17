@@ -1,0 +1,11 @@
+id: motely-config-aot-smoke
+name: NativeAOT YAML smoke fixture
+deck: Red
+stake: White
+must:
+  - joker: Joker
+    antes: [1]
+    min: 1
+should:
+  - tag: Uncommon_Tag
+    antes: [1]
