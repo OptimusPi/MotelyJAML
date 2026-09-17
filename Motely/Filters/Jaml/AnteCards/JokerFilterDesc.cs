@@ -80,14 +80,6 @@ public struct JokerFilterDesc(JokerClause clause)
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
 
-    /// <summary>
-    /// Shop slots, buffoon packs and the specialty streams for the ordinary names, the soul path
-    /// for any legendary ones, the two convolved under one window — the same split
-    /// <c>CountJokerClauseOccurrences</c> makes. See <see cref="JamlJokerRarity"/>.
-    /// </summary>
-    public static double EstimateRarity(JokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateJoker(clause, in ctx);
-
     public JokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

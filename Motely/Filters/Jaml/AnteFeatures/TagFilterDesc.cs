@@ -52,41 +52,6 @@ public struct TagFilterDesc(TagClause clause)
         return true;
     }
 
-    /// <summary>
-    /// Each roll is one uniform draw of the tag pool — except in ante 1, where
-    /// <c>GetNextTag</c> re-rolls nine tags away and the pool is the fifteen that remain, so a
-    /// disallowed tag is impossible there rather than merely rare. Rolls on one ante's stream are
-    /// distinct draws; antes are independent streams; the clause's window is read off the total.
-    /// </summary>
-    public static double EstimateRarity(TagClause clause, in JamlRarityContext ctx)
-    {
-        int pool = MotelyEnum<MotelyTag>.ValueCount;
-        int trials = JamlPoolRarity.Distinct(clause.Rolls);
-        HashSet<MotelyTag> wanted = [.. clause.Tags];
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            int hits = wanted.Count;
-            int poolHere = pool;
-            if (ante == 1)
-            {
-                var disallowed = MotelySingleSearchContext.DisallowedAnteOneTags;
-                poolHere -= disallowed.Length;
-                foreach (var tag in disallowed)
-                    if (wanted.Contains(tag))
-                        hits--;
-            }
-
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(trials, hits / (double)poolHere)
-            );
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
-
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

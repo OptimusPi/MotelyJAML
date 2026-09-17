@@ -42,29 +42,6 @@ public readonly struct BossFilterDesc(BossClause clause)
         return true;
     }
 
-    /// <summary>
-    /// One boss per ante, uniform over the pool still in play — <c>GetBossForAnte</c>: at antes
-    /// divisible by eight the five finishers, otherwise the normal bosses whose minimum ante has
-    /// arrived, less every boss already seen, and the pool refills only when it runs dry. So a
-    /// boss's chance at ante <c>A</c> is one over that ante's pool, times the chance it was not
-    /// drawn at an earlier ante where it was eligible. A finisher comes out to exactly 1/5.
-    /// </summary>
-    public static double EstimateRarity(BossClause clause, in JamlRarityContext ctx)
-    {
-        HashSet<MotelyBossBlind> wanted = [.. clause.Bosses];
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            double share = 0.0;
-            foreach (var boss in wanted)
-                share += ShareAt(boss, ante);
-            pmf = JamlCountDistribution.Convolve(pmf, JamlCountDistribution.Bernoulli(share));
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
-
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 
     /// <summary>How many normal bosses may appear at <paramref name="ante"/> at all.</summary>

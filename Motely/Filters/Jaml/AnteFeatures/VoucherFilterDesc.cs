@@ -48,43 +48,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
         return true;
     }
 
-    /// <summary>
-    /// Roll 0 is the ante's award: <c>GetAnteFirstVoucher</c> draws uniformly over the voucher
-    /// enum and re-rolls until it lands on a base voucher not yet awarded, or an upgrade whose
-    /// base has been. Sixteen bases, and each award swaps one base out for its upgrade, so the
-    /// live pool stays at sixteen. At ante <c>A</c> a base voucher is therefore
-    /// <c>(15/16)^(A−1) · 1/16</c> — it survived the earlier awards, then was drawn — and an upgrade
-    /// is <c>(A−1) · (15/16)^(A−2) / 256</c>: its base awarded at one of the earlier antes, itself
-    /// not drawn since, then drawn now. Rolls 1+ read the same pool from the same state.
-    /// Holding the pool at sixteen is exact until an upgrade is itself awarded, which only
-    /// shrinks it, so this slightly understates later antes.
-    /// </summary>
-    public static double EstimateRarity(VoucherClause clause, in JamlRarityContext ctx)
-    {
-        int basePool = MotelyEnum<MotelyVoucher>.ValueCount / 2;
-        double draw = 1.0 / basePool;
-        double survive = 1.0 - draw;
-        int trials = JamlPoolRarity.Distinct(clause.Rolls);
-        HashSet<MotelyVoucher> wanted = [.. clause.Vouchers];
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            double share = 0.0;
-            foreach (var voucher in wanted)
-            {
-                bool upgrade = ((int)voucher & 1) == 1; // the odd vouchers need their prerequisite
-                share += upgrade
-                    ? (ante >= 2 ? (ante - 1) * Math.Pow(survive, ante - 2) * draw * draw : 0.0)
-                    : Math.Pow(survive, ante - 1) * draw;
-            }
-
-            pmf = JamlCountDistribution.Convolve(pmf, JamlCountDistribution.Binomial(trials, share));
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
-
     public readonly VoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         int maxAnte = 0;

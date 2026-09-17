@@ -33,10 +33,6 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
     /// <inheritdoc/>
     public static bool Set(ParkingPayoutClause clause, string key, IJamlValueReader value) => false;
 
-    /// <inheritdoc/>
-    public static double EstimateRarity(ParkingPayoutClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerParkingChance));
-
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

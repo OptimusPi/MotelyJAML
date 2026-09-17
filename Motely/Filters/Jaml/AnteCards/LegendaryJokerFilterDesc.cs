@@ -100,17 +100,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
         BoosterPacks = [0, 1, 2, 3, 4, 5],
     };
 
-    /// <summary>
-    /// The Soul at 0.003 per arcana or spectral card behind a weighted pack roll, then one of five
-    /// legendaries with an edition off the soul stream — <see cref="JamlJokerRarity.LegendaryDistribution"/>.
-    /// </summary>
-    public static double EstimateRarity(LegendaryJokerClause clause, in JamlRarityContext ctx) =>
-        JamlCountDistribution.Window(
-            JamlJokerRarity.LegendaryDistribution(clause, in ctx),
-            clause.Min,
-            clause.Max
-        );
-
     public LegendaryJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         var src = _clause.Sources ?? DefaultSources;

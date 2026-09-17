@@ -31,13 +31,6 @@ public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
     /// <inheritdoc/>
     public static bool Set(GrosMichelExtinctClause clause, string key, IJamlValueReader value) => false;
 
-    /// <inheritdoc/>
-    public static double EstimateRarity(GrosMichelExtinctClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.JokerGrosMichelChance, (double)clause.With.Luck)
-        );
-
     public GrosMichelExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

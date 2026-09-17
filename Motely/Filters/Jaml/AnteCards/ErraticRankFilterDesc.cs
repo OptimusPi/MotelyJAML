@@ -44,25 +44,6 @@ public struct ErraticRankFilterDesc(ErraticRankClause clause)
         return true;
     }
 
-    /// <summary>
-    /// The erratic deck is 52 independent uniform draws of the 52 playing cards, so a rank's count
-    /// is <c>Binomial(52, 4/52)</c> — with replacement, and antes play no part.
-    /// </summary>
-    public static double EstimateRarity(ErraticRankClause clause, in JamlRarityContext ctx)
-    {
-        int deck = MotelyEnum<MotelyStandardCard>.ValueCount;
-        int ofRank = 0;
-        foreach (var card in MotelyEnum<MotelyStandardCard>.Values)
-            if (new MotelyItem(card).StandardcardRank == clause.Rank)
-                ofRank++;
-
-        return JamlCountDistribution.Window(
-            JamlCountDistribution.Binomial(deck, ofRank / (double)deck),
-            clause.Min,
-            clause.Max
-        );
-    }
-
     public ErraticRankFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         ctx.CacheErraticDeckPrngStream();

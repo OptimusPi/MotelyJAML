@@ -33,10 +33,6 @@ public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
     /// <inheritdoc/>
     public static bool Set(BloodstoneTriggerClause clause, string key, IJamlValueReader value) => false;
 
-    /// <inheritdoc/>
-    public static double EstimateRarity(BloodstoneTriggerClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerBloodstoneChance));
-
     public BloodstoneTriggerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         // Sort the requested roll indices ONCE here, never in the SIMD hot path below.

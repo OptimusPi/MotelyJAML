@@ -64,46 +64,6 @@ public struct BoosterPackFilterDesc(BoosterPackClause clause)
         return true;
     }
 
-    /// <summary>
-    /// Each targeted slot is one weighted pack roll, so a slot matches with the summed weight of
-    /// the packs named — or certainly, for a category-any clause. Ante 1 offers four slots, later
-    /// antes six, and ante 1's first slot is not a roll at all: the stream hands out a plain
-    /// Buffoon pack before touching the PRNG, so it matches iff Buffoon is named.
-    /// </summary>
-    public static double EstimateRarity(BoosterPackClause clause, in JamlRarityContext ctx)
-    {
-        bool any = JamlDisc.IsCategoryAny(clause.Packs);
-        HashSet<MotelyBoosterPack> wanted = [.. JamlDisc.OrEmpty(clause.Packs)];
-
-        double weighted = 1.0;
-        if (!any)
-        {
-            weighted = 0.0;
-            foreach (var pack in wanted)
-                weighted += JamlPoolRarity.PackShare(pack);
-        }
-        double fixedBuffoon = any || wanted.Contains(MotelyBoosterPack.Buffoon) ? 1.0 : 0.0;
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            HashSet<int> slots = [];
-            foreach (int slot in clause.Rolls)
-            {
-                if (!slots.Add(slot) || !JamlPoolRarity.SlotIsReachable(ante, slot))
-                    continue;
-                pmf = JamlCountDistribution.Convolve(
-                    pmf,
-                    JamlCountDistribution.Bernoulli(
-                        JamlPoolRarity.SlotIsFixedBuffoon(ante, slot) ? fixedBuffoon : weighted
-                    )
-                );
-            }
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
-
     public BoosterPackFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

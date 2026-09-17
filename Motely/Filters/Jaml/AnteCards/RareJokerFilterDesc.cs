@@ -52,13 +52,6 @@ public struct RareJokerFilterDesc(RareJokerClause clause)
     /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
 
-    /// <summary>Rare names are 0.05 of a rarity poll then 1 of the rare pool; a wildcard is the 0.05 alone. See <see cref="JamlJokerRarity"/>.</summary>
-    public static double EstimateRarity(RareJokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateFixedRarity(
-            clause.Antes, clause.Sources, clause.Jokers, MotelyJokerRarity.Rare,
-            clause.Edition, clause.Stickers, clause.Min, clause.Max, in ctx
-        );
-
     public RareJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

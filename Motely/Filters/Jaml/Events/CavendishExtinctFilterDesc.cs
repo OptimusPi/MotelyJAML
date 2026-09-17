@@ -31,13 +31,6 @@ public struct CavendishExtinctFilterDesc(CavendishExtinctClause clause)
     /// <inheritdoc/>
     public static bool Set(CavendishExtinctClause clause, string key, IJamlValueReader value) => false;
 
-    /// <inheritdoc/>
-    public static double EstimateRarity(CavendishExtinctClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.JokerCavendishChance, (double)clause.With.Luck)
-        );
-
     public CavendishExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

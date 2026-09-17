@@ -31,16 +31,6 @@ public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
     /// <inheritdoc/>
     public static bool Set(LuckyMoneyClause clause, string key, IJamlValueReader value) => false;
 
-    /// <inheritdoc/>
-    public static double EstimateRarity(LuckyMoneyClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(
-                MotelyGlobals.EnhancementLuckyMoneyChance,
-                (double)clause.With.Luck
-            )
-        );
-
     public LuckyMoneyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

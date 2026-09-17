@@ -52,13 +52,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
     /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
 
-    /// <summary>Common names are 0.7 of a rarity poll then 1 of the common pool; a wildcard is the 0.7 alone. See <see cref="JamlJokerRarity"/>.</summary>
-    public static double EstimateRarity(CommonJokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateFixedRarity(
-            clause.Antes, clause.Sources, clause.Jokers, MotelyJokerRarity.Common,
-            clause.Edition, clause.Stickers, clause.Min, clause.Max, in ctx
-        );
-
     public CommonJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

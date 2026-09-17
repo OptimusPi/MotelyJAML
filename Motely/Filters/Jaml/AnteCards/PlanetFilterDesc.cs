@@ -58,55 +58,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
 
-    /// <summary>
-    /// A shop slot is a planet with the deck's planet weight of the shop total, then 1 of 12; a
-    /// celestial pack slot is a weighted pack roll then that many draws, each <c>0.997 × 1/12</c>
-    /// because Black Hole takes the card first 0.3% of the time.
-    /// </summary>
-    public static double EstimateRarity(PlanetCardClause clause, in JamlRarityContext ctx)
-    {
-        var sources = clause.Sources ?? DefaultSources;
-
-        var planets = JamlDisc.OrEmpty(clause.Planets);
-        double share = JamlPoolRarity.PoolShare(
-            JamlPoolRarity.Distinct(planets),
-            MotelyEnum<MotelyPlanetCard>.ValueCount,
-            JamlDisc.IsCategoryAny(planets)
-        );
-
-        const double BlackHolePerCard = 0.003; // GetNextPlanet on a black-holeable stream: poll > 0.997
-        double shopShare = ctx.ShopPlanetRate / ctx.ShopTotalRate * share;
-        double packCardShare = (1.0 - BlackHolePerCard) * share;
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.ShopItems), shopShare)
-            );
-
-            HashSet<int> slots = [];
-            foreach (int slot in sources.BoosterPacks)
-            {
-                if (!slots.Add(slot) || !JamlPoolRarity.SlotIsReachable(ante, slot))
-                    continue;
-                if (JamlPoolRarity.SlotIsFixedBuffoon(ante, slot))
-                    continue; // ante 1's first offer is a Buffoon, never a celestial pack
-                pmf = JamlCountDistribution.Convolve(
-                    pmf,
-                    JamlPoolRarity.PackSlotCards(
-                        MotelyBoosterPackType.Celestial,
-                        packCardShare,
-                        sources.RequireMegaPack
-                    )
-                );
-            }
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
-
     public PlanetCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         var sources = _clause.Sources ?? DefaultSources;

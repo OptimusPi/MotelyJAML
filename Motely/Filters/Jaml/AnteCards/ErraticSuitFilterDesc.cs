@@ -42,25 +42,6 @@ public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
         return true;
     }
 
-    /// <summary>
-    /// The erratic deck is 52 independent uniform draws of the 52 playing cards, so a suit's count
-    /// is <c>Binomial(52, 13/52)</c> — with replacement, and antes play no part.
-    /// </summary>
-    public static double EstimateRarity(ErraticSuitClause clause, in JamlRarityContext ctx)
-    {
-        int deck = MotelyEnum<MotelyStandardCard>.ValueCount;
-        int ofSuit = 0;
-        foreach (var card in MotelyEnum<MotelyStandardCard>.Values)
-            if (new MotelyItem(card).StandardcardSuit == clause.Suit)
-                ofSuit++;
-
-        return JamlCountDistribution.Window(
-            JamlCountDistribution.Binomial(deck, ofSuit / (double)deck),
-            clause.Min,
-            clause.Max
-        );
-    }
-
     public ErraticSuitFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         ctx.CacheErraticDeckPrngStream();
