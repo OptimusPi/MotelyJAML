@@ -46,6 +46,7 @@ public struct BoosterPackFilterDesc(BoosterPackClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys =>
+        ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public BoosterPackFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

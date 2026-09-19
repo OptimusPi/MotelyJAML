@@ -10,9 +10,6 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- So VS Code / C# Dev Kit can see JamlSchema (CS0103 without this). -->
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <!-- Packages (versions from Directory.Packages.props) -->
@@ -20,12 +17,5 @@
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="VYaml" />
     <PackageReference Include="VYaml.Annotations" />
-  </ItemGroup>
-
-  <!-- JamlGrammarGenerator produces JamlSchema.g.cs from [JamlDiscriminator] attributes -->
-  <ItemGroup>
-    <ProjectReference Include="..\Motely.Generators\Motely.Generators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
