@@ -63,7 +63,6 @@ public static class JamlSearchBuilder
             var (clause, negate) in config
                 .Must.Select(c => (clause: c, negate: false))
                 .Concat(simdMustNot.Select(c => (clause: c, negate: true)))
-                .OrderBy(x => x.clause.EstimateCrunches())
         )
         {
             var desc = ClauseToFilterDesc(clause);
