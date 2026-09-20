@@ -1,12 +1,12 @@
 using DuckDB.NET.Data;
 using Motely.DataLake;
+using Motely.Filters;
 
 namespace Motely.Tests;
 
 /// <summary>
-/// The seed lake: one SQLite-catalog DuckLake — catalog beside the data root, data in it — that every
-/// filter and every writer share. Legacy per-filter <c>.duckdb</c> files and CSVs sitting in the root
-/// still pour on <c>--drown</c>. Each test gets its own temp tree so catalogs never collide.
+/// Seeds persist as plain text files (one seed per line) under the data root, one file per filter.
+/// DuckDB reads them back for --drown. Legacy .duckdb files and CSVs in the root still pour.
 /// </summary>
 public sealed class SeedLakeSinkTests : IDisposable
 {
@@ -18,10 +18,8 @@ public sealed class SeedLakeSinkTests : IDisposable
     public void Dispose()
     {
         try { if (Directory.Exists(_base)) Directory.Delete(_base, recursive: true); }
-        catch (IOException) { /* a straggling handle on Windows; the temp tree is disposable */ }
+        catch (IOException) { }
     }
-
-    private string Catalog => Path.Combine(_base, SeedLake.CatalogFileName);
 
     private static MotelyScoredSeedResult Result(string seed, int score, params int[] tallies)
     {
@@ -38,6 +36,16 @@ public sealed class SeedLakeSinkTests : IDisposable
         for (string s; (s = provider.NextSeed()) != string.Empty; )
             seeds.Add(s);
         return seeds;
+    }
+
+    private string[] ReadSeeds(string filterId)
+    {
+        var path = SeedLakeSink.SeedFilePath(_root, filterId);
+        if (!File.Exists(path)) return [];
+        return File.ReadAllLines(path)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => l.Trim())
+            .ToArray();
     }
 
     /// <summary>What a pre-lake per-filter file looks like: <c>seeds(seed VARCHAR PRIMARY KEY)</c>.</summary>
@@ -59,42 +67,45 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
-    public void Catalog_sits_beside_the_data_root()
+    public void PathHelpers()
     {
-        Assert.Equal(Catalog, SeedLake.CatalogPathFor(_root));
-        Assert.Equal(Path.GetFullPath(_root), SeedLake.DataRoot(_root));
-        // The legacy per-filter file is still addressable — it is the fallback and the old on-disk shape.
         Assert.Equal(Path.Combine(_root, "perkeo.duckdb"), SeedLakeSink.LakePath(_root, "perkeo"));
-        Assert.False(SeedLake.Exists(_root));
+        Assert.Equal(Path.Combine(_root, "perkeo.txt"), SeedLakeSink.SeedFilePath(_root, "perkeo"));
     }
 
     [Fact]
-    public void Scored_find_round_trips_score_tallies_and_labels()
+    public void Scored_find_writes_seed_to_text_file()
     {
         using (var sink = new SeedLakeSink(_root, "perkeo", tallyLabels: ["Perkeo", "Showman", "Negative Tag"]))
         {
             sink.OnScored(Result("AAAAAAAA", 42, 1, 0, 2));
             sink.OnSeed("BBBBBBBB");
-            Assert.True(sink.UsingLake, "the lake itself must take the writes, not the legacy fallback");
         }
 
-        Assert.True(File.Exists(Catalog));
+        var seeds = ReadSeeds("perkeo");
+        Assert.Equal(2, seeds.Length);
+        Assert.Contains("AAAAAAAA", seeds);
+        Assert.Contains("BBBBBBBB", seeds);
         Assert.Empty(Directory.EnumerateFiles(_root, "*.duckdb"));
-
-        using var lake = SeedLake.Open(_root);
-        var rows = lake.Results("perkeo");
-        Assert.Equal(2, rows.Count);
-        Assert.Equal("AAAAAAAA", rows[0].Seed);
-        Assert.Equal(42, rows[0].Score);
-        Assert.Equal([1, 0, 2], rows[0].Tallies!);
-        Assert.Equal("BBBBBBBB", rows[1].Seed);
-        Assert.Equal(0, rows[1].Score);
-        Assert.Equal(["Perkeo", "Showman", "Negative Tag"], lake.TallyLabels("perkeo"));
-        Assert.Equal(["perkeo"], lake.FilterIds());
     }
 
     [Fact]
-    public void Two_filters_share_one_lake_but_read_separately()
+    public void Two_filters_share_root_but_separate_files()
+    {
+        using (var sink = new SeedLakeSink(_root, "perkeo"))
+        {
+            sink.OnScored(Result("AAAAAAAA", 42));
+            sink.OnScored(Result("BBBBBBBB", 99));
+        }
+        using (var sink = new SeedLakeSink(_root, "observatory"))
+            sink.OnScored(Result("CCCCCCCC", 1));
+
+        Assert.Equal(["AAAAAAAA", "BBBBBBBB"], ReadSeeds("perkeo"));
+        Assert.Equal(["CCCCCCCC"], ReadSeeds("observatory"));
+    }
+
+    [Fact]
+    public void FromLakeFilter_reads_one_filters_seeds()
     {
         using (var sink = new SeedLakeSink(_root, "perkeo"))
         {
@@ -111,11 +122,10 @@ public sealed class SeedLakeSinkTests : IDisposable
         Assert.Equal(["AAAAAAAA", "BBBBBBBB"], Drain(perkeo));
         Assert.Equal(1, observatory.SeedCount);
         Assert.Equal("CCCCCCCC", observatory.NextSeed());
-        Assert.Single(Directory.EnumerateFiles(_base, SeedLake.CatalogFileName));
     }
 
     [Fact]
-    public void FromLakeRoot_drowns_in_every_filters_seeds_and_every_legacy_file_deduped()
+    public void FromLakeRoot_drowns_across_filters_and_legacy_files_deduped()
     {
         using (var sink = new SeedLakeSink(_root, "perkeo"))
         {
@@ -124,11 +134,9 @@ public sealed class SeedLakeSinkTests : IDisposable
         }
         using (var sink = new SeedLakeSink(_root, "observatory"))
         {
-            sink.OnScored(Result("BBBBBBBB", 1)); // shared with perkeo — must dedupe
+            sink.OnScored(Result("BBBBBBBB", 1));
             sink.OnScored(Result("CCCCCCCC", 1));
         }
-        // Files from before the lake, still sitting in the root, pour too: a headered CSV (header row
-        // is shape-tested out) and a legacy per-filter .duckdb (overlap dedupes).
         File.WriteAllLines(Path.Combine(_root, "old.csv"), ["Seed,Score", "DDDDDDDD,5"]);
         WriteLegacyFile(Path.Combine(_root, "ancient.duckdb"), "EEEEEEEE", "AAAAAAAA");
 
@@ -139,10 +147,8 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
-    public void Lake_can_be_written_while_a_provider_reads_it()
+    public void Seed_file_can_be_written_while_a_provider_reads()
     {
-        // The --drown contract: read the lake, then keep writing finds into that same lake
-        // during the run. The provider must not hold anything open after construction.
         using (var sink = new SeedLakeSink(_root, "perkeo"))
             sink.OnScored(Result("AAAAAAAA", 42));
 
@@ -158,63 +164,74 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
+    public void Dedupes_within_a_single_run()
+    {
+        using (var sink = new SeedLakeSink(_root, "perkeo"))
+        {
+            sink.Write("AAAAAAAA", 1);
+            sink.Write("AAAAAAAA", 2);
+            sink.Write("5X5", 3);
+        }
+
+        Assert.Equal(["AAAAAAAA", "5X5"], ReadSeeds("perkeo"));
+    }
+
+    [Fact]
+    public void Dedupes_across_runs()
+    {
+        using (var sink = new SeedLakeSink(_root, "perkeo"))
+            sink.Write("AAAAAAAA", 1);
+
+        using (var sink = new SeedLakeSink(_root, "perkeo"))
+        {
+            sink.Write("AAAAAAAA", 2);
+            sink.Write("5X5", 3);
+        }
+
+        var seeds = ReadSeeds("perkeo");
+        Assert.Equal(2, seeds.Length);
+        Assert.Contains("AAAAAAAA", seeds);
+        Assert.Contains("5X5", seeds);
+    }
+
+    [Fact]
     public void Finds_stay_in_memory_until_Flush()
     {
         using var sink = new SeedLakeSink(_root, "perkeo");
         sink.OnScored(Result("AAAAAAAA", 42));
-        Assert.True(sink.UsingLake);
-
-        using (var peek = SeedLake.Open(_root))
-            Assert.Equal(0, peek.DistinctSeedCount("perkeo"));
+        Assert.Empty(ReadSeeds("perkeo"));
 
         sink.Flush();
-
-        using var after = SeedLake.Open(_root);
-        Assert.Equal(1, after.DistinctSeedCount("perkeo"));
-        Assert.Equal("AAAAAAAA", after.Seeds("perkeo")[0]);
+        Assert.Equal(["AAAAAAAA"], ReadSeeds("perkeo"));
     }
 
     [Fact]
-    public void Two_writers_on_one_catalog_at_once_lose_nothing()
+    public void Two_concurrent_writers_lose_nothing()
     {
         const int perWriter = 1500, overlap = 500;
         string Seed(int i) => "S" + i.ToString("D7");
 
         Parallel.For(0, 2, writer =>
         {
-            using var sink = new SeedLakeSink(_root, "perkeo");
+            using var sink = new SeedLakeSink(_root, $"filter{writer}");
             int start = writer * (perWriter - overlap);
             for (int i = start; i < start + perWriter; i++)
                 sink.OnScored(Result(Seed(i), i % 100, i % 3));
-            Assert.True(sink.UsingLake);
         });
 
-        using var lake = SeedLake.Open(_root);
-        Assert.Equal(2 * perWriter - overlap, lake.DistinctSeedCount("perkeo"));
-        Assert.Equal(2 * perWriter - overlap, lake.Seeds("perkeo").Count);
+        for (int i = 0; i < 2; i++)
+            Assert.Equal(perWriter, ReadSeeds($"filter{i}").Length);
     }
 
     [Fact]
-    public void Falls_back_to_the_legacy_file_when_the_catalog_cannot_attach()
+    public void Empty_seed_ignored()
     {
-        // A catalog path under a *file* can never be created: ATTACH fails, the sink says so and
-        // writes bare seeds to <root>/<filter>.duckdb so the run still keeps its finds.
-        Directory.CreateDirectory(_base);
-        var blocker = Path.Combine(_base, "blocker.txt");
-        File.WriteAllText(blocker, "not a directory");
-        var impossibleCatalog = Path.Combine(blocker, "ducklake.sqlite");
+        using var sink = new SeedLakeSink(_root, "perkeo");
+        sink.Write("", null);
+        sink.Write(null!, null);
+        sink.Flush();
 
-        using (var sink = new SeedLakeSink(_root, "perkeo", catalogPath: impossibleCatalog))
-        {
-            sink.OnScored(Result("AAAAAAAA", 42));
-            Assert.False(sink.UsingLake);
-        }
-
-        var legacy = SeedLakeSink.LakePath(_root, "perkeo");
-        Assert.True(File.Exists(legacy));
-        using var provider = SeedSourceProvider.FromLake(legacy);
-        Assert.Equal(1, provider.SeedCount);
-        Assert.Equal("AAAAAAAA", provider.NextSeed());
+        Assert.Empty(ReadSeeds("perkeo"));
     }
 
     [Fact]
@@ -230,24 +247,7 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
-    public void SeedSourceProvider_ReadsSeedsFromARealJamlFile()
-    {
-        // A real corpus filter with a seeds: block — no fabricated JAML. The provider's seed count
-        // must equal what the loader parses from the same file, cross-checking the two readers.
-        var jamlPath = Path.Combine(AppContext.BaseDirectory, "JamlFilters", "Zerkeo_Pure.jaml");
-        Assert.True(
-            JamlConfigLoader.TryLoad(File.ReadAllText(jamlPath), out var config, out var error),
-            error
-        );
-        Assert.NotEmpty(config!.Seeds);
-
-        using var provider = new SeedSourceProvider(jamlPath);
-
-        Assert.Equal(config.Seeds.Count, provider.SeedCount);
-    }
-
-    [Fact]
-    public void FromLakeRoot_AlsoPoursExtraSeeds_DedupedAgainstTheLake()
+    public void FromLakeRoot_AlsoPoursExtraSeeds_DedupedAgainstFiles()
     {
         using (var sink = new SeedLakeSink(_root, "perkeo"))
         {
@@ -255,7 +255,6 @@ public sealed class SeedLakeSinkTests : IDisposable
             sink.OnScored(Result("BBBBBBBB", 99));
         }
 
-        // The JAML's seeds: block rides along — overlap dedupes, junk is shape-tested out.
         using var provider = SeedSourceProvider.FromLakeRoot(
             _root,
             ["BBBBBBBB", "CCCCCCCC", " CCCCCCCC ", "Seed", "", "not-a-seed"]
@@ -266,9 +265,8 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
-    public void FromLakeRoot_WithNoLakeYet_DrownsInTheExtraSeedsAlone()
+    public void FromLakeRoot_WithNoFilesYet_DrownsInTheExtraSeedsAlone()
     {
-        // A fresh filter's first --drown: no lake on disk, but the JAML already saved finds.
         Assert.False(Directory.Exists(_root));
         Assert.False(SeedSourceProvider.HasLakeFiles(_root));
 
@@ -281,17 +279,17 @@ public sealed class SeedLakeSinkTests : IDisposable
     }
 
     [Fact]
-    public void HasLakeFiles_SeesTheCatalogOrNonEmptyLakeShapedFiles()
+    public void HasLakeFiles_SeesNonEmptyLakeShapedFiles()
     {
         Directory.CreateDirectory(_root);
-        Assert.False(SeedSourceProvider.HasLakeFiles(_root)); // empty directory, no catalog
+        Assert.False(SeedSourceProvider.HasLakeFiles(_root));
 
         File.WriteAllText(Path.Combine(_root, "notes.md"), "not a lake");
         File.WriteAllText(Path.Combine(_root, "empty.csv"), "");
-        Assert.False(SeedSourceProvider.HasLakeFiles(_root)); // wrong shape / zero bytes
+        Assert.False(SeedSourceProvider.HasLakeFiles(_root));
 
         using (var sink = new SeedLakeSink(_root, "perkeo"))
             sink.OnScored(Result("AAAAAAAA", 1));
-        Assert.True(SeedSourceProvider.HasLakeFiles(_root)); // the catalog now exists
+        Assert.True(SeedSourceProvider.HasLakeFiles(_root));
     }
 }

@@ -10,7 +10,7 @@ public sealed class PoolWorkerOptions
     public string WorkerId { get; set; } = "";
 
     /// <summary>
-    /// Seed lake data root (Motely.DataLake; the DuckLake catalog sits beside it).
+    /// Seed lake data root (Motely.DataLake).
     /// Default: Seeds in the working directory. Empty disables local saving.
     /// </summary>
     public string LocalDbPath { get; set; } = "Seeds";

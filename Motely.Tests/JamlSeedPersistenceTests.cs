@@ -33,20 +33,24 @@ public sealed class JamlSeedPersistenceTests : IDisposable
             Assert.False(persistence.OnScored(Result("UNITTEST", 2)));
         }
 
-        using var lake = SeedLake.Open(LakeRoot);
-        var bySeed = lake.Results("whimsy").ToDictionary(r => r.Seed, r => r.Score);
-        Assert.Equal(3, bySeed.Count);
-        Assert.Equal(1, bySeed["AAAAAAAA"]);
-        Assert.Equal(5, bySeed["5X5"]);
-        Assert.Equal(5, bySeed["7H7"]);
-        Assert.False(bySeed.ContainsKey("616"));
-        Assert.False(bySeed.ContainsKey("UNITTEST"));
+        var seedFile = SeedLakeSink.SeedFilePath(LakeRoot, "whimsy");
+        Assert.True(File.Exists(seedFile));
+        var seeds = File.ReadAllLines(seedFile)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => l.Trim())
+            .ToHashSet();
+        Assert.Equal(3, seeds.Count);
+        Assert.Contains("AAAAAAAA", seeds);
+        Assert.Contains("5X5", seeds);
+        Assert.Contains("7H7", seeds);
+        Assert.DoesNotContain("616", seeds);
+        Assert.DoesNotContain("UNITTEST", seeds);
 
         Assert.Equal([("AAAAAAAA", 1), ("5X5", 5), ("7H7", 5)], accepted);
     }
 
     [Fact]
-    public void Auto_SaveBackMatchesTheLake()
+    public void Auto_SaveBackMatchesTheSeedFile()
     {
         string[] saved;
         using (var persistence = new JamlSeedPersistence(LakeRoot, "whimsy", MotelyScoreCutoff.Auto()))
@@ -59,8 +63,12 @@ public sealed class JamlSeedPersistenceTests : IDisposable
 
         Assert.Equal(["5X5", "AAAAAAAA"], saved);
 
-        using var lake = SeedLake.Open(LakeRoot);
-        Assert.Equal(2, lake.DistinctSeedCount("whimsy"));
+        var seedFile = SeedLakeSink.SeedFilePath(LakeRoot, "whimsy");
+        var onDisk = File.ReadAllLines(seedFile)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => l.Trim())
+            .ToArray();
+        Assert.Equal(2, onDisk.Length);
     }
 
     [Fact]
@@ -75,8 +83,12 @@ public sealed class JamlSeedPersistenceTests : IDisposable
             Assert.True(persistence.OnScored(Result("AAAAAAAA", 9)));
         }
 
-        using var lake = SeedLake.Open(LakeRoot);
-        Assert.Equal(["5X5", "AAAAAAAA"], lake.Results("whimsy").Select(r => r.Seed).ToArray());
+        var seedFile = SeedLakeSink.SeedFilePath(LakeRoot, "whimsy");
+        var seeds = File.ReadAllLines(seedFile)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => l.Trim())
+            .ToArray();
+        Assert.Equal(["5X5", "AAAAAAAA"], seeds);
         Assert.Equal(["5X5", "AAAAAAAA"], accepted);
     }
 }

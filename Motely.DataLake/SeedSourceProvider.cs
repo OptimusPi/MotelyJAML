@@ -28,8 +28,8 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
     /// <paramref name="extraSeeds"/> pours an in-memory seed list into the --drown haystack
     /// alongside the lake — the JAML's own <c>seeds:</c> block, which is saved output too.
     /// With extras, the lake directory need not exist yet (a fresh filter's first drown).
-    /// <paramref name="filterId"/> narrows the haystack to one filter's finds: its rows in the
-    /// lake catalog plus its legacy per-filter file, whichever exist.
+    /// <paramref name="filterId"/> narrows the haystack to one filter's finds: its text file,
+    /// CSV, and legacy per-filter DuckDB file, whichever exist.
     /// </summary>
     private SeedSourceProvider(string path, bool distinct, IReadOnlyList<string>? extraSeeds, string? filterId)
     {
@@ -50,36 +50,25 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         bool wholeLake = false;
         if (filterId is not null)
         {
-            // One filter's finds: the lake's rows for it, and its legacy file if one is still around.
             EnsureLakeTable();
-            PourLake(path, filterId);
-            var legacy = SeedLakeSink.LakePath(path, filterId).Replace('\\', '/');
-            if (File.Exists(legacy))
-                ImportDatabaseSeeds(legacy);
+            ImportFilterFiles(path, filterId);
             wholeLake = true;
         }
         else if (Directory.Exists(path))
         {
             if (distinct)
             {
-                // --drown: the directory *is* the lake. The catalog's rows, every legacy .duckdb
-                // file and every CSV/TXT in it pour into one in-memory table; the locks are
-                // released before the search starts.
                 ImportLakeRoot(path);
                 wholeLake = true;
             }
             else
             {
-                // A directory as --source is a catalog: every CSV in it pours in as one source.
                 path = path.TrimEnd('/') + "/*.csv";
             }
         }
-        else if (distinct && (hasExtras || SeedLake.Exists(path)))
+        else if (distinct && hasExtras)
         {
-            // No data directory on disk yet, but the caller brought saved seeds of its own (or the
-            // catalog already exists beside where the directory will be): the haystack is those.
             EnsureLakeTable();
-            PourLake(path, null);
             wholeLake = true;
         }
 
@@ -87,20 +76,11 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
             ImportSeedList(extraSeeds!);
 
         var ext = wholeLake ? ".lake" : Path.GetExtension(path).ToLowerInvariant();
-        // JSON/JAML sources carry structure around their seeds, so the shape test is
-        // what separates seed from scaffolding — it always applies for them.
-        // .json here is a seed-list file (DuckDB), not a JAML filter loader.
         bool structured = ext is ".json" or ".jaml";
 
         string select = distinct ? "SELECT DISTINCT" : "SELECT";
-        // Seeds arrive scrubbed: stray whitespace and carriage returns (mixed-newline
-        // lakes) trim away at the SQL layer, and NULL rows from tolerant parsing stay out
-        // of the stream entirely.
         const string seedExpr = "trim(#1, ' ' || chr(9) || chr(13))";
         string count = distinct ? $"COUNT(DISTINCT {seedExpr})" : "COUNT(*)";
-        // The lake accepts exactly what a Balatro seed is: base-35, [1-9A-Z], up to 8 chars.
-        // header = false keeps every row (auto-detect eats a seed in single-column files);
-        // the shape test drops legacy header rows ("Seed") and stray junk instead.
         string seedShape =
             $" WHERE {seedExpr} IS NOT NULL AND length({seedExpr}) > 0"
             + (distinct || structured ? $" AND {seedExpr} SIMILAR TO '[1-9A-Z]{{1,8}}'" : "");
@@ -110,8 +90,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
             ".lake" => LakeTable,
             ".parquet" or ".pq" => $"read_parquet('{EscapeSql(path)}')",
             ".db" or ".duckdb" or ".sqlite" or ".sqlite3" => ImportDatabaseSeeds(path),
-            // JSON seed lists in every shape they've historically taken:
-            // ["SEED", ...] · {"seeds": ["SEED", ...]} · [{"seed": "SEED", ...}, ...]
             ".json" => $"""
                 (SELECT unnest(
                     coalesce(json_extract_string(j, '$.seeds[*]'), []) ||
@@ -120,19 +98,12 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
                          THEN coalesce(json_extract_string(j, '$[*]'), []) ELSE [] END
                 ) AS seed FROM (SELECT content::JSON AS j FROM read_text('{EscapeSql(path)}')))
                 """,
-            // A JAML file is a seed source too: its seeds: block lists one seed per line.
             ".jaml" => $$"""
                 (SELECT unnest(regexp_extract_all(
                     regexp_extract(content, '(?ms)^seeds:(.*)$', 1),
                     '(?m)^\s*-\s*([1-9A-Z]{1,8})\s*$', 1
                 )) AS seed FROM read_text('{{EscapeSql(path)}}'))
                 """,
-            // CSV and TXT both stream through read_csv: seed = first field of each line.
-            // DuckDB positional reference (#1) never depends on a generated column name
-            // (column0 vs column00 flips at 11+ columns; duckdb#19724). null_padding keeps
-            // ragged short rows (e.g. "SEED,1"); strict_mode=false + ignore_errors keep a
-            // lake readable even when writers disagree on line endings (COPY emits LF,
-            // SeedLakeSink appends CRLF) — the seed shape test guards the stream regardless.
             _ =>
                 $"read_csv('{EscapeSql(path)}', header = false, null_padding = true, all_varchar = true, strict_mode = false, ignore_errors = true)",
         };
@@ -142,11 +113,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
 
         if (distinct)
         {
-            // Dedupe once, up front, into a plain table. A streaming SELECT DISTINCT builds its
-            // hash aggregate lazily on the first Read() — i.e. under the provider lock, after the
-            // search clock has started, with every other thread queued behind it — and
-            // COUNT(DISTINCT …) was a second full pass over the same rows for the same answer.
-            // The staged table makes the count trivial and the stream a flat scan.
             using var stage = _connection.CreateCommand();
             stage.CommandText = $"CREATE TEMP TABLE {StreamTable} AS {streamSql}";
             stage.ExecuteNonQuery();
@@ -167,7 +133,7 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
     /// <summary>One legacy per-filter lake file, deduped and shape-tested.</summary>
     public static SeedSourceProvider FromLake(string lakeFile) => new(lakeFile, distinct: true);
 
-    /// <summary>One filter's finds — its rows in the lake plus its legacy file, deduped.</summary>
+    /// <summary>One filter's finds — its seed file, CSV, and legacy DuckDB file, deduped.</summary>
     public static SeedSourceProvider FromLakeFilter(string? lakeRoot, string filterId) =>
         new(SeedLakeSink.LakeRoot(lakeRoot), distinct: true, extraSeeds: null, filterId);
 
@@ -179,7 +145,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         IReadOnlyList<string>? extraSeeds = null
     ) => new(lakeRoot, distinct: true, extraSeeds, filterId: null);
 
-    /// <summary>File extensions <see cref="FromLakeRoot"/> pours from the lake root.</summary>
     private static readonly string[] LakeFileExtensions =
     [
         ".duckdb",
@@ -193,14 +158,12 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
     private static bool IsLakeFile(string file) =>
         Array.IndexOf(LakeFileExtensions, Path.GetExtension(file).ToLowerInvariant()) >= 0;
 
-    /// <summary>Cheap pre-check: is there a lake catalog, or any non-empty file in the root that
-    /// --drown would pour? Mirrors the scan in <see cref="FromLakeRoot"/> without opening DuckDB.</summary>
+    /// <summary>Cheap pre-check: is there any non-empty file in the root that --drown would pour?</summary>
     public static bool HasLakeFiles(string lakeRoot) =>
-        SeedLake.Exists(lakeRoot)
-        || (Directory.Exists(lakeRoot)
-            && Directory
-                .EnumerateFiles(lakeRoot)
-                .Any(f => IsLakeFile(f) && new FileInfo(f).Length > 0));
+        Directory.Exists(lakeRoot)
+        && Directory
+            .EnumerateFiles(lakeRoot)
+            .Any(f => IsLakeFile(f) && new FileInfo(f).Length > 0);
 
     public string NextSeed()
     {
@@ -240,13 +203,7 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         }
     }
 
-    /// <summary>In-memory staging table every database/lake import lands in. Seeds are copied
-    /// here and the source file is DETACHed *before* the search starts: a streaming reader would
-    /// otherwise pin a READ_ONLY lock on the lake for the whole run, and SeedLakeSink (which
-    /// writes finds back into that same lake) could never open it read-write.</summary>
     private const string LakeTable = "lake_seeds";
-
-    /// <summary>Deduped, shape-tested seeds staged once before the search starts (distinct sources only).</summary>
     private const string StreamTable = "seed_stream";
 
     private void EnsureLakeTable()
@@ -256,17 +213,32 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         create.ExecuteNonQuery();
     }
 
-    /// <summary>--drown: pour every lake file (*.duckdb / *.db) and every CSV/TXT sitting in
-    /// the lake root into <see cref="LakeTable"/>. One filter's finds are another filter's
-    /// candidates; the whole lake is the haystack.</summary>
+    /// <summary>Read one filter's seed files: its plain-text seed file, its scored CSV, and its
+    /// legacy DuckDB file, whichever exist.</summary>
+    private void ImportFilterFiles(string root, string filterId)
+    {
+        var txtFile = SeedLakeSink.SeedFilePath(root, filterId).Replace('\\', '/');
+        if (File.Exists(txtFile))
+            ImportCsvOrText(txtFile);
+
+        var csvFile = ScoredResultsCsvSink.ResultsPath(root, filterId).Replace('\\', '/');
+        if (File.Exists(csvFile))
+            ImportCsvOrText(csvFile);
+
+        var legacy = SeedLakeSink.LakePath(root, filterId).Replace('\\', '/');
+        if (File.Exists(legacy))
+            ImportDatabaseSeeds(legacy);
+    }
+
+    /// <summary>--drown: pour every seed file (*.txt, *.csv, *.duckdb, *.db) sitting in
+    /// the lake root into <see cref="LakeTable"/>.</summary>
     private void ImportLakeRoot(string root)
     {
         EnsureLakeTable();
-        PourLake(root, null);
         var files = Directory
             .EnumerateFiles(root)
             .Where(f => IsLakeFile(f)
-                && !Path.GetFileName(f).Equals(SeedLake.CatalogFileName, StringComparison.OrdinalIgnoreCase))
+                && !Path.GetFileName(f).Equals("ducklake.sqlite", StringComparison.OrdinalIgnoreCase))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
 
         foreach (var file in files)
@@ -275,10 +247,7 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
             var ext = Path.GetExtension(file).ToLowerInvariant();
             if (ext is ".csv" or ".txt")
             {
-                using var csv = _connection.CreateCommand();
-                csv.CommandText =
-                    $"INSERT INTO {LakeTable} SELECT #1 FROM read_csv('{EscapeSql(normalized)}', header = false, null_padding = true, all_varchar = true, strict_mode = false, ignore_errors = true)";
-                csv.ExecuteNonQuery();
+                ImportCsvOrText(normalized);
             }
             else
             {
@@ -287,26 +256,14 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         }
     }
 
-    /// <summary>Pour the lake catalog's distinct seeds (one filter's, or all) into <see cref="LakeTable"/>.
-    /// No catalog yet is normal (nothing to pour). A catalog that exists but will not attach is
-    /// reported once and skipped — the files in the root still pour, and the run still happens.</summary>
-    private void PourLake(string root, string? filterId)
+    private void ImportCsvOrText(string path)
     {
-        try
-        {
-            SeedLake.TryPourInto(_connection, LakeTable, root, filterId);
-        }
-        catch (Exception ex)
-        {
-            var reason = ex.Message;
-            int nl = reason.IndexOf('\n');
-            if (nl >= 0) reason = reason[..nl];
-            Console.Error.WriteLine($"[SeedLake] could not read the lake catalog at {SeedLake.CatalogPathFor(root)} ({reason}); pouring the files in the root only.");
-        }
+        using var csv = _connection.CreateCommand();
+        csv.CommandText =
+            $"INSERT INTO {LakeTable} SELECT #1 FROM read_csv('{EscapeSql(path)}', header = false, null_padding = true, all_varchar = true, strict_mode = false, ignore_errors = true)";
+        csv.ExecuteNonQuery();
     }
 
-    /// <summary>Pour an in-memory seed list (the JAML's seeds: block) into <see cref="LakeTable"/>.
-    /// No shape test here: the distinct SELECT over the table applies it for everything.</summary>
     private void ImportSeedList(IReadOnlyList<string> seeds)
     {
         EnsureLakeTable();
@@ -323,12 +280,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         }
     }
 
-    /// <summary>Attach a database read-only and resolve its seed table: "seeds" when present,
-    /// then "results" (the BSO archive shape: seed, score, tally0-9), then the database's only
-    /// table. Seeds ride the first column. DuckDB files attach natively; anything else gets a
-    /// second chance through the sqlite extension, so 16 months of .db history all pours.
-    /// The seed column is copied into <see cref="LakeTable"/> and the file DETACHed; returns
-    /// the staging table name for use as a FROM clause.</summary>
     private string ImportDatabaseSeeds(string path)
     {
         EnsureLakeTable();
