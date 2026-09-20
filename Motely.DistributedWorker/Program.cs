@@ -9,7 +9,7 @@ using Motely.Filters.Jaml;
 /// Motely Distributed Worker — AOT native Linux executable.
 ///
 /// Connects to the seed-finder pool and claims one block (35^5 seeds) at a time.
-/// <c>Motely.DataLake</c> writes every filter into one shared DuckLake (rows tagged by filter_id).
+/// <c>Motely.DataLake</c> writes each filter's seeds to a plain text file under the data root.
 ///
 /// Usage:
 ///   MotelyWorker --pool https://www.seedfinder.app
@@ -18,7 +18,7 @@ using Motely.Filters.Jaml;
 ///   --threads N           Motely search thread count for each claimed block (SIMD workers inside one block)
 ///   --worker-id id        Worker identifier (default: hostname-pid)
 ///   --filter filterId     Only claim blocks for this filter (optional; omit for any active filter)
-///   --local-db ./dir      Seed lake data root (default: Seeds; catalog ducklake.sqlite beside it)
+///   --local-db ./dir      Seed lake data root (default: Seeds)
 ///                         Set to "-" to disable local saving.
 /// </summary>
 class Program
@@ -64,7 +64,7 @@ class Program
             Console.Error.WriteLine("  --threads <N>        Search threads per claimed block (default: all cores)");
             Console.Error.WriteLine("  --worker-id <id>     Worker identifier (pool mode only, optional)");
             Console.Error.WriteLine("  --filter <filterId>  Only claim blocks for this filter (pool mode only)");
-            Console.Error.WriteLine("  --local-db <dir>     Seed lake data root (default: Seeds; catalog ducklake.sqlite beside it)");
+            Console.Error.WriteLine("  --local-db <dir>     Seed lake data root (default: Seeds)");
             Console.Error.WriteLine("                       Use '-' to disable local saving");
             return 1;
         }
@@ -91,7 +91,7 @@ class Program
 
         Console.Error.WriteLine($"[MotelyWorker] Party {partyId} @ {serverUrl} | Threads: {threads}");
         if (localDbDir != null)
-            Console.Error.WriteLine($"[MotelyWorker] Local seed lake: {Path.GetFullPath(localDbDir)} (catalog {SeedLake.CatalogPathFor(localDbDir)})");
+            Console.Error.WriteLine($"[MotelyWorker] Local seed lake: {Path.GetFullPath(localDbDir)}");
         Console.Error.WriteLine();
 
         long totalSeedsSearched = 0;
@@ -274,7 +274,7 @@ class Program
         if (targetFilterId != null)
             Console.Error.WriteLine($"[MotelyWorker] Targeting filter: {targetFilterId}");
         if (localDbDir != null)
-            Console.Error.WriteLine($"[MotelyWorker] Local seed lake: {Path.GetFullPath(localDbDir)} (catalog {SeedLake.CatalogPathFor(localDbDir)})");
+            Console.Error.WriteLine($"[MotelyWorker] Local seed lake: {Path.GetFullPath(localDbDir)}");
         Console.Error.WriteLine("[MotelyWorker] Waiting for work...");
         Console.Error.WriteLine();
 
