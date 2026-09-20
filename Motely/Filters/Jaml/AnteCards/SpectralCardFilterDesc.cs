@@ -21,8 +21,7 @@ public sealed partial class SpectralCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct SpectralCardFilterDesc(SpectralCardClause clause)
-    : IMotelySeedFilterDesc<SpectralCardFilterDesc.SpectralCardFilter>,
-      IJamlClauseDesc<SpectralCardClause>
+    : IMotelySeedFilterDesc<SpectralCardFilterDesc.SpectralCardFilter>
 {
     private readonly SpectralCardClause _clause = clause;
 
@@ -31,23 +30,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
-    /// <inheritdoc/>
-    public static bool Set(SpectralCardClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(SpectralCardClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelySpectralCard>(out var spectrals)) return false;
-        clause.Spectrals = spectrals;
-        return true;
-    }
 
     /// <summary>
     /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
@@ -82,101 +64,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     internal static SpectralCardSourceConfig ResolveSources(SpectralCardClause clause) =>
         clause.Sources
         ?? (JamlScoring.TargetsSpecialSpectral(clause) ? DefaultSpecialSources : DefaultSources);
-
-    /// <summary>
-    /// Ordinary spectrals are a uniform draw of sixteen — the plain draw re-rolls past The Soul and
-    /// Black Hole — off the shop, Sixth Sense and Séance; in a spectral pack each card first rolls
-    /// The Soul at 0.003 and then Black Hole at 0.003 before that draw. The shop term carries the
-    /// deck's spectral weight (<see cref="JamlRarityContext.ShopSpectralRate"/>), which is zero off
-    /// the Ghost deck, so the default's shop slots add nothing there and its pack slots do the work.
-    /// The two specials are counted per pack, at most once each: in spectral packs, and — as the
-    /// scorer does — The Soul in arcana packs and Black Hole in celestial ones. A category-any
-    /// clause counts every card of a spectral pack, specials included. The Ethereal-tag bonus
-    /// pack and Omen Globe substitution depend on state this model does not follow, so a clause
-    /// asking for either is reported as unmodelled rather than undercounted.
-    /// </summary>
-    public static double EstimateRarity(SpectralCardClause clause, in JamlRarityContext ctx)
-    {
-        var sources = ResolveSources(clause);
-        if (sources.EtherealTag || sources.OmenGlobe)
-            return double.NaN;
-
-        var spectrals = JamlDisc.OrEmpty(clause.Spectrals);
-        bool any = JamlDisc.IsCategoryAny(spectrals);
-        bool soul = false, blackHole = false;
-        HashSet<MotelySpectralCard> ordinaryNames = [];
-        foreach (var spectral in spectrals)
-        {
-            if (spectral == MotelySpectralCard.TheSoul) soul = true;
-            else if (spectral == MotelySpectralCard.BlackHole) blackHole = true;
-            else ordinaryNames.Add(spectral);
-        }
-
-        int ordinaryPool = MotelyEnum<MotelySpectralCard>.ValueCount - 2;
-        double ordinary = JamlPoolRarity.PoolShare(ordinaryNames.Count, ordinaryPool, any);
-
-        const double SpecialPerCard = 0.003; // soul / black-hole polls: > 0.997
-        double shopShare = ctx.ShopSpectralRate / ctx.ShopTotalRate * ordinary;
-        double packCardShare = any
-            ? 1.0
-            : (1.0 - SpecialPerCard) * (1.0 - SpecialPerCard) * ordinary;
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.ShopItems), shopShare)
-            );
-
-            HashSet<int> slots = [];
-            foreach (int slot in sources.BoosterPacks)
-            {
-                if (!slots.Add(slot) || !JamlPoolRarity.SlotIsReachable(ante, slot))
-                    continue;
-                if (JamlPoolRarity.SlotIsFixedBuffoon(ante, slot))
-                    continue; // ante 1's first offer is a Buffoon, never a spectral/arcana/celestial pack
-
-                double[] slotPmf = JamlPoolRarity.PackSlotCards(
-                    MotelyBoosterPackType.Spectral,
-                    packCardShare,
-                    sources.RequireMegaPack
-                );
-                if (soul)
-                {
-                    slotPmf = JamlCountDistribution.Convolve(
-                        slotPmf,
-                        JamlCountDistribution.Bernoulli(
-                            JamlPoolRarity.PackSlotHasAny(MotelyBoosterPackType.Spectral, SpecialPerCard, sources.RequireMegaPack)
-                            + JamlPoolRarity.PackSlotHasAny(MotelyBoosterPackType.Arcana, SpecialPerCard, sources.RequireMegaPack)
-                        )
-                    );
-                }
-                if (blackHole)
-                {
-                    slotPmf = JamlCountDistribution.Convolve(
-                        slotPmf,
-                        JamlCountDistribution.Bernoulli(
-                            JamlPoolRarity.PackSlotHasAny(MotelyBoosterPackType.Spectral, SpecialPerCard, sources.RequireMegaPack)
-                            + JamlPoolRarity.PackSlotHasAny(MotelyBoosterPackType.Celestial, SpecialPerCard, sources.RequireMegaPack)
-                        )
-                    );
-                }
-                pmf = JamlCountDistribution.Convolve(pmf, slotPmf);
-            }
-
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.SixthSense), ordinary)
-            );
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.Seance), ordinary)
-            );
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
 
     public SpectralCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

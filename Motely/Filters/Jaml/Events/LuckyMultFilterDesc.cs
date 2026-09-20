@@ -17,8 +17,7 @@ public sealed partial class LuckyMultClause : IRollScopedClause, IWithScopedClau
 }
 
 public struct LuckyMultFilterDesc(LuckyMultClause clause)
-    : IMotelySeedFilterDesc<LuckyMultFilterDesc.LuckyMultFilter>,
-      IJamlClauseDesc<LuckyMultClause>
+    : IMotelySeedFilterDesc<LuckyMultFilterDesc.LuckyMultFilter>
 {
     private readonly LuckyMultClause _clause = clause;
 
@@ -27,16 +26,6 @@ public struct LuckyMultFilterDesc(LuckyMultClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(LuckyMultClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(LuckyMultClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.EnhancementLuckyMultChance, (double)clause.With.Luck)
-        );
 
     public LuckyMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

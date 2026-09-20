@@ -28,8 +28,7 @@ public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
 }
 
 public struct JokerFilterDesc(JokerClause clause)
-    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>,
-      IJamlClauseDesc<JokerClause>
+    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>
 {
     private readonly JokerClause _clause = clause;
 
@@ -40,36 +39,6 @@ public struct JokerFilterDesc(JokerClause clause)
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 
-    /// <inheritdoc/>
-    public static bool Set(JokerClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            case "stickers":
-                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
-                clause.Stickers = stickers;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(JokerClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyJoker>(out var jokers))
-            return false;
-        clause.Jokers = jokers;
-        return true;
-    }
-
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
     /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and
@@ -79,14 +48,6 @@ public struct JokerFilterDesc(JokerClause clause)
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
-
-    /// <summary>
-    /// Shop slots, buffoon packs and the specialty streams for the ordinary names, the soul path
-    /// for any legendary ones, the two convolved under one window — the same split
-    /// <c>CountJokerClauseOccurrences</c> makes. See <see cref="JamlJokerRarity"/>.
-    /// </summary>
-    public static double EstimateRarity(JokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateJoker(clause, in ctx);
 
     public JokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

@@ -17,8 +17,7 @@ public sealed partial class WheelOfFortuneClause : IRollScopedClause, IWithScope
 }
 
 public struct WheelOfFortuneFilterDesc(WheelOfFortuneClause clause)
-    : IMotelySeedFilterDesc<WheelOfFortuneFilterDesc.WheelOfFortuneFilter>,
-      IJamlClauseDesc<WheelOfFortuneClause>
+    : IMotelySeedFilterDesc<WheelOfFortuneFilterDesc.WheelOfFortuneFilter>
 {
     private readonly WheelOfFortuneClause _clause = clause;
 
@@ -27,20 +26,6 @@ public struct WheelOfFortuneFilterDesc(WheelOfFortuneClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(WheelOfFortuneClause clause, string key, IJamlValueReader value) => false;
-
-    /// <summary>
-    /// The wheel is one gate at <c>1/4</c>. Which edition it then grants is a further roll, but the
-    /// clause matches on "any edition at all", so that roll does not narrow anything and must not
-    /// be multiplied in.
-    /// </summary>
-    public static double EstimateRarity(WheelOfFortuneClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.TarrotWheelChance, (double)clause.With.Luck)
-        );
 
     public WheelOfFortuneFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

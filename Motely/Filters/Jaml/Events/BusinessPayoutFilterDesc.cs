@@ -19,8 +19,7 @@ public sealed partial class BusinessPayoutClause : IRollScopedClause
 }
 
 public struct BusinessPayoutFilterDesc(BusinessPayoutClause clause)
-    : IMotelySeedFilterDesc<BusinessPayoutFilterDesc.BusinessPayoutFilter>,
-      IJamlClauseDesc<BusinessPayoutClause>
+    : IMotelySeedFilterDesc<BusinessPayoutFilterDesc.BusinessPayoutFilter>
 {
     private readonly BusinessPayoutClause _clause = clause;
 
@@ -29,13 +28,6 @@ public struct BusinessPayoutFilterDesc(BusinessPayoutClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
-    /// <inheritdoc/>
-    public static bool Set(BusinessPayoutClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(BusinessPayoutClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerBusinessChance));
 
     public BusinessPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

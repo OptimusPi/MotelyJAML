@@ -17,8 +17,7 @@ public sealed partial class SpaceLevelupClause : IRollScopedClause, IWithScopedC
 }
 
 public struct SpaceLevelupFilterDesc(SpaceLevelupClause clause)
-    : IMotelySeedFilterDesc<SpaceLevelupFilterDesc.SpaceLevelupFilter>,
-      IJamlClauseDesc<SpaceLevelupClause>
+    : IMotelySeedFilterDesc<SpaceLevelupFilterDesc.SpaceLevelupFilter>
 {
     private readonly SpaceLevelupClause _clause = clause;
 
@@ -27,16 +26,6 @@ public struct SpaceLevelupFilterDesc(SpaceLevelupClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(SpaceLevelupClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(SpaceLevelupClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.JokerSpaceChance, (double)clause.With.Luck)
-        );
 
     public SpaceLevelupFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

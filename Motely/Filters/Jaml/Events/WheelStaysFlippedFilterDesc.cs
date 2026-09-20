@@ -17,8 +17,7 @@ public sealed partial class WheelStaysFlippedClause : IRollScopedClause, IWithSc
 }
 
 public struct WheelStaysFlippedFilterDesc(WheelStaysFlippedClause clause)
-    : IMotelySeedFilterDesc<WheelStaysFlippedFilterDesc.WheelStaysFlippedFilter>,
-      IJamlClauseDesc<WheelStaysFlippedClause>
+    : IMotelySeedFilterDesc<WheelStaysFlippedFilterDesc.WheelStaysFlippedFilter>
 {
     private readonly WheelStaysFlippedClause _clause = clause;
 
@@ -27,16 +26,6 @@ public struct WheelStaysFlippedFilterDesc(WheelStaysFlippedClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(WheelStaysFlippedClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(WheelStaysFlippedClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.BossTheWheelChance, (double)clause.With.Luck)
-        );
 
     public WheelStaysFlippedFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

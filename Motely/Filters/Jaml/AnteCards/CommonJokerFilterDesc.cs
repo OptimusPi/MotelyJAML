@@ -6,8 +6,7 @@ using static Motely.MotelyVectorUtils;
 namespace Motely.Filters.Jaml;
 
 public struct CommonJokerFilterDesc(CommonJokerClause clause)
-    : IMotelySeedFilterDesc<CommonJokerFilterDesc.CommonJokerFilter>,
-      IJamlClauseDesc<CommonJokerClause>
+    : IMotelySeedFilterDesc<CommonJokerFilterDesc.CommonJokerFilter>
 {
     private readonly CommonJokerClause _clause = clause;
 
@@ -17,47 +16,10 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
     /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
-    /// <inheritdoc/>
-    public static bool Set(CommonJokerClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            case "stickers":
-                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
-                clause.Stickers = stickers;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(CommonJokerClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyJokerCommon>(out var jokers))
-            return false;
-        clause.Jokers = jokers;
-        return true;
-    }
-
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
     /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
     /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
-
-    /// <summary>Common names are 0.7 of a rarity poll then 1 of the common pool; a wildcard is the 0.7 alone. See <see cref="JamlJokerRarity"/>.</summary>
-    public static double EstimateRarity(CommonJokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateFixedRarity(
-            clause.Antes, clause.Sources, clause.Jokers, MotelyJokerRarity.Common,
-            clause.Edition, clause.Stickers, clause.Min, clause.Max, in ctx
-        );
 
     public CommonJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

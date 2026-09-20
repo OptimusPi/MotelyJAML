@@ -19,8 +19,7 @@ public sealed partial class ErraticSuitClause : IJamlClause, IAnteScopedClause
 }
 
 public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
-    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>,
-      IJamlClauseDesc<ErraticSuitClause>
+    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>
 {
     private readonly ErraticSuitClause _clause = clause;
 
@@ -29,37 +28,6 @@ public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
-
-    /// <summary>Erratic-suit clauses carry no keys beyond the common set.</summary>
-    public static bool Set(ErraticSuitClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(ErraticSuitClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnum<MotelyStandardcardSuit>(out var suit))
-            return false;
-        clause.Suit = suit;
-        return true;
-    }
-
-    /// <summary>
-    /// The erratic deck is 52 independent uniform draws of the 52 playing cards, so a suit's count
-    /// is <c>Binomial(52, 13/52)</c> — with replacement, and antes play no part.
-    /// </summary>
-    public static double EstimateRarity(ErraticSuitClause clause, in JamlRarityContext ctx)
-    {
-        int deck = MotelyEnum<MotelyStandardCard>.ValueCount;
-        int ofSuit = 0;
-        foreach (var card in MotelyEnum<MotelyStandardCard>.Values)
-            if (new MotelyItem(card).StandardcardSuit == clause.Suit)
-                ofSuit++;
-
-        return JamlCountDistribution.Window(
-            JamlCountDistribution.Binomial(deck, ofSuit / (double)deck),
-            clause.Min,
-            clause.Max
-        );
-    }
 
     public ErraticSuitFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

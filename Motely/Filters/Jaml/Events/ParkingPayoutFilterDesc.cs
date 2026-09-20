@@ -19,8 +19,7 @@ public sealed partial class ParkingPayoutClause : IRollScopedClause
 }
 
 public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
-    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>,
-      IJamlClauseDesc<ParkingPayoutClause>
+    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>
 {
     private readonly ParkingPayoutClause _clause = clause;
 
@@ -29,13 +28,6 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
-    /// <inheritdoc/>
-    public static bool Set(ParkingPayoutClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(ParkingPayoutClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerParkingChance));
 
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
