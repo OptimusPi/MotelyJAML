@@ -33,6 +33,14 @@
         "node:crypto": false,
         "node:process": false
     },
+    "peerDependencies": {
+        "@rewaffle/bootsharp-file-system": "*"
+    },
+    "peerDependenciesMeta": {
+        "@rewaffle/bootsharp-file-system": {
+            "optional": true
+        }
+    },
     "scripts": {
         "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs",
         "prepublishOnly": "npm run build"

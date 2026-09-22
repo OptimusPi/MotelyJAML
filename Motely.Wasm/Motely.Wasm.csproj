@@ -14,6 +14,10 @@
 
   <ItemGroup>
     <PackageReference Include="Bootsharp" />
+    <PackageReference Include="Bootsharp.Inject" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <!-- Sponsor-feed only (nuget.pkg.github.com/rewaffle). Restore needs the user-level
+         `rewaffle` source; see nuget.config. -->
     <PackageReference Include="Bootsharp.FileSystem" />
     <PackageReference Include="VYaml" GeneratePathProperty="true" />
     <PackageReference Include="VYaml.Annotations" GeneratePathProperty="true" />
