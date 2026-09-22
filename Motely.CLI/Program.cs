@@ -146,17 +146,17 @@ partial class Program
 
         var jamlOption = app.Option<string>(
             "--jaml <PATH>",
-            "JAML config file (terse one-liners allowed)",
+            "Filter config path (.yaml, .yml, or .json — same loader as --yaml / --json)",
             CommandOptionType.SingleValue
         );
         var jsonOption = app.Option<string>(
             "--json <PATH>",
-            "JSON config file (same filter bag as JAML)",
+            "Filter config path (.json)",
             CommandOptionType.SingleValue
         );
         var yamlOption = app.Option<string>(
             "--yaml <PATH>",
-            "YAML 1.2 config file (same filter bag; no JAML terse lines)",
+            "Filter config path (.yaml or .yml)",
             CommandOptionType.SingleValue
         );
         var analyzeOption = app.Option<string>(

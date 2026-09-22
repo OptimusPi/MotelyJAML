@@ -151,33 +151,9 @@ public static class Program
         return 0;
     }
 
-    // Same path convention as Motely.CLI's JamlFileLoader: a bare name (not rooted, no
-    // extension) resolves under JamlFilters/ with a .jaml extension; anything else is verbatim.
-    private static string ResolvePath(string path) =>
-        !Path.IsPathRooted(path) && !Path.HasExtension(path)
-            ? Path.Combine("JamlFilters", path + ".jaml")
-            : path;
-
     private static bool TryLoadConfig(
         string path,
         [NotNullWhen(true)] out JamlConfig? config,
         out string? error
-    )
-    {
-        config = null;
-        path = ResolvePath(path);
-
-        string content;
-        try
-        {
-            content = File.ReadAllText(path);
-        }
-        catch (Exception ex)
-        {
-            error = $"Error reading JAML file '{path}': {ex.Message}";
-            return false;
-        }
-
-        return JamlConfigLoader.TryLoad(content, out config, out error);
-    }
+    ) => Motely.MotelyJamlFile.TryLoad(path, out config, out error);
 }

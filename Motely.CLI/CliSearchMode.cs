@@ -330,7 +330,7 @@ internal static class CliSearchMode
         // Sequential is the default, always. A JAML `seeds:` block is saved *output* — the engine
         // writes it back after a run — so treating its presence as an instruction meant a filter
         // silently stopped sweeping the moment it had ever found anything. Replaying that list is
-        // an explicit request with an existing door: `--source <file>.jaml`, which SeedSourceProvider
+        // an explicit request with an existing door: `--source <file>.yaml` (or `.json`), which SeedSourceProvider
         // already reads (it regex-extracts the seeds: block). Nothing is lost by not guessing.
         {
             int batchCharacterCount = input.BatchCharacterCount ?? DefaultBatchCharacterCount;

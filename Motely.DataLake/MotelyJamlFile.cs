@@ -13,19 +13,21 @@ namespace Motely;
 ///
 /// Resolution order for a user-typed value:
 ///   1. verbatim, if the file exists;
-///   2. the value with a <c>.jaml</c> extension, if that file exists;
-///   3. under <c>JamlFilters/</c> (verbatim, then with <c>.jaml</c>);
+///   2. the value with a <c>.yaml</c>, <c>.yml</c>, or <c>.json</c> extension, if that file exists;
+///   3. under <c>JamlFilters/</c> (verbatim, then with those extensions);
 ///   4. otherwise, for a bare, unrooted, extension-less name, the conventional
-///      <c>JamlFilters/&lt;name&gt;.jaml</c> — this is the path used for save-back and for the
-///      "file not found" message, so a brand-new filter still round-trips to the expected place.
+///      <c>JamlFilters/&lt;name&gt;.yaml</c> — save-back and "file not found" use this path.
 /// </summary>
 public static class MotelyJamlFile
 {
     /// <summary>The conventional folder bare filter names live in.</summary>
     public const string FiltersDirectory = "JamlFilters";
 
-    /// <summary>JAML, JSON, YAML — same config bag once loaded.</summary>
-    public static readonly string[] DocumentExtensions = [".jaml", ".json", ".yaml", ".yml"];
+    /// <summary>Default extension for bare filter names (save-back and conventional path).</summary>
+    public const string DefaultDocumentExtension = ".yaml";
+
+    /// <summary>JSON and YAML filter documents — same config bag once loaded.</summary>
+    public static readonly string[] DocumentExtensions = [".yaml", ".yml", ".json"];
 
     /// <summary>
     /// Resolve a user-typed value to an existing file path, or <c>null</c> if none of the candidate
@@ -73,7 +75,7 @@ public static class MotelyJamlFile
 
     /// <summary>
     /// The canonical on-disk path for a value even when the file does not exist yet: an existing
-    /// match if there is one, else the conventional <c>JamlFilters/&lt;name&gt;.jaml</c> for a bare
+    /// match if there is one, else the conventional <c>JamlFilters/&lt;name&gt;.yaml</c> for a bare
     /// name, else the value verbatim. Load and save-back both route through here so they always
     /// agree about where the file is.
     /// </summary>
@@ -85,7 +87,7 @@ public static class MotelyJamlFile
 
         var trimmed = (path ?? string.Empty).Trim();
         return !Path.IsPathRooted(trimmed) && !Path.HasExtension(trimmed)
-            ? Path.Combine(FiltersDirectory, trimmed + ".jaml")
+            ? Path.Combine(FiltersDirectory, trimmed + DefaultDocumentExtension)
             : trimmed;
     }
 
