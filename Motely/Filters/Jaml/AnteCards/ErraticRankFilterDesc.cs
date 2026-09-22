@@ -7,19 +7,19 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("erraticRank", "erraticRanks",
     ValueEnum = typeof(MotelyStandardcardRank))]
-[YamlObject]
-public sealed partial class ErraticRankClause : IJamlClause, IAnteScopedClause
+public sealed class ErraticRankClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyStandardcardRank Rank { get; set; }
 }
 
 public struct ErraticRankFilterDesc(ErraticRankClause clause)
-    : IMotelySeedFilterDesc<ErraticRankFilterDesc.ErraticRankFilter>
+    : IMotelySeedFilterDesc<ErraticRankFilterDesc.ErraticRankFilter>,
+      IJamlClauseDesc<ErraticRankClause>
 {
     private readonly ErraticRankClause _clause = clause;
 
@@ -28,6 +28,39 @@ public struct ErraticRankFilterDesc(ErraticRankClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
+
+    /// <inheritdoc/>
+    public static bool Set(ErraticRankClause clause, string key, IJamlValueReader value)
+    {
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(ErraticRankClause clause, IJamlValueReader value)
+    {
+        if (!value.TryEnum<MotelyStandardcardRank>(out var rank)) return false;
+        clause.Rank = rank;
+        return true;
+    }
+
+    /// <summary>
+    /// The erratic deck is 52 independent uniform draws of the 52 playing cards, so a rank's count
+    /// is <c>Binomial(52, 4/52)</c> — with replacement, and antes play no part.
+    /// </summary>
+    public static double EstimateRarity(ErraticRankClause clause, in JamlRarityContext ctx)
+    {
+        int deck = MotelyEnum<MotelyStandardCard>.ValueCount;
+        int ofRank = 0;
+        foreach (var card in MotelyEnum<MotelyStandardCard>.Values)
+            if (new MotelyItem(card).StandardcardRank == clause.Rank)
+                ofRank++;
+
+        return JamlCountDistribution.Window(
+            JamlCountDistribution.Binomial(deck, ofRank / (double)deck),
+            clause.Min,
+            clause.Max
+        );
+    }
 
     public ErraticRankFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

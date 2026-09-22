@@ -5,8 +5,7 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("misprintMult", RollsAreInlineValue = true)]
-[YamlObject]
-public sealed partial class MisprintMultClause : IRollScopedClause
+public sealed class MisprintMultClause : IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -21,7 +20,8 @@ public sealed partial class MisprintMultClause : IRollScopedClause
 }
 
 public struct MisprintMultFilterDesc(MisprintMultClause clause)
-    : IMotelySeedFilterDesc<MisprintMultFilterDesc.MisprintMultFilter>
+    : IMotelySeedFilterDesc<MisprintMultFilterDesc.MisprintMultFilter>,
+      IJamlClauseDesc<MisprintMultClause>
 {
     private readonly MisprintMultClause _clause = clause;
 
@@ -30,6 +30,39 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "mult", "value"];
+
+    /// <inheritdoc/>
+    public static bool Set(MisprintMultClause clause, string key, IJamlValueReader value)
+    {
+        switch (key.ToLowerInvariant())
+        {
+            case "mult":
+            case "value":
+                if (!value.TryInt(out var mult)) return false;
+                clause.Mult = mult;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// The only event whose roll is not a coin flip: it draws a uniform int across the misprint
+    /// range and the clause matches when that int reaches <c>Mult</c>. So the per-roll rate is the
+    /// share of the range at or above the threshold — and a <c>Mult</c> past the top of the range
+    /// is impossible rather than unknown, which is a <c>0.0</c> the report can print as such.
+    /// </summary>
+    public static double EstimateRarity(MisprintMultClause clause, in JamlRarityContext ctx)
+    {
+        const int Low = MotelyGlobals.JokerMisprintMin;
+        const int High = MotelyGlobals.JokerMisprintMax;
+
+        int atOrAbove = High - Math.Max(clause.Mult, Low) + 1;
+        return JamlRollRarity.Window(
+            clause,
+            atOrAbove <= 0 ? 0.0 : atOrAbove / (double)(High - Low + 1)
+        );
+    }
 
     public MisprintMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

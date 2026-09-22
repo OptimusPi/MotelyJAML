@@ -1,3 +1,4 @@
+using Motely.Filters;
 using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
@@ -38,6 +39,7 @@ public sealed class MotelyJamlFileLoadTests
                 error
             );
             Assert.Equal("always-pass-json", config!.Name);
+            AssertSingleMustIsAnyJoker(config);
         }
         finally
         {
@@ -58,6 +60,31 @@ public sealed class MotelyJamlFileLoadTests
                 error
             );
             Assert.Equal("always-pass-yaml", config!.Name);
+            AssertSingleMustIsAnyJoker(config);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(cwd);
+        }
+    }
+
+    [Fact]
+    public void TryLoad_JamlExtension_IsRejected()
+    {
+        var cwd = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(RepoRoot);
+
+            Assert.False(MotelyJamlFile.TryLoad("AlwaysPass.jaml", out _, out var bareError));
+            Assert.Contains(".jaml", bareError, StringComparison.OrdinalIgnoreCase);
+
+            var onDisk = Path.Combine("JamlFilters", "AlwaysPass.jaml");
+            Assert.True(File.Exists(onDisk), onDisk);
+            Assert.False(MotelyJamlFile.TryLoad(onDisk, out _, out var pathError));
+            Assert.Contains(".jaml", pathError, StringComparison.OrdinalIgnoreCase);
+
+            Assert.Null(MotelyJamlFile.TryResolveExisting("AlwaysPass.jaml"));
         }
         finally
         {
@@ -79,5 +106,12 @@ public sealed class MotelyJamlFileLoadTests
     {
         Assert.DoesNotContain(".jaml", MotelyJamlFile.DocumentExtensions);
         Assert.Equal(".yaml", MotelyJamlFile.DefaultDocumentExtension);
+    }
+
+    private static void AssertSingleMustIsAnyJoker(JamlConfig config)
+    {
+        var clause = Assert.Single(config.Must);
+        var joker = Assert.IsType<JokerClause>(clause);
+        Assert.Empty(joker.Jokers);
     }
 }

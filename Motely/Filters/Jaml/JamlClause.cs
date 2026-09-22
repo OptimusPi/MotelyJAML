@@ -43,5 +43,5 @@ public static class JamlClause
 {
     /// <summary>Allowed keys inside a clause's own <c>with:</c> block (JamlWith modifiers) —
     /// only meaningful on families whose FilterDesc <c>ClauseKeys</c> list includes <c>with</c>.</summary>
-    public static readonly string[] WithBlockKeys = ["luck"];
+    public static readonly string[] WithBlockKeys = ["luck", "vouchers"];
 }

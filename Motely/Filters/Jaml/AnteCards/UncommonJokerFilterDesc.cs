@@ -6,7 +6,8 @@ using static Motely.MotelyVectorUtils;
 namespace Motely.Filters.Jaml;
 
 public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
-    : IMotelySeedFilterDesc<UncommonJokerFilterDesc.UncommonJokerFilter>
+    : IMotelySeedFilterDesc<UncommonJokerFilterDesc.UncommonJokerFilter>,
+      IJamlClauseDesc<UncommonJokerClause>
 {
     private readonly UncommonJokerClause _clause = clause;
 
@@ -16,10 +17,47 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
     /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
+    /// <inheritdoc/>
+    public static bool Set(UncommonJokerClause clause, string key, IJamlValueReader value)
+    {
+        switch (key.ToLowerInvariant())
+        {
+            case "edition":
+                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
+                clause.Edition = edition;
+                return true;
+            case "stickers":
+                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
+                clause.Stickers = stickers;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(UncommonJokerClause clause, IJamlValueReader value)
+    {
+        // Empty disc (null / "" / []) = category match. No "Any" token.
+        if (string.IsNullOrWhiteSpace(value.Text))
+            return true;
+        if (!value.TryEnumArray<MotelyJokerUncommon>(out var jokers))
+            return false;
+        clause.Jokers = jokers;
+        return true;
+    }
+
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
     /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
     /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
+
+    /// <summary>Uncommon names are 0.25 of a rarity poll then 1 of the uncommon pool; a wildcard is the 0.25 alone. See <see cref="JamlJokerRarity"/>.</summary>
+    public static double EstimateRarity(UncommonJokerClause clause, in JamlRarityContext ctx) =>
+        JamlJokerRarity.EstimateFixedRarity(
+            clause.Antes, clause.Sources, clause.Jokers, MotelyJokerRarity.Uncommon,
+            clause.Edition, clause.Stickers, clause.Min, clause.Max, in ctx
+        );
 
     public readonly UncommonJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -62,10 +100,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
         var uncommonShopJokerIndices = sources.UncommonShopJokers;
         var rareShopJokerIndices = sources.RareShopJokers;
         var allShopJokerIndices = sources.AllShopJokers;
-
-        // This desc walks the four raw shop joker streams natively; the spawn streams
-        // (judgement/wraith/riffRaff/rareTag/uncommonTag) are counted per seed by the scalar law.
-        bool confirmPerSeed = sources.HasSpawnSources;
 
         int maxShopItem = 0;
         foreach (var idx in shopIndices)
@@ -112,8 +146,7 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
             maxUncommonShopJoker,
             maxRareShopJoker,
             maxAllShopJoker,
-            sources.RequireMegaPack,
-            confirmPerSeed
+            sources.RequireMegaPack
         );
     }
 
@@ -132,8 +165,7 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
         int maxUncommonShopJoker,
         int maxRareShopJoker,
         int maxAllShopJoker,
-        bool requireMegaPack,
-        bool confirmPerSeed
+        bool requireMegaPack
     ) : IMotelySeedFilter
     {
         private readonly UncommonJokerClause _clause = clause;
@@ -145,7 +177,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
         private readonly int[] _rareShopJokerIndices = rareShopJokerIndices;
         private readonly int[] _allShopJokerIndices = allShopJokerIndices;
         private readonly bool _requireMegaPack = requireMegaPack;
-        private readonly bool _confirmPerSeed = confirmPerSeed;
         private readonly int _maxShopItem = maxShopItem;
         private readonly int _maxBoosterPack = maxBoosterPack;
         private readonly int _maxCommonShopJoker = maxCommonShopJoker;
@@ -159,16 +190,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
             // empty Jokers = category any
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "UncommonJokerClause.Min must be > 0 — loader bug.");
-
-            if (_confirmPerSeed)
-            {
-                var clause = _clause;
-                return ctx.SearchIndividualSeeds(
-                    (MotelySingleSearchContext singleCtx) =>
-                        JamlScoring.ClauseMeetsMinForFilter(ref singleCtx, clause) ? 1 : 0
-                );
-            }
-
             Vector256<int> matchCounts = Vector256<int>.Zero;
 
             var shopIndices = _shopIndices;
@@ -481,21 +502,25 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
-            for (int s = 0; s < _clause.Stickers.Length; s++)
+            if (_clause.Stickers.Length > 0)
             {
-                switch (_clause.Stickers[s])
+                VectorMask stickerMatch = VectorMask.NoBitsSet;
+                for (int s = 0; s < _clause.Stickers.Length; s++)
                 {
-                    case MotelyJokerSticker.Eternal:
-                        jokerMatch &= item.IsEternal;
-                        break;
-                    case MotelyJokerSticker.Perishable:
-                        jokerMatch &= item.IsPerishable;
-                        break;
-                    case MotelyJokerSticker.Rental:
-                        jokerMatch &= item.IsRental;
-                        break;
+                    switch (_clause.Stickers[s])
+                    {
+                        case MotelyJokerSticker.Eternal:
+                            stickerMatch |= item.IsEternal;
+                            break;
+                        case MotelyJokerSticker.Perishable:
+                            stickerMatch |= item.IsPerishable;
+                            break;
+                        case MotelyJokerSticker.Rental:
+                            stickerMatch |= item.IsRental;
+                            break;
+                    }
                 }
+                jokerMatch &= stickerMatch;
             }
 
             return jokerMatch;

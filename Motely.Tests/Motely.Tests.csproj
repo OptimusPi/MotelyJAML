@@ -44,6 +44,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="JamlBoundsTests.cs" />
+    <Compile Remove="JamlLanguageServiceTests.cs" />
+    <Compile Remove="LspServerProtocolTests.cs" />
+    <Compile Remove="PokerHandLspSmokeTests.cs" />
+    <Compile Remove="S8P3LspExplainTests.cs" />
+    <Compile Remove="CardDefaultSourcesTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -77,8 +77,7 @@ public static class JamlSearchBuilder
                 new JamlShouldScoreDesc(
                     [.. config.Must],
                     [.. config.Should],
-                    minimumTotalScore: engineCutoff,
-                    mustNotClauses: scoredMustNot
+                    minimumTotalScore: engineCutoff
                 )
             );
         }

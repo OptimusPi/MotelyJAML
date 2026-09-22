@@ -80,7 +80,7 @@ internal static class JamlSimdPackSupport
     {
         Debug.Assert(min > 0);
         var minOk = Vector256.GreaterThan(matchCounts, Vector256.Create(min - 1));
-        if (max is null)
+        if (max is not > 0)
             return new VectorMask(VectorizedComparisonToMask(minOk));
         var maxOk = Vector256.LessThanOrEqual(matchCounts, Vector256.Create(max.Value));
         return new VectorMask(VectorizedComparisonToMask(Vector256.BitwiseAnd(minOk, maxOk)));

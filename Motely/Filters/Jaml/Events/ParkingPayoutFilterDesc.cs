@@ -5,8 +5,7 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("parkingPayout", RollsAreInlineValue = true)]
-[YamlObject]
-public sealed partial class ParkingPayoutClause : IRollScopedClause
+public sealed class ParkingPayoutClause : IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -19,7 +18,8 @@ public sealed partial class ParkingPayoutClause : IRollScopedClause
 }
 
 public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
-    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>
+    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>,
+      IJamlClauseDesc<ParkingPayoutClause>
 {
     private readonly ParkingPayoutClause _clause = clause;
 
@@ -28,6 +28,13 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
+
+    /// <inheritdoc/>
+    public static bool Set(ParkingPayoutClause clause, string key, IJamlValueReader value) => false;
+
+    /// <inheritdoc/>
+    public static double EstimateRarity(ParkingPayoutClause clause, in JamlRarityContext ctx) =>
+        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerParkingChance));
 
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

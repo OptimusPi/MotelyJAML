@@ -4,14 +4,13 @@ using System.Runtime.CompilerServices;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("boss", "bosses", ValueEnum = typeof(MotelyBossBlind))]
-[YamlObject]
-public sealed partial class BossClause : IJamlClause, IAnteScopedClause
+public sealed class BossClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyBossBlind[] Bosses { get; set; } = [];
     // No Rolls — for now. Boss re-rolls ARE a real source, but the re-roll read isn't
     // implemented in MotelySearchContext.Boss.cs yet (state-heavy, same blocker as joker
@@ -19,7 +18,8 @@ public sealed partial class BossClause : IJamlClause, IAnteScopedClause
 }
 
 public readonly struct BossFilterDesc(BossClause clause)
-    : IMotelySeedFilterDesc<BossFilterDesc.BossFilter>
+    : IMotelySeedFilterDesc<BossFilterDesc.BossFilter>,
+      IJamlClauseDesc<BossClause>
 {
     private readonly BossClause _clause = clause;
 
@@ -28,6 +28,41 @@ public readonly struct BossFilterDesc(BossClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
+
+    /// <summary>Boss clauses carry no keys beyond the common set, so nothing is claimed here.</summary>
+    public static bool Set(BossClause clause, string key, IJamlValueReader value) => false;
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(BossClause clause, IJamlValueReader value)
+    {
+        if (!value.TryEnumArray<MotelyBossBlind>(out var bosses))
+            return false;
+        clause.Bosses = bosses;
+        return true;
+    }
+
+    /// <summary>
+    /// One boss per ante, uniform over the pool still in play — <c>GetBossForAnte</c>: at antes
+    /// divisible by eight the five finishers, otherwise the normal bosses whose minimum ante has
+    /// arrived, less every boss already seen, and the pool refills only when it runs dry. So a
+    /// boss's chance at ante <c>A</c> is one over that ante's pool, times the chance it was not
+    /// drawn at an earlier ante where it was eligible. A finisher comes out to exactly 1/5.
+    /// </summary>
+    public static double EstimateRarity(BossClause clause, in JamlRarityContext ctx)
+    {
+        HashSet<MotelyBossBlind> wanted = [.. clause.Bosses];
+
+        double[] pmf = JamlCountDistribution.Zero;
+        foreach (int ante in clause.Antes)
+        {
+            double share = 0.0;
+            foreach (var boss in wanted)
+                share += ShareAt(boss, ante);
+            pmf = JamlCountDistribution.Convolve(pmf, JamlCountDistribution.Bernoulli(share));
+        }
+
+        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
+    }
 
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 

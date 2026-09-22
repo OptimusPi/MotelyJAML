@@ -5,8 +5,7 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("grosMichelExtinct", RollsAreInlineValue = true)]
-[YamlObject]
-public sealed partial class GrosMichelExtinctClause : IRollScopedClause, IWithScopedClause
+public sealed class GrosMichelExtinctClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -17,7 +16,8 @@ public sealed partial class GrosMichelExtinctClause : IRollScopedClause, IWithSc
 }
 
 public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
-    : IMotelySeedFilterDesc<GrosMichelExtinctFilterDesc.GrosMichelExtinctFilter>
+    : IMotelySeedFilterDesc<GrosMichelExtinctFilterDesc.GrosMichelExtinctFilter>,
+      IJamlClauseDesc<GrosMichelExtinctClause>
 {
     private readonly GrosMichelExtinctClause _clause = clause;
 
@@ -26,6 +26,16 @@ public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
+
+    /// <inheritdoc/>
+    public static bool Set(GrosMichelExtinctClause clause, string key, IJamlValueReader value) => false;
+
+    /// <inheritdoc/>
+    public static double EstimateRarity(GrosMichelExtinctClause clause, in JamlRarityContext ctx) =>
+        JamlRollRarity.Window(
+            clause,
+            JamlRollRarity.Rate(MotelyGlobals.JokerGrosMichelChance, (double)clause.With.Luck)
+        );
 
     public GrosMichelExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

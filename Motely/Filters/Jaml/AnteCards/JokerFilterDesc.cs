@@ -9,14 +9,13 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("joker", "jokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
-public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
+public sealed class JokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyJoker[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
@@ -28,7 +27,8 @@ public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
 }
 
 public struct JokerFilterDesc(JokerClause clause)
-    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>
+    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>,
+      IJamlClauseDesc<JokerClause>
 {
     private readonly JokerClause _clause = clause;
 
@@ -39,6 +39,36 @@ public struct JokerFilterDesc(JokerClause clause)
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 
+    /// <inheritdoc/>
+    public static bool Set(JokerClause clause, string key, IJamlValueReader value)
+    {
+        switch (key.ToLowerInvariant())
+        {
+            case "edition":
+                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
+                clause.Edition = edition;
+                return true;
+            case "stickers":
+                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
+                clause.Stickers = stickers;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(JokerClause clause, IJamlValueReader value)
+    {
+        // Empty disc (null / "" / []) = category match. No "Any" token.
+        if (string.IsNullOrWhiteSpace(value.Text))
+            return true;
+        if (!value.TryEnumArray<MotelyJoker>(out var jokers))
+            return false;
+        clause.Jokers = jokers;
+        return true;
+    }
+
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
     /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and
@@ -48,6 +78,14 @@ public struct JokerFilterDesc(JokerClause clause)
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
+
+    /// <summary>
+    /// Shop slots, buffoon packs and the specialty streams for the ordinary names, the soul path
+    /// for any legendary ones, the two convolved under one window — the same split
+    /// <c>CountJokerClauseOccurrences</c> makes. See <see cref="JamlJokerRarity"/>.
+    /// </summary>
+    public static double EstimateRarity(JokerClause clause, in JamlRarityContext ctx) =>
+        JamlJokerRarity.EstimateJoker(clause, in ctx);
 
     public JokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -79,15 +117,8 @@ public struct JokerFilterDesc(JokerClause clause)
         var shopIndices = sources.ShopItems;
         var boosterIndices = sources.BoosterPacks;
 
-        // Only shop slots and buffoon packs are walked in SIMD here; everything else the
-        // clause can name is counted per seed by the scalar law.
-        bool confirmPerSeed =
-            UsesLegendaryPath(_clause)
-            || sources.HasSpawnSources
-            || sources.HasRawShopJokerSources;
-
         Debug.Assert(
-            confirmPerSeed || shopIndices.Length > 0 || boosterIndices.Length > 0,
+            shopIndices.Length > 0 || boosterIndices.Length > 0,
             "Joker clause should have non-empty default sources."
         );
 
@@ -108,27 +139,8 @@ public struct JokerFilterDesc(JokerClause clause)
             [.. boosterIndices],
             maxShopItem,
             maxBoosterPack,
-            sources.RequireMegaPack,
-            confirmPerSeed
+            sources.RequireMegaPack
         );
-    }
-
-    private static bool UsesLegendaryPath(JokerClause clause)
-    {
-        if (JamlDisc.IsCategoryAny(clause.Jokers))
-            return true;
-
-        var jokers = clause.Jokers!;
-        for (int i = 0; i < jokers.Length; i++)
-        {
-            if (
-                ((MotelyJokerRarity)((int)jokers[i] & MotelyGlobals.JokerRarityMask))
-                == MotelyJokerRarity.Legendary
-            )
-                return true;
-        }
-
-        return false;
     }
 
     public struct JokerFilter(
@@ -138,8 +150,7 @@ public struct JokerFilterDesc(JokerClause clause)
         int[] boosterIndices,
         int maxShopItem,
         int maxBoosterPack,
-        bool requireMegaPack,
-        bool confirmPerSeed
+        bool requireMegaPack
     ) : IMotelySeedFilter
     {
         private readonly JokerClause _clause = clause;
@@ -149,7 +160,6 @@ public struct JokerFilterDesc(JokerClause clause)
         private readonly int _maxShopItem = maxShopItem;
         private readonly int _maxBoosterPack = maxBoosterPack;
         private readonly bool _requireMegaPack = requireMegaPack;
-        private readonly bool _confirmPerSeed = confirmPerSeed;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
@@ -158,7 +168,7 @@ public struct JokerFilterDesc(JokerClause clause)
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "JokerClause.Min must be > 0 — loader bug.");
 
-            if (_confirmPerSeed)
+            if (UsesLegendaryPath(_clause))
             {
                 var clause = _clause;
                 return ctx.SearchIndividualSeeds(
@@ -309,32 +319,61 @@ public struct JokerFilterDesc(JokerClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private readonly VectorMask MatchJokers(in MotelyItemVector item)
         {
-            // Category-any clauses never reach here: UsesLegendaryPath routes them per seed.
-            VectorMask jokerMatch = VectorMask.NoBitsSet;
-            for (int t = 0; t < _targetTypes.Length; t++)
-                jokerMatch |= VectorEnum256.Equals(item.Type, _targetTypes[t]);
+            VectorMask jokerMatch;
+            if (JamlDisc.IsCategoryAny(_clause.Jokers))
+            {
+                jokerMatch = VectorEnum256.Equals(item.TypeCategory, MotelyItemTypeCategory.Joker);
+            }
+            else
+            {
+                jokerMatch = VectorMask.NoBitsSet;
+                for (int t = 0; t < _targetTypes.Length; t++)
+                    jokerMatch |= VectorEnum256.Equals(item.Type, _targetTypes[t]);
+            }
 
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
-            for (int s = 0; s < _clause.Stickers.Length; s++)
+            if (_clause.Stickers.Length > 0)
             {
-                switch (_clause.Stickers[s])
+                VectorMask stickerMatch = VectorMask.NoBitsSet;
+                for (int s = 0; s < _clause.Stickers.Length; s++)
                 {
-                    case MotelyJokerSticker.Eternal:
-                        jokerMatch &= item.IsEternal;
-                        break;
-                    case MotelyJokerSticker.Perishable:
-                        jokerMatch &= item.IsPerishable;
-                        break;
-                    case MotelyJokerSticker.Rental:
-                        jokerMatch &= item.IsRental;
-                        break;
+                    switch (_clause.Stickers[s])
+                    {
+                        case MotelyJokerSticker.Eternal:
+                            stickerMatch |= item.IsEternal;
+                            break;
+                        case MotelyJokerSticker.Perishable:
+                            stickerMatch |= item.IsPerishable;
+                            break;
+                        case MotelyJokerSticker.Rental:
+                            stickerMatch |= item.IsRental;
+                            break;
+                    }
                 }
+                jokerMatch &= stickerMatch;
             }
 
             return jokerMatch;
+        }
+
+        private static bool UsesLegendaryPath(JokerClause clause)
+        {
+            if (JamlDisc.IsCategoryAny(clause.Jokers))
+                return true;
+
+            var jokers = clause.Jokers!;
+            for (int i = 0; i < jokers.Length; i++)
+            {
+                if (
+                    ((MotelyJokerRarity)((int)jokers[i] & MotelyGlobals.JokerRarityMask))
+                    == MotelyJokerRarity.Legendary
+                )
+                    return true;
+            }
+
+            return false;
         }
     }
 }
@@ -343,14 +382,13 @@ public struct JokerFilterDesc(JokerClause clause)
 
 [JamlDiscriminator("commonJoker", "commonJokers",
     ValueEnum = typeof(MotelyJokerCommon), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
-public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
+public sealed class CommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyJokerCommon[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
@@ -359,14 +397,13 @@ public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
 
 [JamlDiscriminator("uncommonJoker", "uncommonJokers",
     ValueEnum = typeof(MotelyJokerUncommon), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
-public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
+public sealed class UncommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyJokerUncommon[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
@@ -375,14 +412,13 @@ public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
 
 [JamlDiscriminator("rareJoker", "rareJokers",
     ValueEnum = typeof(MotelyJokerRare), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
-public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
+public sealed class RareJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyJokerRare[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
@@ -393,8 +429,7 @@ public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
 /// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
-[YamlObject]
-public sealed partial record JokerSourceConfig
+public sealed record JokerSourceConfig
 {
     /// <summary>
     /// This class's settable properties, camelCased — the single list JamlConfigLoader
@@ -416,41 +451,12 @@ public sealed partial record JokerSourceConfig
     /// <summary>When true, only Mega-sized Buffoon packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
 
-    /// <summary>0..n rolls of the joker stream keyed by the Judgement tarot (rarity-polled, no stickers).</summary>
+    /// <summary>Ante-1 pack-slot cap. Default 3 (normal gameplay). Raise to 5 for Hieroglyph scans.</summary>
     public int[] Judgement { get; set; } = [];
-
-    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (rarity-polled, no stickers).</summary>
     public int[] Wraith { get; set; } = [];
-
-    /// <summary>0..n rolls of the common-pool stream Riff-Raff spawns from (no stickers).</summary>
     public int[] RiffRaff { get; set; } = [];
-
-    /// <summary>0..n rolls of the Rare Tag's joker stream.</summary>
     public int[] RareTag { get; set; } = [];
-
-    /// <summary>0..n rolls of the Uncommon Tag's joker stream.</summary>
     public int[] UncommonTag { get; set; } = [];
-
-    /// <summary>
-    /// Any consumable/joker/tag spawn stream is named. No joker desc walks these in SIMD;
-    /// a clause naming one confirms per seed via <see cref="JamlScoring.ClauseMeetsMinForFilter"/>.
-    /// </summary>
-    internal bool HasSpawnSources =>
-        Judgement.Length > 0
-        || Wraith.Length > 0
-        || RiffRaff.Length > 0
-        || RareTag.Length > 0
-        || UncommonTag.Length > 0;
-
-    /// <summary>
-    /// Any raw rarity-pool shop joker stream is named. Only <see cref="UncommonJokerFilterDesc"/>
-    /// walks these in SIMD; the other joker descs confirm per seed.
-    /// </summary>
-    internal bool HasRawShopJokerSources =>
-        CommonShopJokers.Length > 0
-        || UncommonShopJokers.Length > 0
-        || RareShopJokers.Length > 0
-        || AllShopJokers.Length > 0;
 
     /// <summary>0..n rolls on the common shop joker PRNG only (fast path).</summary>
     public int[] CommonShopJokers { get; set; } = [];

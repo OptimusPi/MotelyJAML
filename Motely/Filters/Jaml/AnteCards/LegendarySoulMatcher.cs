@@ -4,11 +4,10 @@ using Motely;
 namespace Motely.Filters.Jaml;
 
 /// <summary>
-/// Soul / legendary checks walk the shop's pack slots in the same numbering every other family
-/// uses — <see cref="MotelySingleSearchContext.CreateBoosterPackStream(int, bool)"/>'s default,
-/// where ante 1 slot 0 is the fixed first-shop Buffoon — then The Soul in arcana/Spectral, then
-/// <see cref="MotelySingleSearchContext.GetNextJoker"/>. Streams must be read in pack order: the
-/// older "read soul stream before packs" path mis-aligned them and matched nothing.
+/// Soul / legendary checks must follow the same pack order and RNG order as
+/// <see cref="PerkeoObservatoryFilterDesc"/> (pack stream with generated-first for ante 1,
+/// then The Soul in arcana/Spectral, then <see cref="MotelySingleSearchContext.GetNextJoker"/>).
+/// The older "read soul stream before packs" path mis-aligned streams and matched nothing.
 /// </summary>
 internal static class LegendarySoulMatcher
 {
@@ -36,7 +35,9 @@ internal static class LegendarySoulMatcher
         // Null Sources (no sources: block) → legendary defaults; a non-null block is used as-is.
         var src = clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
 
-        var packStream = ctx.CreateBoosterPackStream(ante);
+        // Default CreateBoosterPackStream(ante) uses generatedFirstPack = (ante > 1), so ante 1
+        // prepends a synthetic Buffoon — indices and pack types no longer match PerkeoObservatory.
+        var packStream = ctx.CreateBoosterPackStream(ante, true, false);
 
         MotelySingleTarotStream tarotStream = default;
         MotelySingleSpectralStream spectralStream = default;
@@ -147,7 +148,7 @@ internal static class LegendarySoulMatcher
         int maxBoosterPack
     )
     {
-        var packStream = ctx.CreateBoosterPackStream(ante);
+        var packStream = ctx.CreateBoosterPackStream(ante, true, false);
 
         MotelySingleTarotStream tarotStream = default;
         MotelySingleSpectralStream spectralStream = default;

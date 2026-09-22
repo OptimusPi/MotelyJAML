@@ -7,19 +7,19 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("erraticSuit", "erraticSuits",
     ValueEnum = typeof(MotelyStandardcardSuit))]
-[YamlObject]
-public sealed partial class ErraticSuitClause : IJamlClause, IAnteScopedClause
+public sealed class ErraticSuitClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyStandardcardSuit Suit { get; set; }
 }
 
 public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
-    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>
+    : IMotelySeedFilterDesc<ErraticSuitFilterDesc.ErraticSuitFilter>,
+      IJamlClauseDesc<ErraticSuitClause>
 {
     private readonly ErraticSuitClause _clause = clause;
 
@@ -28,6 +28,37 @@ public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
+
+    /// <summary>Erratic-suit clauses carry no keys beyond the common set.</summary>
+    public static bool Set(ErraticSuitClause clause, string key, IJamlValueReader value) => false;
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(ErraticSuitClause clause, IJamlValueReader value)
+    {
+        if (!value.TryEnum<MotelyStandardcardSuit>(out var suit))
+            return false;
+        clause.Suit = suit;
+        return true;
+    }
+
+    /// <summary>
+    /// The erratic deck is 52 independent uniform draws of the 52 playing cards, so a suit's count
+    /// is <c>Binomial(52, 13/52)</c> — with replacement, and antes play no part.
+    /// </summary>
+    public static double EstimateRarity(ErraticSuitClause clause, in JamlRarityContext ctx)
+    {
+        int deck = MotelyEnum<MotelyStandardCard>.ValueCount;
+        int ofSuit = 0;
+        foreach (var card in MotelyEnum<MotelyStandardCard>.Values)
+            if (new MotelyItem(card).StandardcardSuit == clause.Suit)
+                ofSuit++;
+
+        return JamlCountDistribution.Window(
+            JamlCountDistribution.Binomial(deck, ofSuit / (double)deck),
+            clause.Min,
+            clause.Max
+        );
+    }
 
     public ErraticSuitFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

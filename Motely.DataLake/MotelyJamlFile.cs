@@ -29,6 +29,10 @@ public static class MotelyJamlFile
     /// <summary>JSON and YAML filter documents — same config bag once loaded.</summary>
     public static readonly string[] DocumentExtensions = [".yaml", ".yml", ".json"];
 
+    /// <summary>True when the path ends with <c>.jaml</c> (case-insensitive).</summary>
+    public static bool IsJamlExtension(string path) =>
+        Path.GetExtension(path).Equals(".jaml", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Resolve a user-typed value to an existing file path, or <c>null</c> if none of the candidate
     /// locations exist. Pure lookup — no IO beyond <see cref="File.Exists"/>.
@@ -39,6 +43,9 @@ public static class MotelyJamlFile
             return null;
 
         path = path.Trim();
+
+        if (IsJamlExtension(path))
+            return null;
 
         if (File.Exists(path))
             return path;
@@ -109,7 +116,19 @@ public static class MotelyJamlFile
             return false;
         }
 
+        path = path.Trim();
+        if (IsJamlExtension(path))
+        {
+            error = $".jaml filter files are not supported; use .yaml, .yml, or .json ({path}).";
+            return false;
+        }
+
         var resolved = ResolvePath(path);
+        if (IsJamlExtension(resolved))
+        {
+            error = $".jaml filter files are not supported; use .yaml, .yml, or .json ({resolved}).";
+            return false;
+        }
 
         string content;
         try
@@ -118,16 +137,25 @@ public static class MotelyJamlFile
         }
         catch (System.Exception ex)
         {
-            error = $"Error reading JAML file '{resolved}': {ex.Message}";
+            error = $"Error reading filter file '{resolved}': {ex.Message}";
             return false;
         }
 
-        if (JamlConfigLoader.TryLoad(content, out config, out error))
+        var format = LoadFormatForExtension(Path.GetExtension(resolved));
+        if (JamlConfigLoader.TryLoad(content, format, out config, out error))
             return true;
 
         error = $"{resolved}: {error}";
         return false;
     }
+
+    private static JamlLoadFormat LoadFormatForExtension(string extension) =>
+        extension.ToLowerInvariant() switch
+        {
+            ".json" => JamlLoadFormat.Json,
+            ".yaml" or ".yml" => JamlLoadFormat.Yaml,
+            _ => JamlLoadFormat.Auto,
+        };
 
     /// <summary>
     /// Merge <paramref name="seeds"/> into the top-level <c>seeds:</c> block of the JAML file and
@@ -150,7 +178,19 @@ public static class MotelyJamlFile
             return true;
         }
 
+        path = path.Trim();
+        if (IsJamlExtension(path))
+        {
+            error = $".jaml filter files are not supported; use .yaml, .yml, or .json ({path}).";
+            return false;
+        }
+
         var resolved = ResolvePath(path);
+        if (IsJamlExtension(resolved))
+        {
+            error = $".jaml filter files are not supported; use .yaml, .yml, or .json ({resolved}).";
+            return false;
+        }
 
         string original;
         try

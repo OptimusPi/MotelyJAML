@@ -5,17 +5,14 @@ namespace Motely.Filters.Jaml;
 
 /// <summary>
 /// Per-seed scoring pass: <c>must</c> clauses re-evaluated when SIMD was coarse;
-/// skipped when every must already used an exact confirm path. <c>mustNot</c> clauses whose
-/// SIMD prefilter is coarse are rejected here instead of by <see cref="NegationFilterDesc"/>
-/// (negating a coarse prefilter drops every seed that merely might have the item). Then
-/// <c>should</c> clauses contribute score and CSV tallies.
+/// skipped when every must already used an exact confirm path. Then <c>should</c>
+/// clauses contribute score and CSV tallies.
 /// </summary>
 public struct JamlShouldScoreDesc
     : IMotelySeedScoreDesc<JamlShouldScoreDesc.JamlShouldScoreProvider>
 {
     private readonly IJamlClause[] _mustClauses;
     private readonly IJamlClause[] _shouldClauses;
-    private readonly IJamlClause[] _mustNotClauses;
     private readonly Action<string>? _seedMatchCallback;
     private readonly int _minimumTotalScore;
     private readonly bool _skipMustReeval;
@@ -24,13 +21,11 @@ public struct JamlShouldScoreDesc
         IJamlClause[] mustClauses,
         IJamlClause[] shouldClauses,
         Action<string>? seedMatchCallback = null,
-        int minimumTotalScore = 0,
-        IJamlClause[]? mustNotClauses = null
+        int minimumTotalScore = 0
     )
     {
         _mustClauses = mustClauses;
         _shouldClauses = shouldClauses;
-        _mustNotClauses = mustNotClauses ?? [];
         _seedMatchCallback = seedMatchCallback;
         _minimumTotalScore = minimumTotalScore;
         _skipMustReeval = JamlScoring.CanSkipMustReeval(mustClauses);
@@ -42,16 +37,13 @@ public struct JamlShouldScoreDesc
             _shouldClauses,
             _seedMatchCallback ?? ctx.SeedMatchCallback,
             _minimumTotalScore,
-            _skipMustReeval,
-            _mustNotClauses
+            _skipMustReeval
         );
 
     public struct JamlShouldScoreProvider : IMotelySeedScoreProvider
     {
         private readonly IJamlClause[] _mustClauses;
         private readonly IJamlClause[] _shouldClauses;
-        private readonly IJamlClause[] _mustNotClauses;
-        private readonly IJamlClause[] _prepareClauses;
         private readonly Action<string>? _seedMatchCallback;
         private readonly int _minimumTotalScore;
         private readonly bool _skipMustReeval;
@@ -61,14 +53,12 @@ public struct JamlShouldScoreDesc
             IJamlClause[] shouldClauses,
             Action<string>? seedMatchCallback,
             int minimumTotalScore = 0,
-            bool skipMustReeval = false,
-            IJamlClause[]? mustNotClauses = null
+            bool skipMustReeval = false
         )
         {
-            mustNotClauses ??= [];
             Debug.Assert(
-                mustClauses.Length + shouldClauses.Length + mustNotClauses.Length > 0,
-                "Scoring pass requires at least one must, should or mustNot clause."
+                mustClauses.Length + shouldClauses.Length > 0,
+                "Scoring pass requires at least one must or should clause."
             );
             Debug.Assert(
                 shouldClauses.Length <= MotelyScoredSeedResult.MAX_TALLY_COUNT,
@@ -77,12 +67,6 @@ public struct JamlShouldScoreDesc
 
             _mustClauses = mustClauses;
             _shouldClauses = shouldClauses;
-            _mustNotClauses = mustNotClauses;
-            _prepareClauses = CombineForPrepareRunState(
-                skipMustReeval ? [] : mustClauses,
-                shouldClauses,
-                mustNotClauses
-            );
             _seedMatchCallback = seedMatchCallback;
             _minimumTotalScore = minimumTotalScore;
             _skipMustReeval = skipMustReeval;
@@ -101,14 +85,12 @@ public struct JamlShouldScoreDesc
 
             var mustClauses = _mustClauses;
             var shouldClauses = _shouldClauses;
-            var mustNotClauses = _mustNotClauses;
-            var prepareClauses = _prepareClauses;
             var seedMatchCallback = _seedMatchCallback;
             int cutoff = Math.Max(_minimumTotalScore, scoreThreshold);
             bool skipMust = _skipMustReeval;
 
             // Must-only + exact SIMD confirm + no score cutoff: identity is enough.
-            if (skipMust && shouldClauses.Length == 0 && mustNotClauses.Length == 0 && cutoff <= 0)
+            if (skipMust && shouldClauses.Length == 0 && cutoff <= 0)
             {
                 return searchContext.SearchIndividualSeeds(
                     baseFilterMask,
@@ -132,8 +114,16 @@ public struct JamlShouldScoreDesc
                 (MotelySingleSearchContext singleCtx) =>
                 {
                     var runState = new MotelyRunState();
-                    // Empty only for exact must-only with a cutoff: nothing below reads the run
-                    // state then, and the cutoff rejects the seed.
+                    IJamlClause[] prepareClauses = skipMust
+                        ? (
+                            shouldClauses.Length > 0
+                                ? shouldClauses
+                                : mustClauses
+                        )
+                        : CombineForPrepareRunState(mustClauses, shouldClauses);
+
+                    // Should-only prepare still needs a non-empty array; must-only with skip
+                    // already returned above when cutoff <= 0. Must-only with cutoff uses must.
                     if (prepareClauses.Length > 0)
                         JamlScoring.PrepareRunState(ref singleCtx, prepareClauses, runState);
 
@@ -156,18 +146,6 @@ public struct JamlShouldScoreDesc
                         }
                     }
 
-                    for (int i = 0; i < mustNotClauses.Length; i++)
-                    {
-                        int raw = JamlScoring.CountRawOccurrences(
-                            ref singleCtx,
-                            mustNotClauses[i],
-                            runState
-                        );
-
-                        if (JamlScoring.MeetsOccurrenceBounds(raw, mustNotClauses[i]))
-                            return 0;
-                    }
-
                     for (int i = 0; i < shouldClauses.Length; i++)
                     {
                         int raw = JamlScoring.CountRawOccurrences(
@@ -175,19 +153,12 @@ public struct JamlShouldScoreDesc
                             shouldClauses[i],
                             runState
                         );
-                        tally.AddTally(raw);
-
-                        // The tally column reports what was found; the score is paid only from
-                        // the clause's min up (max stays a cap on the paid count, see
-                        // JamlScoring.CapScoreCount). An and:/or: gates itself on its arm-count
-                        // min and returns an aggregate, not an occurrence count, so it is exempt.
-                        if (shouldClauses[i] is not LogicClause && raw < shouldClauses[i].Min)
-                            continue;
                         int weighted = JamlScoring.CountOccurrences(
                             ref singleCtx,
                             shouldClauses[i],
                             runState
                         );
+                        tally.AddTally(raw);
                         totalScore += weighted * shouldClauses[i].Score;
                     }
 
@@ -213,21 +184,17 @@ public struct JamlShouldScoreDesc
 
         private static IJamlClause[] CombineForPrepareRunState(
             IJamlClause[] mustClauses,
-            IJamlClause[] shouldClauses,
-            IJamlClause[] mustNotClauses
+            IJamlClause[] shouldClauses
         )
         {
-            if (mustClauses.Length + mustNotClauses.Length == 0)
+            if (mustClauses.Length == 0)
                 return shouldClauses;
-            if (shouldClauses.Length + mustNotClauses.Length == 0)
+            if (shouldClauses.Length == 0)
                 return mustClauses;
 
-            var combined = new IJamlClause[
-                mustClauses.Length + shouldClauses.Length + mustNotClauses.Length
-            ];
+            var combined = new IJamlClause[mustClauses.Length + shouldClauses.Length];
             mustClauses.CopyTo(combined, 0);
             shouldClauses.CopyTo(combined, mustClauses.Length);
-            mustNotClauses.CopyTo(combined, mustClauses.Length + shouldClauses.Length);
             return combined;
         }
     }

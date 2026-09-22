@@ -6,14 +6,13 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("tarotCard", "tarotCards",
     ValueEnum = typeof(MotelyTarotCard), SourceConfigType = typeof(TarotCardSourceConfig))]
-[YamlObject]
-public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
+public sealed class TarotCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public int[] Antes { get; set; } = [];
     public MotelyTarotCard[] Tarots { get; set; } = [];
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
@@ -21,7 +20,8 @@ public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
 }
 
 public struct TarotCardFilterDesc(TarotCardClause clause)
-    : IMotelySeedFilterDesc<TarotCardFilterDesc.TarotCardFilter>
+    : IMotelySeedFilterDesc<TarotCardFilterDesc.TarotCardFilter>,
+      IJamlClauseDesc<TarotCardClause>
 {
     private readonly TarotCardClause _clause = clause;
 
@@ -31,6 +31,23 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
+    /// <inheritdoc/>
+    public static bool Set(TarotCardClause clause, string key, IJamlValueReader value)
+    {
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public static bool SetDiscriminatorValue(TarotCardClause clause, IJamlValueReader value)
+    {
+        // Empty disc (null / "" / []) = category match. No "Any" token.
+        if (string.IsNullOrWhiteSpace(value.Text))
+            return true;
+        if (!value.TryEnumArray<MotelyTarotCard>(out var tarots)) return false;
+        clause.Tarots = tarots;
+        return true;
+    }
+
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.
     /// </summary>
@@ -38,6 +55,72 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
+
+    /// <summary>
+    /// A shop slot is a tarot with the deck's tarot weight of the shop total, then 1 of 22; an
+    /// arcana pack slot is a weighted pack roll then that many draws, each <c>0.997 × 1/22</c>
+    /// because The Soul takes the card first 0.3% of the time; an Emperor roll is two draws and a
+    /// purple-seal roll one, both off plain 1-of-22 streams. The Charm-tag bonus pack depends on
+    /// what the first two weighted slots rolled, which this model does not follow — a clause that
+    /// asks for it is reported as unmodelled rather than silently undercounted.
+    /// </summary>
+    public static double EstimateRarity(TarotCardClause clause, in JamlRarityContext ctx)
+    {
+        var sources = clause.Sources ?? DefaultSources;
+        if (sources.CharmTag)
+            return double.NaN;
+
+        var tarots = JamlDisc.OrEmpty(clause.Tarots);
+        double share = JamlPoolRarity.PoolShare(
+            JamlPoolRarity.Distinct(tarots),
+            MotelyEnum<MotelyTarotCard>.ValueCount,
+            JamlDisc.IsCategoryAny(tarots)
+        );
+
+        const double SoulPerCard = 0.003; // GetNextTarot on a soulable stream: poll > 0.997
+        double shopShare = ctx.ShopTarotRate / ctx.ShopTotalRate * share;
+        double packCardShare = (1.0 - SoulPerCard) * share;
+
+        double[] pmf = JamlCountDistribution.Zero;
+        foreach (int ante in clause.Antes)
+        {
+            pmf = JamlCountDistribution.Convolve(
+                pmf,
+                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.ShopItems), shopShare)
+            );
+
+            HashSet<int> slots = [];
+            foreach (int slot in sources.BoosterPacks)
+            {
+                if (!slots.Add(slot) || !JamlPoolRarity.SlotIsReachable(ante, slot))
+                    continue;
+                if (JamlPoolRarity.SlotIsFixedBuffoon(ante, slot))
+                    continue; // ante 1's first offer is a Buffoon, never an arcana pack
+                pmf = JamlCountDistribution.Convolve(
+                    pmf,
+                    JamlPoolRarity.PackSlotCards(
+                        MotelyBoosterPackType.Arcana,
+                        packCardShare,
+                        sources.RequireMegaPack
+                    )
+                );
+            }
+
+            pmf = JamlCountDistribution.Convolve(
+                pmf,
+                JamlCountDistribution.Binomial(2 * JamlPoolRarity.Distinct(sources.Emperor), share)
+            );
+            pmf = JamlCountDistribution.Convolve(
+                pmf,
+                JamlCountDistribution.Binomial(
+                    JamlPoolRarity.Distinct(sources.PurpleSealOrEightBall),
+                    share
+                )
+            );
+        }
+
+        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
+    }
 
     public TarotCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -372,8 +455,7 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>tarotCard:</c>. Colocated with <see cref="TarotCardFilterDesc"/> (T5).
 /// </summary>
-[YamlObject]
-public sealed partial record TarotCardSourceConfig
+public sealed record TarotCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =

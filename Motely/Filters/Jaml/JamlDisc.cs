@@ -1,33 +1,22 @@
+using System.Runtime.CompilerServices;
+
 namespace Motely.Filters.Jaml;
 
 /// <summary>
-/// The one convention every clause value list shares: an empty list means the whole category
-/// ("Any"), not "nothing". Filters ask these two questions instead of null-checking by hand.
+/// JAML-layer category-any. Motely enums stay Motely — they do not grow an Any member.
+/// On the wire: blank (<c>joker:</c>) or the keyword <c>Any</c>. Engine side: empty array.
 /// </summary>
-public static class JamlDisc
+internal static class JamlDisc
 {
-    /// <summary>The list as written, with null read as empty.</summary>
-    public static T[] OrEmpty<T>(T[]? values) => values ?? [];
+    public static bool IsAnyToken(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+        || string.Equals(value.Trim(), "any", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>True when the clause names no specific values — the whole category matches.</summary>
-    public static bool IsCategoryAny<T>(T[]? values) => OrEmpty(values).Length == 0;
+    /// <summary>True when the disc list is absent or empty — match the whole category.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsCategoryAny<T>(T[]? items) => items is not { Length: > 0 };
 
-    /// <summary>The whole-category token as spelled in a document.</summary>
-    public static bool IsAnyToken(string? text) =>
-        string.Equals(text?.Trim(), "any", StringComparison.OrdinalIgnoreCase);
-}
-
-/// <summary>Roll-index helpers for ante features whose clause carries <c>rolls</c>.</summary>
-public static class MapFeatureRolls
-{
-    /// <summary>The highest roll index the clause asks for, or -1 when it asks for none.</summary>
-    public static int MaxRollIndex(int[]? rolls)
-    {
-        var values = JamlDisc.OrEmpty(rolls);
-        int max = -1;
-        foreach (int roll in values)
-            if (roll > max)
-                max = roll;
-        return max;
-    }
+    /// <summary>Never null — loader/host may leave the property unset.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static T[] OrEmpty<T>(T[]? items) => items ?? [];
 }
