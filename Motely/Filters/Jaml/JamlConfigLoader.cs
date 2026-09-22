@@ -4,14 +4,18 @@ using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// YAML text → <see cref="JamlConfig"/>. The types are <c>[YamlObject]</c>, so VYaml's source
-/// generator is the loader: no reflection, no hand-rolled tree, nothing to keep in sync.
-/// </summary>
+/// <summary>YAML text → <see cref="JamlConfig"/>. VYaml does the document; <see cref="JamlClauseFormatter"/> does the clauses.</summary>
 public static class JamlConfigLoader
 {
+    private static readonly YamlSerializerOptions Options = new()
+    {
+        Resolver = CompositeResolver.Create(
+            new IYamlFormatter[] { new JamlClauseFormatter() },
+            new IYamlFormatterResolver[] { StandardResolver.Instance }),
+    };
+
     public static JamlConfig FromJaml(string yaml) =>
-        YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml));
+        YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml), Options);
 
     public static bool TryLoad(
         string yaml,
