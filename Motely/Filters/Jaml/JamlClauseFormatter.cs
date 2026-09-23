@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using VYaml.Emitter;
 using VYaml.Parser;
@@ -11,6 +12,14 @@ namespace Motely.Filters.Jaml;
 /// <see cref="JamlDiscriminatorAttribute"/>), its value goes to the clause's value property,
 /// every sibling key is a property set by name.
 /// </summary>
+// AOT/WASM: every type this formatter reflects over lives in Motely, and Motely ships
+// ILLink.Descriptors.xml (embedded) that preserves the whole assembly. The trimmer and
+// NativeAOT keep the types, properties and constructors, so the reflection below is safe.
+[UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
+[UnconditionalSuppressMessage("Trimming", "IL2067", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
+[UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
+[UnconditionalSuppressMessage("Trimming", "IL2077", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
+[UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 {
     // ── wire name → clause type + attribute ──
@@ -119,7 +128,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     }
 
     private static PropertyInfo ValueProperty(Type type, Type valueEnum) =>
-        type.GetProperties().FirstOrDefault(p => p.PropertyType == valueEnum.MakeArrayType())
+        type.GetProperties().FirstOrDefault(p => p.PropertyType.IsArray && p.PropertyType.GetElementType() == valueEnum)
         ?? type.GetProperties().FirstOrDefault(p => p.PropertyType == valueEnum)
         ?? throw new InvalidOperationException($"{type.Name} has no property of type {valueEnum.Name}");
 
@@ -150,9 +159,9 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         {
             var elem = type.GetElementType()!;
             if (node.Scalar is not null && node.Scalar.Equals("any", StringComparison.OrdinalIgnoreCase))
-                return Array.CreateInstance(elem, 0);            // category any
+                return Array.CreateInstanceFromArrayType(type, 0); // category any
             var items = node.Items ?? [node];                     // scalar → one-element array
-            var array = Array.CreateInstance(elem, items.Count);
+            var array = Array.CreateInstanceFromArrayType(type, items.Count);
             for (int i = 0; i < items.Count; i++)
                 array.SetValue(Convert(items[i], elem, key), i);
             return array;

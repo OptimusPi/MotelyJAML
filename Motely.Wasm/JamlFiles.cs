@@ -5,9 +5,10 @@ using System.Threading.Tasks;
 using Bootsharp.FileSystem;
 
 /// <summary>
-/// A .jaml file event under the mounted folder. <c>Kind</c> is one of
-/// <c>added</c> / <c>removed</c> / <c>modified</c> / <c>moved</c>; <c>Name</c> is the file name
-/// without the <c>.jaml</c> extension (what <see cref="JamlFiles.Load"/> and friends take).
+/// A filter file event under the mounted folder. <c>Kind</c> is one of
+/// <c>added</c> / <c>removed</c> / <c>modified</c> / <c>moved</c>; <c>Name</c> is what
+/// <see cref="JamlFiles.Load"/> and friends take: <c>.jaml</c> files drop the extension
+/// (<c>sub/filter</c>), <c>.yaml</c> / <c>.yml</c> / <c>.json</c> keep it (<c>sub/filter.json</c>).
 /// </summary>
 public readonly record struct JamlFileChange(string Kind, string Name, string? FromName);
 
@@ -25,7 +26,12 @@ public readonly record struct JamlFileChange(string Kind, string Name, string? F
 /// </summary>
 public static partial class JamlFiles
 {
+    /// <summary>Default extension. A name with no known extension means <c>name.jaml</c>.</summary>
     private const string Ext = ".jaml";
+
+    /// <summary>Every extension the loader reads. JSON is YAML, so all four go through
+    /// <see cref="Motely.Filters.Jaml.JamlConfigLoader.FromJaml"/> unchanged.</summary>
+    private static readonly string[] Exts = [".jaml", ".yaml", ".yml", ".json"];
 
     private static string? _rootId;
     private static IFileSystem? _fs;
@@ -78,8 +84,8 @@ public static partial class JamlFiles
         await MotelyServices.Get<IFileMounter>().Unmount(root);
     }
 
-    /// <summary>Names (no extension) of every .jaml file under the folder, sorted, recursive.
-    /// Nested files keep their relative path: <c>sub/filter</c>.</summary>
+    /// <summary>Every filter file under the folder, sorted, recursive. Nested files keep their
+    /// relative path: <c>sub/filter</c> (a .jaml), <c>sub/other.yaml</c>, <c>sub/x.json</c>.</summary>
     [Export]
     public static string[] List() => [.. _names];
 
@@ -101,21 +107,26 @@ public static partial class JamlFiles
     private static IFileSystem Fs =>
         _fs ?? throw new InvalidOperationException("No folder mounted - call JamlFiles.pickFolder() first.");
 
-    /// <summary>"filter" or "sub/filter" or "/sub/filter.jaml" -> "/sub/filter.jaml".</summary>
+    private static bool HasFilterExt(string path) =>
+        Exts.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>"filter" -> "/filter.jaml"; "sub/x.json" -> "/sub/x.json"; "/a/b.yml" -> "/a/b.yml".</summary>
     private static string ToUri(string name)
     {
         string n = name.Replace('\\', '/').TrimStart('/');
-        if (!n.EndsWith(Ext, StringComparison.OrdinalIgnoreCase))
+        if (!HasFilterExt(n))
             n += Ext;
         return "/" + n;
     }
 
-    /// <summary>"/sub/filter.jaml" -> "sub/filter"; null when not a .jaml file.</summary>
+    /// <summary>"/sub/filter.jaml" -> "sub/filter"; "/sub/x.yaml" -> "sub/x.yaml";
+    /// null when the file is not a filter.</summary>
     private static string? ToName(string uri)
     {
-        if (!uri.EndsWith(Ext, StringComparison.OrdinalIgnoreCase))
-            return null;
-        return uri.TrimStart('/')[..^Ext.Length];
+        string n = uri.TrimStart('/');
+        if (n.EndsWith(Ext, StringComparison.OrdinalIgnoreCase))
+            return n[..^Ext.Length];
+        return HasFilterExt(n) ? n : null;
     }
 
     private sealed class Watcher : IFileWatcher

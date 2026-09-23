@@ -12,6 +12,12 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <!-- JAML clauses are read by reflection (JamlClauseFormatter). This descriptor travels
+       inside Motely.dll and tells the trimmer / NativeAOT / WASM to keep all of Motely. -->
+  <ItemGroup>
+    <EmbeddedResource Include="ILLink.Descriptors.xml" LogicalName="ILLink.Descriptors.xml" />
+  </ItemGroup>
+
   <!-- Packages (versions from Directory.Packages.props) -->
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
