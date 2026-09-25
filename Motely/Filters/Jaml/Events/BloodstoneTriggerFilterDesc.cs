@@ -13,9 +13,6 @@ public sealed partial class BloodstoneTriggerClause : IRollScopedClause
     public int? Max { get; set; }
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
-    // No Luck. Bloodstone is flat 50/50 (Chance = 2) — one Oops saturates to
-    // guaranteed, so luck is binary, not a dial. The field is gone by construction,
-    // not inherited-then-forbidden.
 }
 
 public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
@@ -23,15 +20,12 @@ public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
 {
     private readonly BloodstoneTriggerClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["bloodstoneTrigger"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
 
     public BloodstoneTriggerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
-        // Sort the requested roll indices ONCE here, never in the SIMD hot path below.
         Debug.Assert(
             _clause.Rolls.Length > 0,
             "Bloodstone clause must provide at least one roll index."

@@ -2,13 +2,8 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Analysis;
 
-/// <summary>One concrete thing the player does on the way to the target.</summary>
 public sealed record MotelySolverStep(int Ante, string Action, string Detail);
 
-/// <summary>
-/// One way to obtain the target on this seed. <c>Steps</c> are in play order; <c>Cost</c> is a
-/// coarse rank (rerolls + skips + pack opens + precondition depth), lower is better.
-/// </summary>
 public sealed record MotelyItemPath(string Seed, MotelyItem Target, IReadOnlyList<MotelySolverStep> Steps, int Cost)
 {
     public string Source => Steps.Count == 0 ? "" : Steps[^1].Action;
@@ -16,18 +11,12 @@ public sealed record MotelyItemPath(string Seed, MotelyItem Target, IReadOnlyLis
 }
 
 public sealed record MotelySolverBudget(
-    int ShopSlots = 2,          // 2 base, 3 Overstock, 4 Overstock Plus
-    int MaxRerolls = 12,        // how deep into each ante's shop stream to look
-    int MaxDepth = 3,           // precondition recursion (Judgement -> Showman is depth 2)
-    int EventRolls = 20         // rolls per pull stream handed to the Jamlyzer
+    int ShopSlots = 2,
+    int MaxRerolls = 12,
+    int MaxDepth = 3,
+    int EventRolls = 20
 );
 
-/// <summary>
-/// Given a seed and a target item, return every path to it within an ante window — shop, packs,
-/// tag pulls, Judgement, Wraith, The Soul, Riff-Raff, Sixth Sense, Seance, Emperor, purple seal —
-/// including the chains those need (own Judgement first, skip a blind carrying the tag, ...).
-/// Built on <see cref="MotelyJamlyzer"/>: no new RNG, one Analyze per solve.
-/// </summary>
 public static class MotelyItemSolver
 {
     public static IReadOnlyList<MotelyItemPath> Solve(
@@ -80,7 +69,6 @@ public static class MotelyItemSolver
 
         foreach (var ante in antes)
         {
-            // ---- Shop: reroll N, buy ----------------------------------------------------------
             for (int i = 0; i < ante.ShopItems.Count; i++)
             {
                 if (!SameType(ante.ShopItems[i], target)) continue;
@@ -91,7 +79,6 @@ public static class MotelyItemSolver
                     cost: reroll + depth);
             }
 
-            // ---- Packs: open the pack, pick it ----------------------------------------------
             for (int p = 0; p < ante.Packs.Count; p++)
             {
                 var pack = ante.Packs[p];
@@ -103,11 +90,9 @@ public static class MotelyItemSolver
                 }
             }
 
-            // ---- Tag pulls: skip the blind carrying the tag, the next shop hands it over -----
             EmitTagPull(seed, target, paths, seen, prefix, ante, MotelyTag.UncommonTag, ante.Pulls.UncommonTagJokers, depth);
             EmitTagPull(seed, target, paths, seen, prefix, ante, MotelyTag.RareTag, ante.Pulls.RareTagJokers, depth);
 
-            // ---- Consumable-activated pulls: need the consumable first (recurse) -------------
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
                 "Judgement", "use Judgement", ante.Pulls.JudgementJokers);
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
@@ -117,7 +102,6 @@ public static class MotelyItemSolver
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
                 "TheEmperor", "use The Emperor", ante.Pulls.EmperorTarots);
 
-            // ---- Joker-activated pulls: need the joker first (recurse) -----------------------
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
                 "RiffRaff", "select a blind with Riff-Raff", ante.Pulls.RiffRaffJokers);
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
@@ -125,7 +109,6 @@ public static class MotelyItemSolver
             EmitActivated(seed, target, antes, budget, depth, paths, seen, prefix, ante,
                 "Seance", "play a straight flush with Seance", ante.Pulls.SeanceSpectrals);
 
-            // ---- Purple seal: discard a purple-sealed card (seal source not modelled here) ----
             for (int i = 0; i < ante.Pulls.PurpleSealTarots.Count; i++)
             {
                 if (!SameType(ante.Pulls.PurpleSealTarots[i], target)) continue;
@@ -143,7 +126,6 @@ public static class MotelyItemSolver
     {
         bool small = ante.SmallBlindTag == tag, big = ante.BigBlindTag == tag;
         if (!small && !big) return;
-        // Only the first pull is what one skip yields; deeper indices would need more copies of the tag.
         if (pulls.Count == 0 || !SameType(pulls[0], target)) return;
         string blind = small ? "small" : "big";
         Emit(seed, target, paths, seen, prefix, ante.Ante, $"{tag}",
@@ -162,10 +144,8 @@ public static class MotelyItemSolver
 
         if (!MotelyItem.TryParse(activatorName, out var activator))
             return;
-        // Guard against cycles (Judgement -> Judgement).
         if (activator.Type == target.Type) return;
 
-        // Find how to get the activator by this ante (same or earlier). Recurse one level deeper.
         var earlier = antes.Where(a => a.Ante <= ante.Ante).ToList();
         var sub = new List<MotelyItemPath>();
         var subSeen = new HashSet<string>();
@@ -191,7 +171,6 @@ public static class MotelyItemSolver
         paths.Add(new MotelyItemPath(seed, target, steps, cost));
     }
 
-    /// <summary>Human-readable dump, cheapest first.</summary>
     public static string Format(IReadOnlyList<MotelyItemPath> paths)
     {
         if (paths.Count == 0) return "no path within budget";

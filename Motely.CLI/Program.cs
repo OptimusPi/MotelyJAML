@@ -72,15 +72,11 @@ partial class Program
         return true;
     }
 
-    /// <summary>Validates an 8-character seed and returns it normalized (upper-case, 0→O).</summary>
     static bool TryParseSeedString(string input, out string? seed, out string? error)
     {
         seed = null;
         error = null;
         var normalized = MotelyGlobals.NormalizeSeed(input);
-        // Motely's sequential search ranges over full 8-char seeds (11111111 → ZZZZZZZZ),
-        // so --startSeed/--stopSeed must be exactly 8 chars. No padding: a short seed
-        // would silently map to a different point than the user typed.
         if (normalized.Length != MotelyGlobals.MaxSeedLength)
         {
             error =
@@ -91,8 +87,6 @@ partial class Program
         {
             if (!MotelyGlobals.SeedDigits.Contains(c))
             {
-                // '0' was already normalized to 'O' above, so it can never reach here —
-                // don't tell the user "no 0" for a char that can't be 0.
                 error = $"'{input}' contains invalid character '{c}'. Valid: 1-9, A-Z.";
                 return false;
             }
@@ -113,9 +107,6 @@ partial class Program
 
     static int Main(string[] args)
     {
-        // .NET 10: runtime no longer provides default SIGTERM/SIGINT handlers (see
-        // https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/sigterm-signal-handler).
-        // Register handlers so Ctrl+C and termination signals cancel the search gracefully.
         using var _sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, OnTermination);
         using var _sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, OnTermination);
         using var _sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, OnTermination);
@@ -311,11 +302,6 @@ partial class Program
             CommandOptionType.NoValue
         );
         threadsOption.DefaultValue = Environment.ProcessorCount;
-        // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
-        // true forever once a DefaultValue is set, so it could never again distinguish "user
-        // typed --batchCharCount" from "didn't" — which is exactly the signal this needs to
-        // decide whether to override a JAML's saved seeds: list. Default of 4 is applied at
-        // each read site instead (DefaultBatchCharCount below).
 
         app.OnExecuteAsync(async _ =>
         {
@@ -331,7 +317,6 @@ partial class Program
                 return 0;
             }
 
-            // --analyze mode — supports single seed or comma-separated batch.
             if (analyzeOption.HasValue())
             {
                 var seedTokens = analyzeOption.ParsedValue.Split(
@@ -348,18 +333,13 @@ partial class Program
                 return ExecuteAnalyzeBatch(seedTokens, analyzeDeck, analyzeStake);
             }
 
-            // --native mode — run a hardcoded C# filter by name
             if (nativeOption.HasValue())
                 return await RunNativeMode();
 
             return await RunJamlMode();
 
-            // A local function, not a method: it captures the CommandOption objects themselves, so
-            // HasValue() keeps meaning "the user typed this" (see the DefaultValue note above).
-            // Reading values into a parameter list would quietly destroy that distinction.
             async Task<int> RunNativeMode()
             {
-                // --replay replays a JAML's seeds: block; there is no such block in native mode.
                 if (replayOption.HasValue() || verifySeedsOption.HasValue())
                 {
                     Console.Error.WriteLine(
@@ -462,8 +442,6 @@ partial class Program
 
                 using var _nSourceLifetime = nSourceLifetime;
 
-                // Always attach a progress callback so 'p' hotkey has fresh data;
-                // quiet mode just swaps in the silent capture variant.
                 nSettings = nSettings
                     .WithSeedMatchCallback(StickyProgress.WriteResultLine)
                     .WithProgressCallback(
@@ -480,7 +458,6 @@ partial class Program
                 return _cts.Token.IsCancellationRequested ? 1 : 0;
             }
 
-            // --jaml mode — the main path: load the filter, build the search, run the passes.
             async Task<int> RunJamlMode()
             {
                 int formatFlags =
@@ -500,7 +477,6 @@ partial class Program
                     return 1;
                 }
 
-                // One YAML loader for all three flags; JSON is read as YAML.
                 string docPath =
                     jsonOption.HasValue() ? jsonOption.ParsedValue
                     : yamlOption.HasValue() ? yamlOption.ParsedValue
@@ -523,10 +499,6 @@ partial class Program
                 bool drown = drownOption.HasValue();
                 if (drown)
                 {
-                    // --drown with nothing saved anywhere (no lake files, no seeds: block) has
-                    // no haystack; CliSearchMode degrades it to the sequential sweep. Decide
-                    // that here too, so the space label and banner describe the run that
-                    // actually happens rather than "the entire seed lake".
                     string drownRoot = SeedLakeSink.LakeRoot(
                         resultsPathOption.HasValue() ? resultsPathOption.ParsedValue : null
                     );
@@ -545,13 +517,8 @@ partial class Program
                 int batchCharCount = batchCharCountOption.HasValue()
                     ? batchCharCountOption.ParsedValue
                     : DefaultBatchCharCount;
-                // Only non-null when the user actually typed --batchCharCount — an explicit request
-                // for the real sequential sweep, which should override a JAML's saved seeds: list.
                 int? explicitBatchCharCount = batchCharCountOption.HasValue() ? batchCharCount : null;
 
-                // Default is auto: without --cutoff we self-tune the score gate instead of
-                // emitting every seed. An explicit integer turns auto off and pins the gate.
-                // One shared gate implementation with the TUI (MotelyScoreCutoff).
                 MotelyScoreCutoff cutoff = MotelyScoreCutoff.Auto();
                 if (cutoffOption.HasValue())
                 {
@@ -575,9 +542,6 @@ partial class Program
                 JamlSearchPlan plan;
                 try
                 {
-                    // Push fixed --cutoff into the engine so low-scoring seeds are dropped at
-                    // the scorer (no callback spam, no per-seed string concat). Auto still needs
-                    // the caller-side running-max below since the engine threshold is static.
                     plan = JamlSearchBuilder.CreatePlan(config, engineCutoff);
                 }
                 catch (InvalidOperationException ex)
@@ -605,9 +569,6 @@ partial class Program
                     return 1;
                 }
 
-                // --collect is parsed here rather than beside the branches that consume it: the
-                // block below has to know whether this run stops after N matches or sweeps, and by
-                // the time those branches run they have already rewritten the settings.
                 long collectLimit = 0;
                 if (collectOption.HasValue())
                 {
@@ -619,9 +580,6 @@ partial class Program
                     }
                 }
 
-                // Naming an explicit sequential range (--startBatch/--endBatch/--startPercent/
-                // --startSeed/--stopSeed) says you want the sweep itself, so --collect skips the
-                // aesthetic pass entirely rather than answering a different question than you asked.
                 bool collectSequentialOnly =
                     startBatchOption.HasValue()
                     || endBatchOption.HasValue()
@@ -709,10 +667,6 @@ partial class Program
 
                 using var _jamlSourceLifetime = jamlSourceLifetime;
 
-                // Auto sampling deliberately stays a CLI policy: the engine still only receives
-                // ordinary sequential ranges and fixed score floors. It applies only where this
-                // invocation owns the complete range, so a provider or user-selected slice is
-                // never silently sampled and replayed.
                 bool autoSampleSequential =
                     cutoff.IsAuto
                     && !namedExplicitSeedInput
@@ -778,7 +732,6 @@ partial class Program
                     foreach (var (score, count) in scores.OrderByDescending(pair => pair.Key))
                     {
                         cumulative += count;
-                        // Avoid floating point drift on trillion-seed runs: projected count <= target.
                         if (cumulative <= cutoffTarget * (double)sampleBatches / totalBatches)
                         {
                             selectedFloor = score;
@@ -827,8 +780,6 @@ partial class Program
                 );
                 var saveSeedsCollector = new MotelyTopSeedSink.Collector(int.MaxValue);
 
-                // Always attach a progress callback so 'p' hotkey stays current;
-                // quiet mode swaps in the silent capture variant.
                 settings = settings
                     .WithProgressCallback(
                         quietOption.HasValue() ? CaptureProgress : WriteProgressLineToStderr
@@ -863,11 +814,6 @@ partial class Program
                 }
                 else if (collectLimit > 0)
                 {
-                    // CliSearchMode already installed keyword / aesthetic / source / random /
-                    // drown / inline-seeds providers onto settings. --collect must StopAfter that
-                    // intent — stomping it with the multi-aesthetic prepass is the pigeonhole
-                    // (CUM hunt silently became "pretty seeds" and wiped operator seed lists).
-                    // JAML seeds: alone still takes the default aesthetic collect path.
                     if (namedExplicitSeedInput)
                     {
                         settings = settings.StopAfter(collectLimit);
@@ -876,8 +822,6 @@ partial class Program
                     }
                     else
                     {
-                        // Default collect: every aesthetic first (digit-pad free slots), then sequential.
-                        // Full-alphabet free slots are not a "tiny corner". Override pad with --padding.
                         var aesthetics =
                             aestheticOption.HasValue()
                             && JamlAestheticParser.TryParse(
@@ -975,8 +919,6 @@ partial class Program
         }
     }
 
-    // ── Summary ──
-
     static void PrintSummary(IMotelySearch search, int batchCharCount, bool cancelled)
     {
         StickyProgress.Clear();
@@ -987,10 +929,6 @@ partial class Program
         long seeds = search.TotalSeedsSearched;
         long matches = search.MatchingSeeds;
 
-        // Three separate numbers, never divided into each other: seeds looked at, wall-clock the
-        // run took, and throughput — the sum of each thread's own seeds ÷ its own running time,
-        // so idle/waiting threads don't dilute it. A StopAfter run quit on purpose mid-batch;
-        // its seeds and rate are still real, it just also gets a "found" line.
         if (search.StoppedOnMatchLimit)
             Console.WriteLine($"  Found: {matches:N0} seed(s) (StopAfter; SIMD/thread overshoot ok)");
         Console.WriteLine($"  Seeds: {seeds:N0} searched, {matches:N0} matched");
@@ -1016,8 +954,6 @@ partial class Program
             }
         }
     }
-
-    // ── Analyze ──
 
     static int ExecuteAnalyze(string seed, string deckName, string stakeName) =>
         ExecuteAnalyzeBatch([seed], deckName, stakeName);
@@ -1054,7 +990,6 @@ partial class Program
         return 0;
     }
 
-    // Cached latest progress so 'p' key can print on demand even under --quiet.
     static MotelyProgress? _latestProgress;
     static int _lastProgressPercent = -1;
 

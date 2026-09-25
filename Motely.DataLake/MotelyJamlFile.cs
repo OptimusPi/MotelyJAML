@@ -5,32 +5,12 @@ using Motely.Filters.Jaml;
 
 namespace Motely;
 
-/// <summary>
-/// The one true JAML file gateway: path resolution, loading, and seeds-block save-back, shared by
-/// every front-end (Motely.CLI, Motely.TUI, Motely.DataLake, and any GUI). Before this existed the
-/// CLI and TUI each had their own resolver with different rules, so a bare <c>--jaml</c> name could
-/// resolve to two different files depending on which app you ran. Now they can never disagree.
-///
-/// Resolution order for a user-typed value:
-///   1. verbatim, if the file exists;
-///   2. the value with a <c>.jaml</c> extension, if that file exists;
-///   3. under <c>JamlFilters/</c> (verbatim, then with <c>.jaml</c>);
-///   4. otherwise, for a bare, unrooted, extension-less name, the conventional
-///      <c>JamlFilters/&lt;name&gt;.jaml</c> — this is the path used for save-back and for the
-///      "file not found" message, so a brand-new filter still round-trips to the expected place.
-/// </summary>
 public static class MotelyJamlFile
 {
-    /// <summary>The conventional folder bare filter names live in.</summary>
     public const string FiltersDirectory = "JamlFilters";
 
-    /// <summary>JAML, JSON, YAML — same config bag once loaded.</summary>
     public static readonly string[] DocumentExtensions = [".jaml", ".json", ".yaml", ".yml"];
 
-    /// <summary>
-    /// Resolve a user-typed value to an existing file path, or <c>null</c> if none of the candidate
-    /// locations exist. Pure lookup — no IO beyond <see cref="File.Exists"/>.
-    /// </summary>
     public static string? TryResolveExisting(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -71,12 +51,6 @@ public static class MotelyJamlFile
         return null;
     }
 
-    /// <summary>
-    /// The canonical on-disk path for a value even when the file does not exist yet: an existing
-    /// match if there is one, else the conventional <c>JamlFilters/&lt;name&gt;.jaml</c> for a bare
-    /// name, else the value verbatim. Load and save-back both route through here so they always
-    /// agree about where the file is.
-    /// </summary>
     public static string ResolvePath(string path)
     {
         var existing = TryResolveExisting(path);
@@ -89,10 +63,6 @@ public static class MotelyJamlFile
             : trimmed;
     }
 
-    /// <summary>
-    /// Resolve, read, and parse a JAML file. On failure <paramref name="error"/> carries the
-    /// resolved path so a bare <c>--jaml</c> name still tells you which file it means.
-    /// </summary>
     public static bool TryLoad(
         string? path,
         [NotNullWhen(true)] out JamlConfig? config,
@@ -127,13 +97,6 @@ public static class MotelyJamlFile
         return false;
     }
 
-    /// <summary>
-    /// Merge <paramref name="seeds"/> into the top-level <c>seeds:</c> block of the JAML file and
-    /// write it back, resolving the path exactly like <see cref="TryLoad"/> and validating the
-    /// rewritten text before it touches disk (via <see cref="MotelyTopSeedSink"/>). Existing curated
-    /// seeds are preserved, in order, ahead of new finds. A no-op that returns success when
-    /// <paramref name="seeds"/> is empty, so callers can persist unconditionally.
-    /// </summary>
     public static bool TrySaveSeeds(string? path, IReadOnlyList<string> seeds, out string? error)
     {
         if (string.IsNullOrWhiteSpace(path))

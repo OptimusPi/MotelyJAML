@@ -2,12 +2,6 @@ using Motely.Filters;
 
 namespace Motely.DataLake;
 
-/// <summary>
-/// One filter's seed writer: bare seeds land in a plain text file under the data root, one per
-/// line, deduped in memory. The scored CSV (<see cref="ScoredResultsCsvSink"/>) carries scores and
-/// tallies; this file is the bare-seed archive that <c>--drown</c> pours. Thread-safe; result
-/// callbacks fire on every engine thread.
-/// </summary>
 public sealed class SeedLakeSink : IMotelyResultSink
 {
     private readonly string _seedFilePath;
@@ -17,25 +11,18 @@ public sealed class SeedLakeSink : IMotelyResultSink
     private StreamWriter? _writer;
     private bool _disposed;
 
-    /// <summary>The data root, absolute: <paramref name="root"/>, else <c>MOTELY_DATALAKE_PATH</c>, else <c>Seeds</c>.</summary>
     public static string LakeRoot(string? root)
     {
         root ??= Environment.GetEnvironmentVariable("MOTELY_DATALAKE_PATH");
         return string.IsNullOrWhiteSpace(root) ? "Seeds" : root;
     }
 
-    /// <summary>Legacy per-filter DuckDB path — kept for backward-compatible reading of old data.</summary>
     public static string LakePath(string? root, string filterId) =>
         Path.Combine(LakeRoot(root), filterId + ".duckdb");
 
-    /// <summary>The plain-text seed file this sink writes to.</summary>
     public static string SeedFilePath(string? root, string filterId) =>
         Path.Combine(LakeRoot(root), filterId + ".txt");
 
-    /// <param name="root">Data root; see <see cref="LakeRoot"/>.</param>
-    /// <param name="filterId">The JAML filter id; names the seed file.</param>
-    /// <param name="tallyLabels">Ignored (kept for API compat; tallies live in the CSV sink).</param>
-    /// <param name="catalogPath">Ignored (kept for API compat; DuckLake is gone).</param>
     public SeedLakeSink(string? root, string filterId, IReadOnlyList<string>? tallyLabels = null, string? catalogPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filterId);
@@ -75,7 +62,6 @@ public sealed class SeedLakeSink : IMotelyResultSink
         }
     }
 
-    /// <summary>Push buffered seeds to the text file. Search batch boundary.</summary>
     public void Flush()
     {
         lock (_gate)
@@ -113,7 +99,7 @@ public sealed class SeedLakeSink : IMotelyResultSink
                 return;
             _disposed = true;
             try { FlushLocked(); }
-            catch { /* best-effort */ }
+            catch { }
             _writer?.Dispose();
             _writer = null;
         }

@@ -3,10 +3,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// T4 lock: Soul/BlackHole spectral clauses route to <see cref="SpecialSpectralCardFilterDesc"/>,
-/// and that path finds Arcana/Celestial specials the content SIMD cannot see.
-/// </summary>
 public class SpecialSpectralRoutingTests
 {
     [Fact]
@@ -60,10 +56,6 @@ public class SpecialSpectralRoutingTests
         Assert.IsType<SpecialSpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
     }
 
-    /// <summary>
-    /// ALEEB has The Soul in ante-1 Arcana packs (see seeds/ALEEB.verified.txt). The content
-    /// spectral SIMD never walks Arcana, so only the special route can match this seed.
-    /// </summary>
     [Fact]
     public void TheSoulMust_FindsAleebViaSpecialSpectralRoute()
     {
@@ -102,9 +94,6 @@ public class SpecialSpectralRoutingTests
         Assert.Equal(1L, search.MatchingSeeds);
     }
 
-    /// <summary>
-    /// Standalone edition-only soul stream desc still runs (composition form kept alive for T4).
-    /// </summary>
     [Fact]
     public void LegendarySoulEditionFilterDesc_RunsOnSeedBatch()
     {

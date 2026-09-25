@@ -2,18 +2,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// R3 parity for the PRNG. <see cref="VectorLuaRandom"/> runs eight seeds at once;
-/// <see cref="LuaRandom"/> runs one. Lane <c>i</c> of the vector form must produce exactly what a
-/// scalar generator seeded with the same value produces — value for value, in order.
-///
-/// Order within a stream is law (CLAUDE.md 12), so these tests advance both forms in lockstep for
-/// several draws rather than checking a single value. A vector path that drifted after the first
-/// call would pass a one-shot test and corrupt every search.
-/// </summary>
 public sealed class VectorLuaRandomParityTests
 {
-    /// <summary>Eight unlike seeds, including 0 and a negative, so no lane mirrors another.</summary>
     private static readonly double[] Seeds =
         [0d, 1d, 0.5d, 123.456d, -7.25d, 1e-6d, 42d, 98765.4321d];
 
@@ -107,8 +97,6 @@ public sealed class VectorLuaRandomParityTests
         }
     }
 
-    // ── the static single-shot forms ──
-
     [Fact]
     public void StaticRandInt_MatchesScalarPerLane()
     {
@@ -151,10 +139,6 @@ public sealed class VectorLuaRandomParityTests
         }
     }
 
-    /// <summary>
-    /// The static form is the first draw of the instance form. If these diverged, a filter that
-    /// used one shape would silently disagree with a filter that used the other.
-    /// </summary>
     [Fact]
     public void StaticForm_EqualsFirstDrawOfInstanceForm()
     {
@@ -164,7 +148,6 @@ public sealed class VectorLuaRandomParityTests
         Assert.Equal(VectorLuaRandom.RandInt(seedVector), instance.RandInt());
     }
 
-    /// <summary>Same seed in, same stream out — the whole search depends on it.</summary>
     [Fact]
     public void SameSeed_ProducesTheSameStream()
     {
@@ -175,7 +158,6 @@ public sealed class VectorLuaRandomParityTests
             Assert.Equal(a.RandInt(), b.RandInt());
     }
 
-    /// <summary>Different seeds must not collapse to one stream.</summary>
     [Fact]
     public void DifferentSeeds_ProduceDifferentLanes()
     {

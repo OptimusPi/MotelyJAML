@@ -4,11 +4,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.JsonRender;
 
-/// <summary>
-/// Renders MotelyJamlyzer seed-analysis results as a JSON document and/or a self-contained
-/// HTML report. The HTML is the point: the analysis reads as panels and card rows instead
-/// of a wall of text, and every visual cue is backed by a text label.
-/// </summary>
 public static class Program
 {
     private const string Usage =
@@ -120,8 +115,6 @@ public static class Program
 
         var results = MotelyJamlyzer.Analyze(config, eventRolls);
 
-        // --jamlui serializes `results` directly, so a jaml-ui-only run has no use for the
-        // report graph — don't project every ante of every seed just to drop it.
         if (jsonPath is not null || htmlPath is not null)
         {
             var report = JsonRenderDocument.Build(config, results, eventRolls);
@@ -151,8 +144,6 @@ public static class Program
         return 0;
     }
 
-    // Same path convention as Motely.CLI's JamlFileLoader: a bare name (not rooted, no
-    // extension) resolves under JamlFilters/ with a .jaml extension; anything else is verbatim.
     private static string ResolvePath(string path) =>
         !Path.IsPathRooted(path) && !Path.HasExtension(path)
             ? Path.Combine("JamlFilters", path + ".jaml")

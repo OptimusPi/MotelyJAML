@@ -12,10 +12,8 @@ public struct MotelySingleJokerStream
     public MotelySinglePrngStream RarityPrngStream;
     public MotelySinglePrngStream EternalPerishablePrngStream;
     public MotelySinglePrngStream RentalPrngStream;
-    public string? ResampleKey; // Key to create resample stream for handling duplicates when needed
+    public string? ResampleKey;
 
-    // For these, a state set to -1 means they are not yet initialized.
-    //  A state of -2 means the stream does not provide that joker
     public MotelySinglePrngStream CommonJokerPrngStream;
     public MotelySinglePrngStream UncommonJokerPrngStream;
     public MotelySinglePrngStream RareJokerPrngStream;
@@ -101,8 +99,6 @@ public unsafe partial class MotelySingleSearchContext
         bool isCached = false
     )
     {
-        // Single stream per ante (not per pack index)
-        // Include resample stream for handling duplicates in buffoon packs
         return CreateJokerStream(
             MotelyPrngKeys.BuffoonPackItemSource,
             MotelyPrngKeys.BuffoonJokerEternalPerishableSource,
@@ -410,12 +406,9 @@ public unsafe partial class MotelySingleSearchContext
             return MotelyItemEdition.None;
     }
 
-    // Internal rather than private so the rarity model applies the same exclusion list the
-    // sticker roll does, instead of carrying a copy that can drift.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool CanBeEternal(MotelyItem item)
     {
-        // Jokers that self-destruct or activate on sell cannot receive the Eternal Sticker
         MotelyItemType joker = item.Type;
         return joker != MotelyItemType.Cavendish
             && joker != MotelyItemType.DietCola
@@ -448,7 +441,6 @@ public unsafe partial class MotelySingleSearchContext
         if (Stake < MotelyStake.Orange)
             return item;
 
-        // Only apply Perishable if not already Eternal
         if (!item.IsEternal)
         {
             item = item.WithPerishable(stickerPoll > 0.4 && stickerPoll <= 0.7);
@@ -533,7 +525,6 @@ public unsafe partial class MotelySingleSearchContext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    // Overload that handles duplicate checking for packs using resample stream
     public MotelyItem GetNextJoker(
         ref MotelySingleJokerStream stream,
         in MotelySingleItemSet itemSet
@@ -549,15 +540,12 @@ public unsafe partial class MotelySingleSearchContext
             in Unsafe.NullRef<MotelySingleItemSet>()
         );
 
-        // If we got an excluded joker, don't check for duplicates
         if (joker.Type == MotelyItemType.JokerExcludedByStream)
             return joker;
 
-        // If no duplicate, return immediately
         if (!itemSet.Contains(joker))
             return joker;
 
-        // Determine the rarity-specific resample key based on the original joker's rarity
         MotelyJokerRarity originalRarity = (MotelyJokerRarity)((int)joker.Type & 0xF00);
         string rarityPrefix = originalRarity switch
         {
@@ -567,11 +555,9 @@ public unsafe partial class MotelySingleSearchContext
         };
         string resampleKey = rarityPrefix + stream.ResampleKey;
 
-        // Create the resample stream with the correct key
         var resampleStream = CreateResampleStream(resampleKey, false);
         int resampleCount = 0;
 
-        // Keep rerolling while we have duplicates
         while (itemSet.Contains(joker))
         {
             ref var resamplePrngStream = ref GetResamplePrngStream(
@@ -580,7 +566,6 @@ public unsafe partial class MotelySingleSearchContext
                 resampleCount
             );
 
-            // Get new joker of same rarity
             MotelyJoker newJoker = originalRarity switch
             {
                 MotelyJokerRarity.Rare => GetNextJoker<MotelyJokerRare>(
@@ -597,7 +582,6 @@ public unsafe partial class MotelySingleSearchContext
                 ),
             };
 
-            // Preserve edition and stickers from original (Balatro doesn't re-roll these)
             joker = new MotelyItem(newJoker).WithEdition(joker.Edition);
             if (joker.IsEternal)
                 joker = joker.WithEternal(true);
@@ -615,7 +599,6 @@ public unsafe partial class MotelySingleSearchContext
         return joker;
     }
 
-    // Helper for applying stickers from resample stream
     private MotelyItem ApplyNextStickersFromResample(
         MotelyItem item,
         ref MotelySinglePrngStream resampleStream
@@ -636,7 +619,6 @@ public unsafe partial class MotelySingleSearchContext
         if (Stake < MotelyStake.Gold)
             return item;
 
-        // Use another roll for rental
         stickerPoll = GetNextRandom(ref resampleStream);
 
         item = item.WithRental(stickerPoll > 0.7);
@@ -720,8 +702,6 @@ public unsafe partial class MotelySingleSearchContext
                     items.Contains((MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)joker))
                 )
                 {
-                    // Resamples!
-
                     stream.ResampleStreams ??= new();
 
                     switch (rarity)

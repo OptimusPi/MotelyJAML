@@ -4,7 +4,6 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters.Jaml;
 
-// Three attributes: tag/tags default both blind offers; the blind-specific wires pin one roll.
 [JamlDiscriminator("tag", "tags",
     ValueEnum = typeof(MotelyTag), RollsDefault = new[] { 0, 1 })]
 [JamlDiscriminator("smallBlindTag",
@@ -21,10 +20,6 @@ public sealed partial class TagClause : IJamlClause, IAnteScopedClause, IRollSco
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyTag[] Tags { get; set; } = [];
 
-    /// <summary>
-    /// Tag-stream draw indices per ante: 0 = small-blind offer, 1 = big-blind offer,
-    /// 2+ = further draws on the same ante stream (replay / double-tag extras).
-    /// </summary>
     public int[] Rolls { get; set; } = [];
 }
 
@@ -33,19 +28,14 @@ public struct TagFilterDesc(TagClause clause)
 {
     private readonly TagClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["tag", "tags", "smallBlindTag", "bigBlindTag"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)
         {
-            // NOTE(audit): the tag clause only reads the tag stream below — this
-            // booster-pack-stream cache looks unused/vestigial here. Left intact pending review;
-            // remove if nothing downstream actually consumes a cached pack stream for tags.
             ctx.CacheBoosterPackStream(ante);
             ctx.CacheTagStream(ante);
         }

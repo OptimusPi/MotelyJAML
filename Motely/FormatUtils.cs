@@ -5,16 +5,12 @@ using System.Text;
 
 namespace Motely;
 
-/// <summary>
-/// Shared formatting utilities
-/// </summary>
 public static class FormatUtils
 {
     public static string FormatItem(MotelyItem item)
     {
         var result = new StringBuilder();
 
-        // Add stickers (Eternal, Perishable, Rental) FIRST
         if (item.IsEternal)
         {
             result.Append("Eternal ");
@@ -28,25 +24,21 @@ public static class FormatUtils
             result.Append("Rental ");
         }
 
-        // Add seal for standard cards (BEFORE edition)
         if (item.Seal != MotelyItemSeal.None)
         {
             result.Append(item.Seal.ToString().Replace("Seal", "")).Append(" Seal ");
         }
 
-        // Add edition if present (AFTER seal)
         if (item.Edition != MotelyItemEdition.None)
         {
             result.Append(item.Edition).Append(' ');
         }
 
-        // Add enhancement for standard cards
         if (item.Enhancement != MotelyItemEnhancement.None)
         {
             result.Append(item.Enhancement).Append(' ');
         }
 
-        // Format based on type
         switch (item.TypeCategory)
         {
             case MotelyItemTypeCategory.Standardcard:
@@ -57,7 +49,6 @@ public static class FormatUtils
                 break;
 
             default:
-                // For all other types, just use the Type enum value and format it
                 result.Append(FormatDisplayName(item.Type.ToString()));
                 break;
         }
@@ -78,7 +69,6 @@ public static class FormatUtils
     public static string FormatTag(MotelyTag tag)
     {
         var name = tag.ToString();
-        // Special case for TopupTag
         if (name == "TopupTag")
             return "Top-up Tag";
         if (name.EndsWith("Tag"))
@@ -88,14 +78,11 @@ public static class FormatUtils
 
     public static string FormatDisplayName(string enumName)
     {
-        // Special cases that need custom formatting
         var specialCases = new Dictionary<string, string>
         {
-            // Numbers
             { "EightBall", "8 Ball" },
             { "Cloud9", "Cloud 9" },
             { "OopsAll6s", "Oops! All 6s" },
-            // Multi-word special formatting
             { "ToTheMoon", "To the Moon" },
             { "ToDoList", "To Do List" },
             { "RiffRaff", "Riff-raff" },
@@ -107,13 +94,10 @@ public static class FormatUtils
             { "DriversLicense", "Driver's License" },
             { "DirectorsCut", "Director's Cut" },
             { "PlanetX", "Planet X" },
-            // Spectral cards
             { "Soul", "The Soul" },
-            // Other special formatting
             { "MrBones", "Mr. Bones" },
             { "ChaostheClown", "Chaos the Clown" },
-            // But Immolate test data has these variations we need to match:
-            { "ChaosTheClown", "Chaosthe Clown" }, // Weird but matches verified output
+            { "ChaosTheClown", "Chaosthe Clown" },
             { "ShootTheMoon", "Shoot the Moon" },
             { "RideTheBus", "Ride the Bus" },
             { "HitTheRoad", "Hit the Road" },
@@ -154,7 +138,6 @@ public static class FormatUtils
             return special;
         }
 
-        // Add spaces before capital letters (except the first one)
         var result = string.Empty;
         for (int i = 0; i < enumName.Length; i++)
         {
@@ -276,11 +259,6 @@ public static class FormatUtils
         };
     }
 
-    /// <summary>
-    /// Parses a string produced by <see cref="FormatItem"/>: sticker order
-    /// <see cref="FormatItem"/>, then optional seal, then edition, enhancement, then type
-    /// (<see cref="FormatDisplayName"/> for non–playing-card types, <see cref="FormatStandardcard"/> for cards).
-    /// </summary>
     public static MotelyItem ParseMotelyItem(string s)
     {
         if (!TryParseMotelyItem(s, out var item))
@@ -288,7 +266,6 @@ public static class FormatUtils
         return item;
     }
 
-    /// <inheritdoc cref="ParseMotelyItem"/>
     public static bool TryParseMotelyItem(string s, out MotelyItem item)
     {
         item = default;
@@ -297,7 +274,6 @@ public static class FormatUtils
 
         var str = s.Trim();
 
-        // Stickers — same order as FormatItem: Eternal, Perishable, Rental
         var eternal = TryStripPrefix(ref str, "Eternal ", StringComparison.OrdinalIgnoreCase);
         var perishable = TryStripPrefix(ref str, "Perishable ", StringComparison.OrdinalIgnoreCase);
         var rental = TryStripPrefix(ref str, "Rental ", StringComparison.OrdinalIgnoreCase);
@@ -315,7 +291,6 @@ public static class FormatUtils
             break;
         }
 
-        // Pure type (no edition/enhancement prefix) — e.g. "2 of Clubs", "The World"
         if (
             TryResolveMotelyTypeTail(
                 str,
@@ -347,9 +322,6 @@ public static class FormatUtils
             words.RemoveAt(0);
         }
 
-        // Before treating the next word as an enhancement, try the remaining tail as a
-        // type: display names can start with an enhancement word ("Lucky Cat"), and the
-        // greedy strip would otherwise leave an unresolvable "Cat".
         if (
             edition != MotelyItemEdition.None
             && TryResolveMotelyTypeTail(
@@ -391,7 +363,6 @@ public static class FormatUtils
         );
     }
 
-    /// <summary>Enum.TryParse by member name only (rejects numeric strings like &quot;7&quot;).</summary>
     private static bool TryParseEnumMemberName<TEnum>(string word, out TEnum value)
         where TEnum : struct, Enum
     {

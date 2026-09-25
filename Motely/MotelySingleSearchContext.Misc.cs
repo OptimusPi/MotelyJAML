@@ -43,7 +43,6 @@ public partial class MotelySingleSearchContext
         if (GetNextRandom(ref wheelStream) >= baseLuck / MotelyGlobals.TarrotWheelChance)
             return MotelyItemEdition.None;
 
-        // The game picks which joker to apply the effect to, but we don't implement that
         GetNextPrngState(ref wheelStream);
 
         double editionPoll = GetNextRandom(ref wheelStream);
@@ -151,11 +150,6 @@ public partial class MotelySingleSearchContext
     public MotelySinglePrngStream CreateOmenGlobePrngStream(bool isCached = false) =>
         CreatePrngStream(MotelyPrngKeys.VoucherOmenGlobe, isCached);
 
-    /// <summary>
-    /// Omen Globe voucher substitutes a Spectral for a Tarot in Arcana packs.
-    /// Balatro uses <c>pseudorandom('omen_globe') &gt; 0.8</c>, i.e. fires with p = 1 - 0.8 = 0.2 = 1/5.
-    /// Returns true when a Spectral replaces the Tarot.
-    /// </summary>
     public bool GetNextOmenGlobeSpectral(
         ref MotelySinglePrngStream omenGlobeStream,
         double baseLuck = 1

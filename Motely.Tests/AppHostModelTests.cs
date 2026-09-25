@@ -6,12 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// The Aspire composition in <c>Motely.AppHost</c>, built in-process but never started: no DCP, no
-/// Docker, no ports. What is pinned is the resource set, the configuration helper-api and the
-/// worker actually receive, and the start policy — the things that decide whether
-/// <c>aspire run</c> does what the AppHost comments say it does.
-/// </summary>
 public class AppHostModelTests
 {
     private static async Task<DistributedApplication> BuildAppHostAsync()
@@ -23,7 +17,6 @@ public class AppHostModelTests
     private static DistributedApplicationModel Model(DistributedApplication app) =>
         app.Services.GetRequiredService<DistributedApplicationModel>();
 
-    /// <summary>The env and args a resource would be launched with in run mode.</summary>
     private static async Task<IExecutionConfigurationResult> LaunchConfigOf(DistributedApplication app, IResource resource)
     {
         var context = app.Services.GetRequiredService<DistributedApplicationExecutionContext>();
@@ -68,8 +61,6 @@ public class AppHostModelTests
         Assert.True(Directory.Exists(env["MOTELY_FILTERS_DIR"]), "MOTELY_FILTERS_DIR must point at the repo's JamlFilters/");
 
         Assert.NotEmpty(api.Annotations.OfType<HealthCheckAnnotation>());
-        // The one http endpoint comes from the launch profile (3141); an explicit WithHttpEndpoint in the
-        // AppHost would add a second "http" and collide with it.
         var http = Assert.Single(api.Annotations.OfType<EndpointAnnotation>(), e => e.Name == "http");
         Assert.Equal(3141, http.Port);
     }

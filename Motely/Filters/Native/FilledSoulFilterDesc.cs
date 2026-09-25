@@ -192,7 +192,6 @@ public struct FilledSoulFilterDesc() : IMotelySeedFilterDesc<FilledSoulFilterDes
                 hiero,
                 (MotelySingleSearchContext searchContext) =>
                 {
-                    // Real verify step
                     int score1 = CheckAnteForLegendaryJoker(hAnte - 1, ref searchContext);
 
                     if (score1 < 110)

@@ -14,7 +14,6 @@ internal enum InternalInvalid
 
 public enum MotelyItemType
 {
-    // Planet Cards
     Mercury = MotelyItemTypeCategory.PlanetCard | MotelyPlanetCard.Mercury,
     Venus = MotelyItemTypeCategory.PlanetCard | MotelyPlanetCard.Venus,
     Earth = MotelyItemTypeCategory.PlanetCard | MotelyPlanetCard.Earth,
@@ -28,7 +27,6 @@ public enum MotelyItemType
     Ceres = MotelyItemTypeCategory.PlanetCard | MotelyPlanetCard.Ceres,
     Eris = MotelyItemTypeCategory.PlanetCard | MotelyPlanetCard.Eris,
 
-    // Spectral Cards
     Familiar = MotelyItemTypeCategory.SpectralCard | MotelySpectralCard.Familiar,
     Grim = MotelyItemTypeCategory.SpectralCard | MotelySpectralCard.Grim,
     Incantation = MotelyItemTypeCategory.SpectralCard | MotelySpectralCard.Incantation,
@@ -48,7 +46,6 @@ public enum MotelyItemType
     TheSoul = MotelyItemTypeCategory.SpectralCard | MotelySpectralCard.TheSoul,
     BlackHole = MotelyItemTypeCategory.SpectralCard | MotelySpectralCard.BlackHole,
 
-    // Tarot Cards
     TheFool = MotelyItemTypeCategory.TarotCard | MotelyTarotCard.TheFool,
     TheMagician = MotelyItemTypeCategory.TarotCard | MotelyTarotCard.TheMagician,
     TheHighPriestess = MotelyItemTypeCategory.TarotCard | MotelyTarotCard.TheHighPriestess,
@@ -72,7 +69,6 @@ public enum MotelyItemType
     Judgement = MotelyItemTypeCategory.TarotCard | MotelyTarotCard.Judgement,
     TheWorld = MotelyItemTypeCategory.TarotCard | MotelyTarotCard.TheWorld,
 
-    // Standard cards
     TwoOfClubs = MotelyItemTypeCategory.Standardcard | MotelyStandardCard.TwoOfClubs,
     ThreeOfClubs = MotelyItemTypeCategory.Standardcard | MotelyStandardCard.ThreeOfClubs,
     FourOfClubs = MotelyItemTypeCategory.Standardcard | MotelyStandardCard.FourOfClubs,
@@ -129,7 +125,6 @@ public enum MotelyItemType
     KingOfSpades = MotelyItemTypeCategory.Standardcard | MotelyStandardCard.KingOfSpades,
     AceOfSpades = MotelyItemTypeCategory.Standardcard | MotelyStandardCard.AceOfSpades,
 
-    // Common Jokers
     Joker = MotelyItemTypeCategory.Joker | MotelyJoker.Joker,
     GreedyJoker = MotelyItemTypeCategory.Joker | MotelyJoker.GreedyJoker,
     LustyJoker = MotelyItemTypeCategory.Joker | MotelyJoker.LustyJoker,
@@ -192,7 +187,6 @@ public enum MotelyItemType
     HangingChad = MotelyItemTypeCategory.Joker | MotelyJoker.HangingChad,
     ShootTheMoon = MotelyItemTypeCategory.Joker | MotelyJoker.ShootTheMoon,
 
-    // Uncommon Jokers
     JokerStencil = MotelyItemTypeCategory.Joker | MotelyJoker.JokerStencil,
     FourFingers = MotelyItemTypeCategory.Joker | MotelyJoker.FourFingers,
     Mime = MotelyItemTypeCategory.Joker | MotelyJoker.Mime,
@@ -258,7 +252,6 @@ public enum MotelyItemType
     Astronomer = MotelyItemTypeCategory.Joker | MotelyJoker.Astronomer,
     Bootstraps = MotelyItemTypeCategory.Joker | MotelyJoker.Bootstraps,
 
-    // Rare Jokers
     DNA = MotelyItemTypeCategory.Joker | MotelyJoker.DNA,
     Vagabond = MotelyItemTypeCategory.Joker | MotelyJoker.Vagabond,
     Baron = MotelyItemTypeCategory.Joker | MotelyJoker.Baron,
@@ -280,14 +273,12 @@ public enum MotelyItemType
     DriversLicense = MotelyItemTypeCategory.Joker | MotelyJoker.DriversLicense,
     BurntJoker = MotelyItemTypeCategory.Joker | MotelyJoker.BurntJoker,
 
-    // Legendary Jokers
     Canio = MotelyItemTypeCategory.Joker | MotelyJoker.Canio,
     Triboulet = MotelyItemTypeCategory.Joker | MotelyJoker.Triboulet,
     Yorick = MotelyItemTypeCategory.Joker | MotelyJoker.Yorick,
     Chicot = MotelyItemTypeCategory.Joker | MotelyJoker.Chicot,
     Perkeo = MotelyItemTypeCategory.Joker | MotelyJoker.Perkeo,
 
-    // Special
     Invalid = MotelyItemTypeCategory.Invalid | InternalInvalid.Invalid,
     NotImplemented = MotelyItemTypeCategory.Invalid | InternalInvalid.NotImplemented,
     JokerExcludedByStream = MotelyItemTypeCategory.Invalid | InternalInvalid.JokerExcludedByStream,

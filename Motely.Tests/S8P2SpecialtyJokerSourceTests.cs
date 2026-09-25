@@ -2,11 +2,6 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P2 — scalar specialty joker sources (judgement / wraith / riffRaff / rareTag /
-/// uncommonTag / rarity shop streams) through real should-clause scoring: every surviving
-/// seed's tally is the PRNG-derived count from those streams, named and wildcard.
-/// </summary>
 public sealed class S8P2SpecialtyJokerSourceTests
 {
     private static readonly string[] WideSeeds =
@@ -95,14 +90,6 @@ public sealed class S8P2SpecialtyJokerSourceTests
         return scores;
     }
 
-    /// <summary>
-    /// Pinned from the engine's own deterministic run. The spread (36–72) is the proof the
-    /// specialty streams discriminate: every seed walks all nine stream families, and the
-    /// per-seed tally is the count of jokers those PRNG streams actually produce. A wildcard
-    /// <c>joker: []</c> also counts legendaries off the default pack slots, so each ante-1/2 Soul
-    /// adds nine; CUC and FMF each hold one Soul in ante 1's fourth rolled pack, which no run
-    /// offers (slot 0 there is the fixed Buffoon), so it does not count.
-    /// </summary>
     [Fact]
     public void SpecialtySources_ScoreEverySurvivingSeed_PinnedTallies()
     {

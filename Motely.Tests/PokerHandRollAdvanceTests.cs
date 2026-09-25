@@ -1,15 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Pins the ante-keyed shuffle stream and its per-blind advance.
-///
-/// Balatro shuffles with <c>G.deck:shuffle('nr'..G.GAME.round_resets.ante)</c>
-/// (state_events.lua:344) — the key is the ante, never <c>G.GAME.round</c>, which is a separate
-/// counter with a separate mutator (<c>ease_round</c> vs <c>ease_ante</c>). That shuffle runs once
-/// per blind *actually played*, and <c>pseudoseed</c> mutates <c>G.GAME.pseudorandom[key]</c> on
-/// every call (misc_functions.lua:310), so the blinds of one ante take successive draws from the
-/// single <c>nr{ante}</c> stream. Ante names the stream; blinds played name the position in it.
-/// </summary>
 public sealed class PokerHandRollAdvanceTests
 {
     private static readonly string[] Seeds = ["12345678", "UNITTEST", "1AAAAAAA", "ALEEBOOO"];
@@ -30,7 +20,6 @@ public sealed class PokerHandRollAdvanceTests
         return deck.AsSpan(deck.Length - handSize, handSize).ToArray();
     }
 
-    /// <summary>Deck built the pre-<c>advance</c> way, through the no-advance call.</summary>
     private static MotelyItem[] StartingHandLegacy(MotelySingleSearchContext ctx, int ante)
     {
         var deck = new MotelyItem[MotelyEnum<MotelyStandardCard>.ValueCount];
@@ -64,7 +53,6 @@ public sealed class PokerHandRollAdvanceTests
         Assert.Equal((long)Seeds.Length, search.MatchingSeeds);
     }
 
-    // Regression pin: adding `advance` must not move any existing caller. advance:0 IS the old call.
     [Fact]
     public void AdvanceZero_IsIdenticalToTheNoAdvanceCall()
     {
@@ -82,7 +70,6 @@ public sealed class PokerHandRollAdvanceTests
         Assert.Equal(Seeds.Length * 3, checkedSeeds);
     }
 
-    // The actual new capability: blinds 2 and 3 of an ante were previously unreachable.
     [Fact]
     public void EachBlindOfAnAnte_DrawsADifferentHandFromTheSameAnteStream()
     {
@@ -101,7 +88,6 @@ public sealed class PokerHandRollAdvanceTests
         });
     }
 
-    // Advancing is cumulative, not a re-seed: reaching blind 2 must walk through blind 1.
     [Fact]
     public void AdvanceIsCumulativeAlongOneStream()
     {
@@ -113,7 +99,6 @@ public sealed class PokerHandRollAdvanceTests
             for (int i = 0; i < deck.Length; i++)
                 deck[i] = new(MotelyEnum<MotelyStandardCard>.Values[i]);
 
-            // Hand-walk the same stream: two discarded states, then the draw.
             var stream = ctx.CreatePrngStream(MotelyPokerHandEval.ShuffleKeyForAnte(2));
             ctx.GetNextPrngState(ref stream);
             ctx.GetNextPrngState(ref stream);
@@ -129,10 +114,6 @@ public sealed class PokerHandRollAdvanceTests
         });
     }
 
-    // Hieroglyph and Petroglyph each call ease_ante(-1) (card.lua:1958), putting the ante counter
-    // back on a value it already sat on. The key is that counter, so the same nr{ante} stream keeps
-    // advancing through another pass of blinds — a reduction ADDS reachable indices, it does not
-    // shift them. Three blinds a pass, two reduction vouchers: 3 * (1 + 2) = 9.
     [Fact]
     public void AnteReduction_ExtendsTheSameStreamPastOnePassOfBlinds()
     {
@@ -145,7 +126,6 @@ public sealed class PokerHandRollAdvanceTests
             for (int advance = 0; advance < PokerHandFilterDesc.MaxBlindsPerAnte; advance++)
                 seen.Add(StartingHand(ctx, 2, advance));
 
-            // All nine reachable draws off nr2 are distinct hands — none is an alias of another.
             for (int i = 0; i < seen.Count; i++)
                 for (int j = i + 1; j < seen.Count; j++)
                     Assert.NotEqual(seen[i], seen[j]);

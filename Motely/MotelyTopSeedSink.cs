@@ -5,31 +5,13 @@ using Motely.Filters.Jaml;
 
 namespace Motely;
 
-// Seeds flow from a SOURCE (the search/provider) to a SINK. Scored seeds are offered to the
-// Collector below, which keeps only the top-N by score when given a real limit (push the new
-// high score on, evict the lowest off the bottom once the count exceeds it) — or all of them,
-// unbounded, when the caller passes int.MaxValue. Survivors get written to their final
-// destination — a JAML `seeds:` block on disk.
-//
-// The pure text rewrite + collector both live here so the CLI (file IO) and Motely.Wasm (browser
-// File System Access) share one tested core.
 public static class MotelyTopSeedSink
 {
-    /// <summary>
-    /// Bounded top-N-by-score collector. A min-heap keyed on (score, sequence): every offered seed
-    /// is enqueued, and once the count exceeds <paramref name="limit"/> the lowest-scoring entry is
-    /// dropped. Ties break by insertion order (earlier wins). Not thread-safe; one per search.
-    /// </summary>
     public sealed class Collector(int limit)
     {
         private readonly PriorityQueue<SavedSeedEntry, (int Score, long Sequence)> _queue = new();
         private long _sequence;
 
-        // Scored results arrive on every worker thread — the engine invokes result callbacks with
-        // no serialization. PriorityQueue is not thread-safe, so concurrent Enqueue can corrupt the
-        // heap rather than merely lose an entry, and this queue is what gets written back into the
-        // filter's seeds: block. The lock lives here so a caller cannot forget it, and it is only
-        // ever taken when a seed actually matches.
         private readonly object _gate = new();
 
         public void Consider(string seed, int score)
@@ -62,14 +44,6 @@ public static class MotelyTopSeedSink
 
     private readonly record struct SavedSeedEntry(string Seed, int Score, long Sequence);
 
-    /// <summary>
-    /// Pure text transform: merge the given seeds into the top-level <c>seeds:</c> block of a
-    /// JAML document (appending the block if absent). Seeds already in the document are a seed
-    /// provider the user curated — they stay, in front, in their original order; new finds go
-    /// after them. No IO, no validation. The original newline style is preserved. Seeds are
-    /// normalized (<see cref="MotelyGlobals.NormalizeSeed"/>) and de-duped — no count cap; the
-    /// caller's Collector (if any) already decided how many survive.
-    /// </summary>
     public static string RewriteSeedsBlock(string jamlText, IReadOnlyList<string> seeds)
     {
         string normalizedNewline = jamlText.Contains("\r\n", StringComparison.Ordinal)
@@ -119,11 +93,6 @@ public static class MotelyTopSeedSink
         return updated;
     }
 
-    /// <summary>
-    /// Rewrite the <c>seeds:</c> block then confirm the result still loads as valid JAML. Returns
-    /// false with <paramref name="error"/> set if the rewritten document does not parse — so a bad
-    /// write is caught before it ever touches disk.
-    /// </summary>
     public static bool TryRewriteAndValidate(
         string jamlText,
         IReadOnlyList<string> seeds,
@@ -142,12 +111,6 @@ public static class MotelyTopSeedSink
         return true;
     }
 
-    /// <summary>
-    /// Pull the seeds already present in a <c>seeds:</c> region, in document order. Handles both
-    /// the block form (<c>- SEED</c> items) and the inline form (<c>seeds: [A, B]</c>), tolerating
-    /// quotes and trailing <c>#</c> comments (a '#' can never be part of a seed — the seed
-    /// alphabet is alphanumeric).
-    /// </summary>
     private static List<string> ExtractExistingSeeds(
         IReadOnlyList<string> lines,
         int seedsStart,

@@ -5,14 +5,8 @@ import { MotelyDeck, MotelyStake } from "motely-wasm";
 import type { MotelyJamlyzerSeedResult } from "motely-wasm";
 import "jaml-ui/jimbo.css";
 
-// Fixture from Motely.JsonRender --jamlui (AlwaysPass / ALEEB,MOTELY77). Regenerate:
-//   dotnet run --project Motely.JsonRender -- --jaml JamlFilters/AlwaysPass.jaml \
-//     --seeds ALEEB,MOTELY77 --rolls 5 --jamlui Motely.JsonRender/demo-jamlui/fixtures/always-pass.jamlui.json
 import report from "../fixtures/always-pass.jamlui.json";
 
-// Over the wire the numeric-array event streams are plain JSON arrays; the wasm
-// types declare Int32Array (they index identically), so a single honest cast at
-// the boundary keeps the rest of the page fully typed.
 const seeds = report.seeds as unknown as MotelyJamlyzerSeedResult[];
 
 function splitCamelCase(key: string): string {

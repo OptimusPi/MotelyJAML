@@ -18,11 +18,6 @@ public unsafe class MotelyWeightedPool<T> : IDisposable
     public readonly int Count;
     public readonly double WeightSum;
 
-    /// <summary>
-    /// The items with the weights they were declared with. The native table below inflates the
-    /// last item's weight as a guard; anything that wants to reason about the odds — the rarity
-    /// model — must read these, not that.
-    /// </summary>
     public readonly MotelyWeightedPoolItem<T>[] Items;
 
     public MotelyWeightedPool(MotelyWeightedPoolItem<T>[] items)
@@ -47,12 +42,9 @@ public unsafe class MotelyWeightedPool<T> : IDisposable
 
         WeightSum = sum;
 
-        // We increase the weight of the last item to make 100% double triple sure something gets picked
-        //  before we hit the end of the array.
         _pool[Count - 1].Weight += WeightSum;
     }
 
-    /// <summary>The share of draws that land on <paramref name="value"/>; zero when it is not in the pool.</summary>
     public double Probability(T value)
     {
         double weight = 0;
@@ -65,7 +57,6 @@ public unsafe class MotelyWeightedPool<T> : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T Choose(double poll)
     {
-        // get_pack common_events.lua
         poll *= WeightSum;
 
         double weight = 0;
@@ -128,9 +119,9 @@ public unsafe class MotelyWeightedPool<T> : IDisposable
         }
     }
 
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
+#pragma warning disable CA1816
     public void Dispose()
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
+#pragma warning restore CA1816
     {
         Marshal.FreeHGlobal((nint)_pool);
     }

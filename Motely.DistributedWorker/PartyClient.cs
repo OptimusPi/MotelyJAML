@@ -2,12 +2,6 @@ using System.Net.Http.Json;
 
 namespace Motely.DistributedWorker;
 
-/// <summary>
-/// HTTP client for seedfinder.app's community Search Party protocol:
-/// GET /api/party/next to lease a block range, POST /api/party/report to
-/// heartbeat and to submit results. The server re-verifies and scores every
-/// reported seed itself, so a worker submits seed strings only.
-/// </summary>
 internal sealed class PartyClient : IDisposable
 {
     private readonly HttpClient _http;
@@ -19,7 +13,6 @@ internal sealed class PartyClient : IDisposable
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
     }
 
-    /// <summary>Claim the next block lease, or learn the party is settled (Done).</summary>
     public async Task<PartyLeaseEnvelopeDto> LeaseNextAsync(string partyId, CancellationToken ct = default)
     {
         var url = $"{_baseUrl}/api/party/next?partyId={Uri.EscapeDataString(partyId)}";
@@ -33,7 +26,6 @@ internal sealed class PartyClient : IDisposable
         return result ?? throw new InvalidOperationException("Null lease response");
     }
 
-    /// <summary>Heartbeat (HeartbeatOnly=true, extends the lease TTL) or final block report.</summary>
     public async Task<PartyReportResponseDto> ReportAsync(PartyReportRequestDto report, CancellationToken ct = default)
     {
         var resp = await _http.PostAsJsonAsync(

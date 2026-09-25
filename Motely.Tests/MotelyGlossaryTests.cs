@@ -1,8 +1,5 @@
 namespace Motely.Tests;
 
-// MotelyGlossary is the single source of truth rendered by the CLI --glossary flag, the MCP
-// glossary tool, and the WASM/npm export — these tests pin its content/shape so that contract
-// can't silently drift or go empty.
 public class MotelyGlossaryTests
 {
     [Theory]
@@ -63,9 +60,6 @@ public class MotelyGlossaryTests
         Assert.Equal(MotelyGlossary.Render(), MotelyGlossary.Render());
     }
 
-    // JAMLyzer's definition is the one place a reader could confuse it with the CLI's older
-    // --analyze flag (a separate legacy text-block analyzer) — pin that the disambiguation
-    // actually ships in the definition text, not just in a comment nobody sees.
     [Fact]
     public void JamlyzerEntry_DisambiguatesFromLegacyAnalyzeFlag()
     {

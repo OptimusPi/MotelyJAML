@@ -12,18 +12,10 @@ public static unsafe class VectorEnum256
         return new(Vector256.Create(Unsafe.As<T, int>(ref value)));
     }
 
-    /// <summary>
-    /// Table-lookup: each lane of <paramref name="indices"/> selects
-    /// <c>values[index]</c> into an 8-lane <see cref="Vector256{T}"/> of the enum's
-    /// underlying int. On AVX2 this is a single
-    /// <c>_mm256_i32gather_epi32</c> (scale 4); elsewhere eight scalar loads.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static VectorEnum256<T> Create<T>(Vector256<int> indices, T[] values)
         where T : unmanaged, Enum
     {
-        // 8-lane enum path: AVX2 gather (not the 16-lane mm512 form from the old comment).
-        // T is always 4 bytes (enforced by VectorEnum256<T>'s static ctor).
         if (Avx2.IsSupported)
         {
             fixed (T* p = values)

@@ -6,15 +6,6 @@ using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// The one thing VYaml can't do on its own: turn <c>- joker: Blueprint</c> into a
-/// <see cref="JokerClause"/>. First key of the mapping is the wire name (from
-/// <see cref="JamlDiscriminatorAttribute"/>), its value goes to the clause's value property,
-/// every sibling key is a property set by name.
-/// </summary>
-// AOT/WASM: every type this formatter reflects over lives in Motely, and Motely ships
-// ILLink.Descriptors.xml (embedded) that preserves the whole assembly. The trimmer and
-// NativeAOT keep the types, properties and constructors, so the reflection below is safe.
 [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 [UnconditionalSuppressMessage("Trimming", "IL2067", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
@@ -22,7 +13,6 @@ namespace Motely.Filters.Jaml;
 [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 {
-    // ── wire name → clause type + attribute ──
     private static readonly Dictionary<string, (Type Type, JamlDiscriminatorAttribute Attr)> Wires = BuildWires();
 
     private static Dictionary<string, (Type, JamlDiscriminatorAttribute)> BuildWires()
@@ -40,8 +30,6 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
     public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context) =>
         ReadClause(ReadNode(ref parser));
-
-    // ── YAML events → tiny tree ──
 
     private sealed class Node
     {
@@ -86,14 +74,11 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         }
     }
 
-    // ── tree → clause ──
-
     private static IJamlClause ReadClause(Node node)
     {
         if (node.Map is null)
             throw Error(node.Line, "a clause must be a mapping like `- joker: Blueprint`");
 
-        // The wire is whichever key is a known discriminator (normally the first).
         var wireIndex = node.Map.FindIndex(kv => Wires.ContainsKey(kv.Key));
         if (wireIndex < 0)
             throw Error(node.Line, $"no recognised discriminator among: {string.Join(", ", node.Map.Select(kv => kv.Key))}");
@@ -104,7 +89,6 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
         var rest = node.Map.Where((_, i) => i != wireIndex).ToList();
 
-        // Where the bare value goes.
         if (!value.IsNull)
         {
             if (attr.RollsAreInlineValue)
@@ -114,7 +98,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             else if (attr.ValueEnum is { } valueEnum)
                 rest.Insert(0, (ValueProperty(type, valueEnum).Name, value));
             else if (value.Map is not null)
-                rest.InsertRange(0, value.Map);          // standardCard: { rank: K, seal: Red }
+                rest.InsertRange(0, value.Map);
             else
                 throw Error(value.Line, $"`{wire}` takes a block of keys, not a bare value");
         }
@@ -159,8 +143,8 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         {
             var elem = type.GetElementType()!;
             if (node.Scalar is not null && node.Scalar.Equals("any", StringComparison.OrdinalIgnoreCase))
-                return Array.CreateInstanceFromArrayType(type, 0); // category any
-            var items = node.Items ?? [node];                     // scalar → one-element array
+                return Array.CreateInstanceFromArrayType(type, 0);
+            var items = node.Items ?? [node];
             var array = Array.CreateInstanceFromArrayType(type, items.Count);
             for (int i = 0; i < items.Count; i++)
                 array.SetValue(Convert(items[i], elem, key), i);
@@ -192,7 +176,6 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         if (t == typeof(string))
             return node.Scalar;
 
-        // Nested block: sources:, with:, …
         if (node.Map is null)
             throw Error(node.Line, $"`{key}` must be a block of keys");
         var nested = Activator.CreateInstance(t)!;

@@ -5,12 +5,6 @@ using Motely.Enums;
 
 namespace Motely.JsonRender;
 
-/// <summary>
-/// Renders a <see cref="RenderReport"/> as one self-contained HTML file: all CSS inline,
-/// no scripts, no external assets, works from file://. Every visual distinction also
-/// carries a text label — color is a redundant accent, never the only signal — so the
-/// report reads fully without picturing anything.
-/// </summary>
 public static class HtmlReportRenderer
 {
     private static string E(string? s) => WebUtility.HtmlEncode(s ?? string.Empty);
@@ -122,7 +116,6 @@ public static class HtmlReportRenderer
         sb.Append("  </section>\n");
     }
 
-    // Boss/voucher/tag chips: the kind label is text, so the color band is a bonus cue.
     private static void RenderChip(StringBuilder sb, string cssClass, string kind, string name)
     {
         sb.Append("<div class=\"chip ").Append(cssClass).Append("\">")
@@ -213,9 +206,6 @@ public static class HtmlReportRenderer
             _ => rank,
         };
 
-    // Pulls and raw shop streams stay available but tucked away: the shop, packs, boss,
-    // voucher, and tags are the stars; these rows are reference, capped so they read as
-    // a summary rather than a data dump.
     private static void RenderStreams(StringBuilder sb, RenderAnte ante)
     {
         sb.Append("    <details class=\"secondary\"><summary>Pulls &amp; shop streams (raw rolls)</summary>\n");
@@ -296,10 +286,6 @@ public static class HtmlReportRenderer
             .Append("</span><span class=\"row-items\">").Append(hits.Count(h => h))
             .Append(" of ").Append(hits.Length).Append(" rolls</span></div>\n");
 
-    /* Balatro palette (Motely.TUI/BalatroTheme.cs): background #232A34, panels #37424D/#2D3640,
-       blue #4287F5, red #FF5F5F, green #4CA064, purple #7D60E0, orange #FFA500.
-       Every color below doubles a text label — badges, kind chips, and category tags all
-       spell out what the color hints at, so the report reads fully without color. */
     private const string Css = """
         :root {
           --bg: #232A34;

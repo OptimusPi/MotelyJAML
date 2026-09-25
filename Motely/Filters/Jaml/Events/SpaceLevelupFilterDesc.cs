@@ -21,10 +21,8 @@ public struct SpaceLevelupFilterDesc(SpaceLevelupClause clause)
 {
     private readonly SpaceLevelupClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["spaceLevelup"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
 
     public SpaceLevelupFilter CreateFilter(ref MotelyFilterCreationContext ctx)

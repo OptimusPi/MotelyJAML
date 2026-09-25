@@ -13,24 +13,9 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
 
     public long SeedCount { get; }
 
-    /// <summary>
-    /// Streams seeds out of any container DuckDB can open — CSV, TXT, Parquet, JSON, a JAML
-    /// file's <c>seeds:</c> block, or a DuckDB/SQLite .db database — local or remote.
-    /// <paramref name="distinct"/> is the --drown path over a seed-lake file: dedupes and
-    /// applies the seed shape test so bare-seed files, headered legacy files, and stray junk
-    /// all read clean. The default path keeps the raw --source/--seeds contract: every line
-    /// is data. JSON and JAML sources always shape-test — they mix seeds with structure.
-    /// </summary>
     public SeedSourceProvider(string path, bool distinct = false)
         : this(path, distinct, extraSeeds: null, filterId: null) { }
 
-    /// <summary>
-    /// <paramref name="extraSeeds"/> pours an in-memory seed list into the --drown haystack
-    /// alongside the lake — the JAML's own <c>seeds:</c> block, which is saved output too.
-    /// With extras, the lake directory need not exist yet (a fresh filter's first drown).
-    /// <paramref name="filterId"/> narrows the haystack to one filter's finds: its text file,
-    /// CSV, and legacy per-filter DuckDB file, whichever exist.
-    /// </summary>
     private SeedSourceProvider(string path, bool distinct, IReadOnlyList<string>? extraSeeds, string? filterId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -130,16 +115,11 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         _reader = cmd.ExecuteReader();
     }
 
-    /// <summary>One legacy per-filter lake file, deduped and shape-tested.</summary>
     public static SeedSourceProvider FromLake(string lakeFile) => new(lakeFile, distinct: true);
 
-    /// <summary>One filter's finds — its seed file, CSV, and legacy DuckDB file, deduped.</summary>
     public static SeedSourceProvider FromLakeFilter(string? lakeRoot, string filterId) =>
         new(SeedLakeSink.LakeRoot(lakeRoot), distinct: true, extraSeeds: null, filterId);
 
-    /// <summary>--drown: every seed ever saved under the lake root, across every filter, plus
-    /// any <paramref name="extraSeeds"/> the caller already holds (the JAML's seeds: block).
-    /// The lake root may be missing when extras are supplied.</summary>
     public static SeedSourceProvider FromLakeRoot(
         string lakeRoot,
         IReadOnlyList<string>? extraSeeds = null
@@ -158,7 +138,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
     private static bool IsLakeFile(string file) =>
         Array.IndexOf(LakeFileExtensions, Path.GetExtension(file).ToLowerInvariant()) >= 0;
 
-    /// <summary>Cheap pre-check: is there any non-empty file in the root that --drown would pour?</summary>
     public static bool HasLakeFiles(string lakeRoot) =>
         Directory.Exists(lakeRoot)
         && Directory
@@ -213,8 +192,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
         create.ExecuteNonQuery();
     }
 
-    /// <summary>Read one filter's seed files: its plain-text seed file, its scored CSV, and its
-    /// legacy DuckDB file, whichever exist.</summary>
     private void ImportFilterFiles(string root, string filterId)
     {
         var txtFile = SeedLakeSink.SeedFilePath(root, filterId).Replace('\\', '/');
@@ -230,8 +207,6 @@ public sealed class SeedSourceProvider : IMotelySeedProvider, IDisposable
             ImportDatabaseSeeds(legacy);
     }
 
-    /// <summary>--drown: pour every seed file (*.txt, *.csv, *.duckdb, *.db) sitting in
-    /// the lake root into <see cref="LakeTable"/>.</summary>
     private void ImportLakeRoot(string root)
     {
         EnsureLakeTable();

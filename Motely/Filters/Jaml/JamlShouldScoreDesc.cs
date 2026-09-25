@@ -3,13 +3,6 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// Per-seed scoring pass: <c>must</c> clauses re-evaluated when SIMD was coarse;
-/// skipped when every must already used an exact confirm path. <c>mustNot</c> clauses whose
-/// SIMD prefilter is coarse are rejected here instead of by <see cref="NegationFilterDesc"/>
-/// (negating a coarse prefilter drops every seed that merely might have the item). Then
-/// <c>should</c> clauses contribute score and CSV tallies.
-/// </summary>
 public struct JamlShouldScoreDesc
     : IMotelySeedScoreDesc<JamlShouldScoreDesc.JamlShouldScoreProvider>
 {
@@ -107,7 +100,6 @@ public struct JamlShouldScoreDesc
             int cutoff = Math.Max(_minimumTotalScore, scoreThreshold);
             bool skipMust = _skipMustReeval;
 
-            // Must-only + exact SIMD confirm + no score cutoff: identity is enough.
             if (skipMust && shouldClauses.Length == 0 && mustNotClauses.Length == 0 && cutoff <= 0)
             {
                 return searchContext.SearchIndividualSeeds(
@@ -132,8 +124,6 @@ public struct JamlShouldScoreDesc
                 (MotelySingleSearchContext singleCtx) =>
                 {
                     var runState = new MotelyRunState();
-                    // Empty only for exact must-only with a cutoff: nothing below reads the run
-                    // state then, and the cutoff rejects the seed.
                     if (prepareClauses.Length > 0)
                         JamlScoring.PrepareRunState(ref singleCtx, prepareClauses, runState);
 
@@ -177,10 +167,6 @@ public struct JamlShouldScoreDesc
                         );
                         tally.AddTally(raw);
 
-                        // The tally column reports what was found; the score is paid only from
-                        // the clause's min up (max stays a cap on the paid count, see
-                        // JamlScoring.CapScoreCount). An and:/or: gates itself on its arm-count
-                        // min and returns an aggregate, not an occurrence count, so it is exempt.
                         if (shouldClauses[i] is not LogicClause && raw < shouldClauses[i].Min)
                             continue;
                         int weighted = JamlScoring.CountOccurrences(
@@ -196,9 +182,6 @@ public struct JamlShouldScoreDesc
                     bool passedCutoff = totalScore >= cutoff;
                     if (passedCutoff)
                     {
-                        // The seed-match channel carries identity only — the bare seed, the
-                        // engine's original contract. Scores and tallies travel typed, in the
-                        // scored-result channel this tally buffer feeds.
                         char* seedPtr = stackalloc char[MotelyGlobals.MaxSeedLength];
                         int seedLength = singleCtx.GetSeed(seedPtr);
                         string seedStr = new string(seedPtr, 0, seedLength);

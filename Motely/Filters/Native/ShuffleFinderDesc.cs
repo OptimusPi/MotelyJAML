@@ -1,9 +1,5 @@
 namespace Motely.Filters.Native;
 
-/// <summary>
-/// Native experimental filter — keeps using shared <see cref="MotelyPokerHandEval"/>.
-/// Hardcoded royal-ish score target; prefer JAML <c>pokerHand:</c> for real searches.
-/// </summary>
 public struct ShuffleFinderFilterDesc()
     : IMotelySeedFilterDesc<ShuffleFinderFilterDesc.ShuffleFinderFilter>
 {
@@ -14,7 +10,6 @@ public struct ShuffleFinderFilterDesc()
 
     public struct ShuffleFinderFilter() : IMotelySeedFilter
     {
-        // Back-compat aliases for any external callers that nested under ShuffleFinder.
         public enum HandType
         {
             HighCard = MotelyPokerHand.HighCard,
@@ -25,7 +20,7 @@ public struct ShuffleFinderFilterDesc()
             Flush = MotelyPokerHand.Flush,
             FullHouse = MotelyPokerHand.FullHouse,
             FourOfAKind = MotelyPokerHand.FourOfAKind,
-            StriaghtFlush = MotelyPokerHand.StraightFlush, // historical typo
+            StriaghtFlush = MotelyPokerHand.StraightFlush,
             StraightFlush = MotelyPokerHand.StraightFlush,
         }
 
@@ -71,7 +66,7 @@ public struct ShuffleFinderFilterDesc()
 
                     hand = deck.AsSpan().Slice(deck.Length - 21, 8);
 
-                    return MotelyPokerHandEval.BestScore(hand).Score == 1208 ? 1 : 0; // Royal flush chips×mult
+                    return MotelyPokerHandEval.BestScore(hand).Score == 1208 ? 1 : 0;
                 }
             );
         }

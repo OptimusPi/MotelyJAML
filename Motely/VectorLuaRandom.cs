@@ -5,7 +5,6 @@ namespace Motely;
 
 public struct VectorLuaRandom
 {
-    // Vector constants hoisted so hot paths reuse them.
     private static readonly Vector512<double> _vecPI = Vector512.Create(3.14159265358979323846);
     private static readonly Vector512<double> _vecE = Vector512.Create(2.7182818284590452354);
     private static readonly Vector512<double> _vecOne = Vector512.Create(1d);
@@ -137,7 +136,6 @@ public struct VectorLuaRandom
         ulong m;
         Vector512<ulong> state;
 
-        // state[0]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -157,7 +155,6 @@ public struct VectorLuaRandom
 
         randint ^= state;
 
-        // state[1]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -177,7 +174,6 @@ public struct VectorLuaRandom
 
         randint ^= state;
 
-        // state[2]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -197,7 +193,6 @@ public struct VectorLuaRandom
 
         randint ^= state;
 
-        // state[3]
         m = 1ul << (r & 255);
 
         d *= _vecPI;

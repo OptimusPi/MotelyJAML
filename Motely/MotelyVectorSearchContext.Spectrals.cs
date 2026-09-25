@@ -128,8 +128,6 @@ ref partial struct MotelyVectorSearchContext
             return new MotelyItemVector(items);
         }
 
-        // Note: We use the full ValueCount (18) here to match the single-seed implementation's PRNG behavior
-        // Soul (16) and BlackHole (17) will be filtered out in the resample loop below
         Vector256<int> spectralEnums = GetNextRandomInt(
             ref stream.ResampleStream.InitialPrngStream,
             0,
@@ -194,9 +192,6 @@ ref partial struct MotelyVectorSearchContext
 
         MotelyVectorItemSet pack = new();
 
-        // Dedup against the pack like the scalar engine: a spectral pack never repeats a card,
-        // and Soul/BlackHole rolls are skipped for lanes that already hold one (parity with
-        // MotelySingleSearchContext.GetNextSpectralPackContents, proof: VectorScalarParityTests).
         for (int i = 0; i < size; i++)
             pack.Append(GetNextSpectral(ref spectralStream, pack));
 
@@ -215,8 +210,6 @@ ref partial struct MotelyVectorSearchContext
 
         if (stream.IsSoulBlackHoleable)
         {
-            // Lanes whose pack already holds TheSoul skip the soul roll entirely (no PRNG pull),
-            // exactly like the scalar itemSet variant.
             Vector512<double> soulValidMask = MotelyVectorUtils.ExtendIntMaskToDouble(
                 ~itemSet.Contains(MotelyItemType.TheSoul)
             );
@@ -228,8 +221,6 @@ ref partial struct MotelyVectorSearchContext
                 );
             soulMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(soulMaskDbl);
 
-            // Black Hole roll: skipped for lanes that just rolled TheSoul and lanes whose pack
-            // already holds BlackHole.
             Vector512<double> blackHoleValidMask =
                 MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.BlackHole)
@@ -336,30 +327,21 @@ ref partial struct MotelyVectorSearchContext
     {
         MotelyVectorItemSet pack = new();
 
-        // Create masks for different pack sizes
-        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal); // 2 cards
-        VectorMask isJumboSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Jumbo); // 4 cards
-        VectorMask isMegaSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Mega); // 4 cards
+        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal);
+        VectorMask isJumboSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Jumbo);
+        VectorMask isMegaSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Mega);
 
-        // No longer need stackalloc thanks to SIMD helpers!
-
-        // Spectral packs: Normal=2 cards, Jumbo=4 cards, Mega=4 cards
-        // Use ConditionalSelect pattern like joker pack generation
         for (int cardIndex = 0; cardIndex < MotelyVectorItemSet.MaxLength; cardIndex++)
         {
-            // Determine which lanes should have this card position
             VectorMask shouldIncludeCard = cardIndex switch
             {
-                0 or 1 => VectorMask.AllBitsSet, // All Spectral pack sizes have cards 0 and 1
-                2 or 3 => VectorMask.AllBitsSet ^ isNormalSize, // Only Jumbo and Mega have cards 2 and 3
-                _ => VectorMask.NoBitsSet, // No Spectral pack has more than 4 cards
+                0 or 1 => VectorMask.AllBitsSet,
+                2 or 3 => VectorMask.AllBitsSet ^ isNormalSize,
+                _ => VectorMask.NoBitsSet,
             };
 
-            // Generate Spectral card for all lanes (maintain stream sync)
             var Spectral = GetNextSpectral(ref spectralStream);
 
-            // Use ConditionalSelect: valid lanes get Spectral, invalid lanes get excluded marker
-            // Proper SIMD conversion from VectorMask to ConditionalSelect mask
             var selectionMask = MotelyVectorUtils.VectorMaskToConditionalSelectMask(
                 shouldIncludeCard
             );
@@ -404,7 +386,6 @@ ref partial struct MotelyVectorSearchContext
             {
                 hasTheSoul |= isSoul;
 
-                // Progress the stream for remaining cards
                 for (; i < cardCount; i++)
                 {
                     Vector512<double> randomBH = GetNextRandom(
@@ -437,9 +418,6 @@ ref partial struct MotelyVectorSearchContext
         return hasTheSoul;
     }
 
-    // The pack a player opens is deduplicated (resample rolls replace repeats), so HasThe
-    // answers from the same contents walk the scalar engine uses — the raw stream diverges
-    // whenever a duplicate resamples into the target.
     public VectorMask GetNextSpectralPackHasThe(
         ref MotelyVectorSpectralStream spectralStream,
         MotelySpectralCard targetSpectral,
@@ -452,7 +430,6 @@ ref partial struct MotelyVectorSearchContext
         );
     }
 
-    /// <inheritdoc cref="GetNextSpectralPackHasThe(ref MotelyVectorSpectralStream, MotelySpectralCard, MotelyBoosterPackSize)"/>
     public VectorMask GetNextSpectralPackHasThe(
         ref MotelyVectorSpectralStream spectralStream,
         MotelySpectralCard[] targetSpectrals,

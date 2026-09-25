@@ -55,10 +55,6 @@ public partial class MotelySingleSearchContext
             isCached
         );
 
-    /// <summary>
-    /// Spectral cards generated inside Arcana packs under Omen Globe (create_card type Spectral
-    /// in Arcana pack area). Uses Arcana pack item source so keys stay distinct from Spectral packs.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public MotelySingleSpectralStream CreateArcanaOmenSpectralStream(
         int ante,
@@ -102,9 +98,6 @@ public partial class MotelySingleSearchContext
         {
             if (GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997)
             {
-                // We found the soul!
-
-                // Progress the stream to get ready for the next pack
                 for (; i < cardCount && !hasBlackHole; i++)
                 {
                     hasBlackHole =

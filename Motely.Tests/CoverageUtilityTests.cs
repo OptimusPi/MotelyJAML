@@ -43,11 +43,6 @@ public sealed class CoverageUtilityTests
         Assert.Equal(1, range.EndBatchIndexExclusive);
     }
 
-    /// <summary>
-    /// The two seeds a real interrupted run printed, from the batch it printed beside them. Pinned
-    /// as literals because the failure they guard is silent: the old resume seed put the batch
-    /// digits at the head, which reads back as batch 0, so resuming restarted the whole sweep.
-    /// </summary>
     [Theory]
     [InlineData(409387, 4, "1111S7KA")]
     [InlineData(1449672, 4, "11118FTY")]
@@ -126,9 +121,6 @@ public sealed class CoverageUtilityTests
     [Fact]
     public void KeywordSequences_AestheticCountsAndValidationArePinned()
     {
-        // Each baked constant must be recomputed from its own keyword array. Comparing the
-        // constant to GetAestheticSeedCount(aesthetic) is a tautology for the null-pad case —
-        // that call returns the constant — so the live count is the only real pin.
         var baked = string.Join(
             " ",
             MotelySeedKeywordSequences.GrossKeywordAestheticSeedCount,

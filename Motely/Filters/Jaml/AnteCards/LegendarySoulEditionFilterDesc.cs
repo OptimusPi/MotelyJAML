@@ -4,14 +4,6 @@ using Motely;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// Fast vector filter: legendary soul stream edition only (ExcludeJokerType | ExcludeStickers).
-///
-/// <b>KEEP — real SIMD, not dead code.</b> Live <c>legendaryJoker:</c> + <c>edition:</c> uses the same
-/// work via <see cref="LegendarySoulEditionPrefilter"/> inside <see cref="LegendaryJokerFilterDesc"/>
-/// as a pure vector mask (no <c>SearchIndividualSeeds</c>). Pack/Soul exact law is scoring must re-eval.
-/// This desc is the standalone composition form of that edition slice for <c>WithAdditionalFilter</c>.
-/// </summary>
 public struct LegendarySoulEditionFilterDesc(LegendaryJokerClause clause)
     : IMotelySeedFilterDesc<LegendarySoulEditionFilterDesc.LegendarySoulEditionFilter>
 {

@@ -9,7 +9,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.DistributedWorker;
 
-/// <summary>Runs the pool worker loop inside the API process. Claim → search → submit.</summary>
 public sealed class PoolWorkerHostedService : BackgroundService
 {
     private readonly PoolWorkerOptions _options;
@@ -92,9 +91,6 @@ public sealed class PoolWorkerHostedService : BackgroundService
                     .WithEndBatchIndex(endBatchExclusive)
                     .WithSequentialSearch();
 
-                // ── Local seed lake ──────────────────────────────────────
-                // Every find streams into the shared lake under the pool's filter id as it is
-                // found — on disk whether or not the submit below ever succeeds.
                 using var lake = localDbDir is null ? null
                     : new SeedLakeSink(localDbDir, claim.FilterId, plan.ScoreTallyColumnCount > 0 ? plan.TallyLabels : null);
 
@@ -124,7 +120,6 @@ public sealed class PoolWorkerHostedService : BackgroundService
 
                 var results = matchResults.ToArray();
 
-                // ── Submit to pool ───────────────────────────────────────
                 var submitBody = new SubmitResultsDto
                 {
                     StartBatch = claim.BatchIndex,

@@ -5,7 +5,6 @@ public struct NegativeCopyFilterDesc()
 {
     public readonly NegativeCopyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
-        // Only cache booster pack streams - we'll check jokers directly
         for (int ante = 1; ante <= 8; ante++)
         {
             ctx.CacheBoosterPackStream(ante);
@@ -17,13 +16,10 @@ public struct NegativeCopyFilterDesc()
     {
         public readonly VectorMask Filter(ref MotelyVectorSearchContext searchContext)
         {
-            // Do a FULL vectorized check for Showman across all shop slots and buffoon packs
             VectorMask hasPotential = VectorMask.NoBitsSet;
 
-            // Check ALL shop slots and buffoon packs for Showman in antes 1-8
             for (int ante = 1; ante <= 8; ante++)
             {
-                // Check ALL shop slots for Showman
                 var shopStream = searchContext.CreateShopItemStream(
                     ante,
                     MotelyShopStreamFlags.ExcludeTarots | MotelyShopStreamFlags.ExcludePlanets,
@@ -38,14 +34,12 @@ public struct NegativeCopyFilterDesc()
                     _ => 35,
                 };
 
-                // Check ALL shop slots
                 for (int i = 0; i < shopItems; i++)
                 {
                     var shopItem = searchContext.GetNextShopItem(ref shopStream);
                     hasPotential |= VectorEnum256.Equals(shopItem.Type, MotelyItemType.Showman);
                 }
 
-                // Check ALL buffoon packs for Showman
                 var boosterPackStream = searchContext.CreateBoosterPackStream(
                     ante,
                     ante > 1,
@@ -58,15 +52,12 @@ public struct NegativeCopyFilterDesc()
                 {
                     var pack = searchContext.GetNextBoosterPack(ref boosterPackStream);
 
-                    // Only process buffoon packs
                     VectorMask isBuffoonPack = VectorEnum256.Equals(
                         pack.GetPackType(),
                         MotelyBoosterPackType.Buffoon
                     );
                     if (isBuffoonPack.IsPartiallyTrue())
                     {
-                        // For vectorized check, we need to check each possible pack size
-                        // Check Normal size packs
                         VectorMask isNormalSize = VectorEnum256.Equals(
                             pack.GetPackSize(),
                             MotelyBoosterPackSize.Normal
@@ -86,7 +77,6 @@ public struct NegativeCopyFilterDesc()
                             }
                         }
 
-                        // Check Jumbo size packs
                         VectorMask isJumboSize = VectorEnum256.Equals(
                             pack.GetPackSize(),
                             MotelyBoosterPackSize.Jumbo
@@ -106,7 +96,6 @@ public struct NegativeCopyFilterDesc()
                             }
                         }
 
-                        // Check Mega size packs
                         VectorMask isMegaSize = VectorEnum256.Equals(
                             pack.GetPackSize(),
                             MotelyBoosterPackSize.Mega
@@ -129,11 +118,9 @@ public struct NegativeCopyFilterDesc()
                 }
             }
 
-            // Early exit if no Showman potential
             if (hasPotential.IsAllFalse())
                 return VectorMask.NoBitsSet;
 
-            // Now do full individual processing for seeds with potential
             return searchContext.SearchIndividualSeeds(
                 hasPotential,
                 (MotelySingleSearchContext ctx) =>
@@ -147,10 +134,8 @@ public struct NegativeCopyFilterDesc()
                     int negativeBrainstorm = 0;
                     int negativeInvisible = 0;
 
-                    // Check all 8 antes thoroughly
                     for (int ante = 1; ante <= 8; ante++)
                     {
-                        // Check shop items
                         var shopStream = ctx.CreateShopItemStream(
                             ante,
                             MotelyShopStreamFlags.ExcludeTarots
@@ -200,7 +185,6 @@ public struct NegativeCopyFilterDesc()
                             }
                         }
 
-                        // Check buffoon packs
                         var boosterPackStream = ctx.CreateBoosterPackStream(ante, ante > 1, false);
                         var buffoonStream = ctx.CreateBuffoonPackJokerStream(ante);
 
@@ -253,7 +237,6 @@ public struct NegativeCopyFilterDesc()
                         }
                     }
 
-                    // Calculate total scores
                     int totalCopyJokers = blueprintCount + brainstormCount + invisibleCount;
                     int totalNegatives =
                         negativeBlueprint
@@ -263,7 +246,6 @@ public struct NegativeCopyFilterDesc()
                     int showmanScore = Math.Min(showmanCount, 1);
                     int endScore = Math.Min(totalCopyJokers, 6) + totalNegatives;
 
-                    // Return true if score meets threshold
                     return (endScore >= 5) ? 1 : 0;
                 }
             );

@@ -2,10 +2,6 @@ using System.Diagnostics;
 
 namespace Motely;
 
-/// <summary>
-/// Poker-hand evaluation over a multi-card span (starting draw = 8 cards after deck shuffle).
-/// Lifted from the native <c>ShuffleFinder</c> filter so JAML and native share one law.
-/// </summary>
 public static class MotelyPokerHandEval
 {
     private static readonly MotelyStandardcardRank[] StraightRankOrder =
@@ -44,10 +40,6 @@ public static class MotelyPokerHandEval
         }
     }
 
-    /// <summary>
-    /// Best poker category present in <paramref name="hand"/> (full 8-card starting draw, or any span).
-    /// Rank counts / flush / straight scan the whole span — same law as ShuffleFinder.
-    /// </summary>
     public static HandInfo BestScore(Span<MotelyItem> hand)
     {
         hand.Sort((a, b) => ((int)a.StandardcardRank) - ((int)b.StandardcardRank));
@@ -302,13 +294,6 @@ public static class MotelyPokerHandEval
         return new HandInfo(bestHand, bestScoreChips, bestScoreMult);
     }
 
-    /// <summary>
-    /// Balatro deck shuffle stream for the starting hand of <paramref name="ante"/>.
-    /// The game keys this stream on the ante, not the round: <c>G.deck:shuffle('nr'..
-    /// G.GAME.round_resets.ante)</c> (state_events.lua:344). Every blind played in that ante draws
-    /// a successive value from this one stream — see <c>Shuffle</c>'s <c>advance</c> parameter.
-    /// Ante 1 matches existing <c>startingDraw</c> / ShuffleFinder (<c>nr1</c>).
-    /// </summary>
     public static string ShuffleKeyForAnte(int ante) =>
         ante <= 1 ? "nr1" : $"nr{ante}";
 

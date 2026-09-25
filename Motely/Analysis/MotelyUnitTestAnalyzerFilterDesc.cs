@@ -2,9 +2,6 @@ using System.ComponentModel;
 
 namespace Motely.Analysis;
 
-/// <summary>
-/// Filter descriptor for seed analysis
-/// </summary>
 public sealed class MotelyUnitTestAnalyzerFilterDesc()
     : IMotelySeedFilterDesc<MotelyUnitTestAnalyzerFilterDesc.LegacyTextAnalyzerFilter>
 {
@@ -41,11 +38,9 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
 
         public readonly int CheckSeed(MotelySingleSearchContext ctx)
         {
-            // Create voucher state to track activated vouchers across antes
             MotelyRunState voucherState = new();
             MotelySingleBossStream bossStream = ctx.CreateBossStream();
 
-            // Get starting deck composition for all decks using high-level API
             var deckStream = ctx.CreateErraticDeckPrngStream(isCached: false);
             var deckCards = new List<string>();
 
@@ -59,7 +54,6 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
 
             List<MotelyAnteAnalysis> antes = [];
 
-            // Analyze each ante
             for (int ante = 1; ante <= 8; ante++)
             {
                 AnteAnalysisState state = new()
@@ -71,23 +65,16 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
                     BuffoonStream = default,
                 };
 
-                // Boss
                 MotelyBossBlind boss = ctx.GetBossForAnte(ref bossStream, ante, voucherState);
 
-                // Voucher - get with state for proper progression
                 MotelyVoucher voucher = ctx.GetAnteFirstVoucher(ante, voucherState);
                 voucherState.ActivateVoucher(voucher);
 
-                // Tags
                 MotelySingleTagStream tagStream = ctx.CreateTagStream(ante);
 
                 MotelyTag smallTag = ctx.GetNextTag(ref tagStream);
                 MotelyTag bigTag = ctx.GetNextTag(ref tagStream);
 
-                // Shop Queue — base rates only. voucherState marks each ante's voucher as seen
-                // for boss/voucher progression, but the analyzer never assumes a purchase, so
-                // rate vouchers (Magic Trick, Tarot/Planet Merchant) must not alter the shop
-                // stream. Matches miaklwalker/mathisfun_ ground truth.
                 MotelySingleShopItemStream shopStream = ctx.CreateShopItemStream(ante);
 
                 int maxSlots = ante == 1 ? 15 : 50;
@@ -98,12 +85,10 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
                     shopItems[i] = new(ctx.GetNextShopItem(ref shopStream));
                 }
 
-                // Packs - Get the actual shop packs (not tag-generated ones)
                 var packStream = ctx.CreateBoosterPackStream(ante);
                 int maxPacks = ante == 1 ? 4 : 6;
                 MotelyBoosterPackAnalysis[] packs = new MotelyBoosterPackAnalysis[maxPacks];
 
-                // Get all packs up to the maximum
                 for (int i = 0; i < maxPacks; i++)
                 {
                     MotelyBoosterPack pack = ctx.GetNextBoosterPack(ref packStream);
@@ -123,27 +108,18 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
                     );
                 }
 
-                // NOTE: Per-round hand draw not yet implemented - requires shuffle PRNG per round
-                // For now, omitting DrawOrder as the previous implementation was incorrect
-                // (it showed standard pack cards, not the actual hand draw)
-
                 antes.Add(new(ante, boss, voucher, smallTag, bigTag, shopItems, packs, null));
             }
 
-            // For Erratic deck, include the full deck composition with breakdown
-            // For other decks, the starting deck is always the same 52 standard cards
             string? deckComposition = ctx.Deck == MotelyDeck.Erratic ? startingDeck : null;
             string? deckBreakdown =
                 ctx.Deck == MotelyDeck.Erratic ? GetErraticDeckBreakdown(deckCards) : null;
 
             FilterDesc.LastAnalysis = new(null, antes, ctx.Deck, deckComposition, deckBreakdown);
 
-            return 0; // Always report no match; this filter only analyzes
+            return 0;
         }
 
-        /// <summary>
-        /// Formats a card as "2_H" or "K_C" format
-        /// </summary>
         private static string FormatCardString(
             MotelyStandardcardRank rank,
             MotelyStandardcardSuit suit
@@ -177,13 +153,8 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
             return $"{rankStr}_{suitStr}";
         }
 
-        /// <summary>
-        /// Gets a breakdown of ranks and suits for Erratic deck with asterisks marking the most common
-        /// Uses ASCII suit symbols: ♣ ♦ ♥ ♠
-        /// </summary>
         private static string GetErraticDeckBreakdown(List<string> deckCards)
         {
-            // Count ranks and suits
             var rankCounts = new Dictionary<string, int>();
             var suitCounts = new Dictionary<char, int>
             {
@@ -207,13 +178,11 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
                 }
             }
 
-            // Find max counts for asterisks
             int maxRankCount = rankCounts.Values.Max();
             int maxSuitCount = suitCounts.Values.Max();
 
             var sb = new System.Text.StringBuilder();
 
-            // Ranks breakdown (ordered: 2-10, J, Q, K, A)
             string[] rankOrder = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
             sb.AppendLine("Ranks:");
             foreach (var rank in rankOrder)
@@ -223,7 +192,6 @@ public sealed class MotelyUnitTestAnalyzerFilterDesc()
                 sb.AppendLine($"  {rank, 2}: {count}{marker}");
             }
 
-            // Suits breakdown with ASCII symbols
             sb.AppendLine("Suits:");
             var suitSymbols = new Dictionary<char, string>
             {

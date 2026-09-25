@@ -6,19 +6,12 @@ using Motely.Filters.Jaml;
 
 namespace Motely.JsonRender;
 
-/// <summary>
-/// Builds the interchange document from live Jamlyzer results and serializes it as JSON.
-/// The HTML report consumes the same <see cref="RenderReport"/> in memory, so both outputs
-/// always describe the same run — no JSON round-trip between them.
-/// </summary>
 public static class JsonRenderDocument
 {
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
-        // Nulls drop out of the JSON so suit/rank only appear on standard cards and
-        // erraticDeck only on Erratic-deck runs, keeping the contract easy to consume.
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() },
     };

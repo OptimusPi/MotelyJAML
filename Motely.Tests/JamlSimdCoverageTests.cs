@@ -3,15 +3,10 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Smoke: every FilterDesc family through Must (SIMD) and Should (scalar) with C# objects.
-/// Asserts the list batch ran and Should delivers a scored callback. Find-proof is golden tests.
-/// </summary>
 public class JamlSimdCoverageTests
 {
     private static readonly string[] Seeds = ["MOTELY77"];
 
-    /// <summary>SIMD Must path: batch must run (no MatchingSeeds pin).</summary>
     private static void RunMust(IJamlClause clause)
     {
         var config = new JamlConfig
@@ -33,7 +28,6 @@ public class JamlSimdCoverageTests
         Assert.True(search.TotalSeedsSearched >= 1, "Must path must run the SIMD filter over the list batch");
     }
 
-    /// <summary>Scalar Should path: scoring callback must fire for this seed list.</summary>
     private static void RunShould(IJamlClause clause)
     {
         clause.Score = 1;
@@ -80,7 +74,6 @@ public class JamlSimdCoverageTests
             new UncommonJokerClause
             {
                 Antes = [1],
-                // exercise the fast-path rarity stream branch
                 Sources = new JokerSourceConfig
                 {
                     ShopItems = [0, 1],
@@ -106,7 +99,6 @@ public class JamlSimdCoverageTests
                 Sources = new LegendaryJokerSourceConfig { ArcanaPacks = [0], SpectralPacks = [0] },
             }
         );
-        // T4: edition prefilter path inside LegendaryJokerFilterDesc (LegendarySoulEditionPrefilter).
         ExerciseBoth(
             new LegendaryJokerClause
             {
@@ -128,7 +120,6 @@ public class JamlSimdCoverageTests
     [Fact]
     public void Cards_AllTypes_FilterAndScore()
     {
-        // Tarot: shop + arcana pack + Emperor + Purple Seal — hits every source branch.
         ExerciseBoth(
             new TarotCardClause
             {
@@ -161,7 +152,6 @@ public class JamlSimdCoverageTests
             new SpectralCardClause { Spectrals = [MotelySpectralCard.Familiar], Antes = [1] }
         );
 
-        // T4: Soul/BlackHole take SpecialSpectralCardFilterDesc (pack-type narrow + scalar confirm).
         ExerciseBoth(
             new SpectralCardClause { Spectrals = [MotelySpectralCard.TheSoul], Antes = [1] },
             new SpectralCardClause { Spectrals = [MotelySpectralCard.TheSoul], Antes = [1] }

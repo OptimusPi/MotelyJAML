@@ -2,12 +2,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P3 — each thread is its own search. Sequential batches are dealt statically (plan i takes
-/// start+i, start+i+W, …), every thread keeps its own clock and seed count, throughput is the
-/// sum of per-thread rates, and the resume cursor is the lowest batch nobody has run.
-/// Bounded slices only; assertions read engine counters.
-/// </summary>
 public sealed class S8P3ThreadTimingTests
 {
     private const string PermissiveJaml = """
@@ -21,7 +15,7 @@ public sealed class S8P3ThreadTimingTests
 
     private static JamlConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveJaml);
 
-    private const long SeedsPerBatch3 = 35L * 35 * 35; // batchCharCount 3
+    private const long SeedsPerBatch3 = 35L * 35 * 35;
 
     [Fact]
     public async Task StaticStride_FourThreads_CoverEveryBatchExactlyOnce()
@@ -42,13 +36,11 @@ public sealed class S8P3ThreadTimingTests
         await search.WaitForCompletionAsync();
         await task;
 
-        // 40 batches dealt across 4 plans with no shared counter: every batch once, none twice.
         Assert.Equal((end - start) * SeedsPerBatch3, search.TotalSeedsSearched);
         Assert.Equal(end, search.CompletedBatchCount);
         Assert.Equal(end, search.ResumeBatchIndex);
-        Assert.Equal(35L * 35 * 35 * 35 * 35, search.TotalBatchCount); // 35^(8−3)
+        Assert.Equal(35L * 35 * 35 * 35 * 35, search.TotalBatchCount);
 
-        // Throughput is Σ per-thread (seeds ÷ own clock): positive, and not the wall-clock ratio.
         Assert.True(search.SeedsPerSecond > 0, "per-thread rates should sum to a positive rate");
         Assert.True(search.ElapsedMs >= 0);
     }
@@ -56,7 +48,6 @@ public sealed class S8P3ThreadTimingTests
     [Fact]
     public async Task StaticStride_SliceNarrowerThanThreadCount_ResumeIsFirstUnclaimedBatch()
     {
-        // start 10, end 12, four plans: plan0 → 10, plan1 → 11, plans 2/3 have nothing.
         using var search = JamlSearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
@@ -72,8 +63,7 @@ public sealed class S8P3ThreadTimingTests
         await task;
 
         Assert.Equal(2 * SeedsPerBatch3, search.TotalSeedsSearched);
-        Assert.Equal(12L, search.CompletedBatchCount); // start + 2 completed
-        // Plan 2's cursor sits at 12 (never ran): the lowest unclaimed batch is the end itself.
+        Assert.Equal(12L, search.CompletedBatchCount);
         Assert.Equal(12L, search.ResumeBatchIndex);
     }
 

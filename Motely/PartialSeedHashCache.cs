@@ -7,14 +7,10 @@ namespace Motely;
 
 internal unsafe struct PartialSeedHashCache : IDisposable
 {
-    // A map of pseudohash key length => pointer to cached partial hash
     public readonly Vector512<double>** Cache;
 
-    // The initial cache, copied into Cache when this is reset if cache was modified
     public readonly Vector512<double>** InitialCache;
 
-    // This is memory for dynamically cached hashes. Those are hashes which where calculated but
-    //   not specified upon the creation of the filter.
     public readonly Vector512<double>* DynamicCacheMemory;
     public int DynamicCacheEntryCount;
 
@@ -30,7 +26,6 @@ internal unsafe struct PartialSeedHashCache : IDisposable
                 sizeof(Vector512<double>*) * MotelyGlobals.MaxCachedPseudoHashKeyLength
             );
 
-        // Initialize the dynamic cache
         DynamicCacheMemory = (Vector512<double>*)
             Marshal.AllocHGlobal(
                 sizeof(Vector512<double>)
@@ -38,7 +33,6 @@ internal unsafe struct PartialSeedHashCache : IDisposable
             );
         DynamicCacheEntryCount = 0;
 
-        // Initialize the initial cache
         Unsafe.InitBlockUnaligned(
             InitialCache,
             0,
@@ -50,7 +44,6 @@ internal unsafe struct PartialSeedHashCache : IDisposable
             InitialCache[pseudohashKeyLength] = &partialSeedHashes[i];
         }
 
-        // Initialize the cache
         ResetCache();
     }
 
@@ -111,7 +104,6 @@ internal unsafe struct PartialSeedHashCache : IDisposable
     {
         Debug.Assert(keyLength < MotelyGlobals.MaxCachedPseudoHashKeyLength);
 
-        // Skip if already cached (score provider re-runs filters on same context)
         if (HasPartialHash(keyLength))
             return;
 

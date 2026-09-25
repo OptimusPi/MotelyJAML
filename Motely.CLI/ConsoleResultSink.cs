@@ -4,7 +4,6 @@ namespace Motely.CLI;
 
 internal sealed class ConsoleResultSink : IMotelyResultSink
 {
-    // ANSI color codes
     private const string Reset = "\x1b[0m";
     private const string Dim = "\x1b[2m";
     private const string Cyan = "\x1b[96m";

@@ -59,7 +59,6 @@ ref partial struct MotelyVectorSearchContext
             Vector512.Create(baseLuck / MotelyGlobals.TarrotWheelChance)
         );
 
-        // The game picks which joker to apply the effect to, but we don't implement that
         GetNextPrngState(ref wheelStream, successMask);
 
         Vector512<double> editionPoll = GetNextRandom(ref wheelStream, successMask);

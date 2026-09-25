@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <!-- Not published to NuGet — dev-only seed-analysis renderer -->
     <PublishAot>false</PublishAot>
   </PropertyGroup>
 

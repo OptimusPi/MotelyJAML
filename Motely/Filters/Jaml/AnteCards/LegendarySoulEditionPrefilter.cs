@@ -4,10 +4,6 @@ using Motely;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// Vector edition-only prefilter for legendary soul joker streams (ExcludeJokerType | ExcludeStickers).
-/// Shared by <see cref="LegendarySoulEditionFilterDesc"/> and <see cref="LegendaryJokerFilterDesc"/>.
-/// </summary>
 internal static class LegendarySoulEditionPrefilter
 {
     internal static int GetEditionSoulRollCount(LegendaryJokerClause clause)

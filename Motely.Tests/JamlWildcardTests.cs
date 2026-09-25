@@ -3,10 +3,6 @@ using Xunit;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Category wildcards are <b>empty discriminator lists</b> (and optional props), not a token
-/// <c>Any</c>. Same shape as <c>standardCard:</c> with no rank/suit — props only, or nothing.
-/// </summary>
 public sealed class JamlWildcardTests
 {
     private static string Block(string disc, string extra = "antes: [1]\n    score: 1") =>
@@ -156,7 +152,6 @@ public sealed class JamlWildcardTests
     [Fact]
     public void NullJokerArray_IsCategoryAny_LikeEmpty()
     {
-        // Host-built clause with null disc list (not loader) must not NRE — same as [].
         var clause = new JokerClause { Jokers = null!, Antes = [1], Score = 1 };
         Assert.True(JamlDisc.IsCategoryAny(clause.Jokers));
         Assert.Empty(JamlDisc.OrEmpty(clause.Jokers));
@@ -183,7 +178,6 @@ public sealed class JamlWildcardTests
     [Fact]
     public void EmptyJoker_FindsASeed_ListProof()
     {
-        // Same dense filter StopAfter/Proof smoke uses — empty list is category any.
         var jaml = """
             name: empty-joker-proof
             deck: Red
@@ -195,10 +189,6 @@ public sealed class JamlWildcardTests
         ProofSearch.MustMatchAll(jaml, "UNITTEST");
     }
 
-    /// <summary>
-    /// Empty list + shop default (null sources) matches ordinary spectrals only.
-    /// ALEEB on Ghost/White has Sigil in ante-2 shop (S8 ground truth) — not Soul/BlackHole.
-    /// </summary>
     [Fact]
     public void EmptySpectral_ShopDefault_MatchesAleebGhost_NotSoulPath()
     {

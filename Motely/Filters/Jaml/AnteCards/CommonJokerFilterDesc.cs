@@ -10,15 +10,10 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
 {
     private readonly CommonJokerClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["commonJoker", "commonJokers"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
-    /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
-    /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
-    /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
 
     public CommonJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
@@ -29,7 +24,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             ctx.CacheBoosterPackStream(ante);
         }
 
-        // Pre-calculate target item types to avoid bitwise logic in the hot loop
         var jokers = JamlDisc.OrEmpty(_clause.Jokers);
         var targetTypes = new MotelyItemType[jokers.Length];
         for (int i = 0; i < jokers.Length; i++)
@@ -46,13 +40,10 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             }
         }
 
-        // null sources → filter default (shop only). Loader never fills Sources.
         var sources = _clause.Sources ?? DefaultSources;
         var shopIndices = sources.ShopItems;
         var boosterIndices = sources.BoosterPacks;
 
-        // Only shop slots and buffoon packs are walked in SIMD here; everything else the
-        // clause can name is counted per seed by the scalar law.
         bool confirmPerSeed = sources.HasSpawnSources || sources.HasRawShopJokerSources;
 
         int maxShopItem = 0;
@@ -100,7 +91,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Jokers = category any
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "CommonJokerClause.Min must be > 0 — loader bug.");
 
@@ -134,7 +124,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
 
             foreach (var ante in _clause.Antes)
             {
-                // ── Shop items SIMD ──
                 if (shopIndices.Length > 0)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -170,8 +159,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
                     }
                 }
 
-                // ── Buffoon packs SIMD ──
-                // Per-lane size (Normal=2, Jumbo/Mega=4) + ante-1 slot reachability.
                 if (boosterIndices.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -277,7 +264,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
             for (int s = 0; s < _clause.Stickers.Length; s++)
             {
                 switch (_clause.Stickers[s])

@@ -16,8 +16,6 @@ public sealed partial class PlanetCardClause : IJamlClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPlanetCard[] Planets { get; set; } = [];
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
-    // applies. Any explicit block (even partial) is used verbatim — defaults never merge in.
     public PlanetSourceConfig? Sources { get; set; }
 }
 
@@ -26,15 +24,10 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 {
     private readonly PlanetCardClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["planetCard", "planetCards"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
-    /// <summary>
-    /// Filter-layer default when Sources is null. Shop only; packs need explicit sources:.
-    /// </summary>
     internal static readonly PlanetSourceConfig DefaultSources = new()
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
@@ -77,7 +70,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Planets = category any
             var clause = _clause;
             int maxShopItem = _maxShopItem;
             int maxBoosterPack = _maxBoosterPack;
@@ -105,7 +97,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 
             foreach (var ante in clause.Antes)
             {
-                // ── Shop items SIMD ──
                 if (shopIndices.Length > 0)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -146,8 +137,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
                     }
                 }
 
-                // ── Celestial packs SIMD ──
-                // Per-lane size (Normal=3, Jumbo/Mega=5) + ante-1 slot reachability.
                 if (boosterPacks.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -250,19 +239,14 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
     }
 }
 
-/// <summary>
-/// <c>sources:</c> block for <c>planetCard:</c>. Colocated with <see cref="PlanetCardFilterDesc"/> (T5).
-/// </summary>
 [YamlObject]
 public sealed partial record PlanetSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =
         ["shopItems", "boosterPacks", "requireMega", "requireMegaPack"];
 
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 
-    /// <summary>When true, only Mega-sized Celestial packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
 }

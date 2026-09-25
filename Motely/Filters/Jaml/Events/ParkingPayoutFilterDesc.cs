@@ -13,9 +13,6 @@ public sealed partial class ParkingPayoutClause : IRollScopedClause
     public int? Max { get; set; }
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
-    // No Luck. Reserved Parking is flat 50/50 (Chance = 2) — one Oops saturates to
-    // guaranteed, so luck is binary, not a dial. The field is gone by construction,
-    // not inherited-then-forbidden.
 }
 
 public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
@@ -23,10 +20,8 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
 {
     private readonly ParkingPayoutClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["parkingPayout"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
 
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)

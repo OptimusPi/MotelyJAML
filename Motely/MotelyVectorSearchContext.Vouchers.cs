@@ -37,13 +37,11 @@ ref partial struct MotelyVectorSearchContext
 
         while (resampleCount < MotelyVectorResampleLimit)
         {
-            // All of the odd vouchers require a prerequisite
             Vector256<int> prerequisiteRequiredMask = Vector256.Equals(
                 vouchers.HardwareVector & Vector256<int>.One,
                 Vector256<int>.One
             );
 
-            // Mask of vouchers we need to resample
             Vector256<int> resampleMask = prerequisiteRequiredMask;
 
             if (Vector256.EqualsAll(resampleMask, Vector256<int>.Zero))
@@ -92,7 +90,6 @@ ref partial struct MotelyVectorSearchContext
         {
             Vector256<int> alreadyUnlockedMask = voucherState.IsVoucherActive(vouchers);
 
-            // All of the odd vouchers require a prerequisite
             Vector256<int> prerequisiteRequiredMask = Vector256.Equals(
                 vouchers.HardwareVector & Vector256<int>.One,
                 Vector256<int>.One
@@ -111,7 +108,6 @@ ref partial struct MotelyVectorSearchContext
                 Vector256<int>.AllBitsSet
             );
 
-            // Mask of vouchers we need to resample
             Vector256<int> resampleMask =
                 alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask);
 
@@ -162,7 +158,6 @@ ref partial struct MotelyVectorSearchContext
         {
             Vector256<int> alreadyUnlockedMask = voucherState.IsVoucherActive(vouchers);
 
-            // All of the odd vouchers require a prerequisite
             Vector256<int> prerequisiteRequiredMask = Vector256.Equals(
                 vouchers.HardwareVector & Vector256<int>.One,
                 Vector256<int>.One
@@ -181,7 +176,6 @@ ref partial struct MotelyVectorSearchContext
                 Vector256<int>.AllBitsSet
             );
 
-            // Mask of vouchers we need to resample
             Vector256<int> resampleMask =
                 alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask);
 

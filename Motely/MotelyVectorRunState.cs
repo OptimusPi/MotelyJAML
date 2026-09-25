@@ -7,7 +7,6 @@ public ref struct MotelyVectorRunState
 {
     static MotelyVectorRunState()
     {
-        // Check that we can fit all the voucher state in an int
         if (MotelyEnum<MotelyVoucher>.ValueCount > 32)
             throw new UnreachableException();
     }
@@ -27,14 +26,10 @@ public ref struct MotelyVectorRunState
 
     public void ActivateVoucherForMask(MotelyVoucher voucher, VectorMask mask)
     {
-        // Only activate voucher for lanes where mask is true
-        // Create a vector with the voucher bit in each lane
         var voucherBit = Vector256.Create(1 << (int)voucher);
 
-        // Create mask vector: -1 (all bits set) for true lanes, 0 for false lanes
         var maskVector = MotelyVectorUtils.VectorMaskToConditionalSelectMask(mask);
 
-        // AND the voucher bit with the mask to only set it for true lanes
         VoucherStateBitfield |= Vector256.BitwiseAnd(voucherBit, maskVector);
     }
 

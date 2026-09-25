@@ -1,10 +1,5 @@
 namespace Motely;
 
-// A plain reference type, not a ref struct — it doesn't need to be. The actual hot state in this
-// engine's SIMD sweep is the PRNG stream's own double, copied by value through the vector path;
-// this is small bookkeeping (two bitfields, a luck multiplier, a cached boss array) mutated
-// through a shared reference, same as everywhere else in C#. One type, used identically inside
-// the engine and across the WASM boundary — no separate marshalable twin, no conversion functions.
 public sealed record MotelyRunState
 {
     private static readonly int FinisherBossBlindMask;
@@ -27,18 +22,12 @@ public sealed record MotelyRunState
         }
     }
 
-    // All settable only through the real methods below (ActivateVoucher, SeeBoss, etc.) — a raw
-    // public setter let a caller bypass their guards (e.g. ActivateExtendedPackAnte's `ante > 0`
-    // check), which a bare `{ get; set; }` field never enforced.
     public int VoucherBitfield { get; private set; }
     public int BossBitfield { get; private set; }
     public int ExtendedPackAnteBitfield { get; private set; }
 
-    // MotelyLuck, not int — the enum exists specifically so an invalid multiplier (a stray "3")
-    // can't be represented at all, the same reason JamlWith.Luck is typed this way.
     public MotelyLuck Luck { get; set; } = MotelyLuck.X1;
 
-    // Boss caching for scoring - generated once per seed to maintain state
     public MotelyBossBlind[]? CachedBosses { get; set; }
 
     public bool ShowmanActive { get; private set; }
@@ -76,13 +65,11 @@ public sealed record MotelyRunState
 
     public void ResetFinisherBosses()
     {
-        // Only allow normal boss bits to be set
         BossBitfield &= NormalBossBlindMask;
     }
 
     public void ResetNormalBosses()
     {
-        // Only allow finisher boss bits to be set
         BossBitfield &= FinisherBossBlindMask;
     }
 

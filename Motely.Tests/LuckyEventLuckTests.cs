@@ -157,10 +157,6 @@ public class LuckyEventLuckTests
                   luck: 5
             """;
 
-        // Seeds with known analyzer output (verified against Balatro).
-        // Luck 1 → luckyMult triggers 1/15; luck 5 → 5/15.
-        // Higher luck is a superset: every luck-1 match is also a luck-5 match,
-        // and luck 5 must match at least as many.
         string[] seeds = ["41111111", "12345678", "UNITTEST", "ALEEBOOO", "ALEEB"];
 
         var defaultMatches = CollectMatchingSeedsFromList(defaultLuck, seeds);
@@ -171,7 +167,6 @@ public class LuckyEventLuckTests
             $"Expected luck 5 to match at least as many seeds as default luck, but got {luck5Matches.Count} < {defaultMatches.Count}."
         );
 
-        // Every default-luck match must also be a luck-5 match (higher luck is a superset).
         Assert.Subset(luck5Matches, defaultMatches);
     }
 

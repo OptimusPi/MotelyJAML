@@ -5,19 +5,10 @@ using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// The Jamlyzer riding a search (<see cref="MotelyJamlyzerRiderDesc"/>): every seed the search
-/// reports gets its breakdown in the same pass, carrying the search's own score and tally, and that
-/// breakdown is identical to what the standalone Jamlyzer says about the seed. Underneath it, the
-/// engine contract the rider depends on: the analyze provider sees exactly the reported lanes,
-/// never the ones the auto score cutoff dropped.
-/// </summary>
 public sealed class JamlyzerRiderDescTests
 {
     private static readonly string[] Seeds = ["UNITTEST", "ALEEB", "1234567"];
 
-    // A should clause so the search scores; no must, so every listed seed is a find. No antes on
-    // the clause on purpose: the search fills 1..8, and the standalone Jamlyzer has to agree.
     private const string ShouldJaml = """
         should:
           - joker: Blueprint
@@ -40,8 +31,6 @@ public sealed class JamlyzerRiderDescTests
         var analyzed = new List<MotelyJamlyzerSeedResult>();
         var scored = new List<MotelySeedScore>();
 
-        // Desc before CreateSettings: the builder fills unscoped clauses with antes 1..8 in place,
-        // which would narrow the rider to 1..8 while Analyze(config) walks 0..8.
         var desc = MotelyJamlyzer.CreateRiderDesc(config, analyzed.Add, eventRolls: 5);
 
         using var search = JamlSearchBuilder
@@ -56,7 +45,6 @@ public sealed class JamlyzerRiderDescTests
         search.AwaitCompletion();
 
         Assert.Equal(Seeds.Length, scored.Count);
-        // Same seeds, same order: each find's breakdown follows the find.
         Assert.Equal(scored.Select(s => s.Seed), analyzed.Select(a => a.Seed));
 
         foreach (var a in analyzed)
@@ -97,7 +85,6 @@ public sealed class JamlyzerRiderDescTests
                 Assert.Equal(0, a.Score);
                 Assert.Null(a.Tally);
                 Assert.Equal(9, a.Antes.Count);
-                // eventRolls 0: the per-ante summary is all there, every roll queue is empty.
                 Assert.Equal(15, a.Antes[1].ShopItems.Count);
                 Assert.Equal(4, a.Antes[1].Packs.Count);
                 Assert.Empty(a.Antes[1].Pulls.JudgementJokers);
@@ -111,9 +98,6 @@ public sealed class JamlyzerRiderDescTests
     [Fact]
     public void AutoCutoff_AnalyzeProviderSeesExactlyTheReportedSeeds()
     {
-        // One report batch of eight high scorers teaches the clamp 'Z'; the next batch's '1' seeds
-        // are scored but dropped before the scored callback — and must be dropped from analysis
-        // too, or the host gets breakdowns for finds it was never told about.
         string[] seeds =
         [
             .. Enumerable.Range(0, 8).Select(i => $"ZZZZZZZ{(char)('A' + i)}"),
@@ -137,7 +121,6 @@ public sealed class JamlyzerRiderDescTests
         search.Start();
         search.AwaitCompletion();
 
-        // The clamp has to have bitten, or this proves nothing.
         Assert.Equal(8, reported.Count);
         Assert.All(reported, r => Assert.StartsWith("Z", r.Seed));
 
@@ -184,7 +167,6 @@ public sealed class JamlyzerRiderDescTests
         Assert.Equal(expected.ErraticDeck, actual.ErraticDeck);
     }
 
-    /// <summary>Score = the seed's first character, so a batch of Z-seeds teaches the clamp a high bar.</summary>
     private sealed class FirstCharScoreDesc : IMotelySeedScoreDesc<FirstCharScoreDesc.Provider>
     {
         public Provider CreateScoreProvider(ref MotelyFilterCreationContext ctx) => new();
@@ -209,7 +191,6 @@ public sealed class JamlyzerRiderDescTests
         }
     }
 
-    /// <summary>Records the seeds and lane-aligned scores the engine hands the analyze provider.</summary>
     private sealed class RecordingAnalyzeDesc
         : IMotelySeedAnalyzeDesc<RecordingAnalyzeDesc.Provider>
     {
@@ -232,7 +213,6 @@ public sealed class JamlyzerRiderDescTests
                         continue;
                     string seed = ctx.GetSeed(lane);
                     owner.Seeds.Add(seed);
-                    // Lane-aligned: this lane's row is this seed's row.
                     Assert.Equal(seed, scores![lane].Seed);
                     owner.Scores.Add(scores[lane].Score);
                 }

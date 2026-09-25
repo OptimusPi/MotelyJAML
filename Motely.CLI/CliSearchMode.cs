@@ -6,9 +6,6 @@ using Motely.SeedProviders;
 
 namespace Motely.CLI;
 
-/// <summary>
-/// Shared CLI wiring for list / keyword / random / aesthetic / sequential search modes (native + JAML).
-/// </summary>
 internal static class CliSearchMode
 {
     public readonly record struct Input(
@@ -32,7 +29,6 @@ internal static class CliSearchMode
         int? BatchCharacterCount
     );
 
-    /// <summary>Default batch character count when the caller didn't pass one explicitly.</summary>
     private const int DefaultBatchCharacterCount = 4;
 
     public static bool TryApplySearchMode(
@@ -131,8 +127,6 @@ internal static class CliSearchMode
         bool drownFellBackToSequential = false;
         if (hasDrownMode)
         {
-            // Cannonball: every seed ever saved — the lake root (every filter, deduped) plus
-            // this JAML's own seeds: block, which is saved output the lake may predate.
             string lakeRoot = SeedLakeSink.LakeRoot(input.ResultsRootPath);
             bool hasJamlSeeds = input.JamlSeeds is { Count: > 0 };
             if (!Directory.Exists(lakeRoot) && !hasJamlSeeds)
@@ -166,10 +160,6 @@ internal static class CliSearchMode
                 }
             }
 
-            // Nothing saved anywhere yet — there is no haystack to drown in. That is not a
-            // reason to refuse the run: the sequential sweep below is exactly what fills the
-            // lake, so --drown degrades to it and says so, instead of telling the operator
-            // to "run a search first" while they are running one.
             writeWarning?.Invoke(
                 $"Note: nothing to drown in yet — the seed lake at '{lakeRoot}' holds no seeds"
                     + (input.JamlPath is not null ? " and the JAML has no seeds: block" : "")
@@ -179,7 +169,6 @@ internal static class CliSearchMode
 
         if (hasReplayMode)
         {
-            // Replay / verify: only the seeds: block of this JAML file, nothing else.
             if (string.IsNullOrWhiteSpace(input.JamlPath))
             {
                 error = "Error: --replay requires --jaml (it replays that file's seeds: block).";
@@ -299,9 +288,6 @@ internal static class CliSearchMode
         }
         else if (aestheticAll)
         {
-            // --aesthetic all: concat every family (palindrome → … → nsfw). Same pad law as
-            // single --aesthetic: full alphabet unless --padding. (Default --collect without
-            // --aesthetic still uses digit pad + sequential fallback in Program.)
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.Aesthetic,
                 Aesthetics: [.. JamlAestheticParser.AllAesthetics()],
@@ -310,28 +296,15 @@ internal static class CliSearchMode
         }
         else if (explicitAesthetic.HasValue)
         {
-            // --padding mixes with --aesthetic: free slots / keyword pads use that charset.
-            // Default when omitted: full alphabet (explicit single-family hunt). Collect's
-            // multi-family prepass defaults to digit pad separately in Program.
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.Aesthetic,
                 Aesthetic: explicitAesthetic.Value,
                 PaddingAlphabet: input.PaddingCharsOption
             ).ApplyTo(updated);
         }
-        // The JAML seeds: replay and the sequential sweep are the *default* modes — they apply
-        // only when the caller picked no explicit search input above. An explicit mode
-        // (--keyword, --random, --aesthetic, --source, --seeds) already installed its provider;
-        // reaching the block below would silently stomp it back to sequential.
-        // --drown with nothing saved anywhere is the one explicit mode that degrades here.
         if (explicitSearchModeCount > 0 && !drownFellBackToSequential)
             return true;
 
-        // Sequential is the default, always. A JAML `seeds:` block is saved *output* — the engine
-        // writes it back after a run — so treating its presence as an instruction meant a filter
-        // silently stopped sweeping the moment it had ever found anything. Replaying that list is
-        // an explicit request with an existing door: `--source <file>.jaml`, which SeedSourceProvider
-        // already reads (it regex-extracts the seeds: block). Nothing is lost by not guessing.
         {
             int batchCharacterCount = input.BatchCharacterCount ?? DefaultBatchCharacterCount;
             updated = new MotelySearchIntent(
@@ -353,8 +326,6 @@ internal static class CliSearchMode
                     return false;
                 }
 
-                // A seed names the batch that contains it, in the engine's sweep order: the batch
-                // digits are the seed's tail (SeedToBatchIndex), not a reading-order index.
                 long startBatch = input.StartSeed is { } startSeed
                     ? SeedMath.SeedToBatchIndex(startSeed, batchCharacterCount)
                     : 0;

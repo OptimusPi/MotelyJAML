@@ -1,9 +1,5 @@
 namespace Motely;
 
-/// <summary>
-/// Progress information reported during Motely search operations.
-/// Durations are milliseconds (same basis as the internal progress ticker).
-/// </summary>
 public sealed record MotelyProgress
 {
     public long SeedsSearched { get; set; }

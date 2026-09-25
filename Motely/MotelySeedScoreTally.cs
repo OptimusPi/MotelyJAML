@@ -58,8 +58,6 @@ public struct MotelyScoredSeedResult : IMotelySeedScores
         get => _tallyValues.AsSpan(0, _tallyCount);
     }
 
-    /// <summary>The tallies as a plain array — a real get/set property so the value crosses
-    /// serialization boundaries (WASM interop) intact, backed by the same fixed buffer.</summary>
     public int[] Tallies
     {
         readonly get => _tallyValues.AsSpan(0, _tallyCount).ToArray();

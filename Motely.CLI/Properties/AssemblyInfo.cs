@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-// Assembly info for MotelyCLI
 [assembly: AssemblyTitle("MotelyCLI")]
 [assembly: AssemblyDescription("Motely Command Line Interface")]
 [assembly: AssemblyConfiguration("Release")]

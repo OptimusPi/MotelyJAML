@@ -14,8 +14,6 @@ public ref struct MotelyVectorJokerStream
     public MotelyVectorPrngStream EternalPerishablePrngStream;
     public MotelyVectorPrngStream RentalPrngStream;
 
-    // For these, a state set to -1 means they are not yet initialized.
-    //  A state of -2 means the stream does not provide that joker
     public MotelyVectorPrngStream CommonJokerPrngStream;
     public MotelyVectorPrngStream UncommonJokerPrngStream;
     public MotelyVectorPrngStream RareJokerPrngStream;
@@ -97,7 +95,6 @@ unsafe partial struct MotelyVectorSearchContext
         bool isCached = false
     )
     {
-        // Include resample stream for handling duplicates in buffoon packs
         return CreateJokerStream(
             MotelyPrngKeys.BuffoonPackItemSource,
             MotelyPrngKeys.BuffoonJokerEternalPerishableSource,
@@ -235,10 +232,6 @@ unsafe partial struct MotelyVectorSearchContext
         );
     }
 
-    // ========== RAW SHOP JOKER STREAMS (FAST PRE-FILTER) ==========
-    // These directly access the underlying shop joker streams by rarity,
-    // bypassing the shop item type check for much faster filtering.
-
     public MotelyVectorJokerFixedRarityStream CreateUncommonShopJokerStream(
         int ante,
         MotelyJokerFixedRarityStreamFlags flags = MotelyJokerFixedRarityStreamFlags.Default,
@@ -336,11 +329,6 @@ unsafe partial struct MotelyVectorSearchContext
         return SelectEdition(GetNextRandom(ref stream), editionRate);
     }
 
-    /// <summary>
-    /// Masked edition roll: only lanes in <paramref name="mask"/> advance the edition PRNG,
-    /// mirroring the scalar engine where the edition stream is only pulled when the slot
-    /// actually yields a joker. Lanes outside the mask return garbage the caller discards.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private VectorEnum256<MotelyItemEdition> GetNextEdition(
         ref MotelyVectorPrngStream stream,
@@ -357,7 +345,6 @@ unsafe partial struct MotelyVectorSearchContext
         int editionRate
     )
     {
-        // O_O
         return new(
             Vector256.ConditionalSelect(
                 MotelyVectorUtils.ShrinkDoubleMaskToInt(
@@ -411,11 +398,6 @@ unsafe partial struct MotelyVectorSearchContext
         );
     }
 
-    /// <summary>
-    /// Masked sticker roll: only lanes in <paramref name="mask"/> advance the sticker PRNGs,
-    /// mirroring the scalar engine where sticker streams are only pulled when the slot
-    /// actually yields a joker.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private MotelyItemVector ApplyNextStickers(
         MotelyItemVector item,
@@ -435,7 +417,6 @@ unsafe partial struct MotelyVectorSearchContext
             Vector512.GreaterThan(stickerPoll, Vector512.Create(0.7))
         );
 
-        // Mask out jokers that cannot be eternal (self-destruct or activate on sell)
         var cannotBeEternalMask =
             VectorEnum256.Equals(item.Type, MotelyItemType.Cavendish)
             | VectorEnum256.Equals(item.Type, MotelyItemType.DietCola)
@@ -449,16 +430,12 @@ unsafe partial struct MotelyVectorSearchContext
             | VectorEnum256.Equals(item.Type, MotelyItemType.Seltzer)
             | VectorEnum256.Equals(item.Type, MotelyItemType.TurtleBean);
 
-        // Only apply eternal to jokers that can be eternal
         eternalMask &= ~cannotBeEternalMask;
         item = item.WithEternal(eternalMask);
 
         if (Stake < MotelyStake.Orange)
             return item;
 
-        // Only apply perishable if not eternal. Upper bound mirrors the scalar/game roll
-        // (poll > 0.4 && poll <= 0.7): without it, an eternal-incompatible joker rolling
-        // > 0.7 was wrongly marked perishable in SIMD only.
         Vector256<int> perishableMask =
             ~eternalMask
             & MotelyVectorUtils.ShrinkDoubleMaskToInt(
@@ -508,8 +485,6 @@ unsafe partial struct MotelyVectorSearchContext
                     MotelyJokerRarity.Common
                 ),
             };
-            // Scalar parity: MotelyItem(MotelyJoker) carries the Joker category bits; the raw
-            // rarity|index vector needs the same bits or Type/TypeCategory matches never pass.
             item = new(Vector256.Create((int)MotelyItemTypeCategory.Joker) | rawJoker);
         }
         else
@@ -547,9 +522,6 @@ unsafe partial struct MotelyVectorSearchContext
 
         if (stream.DoesProvideJokerType)
         {
-            // Pick the joker. The rarity roll is masked: the scalar engine only pulls the
-            // rarity PRNG when the shop slot actually is a joker, so unmasked advancement
-            // here desyncs every lane whose slot count differs (proof: VectorScalarParityTests).
             Vector512<double> rarityPoll = GetNextRandom(ref stream.RarityPrngStream, mask);
 
             Vector512<double> rareMask =
@@ -668,15 +640,11 @@ unsafe partial struct MotelyVectorSearchContext
         MotelyVectorItemSet pack = new();
 
         for (int i = 0; i < size; i++)
-            pack.Append(GetNextJoker(ref jokerStream)); // Duplicate handling in upstream resampling system
+            pack.Append(GetNextJoker(ref jokerStream));
 
         return pack;
     }
 
-    /// <summary>
-    /// Gets buffoon pack contents with masked PRNG advancement - only valid lanes advance their streams.
-    /// Uses OrNull pattern to ensure PRNG synchronization in partial batches.
-    /// </summary>
     public MotelyVectorItemSet GetNextBuffoonPackContentsMasked(
         ref MotelyVectorJokerStream jokerStream,
         MotelyBoosterPackSize size,
@@ -698,16 +666,13 @@ unsafe partial struct MotelyVectorSearchContext
 
         MotelyVectorItemSet pack = new();
 
-        // Convert double mask to int mask for conditional selection
         var validIntMask = MotelyVectorUtils.ShrinkDoubleMaskToInt(validLanesMask);
         var noneItem = Vector256<int>.Zero;
 
         for (int i = 0; i < size; i++)
         {
-            // Only advance PRNG for valid lanes
             var joker = GetNextJoker(ref jokerStream, validLanesMask);
 
-            // Use ConditionalSelect: valid lanes get joker, invalid lanes get None
             var maskedJoker = new MotelyItemVector(
                 Vector256.ConditionalSelect(validIntMask, joker.Value, noneItem)
             );

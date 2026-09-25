@@ -4,14 +4,12 @@ namespace Motely;
 
 public ref struct MotelyVectorShopItemStream
 {
-    // Keep existing streams
     public MotelyVectorPrngStream ItemTypeStream;
     public MotelyVectorJokerStream JokerStream;
     public MotelyVectorTarotStream TarotStream;
     public MotelyVectorPlanetStream PlanetStream;
     public MotelyVectorSpectralStream SpectralStream;
 
-    // Rates
     public Vector512<double> TarotRate;
     public Vector512<double> PlanetRate;
     public Vector512<double> StandardcardRate;
@@ -83,13 +81,10 @@ ref partial struct MotelyVectorSearchContext
         return stream;
     }
 
-    // Fixed GetNextShopItem that maintains position sync
     public MotelyItemVector GetNextShopItem(ref MotelyVectorShopItemStream stream)
     {
-        // Get slot type (ALL lanes advance together - this is correct!)
         var itemTypePoll = GetNextRandom(ref stream.ItemTypeStream) * stream.TotalRate;
 
-        // Determine what type each lane needs
         var shopJokerRate = Vector512.Create(20.0);
         var isJoker = Vector512.LessThan(itemTypePoll, shopJokerRate);
         itemTypePoll -= shopJokerRate;
@@ -129,7 +124,6 @@ ref partial struct MotelyVectorSearchContext
             isStandardcard
         );
 
-        // Get items ONLY for lanes that need them (masked advancement)
         var joker = stream.DoesProvideJokers
             ? GetNextJoker(ref stream.JokerStream, isJoker)
             : new MotelyItemVector(new MotelyItem(MotelyItemType.JokerExcludedByStream));
@@ -146,13 +140,11 @@ ref partial struct MotelyVectorSearchContext
             ? GetNextSpectral(ref stream.SpectralStream, in isSpectral)
             : new MotelyItemVector(new MotelyItem(MotelyItemType.SpectralExcludedByStream));
 
-        // Combine results based on slot type
         var jokerMask = MotelyVectorUtils.ShrinkDoubleMaskToInt(isJoker);
         var tarotMask = MotelyVectorUtils.ShrinkDoubleMaskToInt(isTarot);
         var planetMask = MotelyVectorUtils.ShrinkDoubleMaskToInt(isPlanet);
         var spectralMask = MotelyVectorUtils.ShrinkDoubleMaskToInt(isSpectral);
 
-        // Select the appropriate item for each lane
         var result = Vector256.ConditionalSelect(
             jokerMask,
             joker.Value,

@@ -3,12 +3,6 @@ using Xunit;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// One range grammar for the whole JAML file. <c>JamlLine</c> already reads <c>1-8</c>, <c>1..8</c>
-/// and <c>3–6</c> (en dash), ascending or descending. The clause loader's int arrays read the same
-/// tokens, so <c>luckyMoney: [1..99]</c> loads exactly like <c>luckyMoney: [1-99]</c>, and antes
-/// written as <c>0-39</c> cover the whole ante space.
-/// </summary>
 public sealed class JamlIntRangeTokenTests
 {
     private static string LuckyMoneyRolls(string token) => $"""
@@ -56,8 +50,6 @@ public sealed class JamlIntRangeTokenTests
         Assert.Equal([0, 2, 3, 4, 9], rolls);
     }
 
-    // On a shop family: ante 0 is Hieroglyph's extra pack round there, while voucher/boss/tag
-    // start at ante 1 and the loader now refuses 0 for them.
     [Fact]
     public void Antes_ZeroToThirtyNine_IsTheWholeAnteSpace()
     {

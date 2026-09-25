@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// WHAM from grok and pifreak with love. These tests fail on purpose until the
-/// leftover cleanup is done. Making them pass IS the task.
-/// </summary>
 public sealed class WhamFromGrokTests
 {
     private static string TestsDir =>

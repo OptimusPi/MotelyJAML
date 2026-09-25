@@ -3,13 +3,6 @@ using Motely;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// Soul / legendary checks walk the shop's pack slots in the same numbering every other family
-/// uses — <see cref="MotelySingleSearchContext.CreateBoosterPackStream(int, bool)"/>'s default,
-/// where ante 1 slot 0 is the fixed first-shop Buffoon — then The Soul in arcana/Spectral, then
-/// <see cref="MotelySingleSearchContext.GetNextJoker"/>. Streams must be read in pack order: the
-/// older "read soul stream before packs" path mis-aligned them and matched nothing.
-/// </summary>
 internal static class LegendarySoulMatcher
 {
     internal static bool MatchAnte(
@@ -19,12 +12,6 @@ internal static class LegendarySoulMatcher
         int maxBoosterPack
     ) => CountAnte(ref ctx, ante, clause, maxBoosterPack, stopAfterFirstMatch: true) > 0;
 
-    /// <summary>
-    /// Walks every targeted arcana/Spectral pack in <paramref name="ante"/> and returns the total
-    /// number of soul-legendary matches. Soul stream must be consumed once per soul seen regardless
-    /// of whether the joker matches the clause, so short-circuiting mid-ante would misalign later antes
-    /// (and, more visibly, hide the second soul in antes like ALEEB's 1–2 with double legendaries).
-    /// </summary>
     internal static int CountAnte(
         ref MotelySingleSearchContext ctx,
         int ante,
@@ -33,7 +20,6 @@ internal static class LegendarySoulMatcher
         bool stopAfterFirstMatch = false
     )
     {
-        // Null Sources (no sources: block) → legendary defaults; a non-null block is used as-is.
         var src = clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
 
         var packStream = ctx.CreateBoosterPackStream(ante);
@@ -95,7 +81,6 @@ internal static class LegendarySoulMatcher
                 if (!spectralInit)
                 {
                     spectralInit = true;
-                    // PerkeoObservatory: ante 1 Spectral uses soulOnly false; ante 2+ uses true.
                     spectralStream = ctx.CreateSpectralPackSpectralStream(
                         ante,
                         soulOnly: ante != 1
@@ -137,9 +122,6 @@ internal static class LegendarySoulMatcher
         return count;
     }
 
-    /// <summary>
-    /// Soul-card-only path: same pack walk / slot rules as <see cref="MatchAnte"/>, returns on first The Soul in a targeted arcana/Spectral pack.
-    /// </summary>
     internal static bool MatchAnteShopPackHasSoulOnly(
         ref MotelySingleSearchContext ctx,
         int ante,
@@ -197,11 +179,6 @@ internal static class LegendarySoulMatcher
         return false;
     }
 
-    /// <summary>
-    /// Split mode (non-empty arcana and/or Spectral slot lists): only those paths count.
-    /// Legacy mode: <see cref="LegendaryJokerSourceConfig.BoosterPacks"/> — slot matches regardless of rolled pack type
-    /// (arcana/Spectral branches still gate The Soul).
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsBoosterSlotTargetForLegendary(
         LegendaryJokerSourceConfig src,
@@ -247,7 +224,6 @@ internal static class LegendarySoulMatcher
         return false;
     }
 
-    /// <summary>Whether <paramref name="ty"/> matches one of the clause's legendary jokers (no allocation).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TypeMatchesLegendary(LegendaryJokerClause clause, MotelyItemType ty)
     {

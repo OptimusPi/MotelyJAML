@@ -7,20 +7,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.JsonRender;
 
-/// <summary>
-/// Emits the same Jamlyzer results as the rich JSON/HTML reports, but in jaml-ui's
-/// native dialect — the camelCase, numeric-enum shape of motely-wasm's generated
-/// TypeScript types, so <c>JamlyzerView</c> can consume the file without any mapping.
-/// <para>
-/// The engine records are serialized as-is: <see cref="MotelyItem"/>'s public
-/// properties are exactly the packed-int facets the wasm contract expects
-/// (value, type, typeCategory, seal, enhancement, edition, standardcardSuit,
-/// standardcardRank, isPerishable, isEternal, isRental), and with no string-enum
-/// converter every enum lands as its numeric value. Nulls drop out, so
-/// <c>erraticDeck</c> only appears on Erratic-deck runs, matching the optional
-/// field in the contract.
-/// </para>
-/// </summary>
 public static class JamlUiJsonRenderer
 {
     private static readonly JsonSerializerOptions Options = new()
@@ -34,9 +20,6 @@ public static class JamlUiJsonRenderer
             {
                 static typeInfo =>
                 {
-                    // MotelyItem.IsInvalid is a derived convenience getter that the
-                    // motely-wasm contract doesn't declare — keep the JSON field set
-                    // an exact match for JamlyzerView's types.
                     if (typeInfo.Type != typeof(MotelyItem))
                         return;
                     var extra = typeInfo.Properties.FirstOrDefault(p => p.Name == "isInvalid");
@@ -47,7 +30,6 @@ public static class JamlUiJsonRenderer
         },
     };
 
-    /// <summary>jaml-ui report header: which filter produced these seeds, at what deck/stake.</summary>
     private sealed record JamlUiFilter(string Id, string? Name);
 
     private sealed record JamlUiReport(

@@ -149,19 +149,16 @@ public sealed class SeedProviderTests
     {
         char[] pad = JamlAesthetics.QuickPaddingChars;
 
-        // Digit free slots: psychosis free^4 only, letter skeleton A–Z stays.
         Assert.Equal(26L * 26L * (long)Math.Pow(9, 4), JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis, pad));
         Assert.Equal(14_760, JamlAesthetics.GetSeedCount(JamlAesthetic.Palindrome, pad));
         Assert.Equal(81, JamlAesthetics.GetSeedCount(JamlAesthetic.Step, pad));
 
-        // Full alphabet still matches historical baked sizes when pad is null.
         Assert.Equal(1_014_422_500, JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis));
 
         var provider = new MotelyAestheticSeedProvider(JamlAesthetic.Psychosis, pad);
         Assert.Equal(JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis, pad), provider.SeedCount);
         var first = provider.NextSeed().ToString();
         Assert.Equal(8, first.Length);
-        // Free slots (indices 3,5,6,7) are digits only under quick pad.
         Assert.All(new[] { 3, 5, 6, 7 }, i => Assert.Contains(first[i], pad));
         AssertValidSeed(first);
     }
@@ -222,8 +219,6 @@ public sealed class SeedProviderTests
         Assert.InRange(first.Length, 4, 8);
         AssertValidSeed(first);
 
-        // Each keyword is 4 chars, so padLen == 4 and each yields 5 * 35^4 = 600,250 seeds.
-        // Grabbing a few should be trivial and deterministic.
         var buffer = new string[4];
         Assert.Equal(4, provider.NextSeeds(buffer));
         Assert.All(buffer, s => AssertValidSeed(s));
@@ -232,7 +227,6 @@ public sealed class SeedProviderTests
     [Fact]
     public void KeywordSeedProvider_ExplicitPaddingCharsRestrictsAlphabet()
     {
-        // "HI" length 2 => padLen 6 => 2^6 * 7 positions = 448 seeds.
         var provider = new MotelyKeywordSeedProvider(["HI"], ['1', '2']);
         Assert.Equal(448L, provider.SeedCount);
 

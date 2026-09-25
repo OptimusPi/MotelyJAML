@@ -21,10 +21,8 @@ public struct CavendishExtinctFilterDesc(CavendishExtinctClause clause)
 {
     private readonly CavendishExtinctClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["cavendishExtinct"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
 
     public CavendishExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)

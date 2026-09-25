@@ -6,7 +6,6 @@ public interface IMotelyResultSink : IDisposable
 {
     void OnSeed(string seed);
     void OnScored(in MotelyScoredSeedResult tally);
-    /// <summary>Push buffered finds to disk. Search batch boundary, not per find.</summary>
     void Flush();
 }
 

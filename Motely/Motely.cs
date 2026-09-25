@@ -8,18 +8,8 @@ public static partial class MotelyGlobals
     public const int MaxSeedLength = 8;
     public const int MaxVectorWidth = 8;
 
-    /// <summary>
-    /// Default seeds per provider-mode report batch: <c>35³</c>. SIMD still processes
-    /// <see cref="MaxVectorWidth"/> lanes at a time; this is how many seeds a provider plan
-    /// chews before progress / auto-cutoff chat. Sequential batch size is different — it
-    /// partitions the seed space by character count for partial-hash reuse.
-    /// </summary>
-    public const int DefaultProviderBatchSeedCount = 35 * 35 * 35; // 42_875
+    public const int DefaultProviderBatchSeedCount = 35 * 35 * 35;
 
-    /// <summary>
-    /// Canonical seed normalization: uppercase and replace '0' with 'O'.
-    /// Call this everywhere user-provided seeds enter the engine.
-    /// </summary>
     public static string NormalizeSeed(string seed) =>
         seed.Trim().ToUpperInvariant().Replace('0', 'O');
 
@@ -70,23 +60,14 @@ public static partial class MotelyGlobals
     public const double VoucherOmenGlobeChance = 5;
     public const double BossTheWheelChance = 7;
 
-    // Booster-pack slot counts per ante (ante 1 = 4 packs / indices 0..3; antes 2+ = 6 / 0..5)
-    // are inlined at each hot-path site via `ante == 1 ? ... : ...` — no helper function here
-    // to avoid any temptation of call overhead in per-seed SIMD loops.
-
-    /// <summary>Maximum pack-slot INDEX reachable in ante 1 through normal gameplay (4 packs, 0..3).</summary>
     public const int EarlyAnteMaxPackSlot = 3;
 
-    /// <summary>Maximum pack-slot INDEX at antes 2+ (6 packs, 0..5). Not user-configurable.</summary>
     public const int LateAntesMaxPackSlot = 5;
 
-    /// <summary>Tag-stream draw indices per ante: 0 small blind, 1 big blind, 2+ replay / double-tag extras.</summary>
     public const int MaxMapTagRollIndex = 5;
 
-    /// <summary>Voucher-stream draw indices per ante: 0 ante award, 1+ Hieroglyph bonus / voucher-tag extras.</summary>
     public const int MaxMapVoucherRollIndex = 2;
 
-    /// <summary>Boss roll 1+ needs full-run rewind simulation; filters match roll 0 today.</summary>
     public const int MaxMapBossRollIndex = 2;
 
     public const double EnhancementLuckyMoneyChance = 15;
@@ -96,7 +77,6 @@ public static partial class MotelyGlobals
 
     public static readonly MotelyItem[] StandardCardPool =
     [
-        // Spades
         new(MotelyStandardCard.TwoOfSpades),
         new(MotelyStandardCard.ThreeOfSpades),
         new(MotelyStandardCard.FourOfSpades),
@@ -110,7 +90,6 @@ public static partial class MotelyGlobals
         new(MotelyStandardCard.QueenOfSpades),
         new(MotelyStandardCard.KingOfSpades),
         new(MotelyStandardCard.AceOfSpades),
-        // Hearts
         new(MotelyStandardCard.TwoOfHearts),
         new(MotelyStandardCard.ThreeOfHearts),
         new(MotelyStandardCard.FourOfHearts),
@@ -124,7 +103,6 @@ public static partial class MotelyGlobals
         new(MotelyStandardCard.QueenOfHearts),
         new(MotelyStandardCard.KingOfHearts),
         new(MotelyStandardCard.AceOfHearts),
-        // Clubs
         new(MotelyStandardCard.TwoOfClubs),
         new(MotelyStandardCard.ThreeOfClubs),
         new(MotelyStandardCard.FourOfClubs),
@@ -138,7 +116,6 @@ public static partial class MotelyGlobals
         new(MotelyStandardCard.QueenOfClubs),
         new(MotelyStandardCard.KingOfClubs),
         new(MotelyStandardCard.AceOfClubs),
-        // Diamonds
         new(MotelyStandardCard.TwoOfDiamonds),
         new(MotelyStandardCard.ThreeOfDiamonds),
         new(MotelyStandardCard.FourOfDiamonds),
@@ -154,10 +131,6 @@ public static partial class MotelyGlobals
         new(MotelyStandardCard.AceOfDiamonds),
     ];
 
-    /// <summary>
-    /// Parse a padding string like "67Z" into the specific chars to use for padding.
-    /// Filters to valid seed digits, deduplicates, uppercases. Returns null if empty/invalid.
-    /// </summary>
     public static char[]? ParsePaddingChars(string? padding)
     {
         if (string.IsNullOrEmpty(padding))
@@ -172,10 +145,6 @@ public static partial class MotelyGlobals
         return chars.Length > 0 ? chars : null;
     }
 
-    /// <summary>
-    /// Keywords of length 2 or less expand across the full seed alphabet when <paramref name="validChars"/> is null,
-    /// producing an enormous search space. Callers must pass explicit padding characters (e.g. from <see cref="ParsePaddingChars"/>).
-    /// </summary>
     private static void ThrowIfShortKeywordWithoutExplicitPadding(
         string keyword,
         char[]? validChars,
@@ -192,16 +161,11 @@ public static partial class MotelyGlobals
         );
     }
 
-    /// <summary>
-    /// Generate seeds for multiple keywords, combining their padded variations lazily.
-    /// Each keyword is padded independently up to <see cref="MaxSeedLength"/>.
-    /// </summary>
     public static IEnumerable<string> GeneratePaddedSeedsForKeywords(
         IEnumerable<string> keywords,
         char[]? validChars = null
     )
     {
-        // Single-pass enumerators must be materialized so we validate all keywords before yielding.
         IEnumerable<string> sequence = keywords is IList<string> or ICollection<string>
             ? keywords
             : keywords.ToList();
@@ -219,15 +183,12 @@ public static partial class MotelyGlobals
                 continue;
             int padLen = MaxSeedLength - keyword.Length;
             if (padLen < 0)
-                continue; // keyword too long — skip silently
+                continue;
             foreach (var seed in GeneratePaddedSeeds(keyword, padLen, validChars))
                 yield return seed;
         }
     }
 
-    /// <summary>
-    /// Total seed count for multiple keywords with the given padding chars.
-    /// </summary>
     public static ulong GetPaddedSeedCountForKeywords(
         IEnumerable<string> keywords,
         char[]? validChars = null
@@ -248,9 +209,6 @@ public static partial class MotelyGlobals
         return total;
     }
 
-    /// <summary>
-    /// Same as <see cref="GetPaddedSeedCountForKeywords"/> but returns a saturated <see cref="long"/> for provider APIs.
-    /// </summary>
     public static long GetPaddedSeedCountForKeywordsLong(
         IEnumerable<string> keywords,
         char[]? validChars = null
@@ -260,10 +218,6 @@ public static partial class MotelyGlobals
         return u > (ulong)long.MaxValue ? long.MaxValue : (long)u;
     }
 
-    /// <summary>
-    /// Generate all seed variations by padding a keyword with the given valid characters.
-    /// Pads 0-3 characters at all positions (prefix, suffix, infix).
-    /// </summary>
     public static ulong GetPaddedSeedCount(string keyword, int padLen, char[]? validChars = null)
     {
         validChars ??= SeedDigits;
@@ -281,9 +235,6 @@ public static partial class MotelyGlobals
             for (int i = 0; i < padLen; i++)
                 combinations *= (ulong)validChars.Length;
 
-            // Number of distinct keyword positions in a seed of length (keyword.Length + padLen)
-            // is (padLen + 1) — one slot between each consecutive pair of pad chars plus the ends.
-            // Earlier cases happen to equal padLen + 1; the general case was buggy with keyword.Length.
             return padLen switch
             {
                 1 => combinations * 2,
@@ -437,7 +388,6 @@ public static partial class MotelyGlobals
         }
         else
         {
-            // For padLen > 3, generate combinations recursively
             foreach (var seed in GenerateNPadVariations(keyword, padLen, validChars, ""))
                 yield return seed;
         }
@@ -452,9 +402,6 @@ public static partial class MotelyGlobals
     {
         if (current.Length == padLen)
         {
-            // Slide the keyword across the padding block: keyword at position 0..padLen,
-            // splitting the PADDING (not the keyword). This matches the padLen 1/2/3 hand-
-            // rolled cases and keeps the keyword contiguous for every emitted seed.
             for (int keywordStart = 0; keywordStart <= padLen; keywordStart++)
             {
                 yield return current.Substring(0, keywordStart)

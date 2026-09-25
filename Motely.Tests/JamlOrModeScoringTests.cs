@@ -3,11 +3,6 @@ using Xunit;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// H-A2: <c>mode: sum|max</c> on <c>or:</c> — sum totals every arm that hits; max scores
-/// only the best arm (deep shop chunks / multi-window "land on the best one").
-/// Ground truth seed MOTELY77 Red/White ante 1: Polychrome Tag + Tarot Merchant both hit.
-/// </summary>
 public class JamlOrModeScoringTests
 {
     private const string Seed = "MOTELY77";
@@ -114,7 +109,6 @@ public class JamlOrModeScoringTests
     [Fact]
     public void OrMode_Sum_TotalsArmWeights()
     {
-        // Child scores 3 + 5 → sum 8; outer score 1.
         var (matching, score, tally) = RunSingleSeed(
             """
             name: or-mode-sum
@@ -136,13 +130,12 @@ public class JamlOrModeScoringTests
 
         Assert.Equal(1, matching);
         Assert.Equal(8, score);
-        Assert.Equal(2, tally); // raw: both arms count 1 → sum 2
+        Assert.Equal(2, tally);
     }
 
     [Fact]
     public void OrMode_Max_BestArmOnly()
     {
-        // Same arms: best weight is 5, not 3+5.
         var (matching, score, tally) = RunSingleSeed(
             """
             name: or-mode-max
@@ -164,7 +157,7 @@ public class JamlOrModeScoringTests
 
         Assert.Equal(1, matching);
         Assert.Equal(5, score);
-        Assert.Equal(1, tally); // raw max of arm counts (1, 1) → 1
+        Assert.Equal(1, tally);
     }
 
     [Fact]
@@ -193,10 +186,6 @@ public class JamlOrModeScoringTests
         Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
     }
 
-    /// <summary>
-    /// Each <c>or:</c> arm writes its own antes. MOTELY77 Red/White: ante-1 small blind tag is
-    /// Polychrome, voucher is Tarot Merchant — same real seed as the mode sum/max pins.
-    /// </summary>
     [Fact]
     public void Or_ArmsWriteTheirOwnAntes_LoadAndScore_MOTELY77()
     {
@@ -233,15 +222,10 @@ public class JamlOrModeScoringTests
 
         var (matching, score, tally) = RunSingleSeed(jaml);
         Assert.Equal(1, matching);
-        Assert.Equal(5, score); // max(3, 5) via ante-1 hits only
+        Assert.Equal(5, score);
         Assert.Equal(1, tally);
     }
 
-    /// <summary>
-    /// Arm antes are search-live: the wrong ante zeroes both arms. Analyzer MOTELY77 Red/White:
-    /// ante 2 = Rare/Foil tags + Blank voucher (not that pair). Cutoff is 0 so matching may still
-    /// count the seed; score/tally are the live signal.
-    /// </summary>
     [Fact]
     public void Or_ArmAntes_WrongAnte_NoScore_MOTELY77()
     {

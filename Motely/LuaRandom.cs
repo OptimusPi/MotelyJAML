@@ -119,7 +119,6 @@ public struct LuaRandom
         ulong m;
         ulong state;
 
-        // state[0]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -139,7 +138,6 @@ public struct LuaRandom
 
         randint ^= state;
 
-        // state[1]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -159,7 +157,6 @@ public struct LuaRandom
 
         randint ^= state;
 
-        // state[2]
         m = 1ul << (r & 255);
         r >>= 8;
 
@@ -179,7 +176,6 @@ public struct LuaRandom
 
         randint ^= state;
 
-        // state[3]
         m = 1ul << (r & 255);
 
         d = d * 3.14159265358979323846 + 2.7182818284590452354;

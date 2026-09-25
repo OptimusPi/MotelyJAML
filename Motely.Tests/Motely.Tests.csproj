@@ -28,17 +28,10 @@
     <Using Include="Motely.Enums" />
   </ItemGroup>
 
-  <!-- JimmolateScoringOrderTests.cs does not exist in the tree; it referenced a run-state API
-       (NewRunState / GetBossForAnteWithState) that was never wired up. The exclusion stays only so
-       a future restore of that file doesn't silently break the build. JimmolateFilterTests.cs is
-       compiled and running. -->
   <ItemGroup>
     <Compile Remove="JimmolateScoringOrderTests.cs" />
   </ItemGroup>
 
-  <!-- Motely.AppHost was removed in 7411172; AppHostModelTests.cs outlived it and still binds
-       Projects.Motely_AppHost plus the Aspire.Hosting.* namespaces, which nothing references any
-       more. It cannot compile until an AppHost comes back, so exclude rather than delete. -->
   <ItemGroup>
     <Compile Remove="AppHostModelTests.cs" />
   </ItemGroup>
@@ -47,8 +40,6 @@
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Test JAML files travel to the output so data-driven tests can load them by name.
-         Include (not Update): new files in JamlFilters must enter the item list to copy. -->
     <None Include="JamlFilters/**/*.jaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
