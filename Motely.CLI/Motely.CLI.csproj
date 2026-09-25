@@ -43,7 +43,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Motely\Motely.csproj" />
-    <!-- SeedSourceProvider / SeedLakeSink — DuckDB-backed seed sources and result lake. -->
-    <ProjectReference Include="..\Motely.DataLake\Motely.DataLake.csproj" />
   </ItemGroup>
 </Project>

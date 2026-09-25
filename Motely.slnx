@@ -1,10 +1,5 @@
 <Solution>
-  <Project Path="Motely.Config/Motely.Config.csproj" />
-  <Project Path="Motely.ConfigAot.Smoke/Motely.ConfigAot.Smoke.csproj" />
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
-  <Project Path="Motely.Generators/Motely.Generators.csproj" />
-  <Project Path="Motely.Lsp/Motely.Lsp.csproj" />
-  <Project Path="Motely.Tests/Motely.Tests.csproj" />
   <Project Path="Motely/Motely.csproj" />
   <!-- Motely.Wasm is built/published separately: `dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release` -->
 </Solution>
