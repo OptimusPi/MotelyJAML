@@ -310,11 +310,6 @@ partial class Program
             "Suppress per-batch progress lines and the startup preamble on stderr (stdout results unaffected).",
             CommandOptionType.NoValue
         );
-        var estimateOption = app.Option(
-            "--estimate",
-            "Print how rare the filter is and how long it should take, then exit without searching. Computed from the game's odds, so it returns immediately.",
-            CommandOptionType.NoValue
-        );
         threadsOption.DefaultValue = Environment.ProcessorCount;
         // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
         // true forever once a DefaultValue is set, so it could never again distinguish "user
@@ -668,49 +663,6 @@ partial class Program
                     return 1;
                 }
 
-                // Only the untouched sequential sweep can state its size. Every other mode draws
-                // from a list whose length is not known until it loads, or from a slice this block
-                // would have to re-derive from batch indices — so they name the mode instead of
-                // inventing a count, and the report drops the odds lines rather than guessing.
-                JamlSearchSpace searchSpace =
-                    namedExplicitSeedInput
-                        ? new JamlSearchSpace(
-                            -1,
-                            drown ? "the entire seed lake"
-                            : replay ? "the JAML seeds: block"
-                            : "an explicitly named seed set"
-                        )
-                    : collectSequentialOnly ? new JamlSearchSpace(-1, "a narrowed sequential range")
-                    : collectLimit > 0 ? new JamlSearchSpace(-1, "every aesthetic, then sequential")
-                    : new JamlSearchSpace(
-                        JamlRarityReport.FullSequentialSeedSpace,
-                        "full sequential sweep"
-                    );
-
-                // stderr, not stdout: `--jaml x -q > seeds.txt` must produce seeds and nothing else.
-                // --estimate prints even under --quiet, since printing this is the whole request.
-                if (!quietOption.HasValue())
-                {
-
-                    foreach (
-                        string line in JamlRarityReport.Render(
-                            JamlRarityEstimator.Estimate(config),
-                            searchSpace,
-                            config.SimdCostPerSeed(),
-                            config.EstimateFilterCrunches(),
-                            collectLimit
-                        )
-                    )
-                    {
-                        Console.Error.WriteLine(line);
-                    }
-                }
-
-                // Nothing disposable exists yet, so this exit unwinds cleanly. It costs one probe
-                // batch — under a second — which is what turns the estimate into a number.
-                if (estimateOption.HasValue())
-                    return _cts.Token.IsCancellationRequested ? 1 : 0;
-
                 if (
                     !CliSearchMode.TryApplySearchMode(
                         settings,
@@ -1043,7 +995,7 @@ partial class Program
             Console.WriteLine($"  Found: {matches:N0} seed(s) (StopAfter; SIMD/thread overshoot ok)");
         Console.WriteLine($"  Seeds: {seeds:N0} searched, {matches:N0} matched");
         Console.WriteLine($"  Time:  {elapsed:hh\\:mm\\:ss\\.fff}");
-        Console.WriteLine($"  Speed: {JamlRarityReport.Speed(search.SeedsPerSecond)}");
+        Console.WriteLine($"  Speed: {FormatSpeed(search.SeedsPerSecond)}");
         if (search.IsSequentialBatchSearch)
         {
             long max = search.TotalBatchCount;
@@ -1124,10 +1076,18 @@ partial class Program
             FormatProgressToStderr(p);
     }
 
+    static string FormatSpeed(double seedsPerSecond)
+    {
+        if (double.IsNaN(seedsPerSecond) || double.IsInfinity(seedsPerSecond) || seedsPerSecond <= 0)
+            return "unknown";
+        return seedsPerSecond >= 1_000_000 ? $"{seedsPerSecond / 1_000_000:F2} M/s"
+            : seedsPerSecond >= 1_000 ? $"{seedsPerSecond / 1_000:F1} K/s"
+            : $"{seedsPerSecond:F0}/s";
+    }
+
     static void FormatProgressToStderr(MotelyProgress p)
     {
-        // Same formatter as the rarity projection and the final summary, so the three agree.
-        string speed = JamlRarityReport.Speed(p.SeedsPerMillisecond * 1000.0);
+        string speed = FormatSpeed(p.SeedsPerMillisecond * 1000.0);
         string eta =
             p.EstimatedTimeRemainingMilliseconds is long etaMs && etaMs > 0
                 ? $" | ETA {FormatEtaMs(etaMs)}"
