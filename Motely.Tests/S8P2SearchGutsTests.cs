@@ -6,11 +6,6 @@ using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P2 — MotelySearch / settings / filter-creation-context guts. Every search here is a
-/// bounded list or a fixed sequential slice (the StopAfterTests recipe); assertions observe
-/// engine counters, delivered seeds, or PRNG-derived state — never load-and-stop.
-/// </summary>
 public sealed class S8P2SearchGutsTests
 {
     private const string PermissiveJaml = """
@@ -26,8 +21,6 @@ public sealed class S8P2SearchGutsTests
         ["ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7"];
 
     private static JamlConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveJaml);
-
-    // ── Settings fluent surface (interface chain) ──────────────────────────
 
     [Fact]
     public void SettingsInterfaceChain_RoundTripsEveryKnob()
@@ -63,7 +56,6 @@ public sealed class S8P2SearchGutsTests
         Assert.Equal(9, concrete.EndBatchIndex);
         Assert.Equal(MotelyDeck.Ghost, concrete.Deck);
         Assert.Equal(MotelyStake.Gold, concrete.Stake);
-        // Negative interval clamps to 0 (report every batch).
         Assert.Equal(0, concrete.ProgressReportIntervalMs);
         Assert.True(concrete.CsvOutput);
         Assert.True(concrete.QuietMode);
@@ -103,12 +95,6 @@ public sealed class S8P2SearchGutsTests
         search.AwaitCompletion();
     }
 
-    /// <summary>
-    /// G01 host contract: sequential/provider Start is non-blocking (worker threads).
-    /// TUI polls IsCompleted; calling complete/dispose immediately after Start is wrong.
-    /// Note: MotelySeedListProvider runs inline on the caller (Jamlyzer/browser); sequential does not.
-    /// Gate blocks workers so IsCompleted stays false until the host allows finish.
-    /// </summary>
     [Fact]
     public void Start_IsNonBlocking_IsCompletedFalseUntilWorkersFinish()
     {
@@ -136,21 +122,10 @@ public sealed class S8P2SearchGutsTests
         gate.Set();
         search.AwaitCompletion();
         Assert.True(search.IsCompleted);
-        Assert.Equal(35L * 35, search.TotalSeedsSearched); // one batch of length-2
+        Assert.Equal(35L * 35, search.TotalSeedsSearched);
         Assert.Equal(search.TotalSeedsSearched, search.MatchingSeeds);
     }
 
-    /// <summary>
-    /// The ETA counts only the batches the run was asked for. It used to count to the end of the
-    /// whole space, so a bounded run quoted the time to sweep everything after it: a one-batch
-    /// range that finished in twelve seconds reported 148 days.
-    /// <para>
-    /// Both assertions are exact rather than timing-tolerant, because the ratio is exact. Two
-    /// batches requested: at the first report half the run is done, so the time left equals the
-    /// time spent; at the second the run is over, so it is zero. Under the old denominator the
-    /// first report would read <c>elapsed × (42875/1 − 1)</c> — same arithmetic, wrong divisor.
-    /// </para>
-    /// </summary>
     [Fact]
     public async Task SequentialSlice_EtaCountsOnlyTheBatchesTheRunAskedFor()
     {
@@ -158,7 +133,7 @@ public sealed class S8P2SearchGutsTests
         using var search = JamlSearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
-            .WithBatchCharacterCount(3) // 35³ = 42,875 batches exist; this run wants two of them
+            .WithBatchCharacterCount(3)
             .WithStartBatchIndex(10)
             .WithEndBatchIndex(12)
             .WithThreadCount(1)
@@ -177,20 +152,15 @@ public sealed class S8P2SearchGutsTests
 
         Assert.Equal(2, progress.Count);
 
-        // Half done: the run has as long left as it has already taken.
         Assert.Equal(
             progress[0].ElapsedMilliseconds,
             progress[0].EstimatedTimeRemainingMilliseconds
         );
 
-        // Done: nothing left. The old denominator made this the tail of the entire space.
         Assert.Equal(0L, progress[^1].EstimatedTimeRemainingMilliseconds);
 
-        // A start index above zero is part of the denominator too — 12 − 10, not 12 − 0.
         Assert.Equal(12L, search.CompletedBatchCount);
     }
-
-    // ── Sequential slice: progress, counters, async completion ─────────────
 
     [Fact]
     public async Task SequentialSlice_ProgressCountersAndAsyncCompletion()
@@ -216,15 +186,12 @@ public sealed class S8P2SearchGutsTests
         Assert.True(search.IsSequentialBatchSearch);
         Assert.False(search.StoppedOnMatchLimit);
 
-        // Two full batches of 35^3 seeds each, and both booked as completed.
         Assert.Equal(2L * 35 * 35 * 35, search.TotalSeedsSearched);
         Assert.Equal(2L, search.CompletedBatchCount);
         Assert.True(search.MatchingSeeds > 0, "permissive filter found nothing in the slice");
         Assert.Equal(search.TotalSeedsSearched - search.MatchingSeeds, search.FilteredSeeds);
         Assert.True(search.ElapsedMs >= 0);
 
-        // Interval 0 → one report per batch: first uses the lifetime-average branch, the
-        // second the windowed-throughput branch.
         Assert.Equal(2, progress.Count);
         Assert.All(progress, p => Assert.InRange(p.PercentComplete, 0.0, 100.0));
         Assert.Equal(search.TotalSeedsSearched, progress[^1].SeedsSearched);
@@ -233,8 +200,6 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void ProviderList_ProgressReachesOneHundredPercent()
     {
-        // Provider report batches are 35³ seeds by default (SIMD still 8-wide). A short
-        // list finishes in one report batch and must still hit 100% on the drain report.
         string[] seeds =
         [
             "ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7",
@@ -262,7 +227,6 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void ProviderList_SmallReportBatch_EmitsMultipleProgressTicks()
     {
-        // Shrink the report batch to SIMD width so 24 seeds → multiple progress ticks.
         string[] seeds =
         [
             "ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7",
@@ -285,8 +249,6 @@ public sealed class S8P2SearchGutsTests
         Assert.InRange(progress.Count, 3, 24);
         Assert.Equal(100.0, progress[^1].PercentComplete, 3);
     }
-
-    // ── Worker exception routing ───────────────────────────────────────────
 
     private struct ThrowingFilterDesc : IMotelySeedFilterDesc<ThrowingFilterDesc.ThrowingFilter>
     {
@@ -313,8 +275,6 @@ public sealed class S8P2SearchGutsTests
         var ex = await Assert.ThrowsAsync<InvalidDataException>(() => search.RunSearchAsync());
         Assert.Equal("s8p2 worker boom", ex.Message);
     }
-
-    // ── Analyze provider + seed router descs (generic default interface impls) ──
 
     private sealed class CountingAnalyzeDesc
         : IMotelySeedAnalyzeDesc<CountingAnalyzeDesc.CountingAnalyzeProvider>
@@ -363,8 +323,6 @@ public sealed class S8P2SearchGutsTests
         var analyzeDesc = new CountingAnalyzeDesc();
         var routerDesc = new CountingRouterDesc();
 
-        // Passthrough base filter, no score provider: ReportSeeds routes every list seed
-        // through the router's single-seed context.
         var settings = new MotelySearchSettings<PassthroughFilterDesc.PassthroughFilter>(
             new PassthroughFilterDesc()
         )
@@ -389,8 +347,6 @@ public sealed class S8P2SearchGutsTests
             routerDesc.RoutedSeeds.OrderBy(s => s, StringComparer.Ordinal)
         );
 
-        // The analyze provider was created through the generic desc's default interface
-        // implementation; prove it is live by driving it as its consumers do.
         Assert.NotNull(analyzeProvider);
     }
 
@@ -410,8 +366,6 @@ public sealed class S8P2SearchGutsTests
         search.Start();
         search.AwaitCompletion();
     }
-
-    // ── Random + aesthetic providers through the settings surface ──────────
 
     [Fact]
     public void RandomSearch_SearchesExactlyTheRequestedCount()
@@ -480,8 +434,6 @@ public sealed class S8P2SearchGutsTests
         Assert.True(search.StoppedOnMatchLimit);
     }
 
-    // ── Auto score cutoff (disengaged path: every candidate reported, bar only rises) ──
-
     [Fact]
     public void AutoScoreCutoff_ReportsCandidatesWhileDisengaged()
     {
@@ -507,15 +459,10 @@ public sealed class S8P2SearchGutsTests
             .Start();
         search.AwaitCompletion();
 
-        // One provider batch. Clamp only starts on the *next* batch if this one filled
-        // (matches >= seeds). A single list batch still reports every candidate.
         Assert.Equal(search.MatchingSeeds, scored.Count);
         Assert.True(scored.Count > 0);
-        // Overstock-at-ante-1 seeds (5X5 etc.) outscore the rest — the cutoff learned a max.
         Assert.Contains(scored, r => r.Score > scored.Min(x => x.Score));
     }
-
-    // ── Filter creation context: cache families record the exact key lengths ──
 
     private static HashSet<int> Lengths(Action<MotelyFilterCreationContext> record)
     {
@@ -568,7 +515,6 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void CreationContext_TarotPlanetSpectralFamilies()
     {
-        // Arcana pack: tarot + resample + soul keys.
         var arcana = Lengths(ctx => ctx.CacheArcanaPackTarotStream(2));
         string arcanaKey = MotelyPrngKeys.Tarot + MotelyPrngKeys.ArcanaPackItemSource + 2;
         Assert.Contains(arcanaKey.Length, arcana);
@@ -577,7 +523,6 @@ public sealed class S8P2SearchGutsTests
             arcana
         );
 
-        // Shop tarot: plain key, no resample entry beyond it.
         var shopTarot = Lengths(ctx => ctx.CacheShopTarotStream(2));
         string shopTarotKey = MotelyPrngKeys.Tarot + MotelyPrngKeys.ShopItemSource + 2;
         Assert.Contains(shopTarotKey.Length, shopTarot);
@@ -677,8 +622,6 @@ public sealed class S8P2SearchGutsTests
         );
     }
 
-    // ── Vector voucher: stateless overload parity with fresh-state overload (R3) ──
-
     private struct VoucherParityDesc : IMotelySeedFilterDesc<VoucherParityDesc.VoucherParityFilter>
     {
         public static readonly List<string> Mismatches = [];
@@ -694,14 +637,10 @@ public sealed class S8P2SearchGutsTests
         {
             public readonly VectorMask Filter(ref MotelyVectorSearchContext ctx)
             {
-                // Stateless: resamples only prerequisite (odd) vouchers. With a fresh run
-                // state the stateful overload resamples the same set, so ante-1 results
-                // must agree lane for lane.
                 var stateless = ctx.GetAnteFirstVoucher(1);
                 var freshState = new MotelyVectorRunState();
                 var stateful = ctx.GetAnteFirstVoucher(1, freshState);
 
-                // Exercise the voucher stream single-lane view on the same context.
                 var stream = ctx.CreateVoucherStream(1);
                 _ = stream.CreateSingleStream(0);
 

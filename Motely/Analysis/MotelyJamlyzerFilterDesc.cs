@@ -2,41 +2,20 @@ using System.ComponentModel;
 
 namespace Motely.Analysis;
 
-/// <summary>
-/// The window the Jamlyzer reads for one seed: which antes (the JAML's ante scope, see
-/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream. One value, shared by
-/// the standalone filter and the analyze provider, so both walk exactly the same ground.
-/// </summary>
 internal readonly struct MotelyJamlyzerWindow(
     int[] antesToAnalyze,
     int eventRolls,
     int shopSlots = 0
 )
 {
-    // Ante 0 (the pre-run shop a JAML clause can target with `antes: [0]`) is real data
-    // the search already matches on — emit it when scoped instead of silently dropping it.
     public readonly int StartAnte =
         antesToAnalyze.Length > 0 && antesToAnalyze[0] == 0 ? 0 : 1;
     public readonly int MaxAnte = antesToAnalyze.Length > 0 ? antesToAnalyze[^1] : 8;
     public readonly int EventRolls = eventRolls;
 
-    // How deep to walk each ante's shop queue, independent of EventRolls. 0 keeps the historical
-    // defaults (15 for the pre-run shop and ante 1, 50 beyond). The shop stream never runs dry --
-    // GetNextShopItem yields forever -- so this bound is the only thing that ends the walk.
-    // It is its own dial because EventRolls sizes eighteen other arrays; hanging shop depth on it
-    // makes a 5000-slot shop allocate 5000 entries per pull and shop-source stream as well.
     public readonly int ShopSlots = shopSlots;
 }
 
-/// <summary>
-/// JAMLyzer's filter: walks every ante's boss/voucher/tags/shop/packs and every relevant PRNG
-/// stream for one seed, answering "what does this seed actually contain?". The walk itself is
-/// <see cref="MotelyJamlyzerSeedWalk"/>; this desc is how
-/// <see cref="MotelyJamlyzer.Analyze(Motely.Filters.Jaml.JamlConfig, int)"/> runs it standalone,
-/// one seed per search, with a resume bag. To run the same walk on a search's own finds instead,
-/// see <see cref="MotelyJamlyzerRiderDesc"/>. Unrelated to the CLI's legacy <c>--analyze</c>
-/// flag (<see cref="MotelyUnitTestAnalyzer"/>).
-/// </summary>
 public sealed class MotelyJamlyzerFilterDesc(
     int[] antesToAnalyze,
     int eventRolls = 20,
@@ -44,10 +23,6 @@ public sealed class MotelyJamlyzerFilterDesc(
     int shopSlots = 0
 ) : IMotelySeedFilterDesc<MotelyJamlyzerFilterDesc.JamlyzerFilter>
 {
-    /// <summary>
-    /// The last walked seed's breakdown, Score 0 and Tally null (the caller scores). Null until
-    /// the filter has run — a seed the engine never handed over (invalid) leaves it null.
-    /// </summary>
     public MotelyJamlyzerSeedResult? Result { get; private set; }
 
     public JamlyzerFilter CreateFilter(ref MotelyFilterCreationContext ctx) => new(this);
@@ -72,13 +47,6 @@ public sealed class MotelyJamlyzerFilterDesc(
     private readonly MotelyJamlyzerStreamStates? _resumeFrom = resumeFrom;
 }
 
-/// <summary>
-/// The Jamlyzer's seed walk: one live seed context in, that seed's whole breakdown out. Pure —
-/// every call builds a fresh result and touches no shared state, so it is safe from any worker
-/// thread and any SIMD lane. Score is left 0 and Tally null because the caller already knows what
-/// the seed scored: the standalone Jamlyzer scores it in the same search, and the analyze
-/// provider copies the search's own scored row.
-/// </summary>
 internal static class MotelyJamlyzerSeedWalk
 {
     private ref struct AnteAnalysisState
@@ -102,17 +70,12 @@ internal static class MotelyJamlyzerSeedWalk
     )
     {
         int n = window.EventRolls;
-        // Composite (pulls/shop) streams resume by replaying this many rolls (see state bag).
         int offset = resumeFrom?.RollOffset ?? 0;
-        // The shop walks ShopSlots per window while the pull/shop-source queues walk EventRolls,
-        // so the two consume their streams at different rates and cannot share one cursor.
         int shopOffset = resumeFrom?.ShopOffset ?? 0;
 
         MotelyRunState voucherState = new();
         MotelySingleBossStream bossStream = ctx.CreateBossStream();
 
-        // Ante 0 is walked when the window names it, or when this seed's ante-1 voucher is
-        // Hieroglyph/Petroglyph — buying it eases the run back to ante 0, so that round is real.
         int startAnte = window.StartAnte;
         if (startAnte == 1
             && ctx.GetAnteFirstVoucher(1, new MotelyRunState()) is MotelyVoucher.Hieroglyph or MotelyVoucher.Petroglyph)
@@ -122,11 +85,6 @@ internal static class MotelyJamlyzerSeedWalk
 
         for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
-            // Ante 0 is the pre-run shop, reached by ante reduction (Hieroglyph / Petroglyph):
-            // its shop, packs and tags are exactly what a JAML `antes: [0]` clause searches.
-            // Its boss reads off an isolated stream + run state, because the run state the
-            // search chains (voucher tiers, seen-boss pool) opens at ante 1 — sharing it here
-            // would shift every ante 1..8 boss and upgrade ante 1's voucher.
             bool isPreRunShop = ante == 0;
             MotelyBossBlind boss;
             if (isPreRunShop)
@@ -149,12 +107,10 @@ internal static class MotelyJamlyzerSeedWalk
                 BuffoonStream = default,
             };
 
-            // Tags
             MotelySingleTagStream tagStream = ctx.CreateTagStream(ante);
             MotelyTag smallTag = ctx.GetNextTag(ref tagStream);
             MotelyTag bigTag = ctx.GetNextTag(ref tagStream);
 
-            // Shop
             MotelySingleShopItemStream shopStream = ctx.CreateShopItemStream(ante);
             int maxSlots = window.ShopSlots > 0 ? window.ShopSlots : (ante <= 1 ? 15 : 50);
             MotelyItem[] shopItems = new MotelyItem[maxSlots];
@@ -165,7 +121,6 @@ internal static class MotelyJamlyzerSeedWalk
                     shopItems[i - shopOffset] = item;
             }
 
-            // Packs
             var packStream = ctx.CreateBoosterPackStream(ante);
             int maxPacks = ante <= 1 ? 4 : 6;
             MotelyJamlyzerPack[] packs = new MotelyJamlyzerPack[maxPacks];
@@ -176,18 +131,10 @@ internal static class MotelyJamlyzerSeedWalk
                 packs[i] = new(pack, contents);
             }
 
-            // pulls streams — card/joker-activated streams beyond shops/packs.
-            // offset rolls are replayed-and-discarded so a resumed window is exact even for the
-            // resample-backed streams (Emperor, Voucher) where state is not a single double.
             var pulls = CollectPulls(ref ctx, ante, voucherState, n, offset);
 
-            // raw shop-source queues, read independently of the resolved shop above
             var shopStreams = CollectShopStreams(ref ctx, ante, n, offset);
 
-            // Activate voucher AFTER collecting pulls streams so voucher sequence
-            // resampling uses the correct state (pre-activation for this ante).
-            // Ante 0 reports its voucher without entering the chain — the search starts the
-            // chain at ante 1, so the analyzer reports the same ante-1 voucher it matches.
             if (!isPreRunShop)
                 voucherState.ActivateVoucher(voucher);
 
@@ -204,8 +151,6 @@ internal static class MotelyJamlyzerSeedWalk
             );
         }
 
-        // The shop advances by the depth actually walked this window, which is ShopSlots when the
-        // caller set one and otherwise the per-ante default -- ante 1 walks 15, ante 2+ walks 50.
         int shopSlotsWalked = window.ShopSlots > 0 ? window.ShopSlots : 0;
         var (events, streamStates) = CollectEvents(
             ref ctx,
@@ -234,13 +179,9 @@ internal static class MotelyJamlyzerSeedWalk
         int offset
     )
     {
-        // Nothing to walk and nothing to replay: building the streams would hash a dozen
-        // PRNG keys per ante to then read none of them. `eventRolls: 0` is sold as the
-        // cheap shape, so make it cheap.
         if (n == 0 && offset == 0)
             return new([], [], [], [], [], [], [], [], [], [], []);
 
-        // Joker streams
         var judgementStream = ctx.CreateJudgementJokerStream(ante);
         var wraithStream = ctx.CreateWraithJokerStream(ante);
         var riffRaffStream = ctx.CreateRiffRaffJokerStream(ante);
@@ -248,15 +189,12 @@ internal static class MotelyJamlyzerSeedWalk
         var uncommonTagStream = ctx.CreateUncommonTagJokerStream(ante);
         var legendaryStream = ctx.CreateLegendaryJokerStream(ante);
 
-        // Tarot streams
         var emperorStream = ctx.CreateEmperorTarotStream(ante);
         var purpleSealStream = ctx.CreatePurpleSealTarotStream(ante);
 
-        // Spectral streams
         var sixthSenseStream = ctx.CreateSixthSenseSpectralStream(ante);
         var seanceStream = ctx.CreateSeanceSpectralStream(ante);
 
-        // Voucher sequence
         var voucherStream = ctx.CreateVoucherStream(ante);
 
         MotelyItem[] judgement = new MotelyItem[n];
@@ -265,14 +203,12 @@ internal static class MotelyJamlyzerSeedWalk
         MotelyItem[] rareTag = new MotelyItem[n];
         MotelyItem[] uncommonTag = new MotelyItem[n];
         MotelyItem[] legendary = new MotelyItem[n];
-        MotelyItem[] emperor = new MotelyItem[n * 2]; // 2 tarots per use
+        MotelyItem[] emperor = new MotelyItem[n * 2];
         MotelyItem[] purpleSeal = new MotelyItem[n];
         MotelyItem[] sixthSense = new MotelyItem[n];
         MotelyItem[] seance = new MotelyItem[n];
         MotelyVoucher[] vouchers = new MotelyVoucher[n];
 
-        // Replay [0, offset) and discard, then keep [offset, offset+n). Re-running the exact
-        // same calls advances every resample substream identically — exact resume by construction.
         for (int i = 0; i < offset + n; i++)
         {
             var j = ctx.GetNextJoker(ref judgementStream);
@@ -330,14 +266,9 @@ internal static class MotelyJamlyzerSeedWalk
         int offset
     )
     {
-        // Same short-circuit as CollectPulls: no rolls and nothing to replay means the
-        // seven streams below would be built only to be thrown away.
         if (n == 0 && offset == 0)
             return new([], [], [], [], [], [], []);
 
-        // Shop-source streams share the keys the shop item queue consumes, but each raw
-        // queue is read on its own copy of stream state — collecting them here does not
-        // perturb the resolved shop above. None depend on voucher run-state.
         var shopJokerStream = ctx.CreateShopJokerStream(ante);
         var commonJokerStream = ctx.CreateCommonShopJokerStream(ante);
         var uncommonJokerStream = ctx.CreateUncommonShopJokerStream(ante);
@@ -354,7 +285,6 @@ internal static class MotelyJamlyzerSeedWalk
         MotelyItem[] shopPlanets = new MotelyItem[n];
         MotelyItem[] shopSpectrals = new MotelyItem[n];
 
-        // Same offset-replay as pulls: discard [0, offset), keep [offset, offset+n).
         for (int i = 0; i < offset + n; i++)
         {
             var sj = ctx.GetNextJoker(ref shopJokerStream);
@@ -396,9 +326,6 @@ internal static class MotelyJamlyzerSeedWalk
         MotelyJamlyzerStreamStates? resume
     )
     {
-        // No resume bag -> each stream starts at the seed's natural start.
-        // With a resume bag -> each stream resumes from its saved State double, so the
-        // window continues exactly where the previous one stopped (no prefix re-roll).
         var luckyMoney = resume is null
             ? ctx.CreateLuckyCardMoneyStream()
             : ctx.ResumeStream(resume.LuckyMoney);
@@ -492,9 +419,6 @@ internal static class MotelyJamlyzerSeedWalk
             misprintRolls
         );
 
-        // End-of-window state bag — hand straight back as resumeFrom. RollOffset advances by this
-        // window's N so composite (pulls/shop) replay lands on the next window; the doubles let
-        // the event streams resume exactly without re-rolling.
         var states = new MotelyJamlyzerStreamStates(
             (resume?.RollOffset ?? 0) + N,
             (resume?.ShopOffset ?? 0) + shopSlotsWalked,

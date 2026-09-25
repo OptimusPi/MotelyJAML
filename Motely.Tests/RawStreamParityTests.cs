@@ -2,14 +2,6 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// R3 parity for the vector stream surface no shipped desc calls yet: specialty joker
-/// streams (Judgement/Wraith/RiffRaff/RareTag/UncommonTag), raw fixed-rarity shop joker
-/// streams, 8-Ball / Omen Globe rolls, the pack HasThe helpers, per-lane spectral pack
-/// contents and masked buffoon contents. Every value the SIMD side reads must equal the
-/// scalar engine's read, lane for lane — this is the test class that catches the
-/// missing-category-bits family of bugs. Black stake so sticker rolls execute.
-/// </summary>
 public sealed class RawStreamParityTests
 {
     private const int MaxAnte = 2;
@@ -59,7 +51,6 @@ public sealed class RawStreamParityTests
             public VectorMask Filter(ref MotelyVectorSearchContext ctx)
             {
                 int lanes = MotelyItemVector.Count;
-                // [ante][pull][lane] for item streams; [ante][roll] lane-masks for luck rolls.
                 var specialty = new Dictionary<string, int[][][]>();
                 foreach (var name in (string[])["judgement", "wraith", "riffRaff", "rareTag", "uncommonTag", "rawCommon", "rawUncommon", "rawRare"])
                     specialty[name] = new int[MaxAnte + 1][][];
@@ -285,8 +276,6 @@ public sealed class RawStreamParityTests
                             ((spectralHasAny[ante] >> lane) & 1) == 1 ? "T" : "F",
                             PackHas(spectralMega, [(int)MotelySpectralCard.Sigil, (int)MotelySpectralCard.Grim, (int)MotelySpectralCard.Aura]) ? "T" : "F");
 
-                        // Per-lane contents with all lanes Normal (2 cards): the stored value is
-                        // the masked Type vector, so compare types.
                         var perLaneScalar = single.CreateSpectralPackSpectralStream(ante);
                         var scalarSpectralPack = single
                             .GetNextSpectralPackContents(ref perLaneScalar, MotelyBoosterPackSize.Normal)

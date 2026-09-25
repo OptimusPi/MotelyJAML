@@ -20,12 +20,6 @@ public sealed class SeedRouterTests
         Assert.NotEqual(default, boss);
     }
 
-    // MotelyRunState became a plain class (record) instead of a ref struct this session — no
-    // more `ref` needed at call sites, because mutating a shared object's fields through a method
-    // call (SeeBoss) is visible to the caller automatically. This pins that claim with real
-    // behavior: GetBossForAnte marks the boss it picks as seen (HasSeenBoss), so calling it twice
-    // on the SAME runState instance, with no `ref`, must never repeat a boss until the pool is
-    // exhausted. If mutation stopped propagating, this would eventually pick the same boss twice.
     [Fact]
     public void GetBossForAnte_MutationPersists_AcrossCallsOnSameRunStateInstance_WithoutRef()
     {

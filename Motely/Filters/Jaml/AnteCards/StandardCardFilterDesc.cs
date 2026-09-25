@@ -18,7 +18,6 @@ public sealed partial class StandardCardClause : IJamlClause, IAnteScopedClause
     public MotelyItemSeal? Seal { get; set; }
     public MotelyItemEdition? Edition { get; set; }
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public StandardCardSourceConfig? Sources { get; set; }
 }
 
@@ -27,20 +26,10 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 {
     private readonly StandardCardClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["standardCard", "standardCards"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources", "rank", "suit", "enhancement", "seal", "edition"];
 
-    /// <summary>
-    /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.
-    /// The shop is left out because its playing-card weight is the Magic Trick weight and no deck
-    /// starts with that voucher (<see cref="JamlRarityContext.ShopStandardCardRate"/>), so a
-    /// shop-only default matched nothing on every deck. Shop slots need an explicit
-    /// <c>sources:</c>. Slot range is the engine's
-    /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.
-    /// </summary>
     internal static readonly StandardCardSourceConfig DefaultSources = new()
     {
         BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
@@ -67,7 +56,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // Single match core: same PrepareRunState + count as should-scoring.
             var clause = _clause;
             return ctx.SearchIndividualSeeds(
                 (MotelySingleSearchContext singleCtx) =>
@@ -77,13 +65,9 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     }
 }
 
-/// <summary>
-/// <c>sources:</c> block for <c>standardCard:</c>. Colocated with <see cref="StandardCardFilterDesc"/> (T5).
-/// </summary>
 [YamlObject]
 public sealed partial record StandardCardSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =
     [
         "shopItems",
@@ -95,6 +79,5 @@ public sealed partial record StandardCardSourceConfig
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 
-    /// <summary>When true, only Mega-sized Standard packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
 }

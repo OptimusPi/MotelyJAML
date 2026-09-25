@@ -2,16 +2,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Pins the packed-int contract of <see cref="MotelyItem"/> and its SIMD twin
-/// <see cref="MotelyItemVector"/>: every facet reads and writes through one int, facets never
-/// disturb each other, With* never mutates, and FormatItem/Parse round-trips the whole facet
-/// set. These laws are what the WASM boundary and the vector lane extraction both rely on.
-/// </summary>
 public sealed class MotelyItemContractTests
 {
-    // ── MotelyItem: facet packing ───────────────────────────────────────────────
-
     [Fact]
     public void Facets_SetOne_DoesNotDisturbOthers()
     {
@@ -32,7 +24,6 @@ public sealed class MotelyItemContractTests
         Assert.True(item.IsPerishable);
         Assert.True(item.IsRental);
 
-        // Clearing one sticker leaves the rest of the word intact.
         item.IsPerishable = false;
         Assert.False(item.IsPerishable);
         Assert.True(item.IsEternal);
@@ -134,8 +125,6 @@ public sealed class MotelyItemContractTests
         Assert.Contains("Blue Seal", text);
     }
 
-    // ── FormatItem / Parse round-trip ───────────────────────────────────────────
-
     public static TheoryData<int> RoundTripItems() =>
         new()
         {
@@ -175,8 +164,6 @@ public sealed class MotelyItemContractTests
         Assert.True(MotelyItem.TryParse(FormatUtils.FormatItem(new(MotelyItemType.TheSoul)), out var soul));
         Assert.Equal(MotelyItemType.TheSoul, soul.Type);
     }
-
-    // ── MotelyItemVector: lane laws ─────────────────────────────────────────────
 
     [Fact]
     public void Vector_Broadcast_PutsItemInEveryLane()
@@ -245,8 +232,6 @@ public sealed class MotelyItemContractTests
             MotelyItemVector.Equals(a, new MotelyItem(MotelyItemType.TheSoul))
         );
     }
-
-    // ── MotelyVectorItemSet ─────────────────────────────────────────────────────
 
     [Fact]
     public void ItemSet_AppendContainsAndExtract()

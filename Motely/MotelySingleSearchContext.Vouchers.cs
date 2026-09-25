@@ -32,7 +32,6 @@ public partial class MotelySingleSearchContext
 
         while (true)
         {
-            // All of the odd vouchers require a prerequisite
             bool prerequisiteRequired = ((int)voucher & 1) == 1;
 
             if (!prerequisiteRequired)
@@ -80,7 +79,6 @@ public partial class MotelySingleSearchContext
         {
             if (!voucherState.IsVoucherActive(voucher))
             {
-                // All of the odd vouchers require a prerequisite
                 bool prerequisiteRequired = ((int)voucher & 1) == 1;
 
                 if (!prerequisiteRequired)
@@ -132,7 +130,6 @@ public partial class MotelySingleSearchContext
         {
             if (!voucherState.IsVoucherActive(voucher))
             {
-                // All of the odd vouchers require a prerequisite
                 bool prerequisiteRequired = ((int)voucher & 1) == 1;
 
                 if (!prerequisiteRequired)

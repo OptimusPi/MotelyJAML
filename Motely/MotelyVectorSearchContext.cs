@@ -34,7 +34,6 @@ public struct MotelyVectorResampleStream(MotelyVectorPrngStream initialPrngStrea
     public MotelyResampleStreams ResamplePrngStreams;
     public int ResamplePrngStreamInitCount;
 
-    // StrongBox keeps resample streams as a typed heap cell — no object-box churn.
     public List<StrongBox<MotelyVectorPrngStream>>? HighResamplePrngStreams;
     public bool IsCached = isCached;
     public readonly bool IsInvalid => InitialPrngStream.IsInvalid;
@@ -61,7 +60,6 @@ public struct MotelyVectorResampleStream(MotelyVectorPrngStream initialPrngStrea
 
             for (int i = 0; i < HighResamplePrngStreams.Count; i++)
             {
-                // StrongBox.Value — typed path, no unbox.
                 stream.HighResamplePrngStreams.Add(
                     HighResamplePrngStreams[i].Value.CreateSingleStream(lane)
                 );
@@ -88,21 +86,17 @@ internal readonly unsafe struct MotelySearchContextParams(
     public readonly int SeedFirstCharactersLength = firstCharactersLength;
     public readonly int SeedLastCharactersLength => SeedLength - SeedFirstCharactersLength;
 
-    // The first characters which are the same between all vector lanes
     public readonly char* SeedFirstCharacters = seedFirstCharacters;
 
-    // The last characters which are different between vector lanes
     public readonly Vector512<double>* SeedLastCharacters = seedLastCharacters;
     public readonly bool IsAdditionalFilter = isAdditionalFilter;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool IsLaneValid(int lane)
     {
-        // If all the lanes are the same seed, we say only the first lane is valid
         if (SeedFirstCharactersLength == SeedLength)
             return lane == 0;
 
-        // Otherwise, the lane is valid if its character is not null
         return ((double*)&SeedLastCharacters[0])[lane] != '\0';
     }
 
@@ -136,35 +130,22 @@ internal readonly unsafe struct MotelySearchContextParams(
     }
 }
 
-// Vector constants live here so hot paths reuse them.
 internal static class MotelyVectorConstants
 {
-    // PRNG iteration constants
     public static readonly Vector512<double> PrngMultiplier = Vector512.Create(1.72431234);
     public static readonly Vector512<double> PrngAddend = Vector512.Create(2.134453429141);
     public static readonly Vector512<double> PrngRoundingFactor = Vector512.Create(1e13);
 
-    // Magic number for accurate rounding: 2^52 aligns binary point for ties-to-even
     public static readonly Vector512<double> PrngMagicNumber = Vector512.Create(4503599627370496.0);
 
-    // Pseudo-hash constants
     public static readonly Vector512<double> HashConstant = Vector512.Create(1.1239285023);
     public static readonly Vector512<double> Pi = Vector512.Create(Math.PI);
 
-    // Common constants
     public static readonly Vector512<double> Two = Vector512.Create(2.0);
 }
 
 public readonly unsafe ref partial struct MotelyVectorSearchContext
 {
-    /// <summary>
-    /// Hard cap on vector-mode resample loops (vouchers, tarots, planets, tags, spectrals).
-    /// Protects against infinite spin when stale/invalid lanes in a SIMD vector keep
-    /// producing values that never satisfy the resample-exit mask (e.g. additional-filter
-    /// batches with padding lanes, zeroed seed chars, or stale hash-cache state).
-    /// 64 is well above any legitimate resample count — the underlying item domains are
-    /// all smaller than this — so real searches are never affected.
-    /// </summary>
     internal const int MotelyVectorResampleLimit = 64;
 
     private readonly ref readonly MotelySearchParameters _searchParameters;
@@ -262,9 +243,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
     {
         Vector512<double> partialHash;
 
-        // bugged ???????????????????????????????
-        //if ((isCached && !IsAdditionalFilter) || SeedHashCache->HasPartialHash(key.Length))
-        //fixed?
         if (!IsAdditionalFilter && (isCached || SeedHashCache->HasPartialHash(key.Length)))
         {
             partialHash = SeedHashCache->GetPartialHashVector(key.Length);
@@ -286,7 +264,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         int seedLastCharacterLength = SeedLastCharactersLength;
         double num = 1;
 
-        // First we do the first characters of the seed which are the same between all vector lanes
         for (int i = SeedFirstCharactersLength - 1; i >= 0; i--)
         {
             num =
@@ -296,10 +273,8 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
                 ) % 1;
         }
 
-        // Then we vectorize and do the last characters of the seed
         Vector512<double> numVector = Vector512.Create(num);
 
-        // Reuse hoisted vector constants.
         for (int i = seedLastCharacterLength - 1; i >= 0; i--)
         {
             numVector = Vector512.Divide(MotelyVectorConstants.HashConstant, numVector);
@@ -317,7 +292,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector512<double> InternalPseudoHash(string key, Vector512<double> partialHash)
     {
-        // Reuse hoisted vector constants.
         for (int i = key.Length - 1; i >= 0; i--)
         {
             partialHash = Vector512.Divide(MotelyVectorConstants.HashConstant, partialHash);
@@ -332,12 +306,10 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         return partialHash;
     }
 
-    // Hot path constants for PRNG iteration
     private static readonly double InvPrec = Math.Pow(10.0, 13);
     private static readonly double TwoInvPrec = Math.Pow(2.0, 13);
     private static readonly double FiveInvPrec = Math.Pow(5.0, 13);
 
-    // Mukundan314's fix: Use FMA with magic number for accurate rounding matching LuaJIT
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector512<double> IteratePRNG(Vector512<double> state)
     {
@@ -347,8 +319,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         Vector512<double> intPart = Vector512.Floor(state);
         state = Vector512.Subtract(state, intPart);
 
-        // Round to 13 decimals using FMA + magic number for exact tie-breaking
-        // FMA(state, 1e13, 2^52) maintains infinite precision, avoiding intermediate rounding
         state = Vector512.FusedMultiplyAdd(
             state,
             MotelyVectorConstants.PrngRoundingFactor,
@@ -471,7 +441,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private MotelyVectorPrngStream CreateResamplePrngStream(string key, int resample, bool isCached)
     {
-        // We don't cache resamples >= 8 because they'd use an extra digit
         if (isCached && resample >= 8)
             isCached = false;
         return CreatePrngStream(key + MotelyPrngKeys.Resample + (resample + 2), isCached);
@@ -508,7 +477,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
 
             Debug.Assert(resampleStream.HighResamplePrngStreams != null);
 
-            // StrongBox — typed heap cell for the stream.
             if (resample < resampleStream.HighResamplePrngStreams.Count)
             {
                 return ref resampleStream.HighResamplePrngStreams[resample].Value;

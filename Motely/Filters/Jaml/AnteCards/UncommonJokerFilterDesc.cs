@@ -10,15 +10,10 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
 {
     private readonly UncommonJokerClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["uncommonJoker", "uncommonJokers"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
-    /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
-    /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
-    /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>
     internal static readonly JokerSourceConfig DefaultSources = JokerFilterDesc.DefaultSources;
 
     public readonly UncommonJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
@@ -38,7 +33,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                 ctx.CacheShopJokerStream(ante);
         }
 
-        // Pre-calculate target item types to avoid bitwise logic in the hot loop
         var jokers = JamlDisc.OrEmpty(_clause.Jokers);
         var targetTypes = new MotelyItemType[jokers.Length];
         for (int i = 0; i < jokers.Length; i++)
@@ -55,7 +49,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
             }
         }
 
-        // Extract source indices from config
         var shopIndices = sources.ShopItems;
         var boosterIndices = sources.BoosterPacks;
         var commonShopJokerIndices = sources.CommonShopJokers;
@@ -63,8 +56,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
         var rareShopJokerIndices = sources.RareShopJokers;
         var allShopJokerIndices = sources.AllShopJokers;
 
-        // This desc walks the four raw shop joker streams natively; the spawn streams
-        // (judgement/wraith/riffRaff/rareTag/uncommonTag) are counted per seed by the scalar law.
         bool confirmPerSeed = sources.HasSpawnSources;
 
         int maxShopItem = 0;
@@ -156,7 +147,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Jokers = category any
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "UncommonJokerClause.Min must be > 0 — loader bug.");
 
@@ -194,7 +184,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
 
             foreach (var ante in _clause.Antes)
             {
-                // ── Raw common shop joker stream SIMD ──
                 if (commonShopJokerIndices.Length > 0)
                 {
                     var commonShopStream = ctx.CreateCommonShopJokerStream(ante);
@@ -230,7 +219,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                     }
                 }
 
-                // ── Raw uncommon shop joker stream SIMD ──
                 if (uncommonShopJokerIndices.Length > 0)
                 {
                     var uncommonShopStream = ctx.CreateUncommonShopJokerStream(ante);
@@ -266,7 +254,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                     }
                 }
 
-                // ── Raw rare shop joker stream SIMD ──
                 if (rareShopJokerIndices.Length > 0)
                 {
                     var rareShopStream = ctx.CreateRareShopJokerStream(ante);
@@ -302,7 +289,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                     }
                 }
 
-                // ── Raw all-rarity shop joker stream SIMD ──
                 if (allShopJokerIndices.Length > 0)
                 {
                     var allShopStream = ctx.CreateShopJokerStream(ante);
@@ -338,7 +324,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                     }
                 }
 
-                // ── Shop items SIMD ──
                 if (shopIndices.Length > 0)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -374,8 +359,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
                     }
                 }
 
-                // ── Buffoon packs SIMD ──
-                // Per-lane size (Normal=2, Jumbo/Mega=4) + ante-1 slot reachability.
                 if (boosterIndices.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -481,7 +464,6 @@ public struct UncommonJokerFilterDesc(UncommonJokerClause clause)
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
             for (int s = 0; s < _clause.Stickers.Length; s++)
             {
                 switch (_clause.Stickers[s])

@@ -22,8 +22,6 @@ public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
 
-    /// <summary>Legendary-path sources for any Legendary names in this mixed clause. Null = apply
-    /// <see cref="LegendaryJokerFilterDesc.DefaultSources"/> (same convention as <see cref="Sources"/>).</summary>
     public LegendaryJokerSourceConfig? LegendarySources { get; set; }
 }
 
@@ -32,18 +30,11 @@ public struct JokerFilterDesc(JokerClause clause)
 {
     private readonly JokerClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["joker", "jokers"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 
-    /// <summary>
-    /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
-    /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and
-    /// specialty streams require an explicit <c>sources:</c> block (wholesale, no merge).
-    /// </summary>
     internal static readonly JokerSourceConfig DefaultSources = new()
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
@@ -57,7 +48,6 @@ public struct JokerFilterDesc(JokerClause clause)
             ctx.CacheBoosterPackStream(ante);
         }
 
-        // Pre-calculate target item types to avoid bitwise logic in the hot loop
         var jokers = JamlDisc.OrEmpty(_clause.Jokers);
         var targetTypes = new MotelyItemType[jokers.Length];
         for (int i = 0; i < jokers.Length; i++)
@@ -74,13 +64,10 @@ public struct JokerFilterDesc(JokerClause clause)
             }
         }
 
-        // null sources → filter default (shop only). Loader never fills Sources.
         var sources = _clause.Sources ?? DefaultSources;
         var shopIndices = sources.ShopItems;
         var boosterIndices = sources.BoosterPacks;
 
-        // Only shop slots and buffoon packs are walked in SIMD here; everything else the
-        // clause can name is counted per seed by the scalar law.
         bool confirmPerSeed =
             UsesLegendaryPath(_clause)
             || sources.HasSpawnSources
@@ -154,7 +141,6 @@ public struct JokerFilterDesc(JokerClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Jokers = category any
             int needed = _clause.Min;
             Debug.Assert(needed > 0, "JokerClause.Min must be > 0 — loader bug.");
 
@@ -188,7 +174,6 @@ public struct JokerFilterDesc(JokerClause clause)
 
             foreach (var ante in _clause.Antes)
             {
-                // ── Shop items SIMD ──
                 if (shopIndices.Length > 0)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -224,8 +209,6 @@ public struct JokerFilterDesc(JokerClause clause)
                     }
                 }
 
-                // ── Buffoon packs SIMD ──
-                // Per-lane size (Normal=2, Jumbo/Mega=4) + ante-1 slot reachability.
                 if (boosterIndices.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -309,7 +292,6 @@ public struct JokerFilterDesc(JokerClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private readonly VectorMask MatchJokers(in MotelyItemVector item)
         {
-            // Category-any clauses never reach here: UsesLegendaryPath routes them per seed.
             VectorMask jokerMatch = VectorMask.NoBitsSet;
             for (int t = 0; t < _targetTypes.Length; t++)
                 jokerMatch |= VectorEnum256.Equals(item.Type, _targetTypes[t]);
@@ -317,7 +299,6 @@ public struct JokerFilterDesc(JokerClause clause)
             if (_clause.Edition.HasValue)
                 jokerMatch &= VectorEnum256.Equals(item.Edition, _clause.Edition.Value);
 
-            // Every listed sticker must be present, same as scalar MatchJoker; None is no gate.
             for (int s = 0; s < _clause.Stickers.Length; s++)
             {
                 switch (_clause.Stickers[s])
@@ -338,8 +319,6 @@ public struct JokerFilterDesc(JokerClause clause)
         }
     }
 }
-
-// ── Rarity-specific joker clauses ──
 
 [JamlDiscriminator("commonJoker", "commonJokers",
     ValueEnum = typeof(MotelyJokerCommon), SourceConfigType = typeof(JokerSourceConfig))]
@@ -389,19 +368,9 @@ public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
     public JokerSourceConfig? Sources { get; set; }
 }
 
-/// <summary>
-/// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
-/// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
-/// </summary>
 [YamlObject]
 public sealed partial record JokerSourceConfig
 {
-    /// <summary>
-    /// This class's settable properties, camelCased — the single list JamlConfigLoader
-    /// ValidateKeys and Motely.Schema both read. <c>emperor</c> lives on
-    /// <see cref="TarotCardSourceConfig"/>, not here.
-    /// </summary>
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =
     [
         "shopItems", "boosterPacks", "judgement", "wraith", "riffRaff", "rareTag", "uncommonTag",
@@ -409,32 +378,21 @@ public sealed partial record JokerSourceConfig
         "requireMega", "requireMegaPack",
     ];
 
-    /// <summary>Assembled shop slots via the full shop item stream (any item type).</summary>
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 
-    /// <summary>When true, only Mega-sized Buffoon packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
 
-    /// <summary>0..n rolls of the joker stream keyed by the Judgement tarot (rarity-polled, no stickers).</summary>
     public int[] Judgement { get; set; } = [];
 
-    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (rarity-polled, no stickers).</summary>
     public int[] Wraith { get; set; } = [];
 
-    /// <summary>0..n rolls of the common-pool stream Riff-Raff spawns from (no stickers).</summary>
     public int[] RiffRaff { get; set; } = [];
 
-    /// <summary>0..n rolls of the Rare Tag's joker stream.</summary>
     public int[] RareTag { get; set; } = [];
 
-    /// <summary>0..n rolls of the Uncommon Tag's joker stream.</summary>
     public int[] UncommonTag { get; set; } = [];
 
-    /// <summary>
-    /// Any consumable/joker/tag spawn stream is named. No joker desc walks these in SIMD;
-    /// a clause naming one confirms per seed via <see cref="JamlScoring.ClauseMeetsMinForFilter"/>.
-    /// </summary>
     internal bool HasSpawnSources =>
         Judgement.Length > 0
         || Wraith.Length > 0
@@ -442,25 +400,17 @@ public sealed partial record JokerSourceConfig
         || RareTag.Length > 0
         || UncommonTag.Length > 0;
 
-    /// <summary>
-    /// Any raw rarity-pool shop joker stream is named. Only <see cref="UncommonJokerFilterDesc"/>
-    /// walks these in SIMD; the other joker descs confirm per seed.
-    /// </summary>
     internal bool HasRawShopJokerSources =>
         CommonShopJokers.Length > 0
         || UncommonShopJokers.Length > 0
         || RareShopJokers.Length > 0
         || AllShopJokers.Length > 0;
 
-    /// <summary>0..n rolls on the common shop joker PRNG only (fast path).</summary>
     public int[] CommonShopJokers { get; set; } = [];
 
-    /// <summary>0..n rolls on the uncommon shop joker PRNG only (fast path; not the same indices as <see cref="ShopItems"/> when slots mix types).</summary>
     public int[] UncommonShopJokers { get; set; } = [];
 
-    /// <summary>0..n rolls on the rare shop joker PRNG only (fast path).</summary>
     public int[] RareShopJokers { get; set; } = [];
 
-    /// <summary>0..n rolls on the all-rarity shop joker stream (fast path).</summary>
     public int[] AllShopJokers { get; set; } = [];
 }

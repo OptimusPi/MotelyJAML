@@ -157,7 +157,6 @@ ref partial struct MotelyVectorSearchContext
         }
         else
         {
-            // Only advance PRNG for lanes that need it (using mask and not soul mask)
             var tarotMask = mask & ~soulMask;
             tarots = GetNextRandomInt(
                 ref tarotStream.ResampleStream.InitialPrngStream,
@@ -233,7 +232,6 @@ ref partial struct MotelyVectorSearchContext
             {
                 Vector256<int> resampleMaskInt = itemSet.Contains(new MotelyItemVector(tarots));
 
-                // Don't resmaple lanes which have the soul
                 resampleMaskInt &= ~soulMaskInt;
 
                 if (Vector256.EqualsAll(resampleMaskInt, Vector256<int>.Zero))
@@ -267,9 +265,6 @@ ref partial struct MotelyVectorSearchContext
         );
     }
 
-    // The pack a player opens is deduplicated (resample rolls replace repeats), so HasThe
-    // answers from the same contents walk the scalar engine uses — the raw stream diverges
-    // whenever a duplicate resamples into the target.
     public VectorMask GetNextArcanaPackHasThe(
         ref MotelyVectorTarotStream tarotStream,
         MotelyTarotCard targetTarot,
@@ -282,7 +277,6 @@ ref partial struct MotelyVectorSearchContext
         );
     }
 
-    /// <inheritdoc cref="GetNextArcanaPackHasThe(ref MotelyVectorTarotStream, MotelyTarotCard, MotelyBoosterPackSize)"/>
     public VectorMask GetNextArcanaPackHasThe(
         ref MotelyVectorTarotStream tarotStream,
         MotelyTarotCard[] targetTarots,

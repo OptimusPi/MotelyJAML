@@ -18,7 +18,6 @@ internal static partial class ConsoleKeyMonitor
         catch (IOException) { }
     }
 
-    // Win32 raw console input — completely independent of the managed Console lock.
     private static void RunWindows(Action onEsc, Action onProgress, CancellationToken stopToken)
     {
         nint hInput = GetStdHandle(STD_INPUT_HANDLE);
@@ -58,7 +57,6 @@ internal static partial class ConsoleKeyMonitor
         }
     }
 
-    // Managed fallback for non-Windows (Console lock contention is less of an issue on Unix).
     private static void RunFallback(Action onEsc, Action onProgress, CancellationToken stopToken)
     {
         if (Console.IsInputRedirected)
@@ -78,8 +76,6 @@ internal static partial class ConsoleKeyMonitor
                 onProgress();
         }
     }
-
-    // ── Win32 P/Invoke (source-generated, AOT-safe) ──
 
     private const int STD_INPUT_HANDLE = -10;
     private const uint WAIT_OBJECT_0 = 0;
@@ -114,7 +110,7 @@ internal static partial class ConsoleKeyMonitor
     [StructLayout(LayoutKind.Sequential)]
     private struct KEY_EVENT_RECORD
     {
-        public int bKeyDown; // Win32 BOOL = 4 bytes, NOT C# bool
+        public int bKeyDown;
         public ushort wRepeatCount;
         public ushort wVirtualKeyCode;
         public ushort wVirtualScanCode;

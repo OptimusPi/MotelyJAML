@@ -23,10 +23,8 @@ public struct ErraticRankFilterDesc(ErraticRankClause clause)
 {
     private readonly ErraticRankClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["erraticRank", "erraticRanks"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
 
     public ErraticRankFilter CreateFilter(ref MotelyFilterCreationContext ctx)

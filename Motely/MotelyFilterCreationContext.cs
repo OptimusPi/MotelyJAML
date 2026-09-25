@@ -8,7 +8,6 @@ public ref struct MotelyFilterCreationContext
         _cachedPseudohashKeyLengths;
     public bool IsAdditionalFilter;
 
-    // Default parameters for unit tests
     private static readonly MotelySearchParameters _defaultSearchParameters = new()
     {
         Deck = MotelyDeck.Red,
@@ -26,7 +25,6 @@ public ref struct MotelyFilterCreationContext
         _cachedPseudohashKeyLengths = [0];
     }
 
-    // Parameterless constructor for unit tests (uses default search parameters)
     public MotelyFilterCreationContext()
     {
         _searchParameters = ref _defaultSearchParameters;
@@ -45,7 +43,6 @@ public ref struct MotelyFilterCreationContext
 
     public readonly void CachePseudoHash(int keyLength, bool force = false)
     {
-        // We don't cache values if they are not forced and this filter is an additional filter
         if (!force && IsAdditionalFilter)
             return;
 
@@ -61,7 +58,6 @@ public ref struct MotelyFilterCreationContext
     {
         CachePseudoHash(key, force);
         CachePseudoHash(key + MotelyPrngKeys.Resample + "X", force);
-        // We don't cache resamples >= 8 because they'd use an extra digit
     }
 
     public readonly void CacheBoosterPackStream(int ante, bool force = false) =>
@@ -277,8 +273,6 @@ public ref struct MotelyFilterCreationContext
             flags.HasFlag(MotelyJokerStreamFlags.ExcludeStickers),
             force
         );
-
-        // NOTE: Potential optimization - cache common joker stream for reuse
     }
 
     private readonly void CacheFixedRarityJokerStream(

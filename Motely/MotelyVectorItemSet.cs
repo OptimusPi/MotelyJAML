@@ -23,7 +23,6 @@ public ref struct MotelyVectorItemSet
 #if DEBUG
         return ref set.Items[index];
 #else
-        // Be fast and skip the bounds check
         return ref Unsafe.Add(ref Unsafe.As<ItemSet, MotelyItemVector>(ref set.Items), index);
 #endif
     }

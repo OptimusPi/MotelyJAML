@@ -5,7 +5,6 @@ namespace Motely.Tests;
 
 public class JamlJsonLoaderTests
 {
-    /// <summary>The one must clause is a joker clause naming no joker, which the engine reads as the whole category.</summary>
     private static void AssertSingleMustIsAnyJoker(JamlConfig config)
     {
         var clause = Assert.Single(config.Must);

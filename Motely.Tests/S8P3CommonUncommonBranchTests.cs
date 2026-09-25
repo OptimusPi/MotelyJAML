@@ -1,11 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P3 — Common/Uncommon joker filter residual branches, same recipe as
-/// <see cref="S8P2RareJokerBranchTests"/>: Gold-stake stickers and ante-1 extended pack
-/// slots, list-proved on the wide fixture list with pinned match sets (SIMD filter +
-/// scalar must re-eval agree before a seed is reported).
-/// </summary>
 public sealed class S8P3CommonUncommonBranchTests
 {
     private static readonly string[] WideSeeds =
@@ -27,8 +21,6 @@ public sealed class S8P3CommonUncommonBranchTests
         return (matching, [.. matched.OrderBy(s => s, StringComparer.Ordinal)]);
     }
 
-    /// <summary>Eternal-stickered commons exist on 23 of 28 seeds — the excluded five
-    /// (696, 88, F, MOTELY77, VV) prove the sticker mask is a live gate.</summary>
     [Fact]
     public void CommonJoker_GoldEternal_GatesFiveSeedsOut()
     {

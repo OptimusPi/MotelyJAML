@@ -23,7 +23,6 @@ public unsafe partial class MotelySingleSearchContext
         MotelyRunState state
     )
     {
-        // 23 is the maximum number of boss blinds in the pool, because there is 23 non-finisher boss blinds
         const int maxPoolLength = 23;
 
         MotelyBossBlind* pool = stackalloc MotelyBossBlind[maxPoolLength];
@@ -31,7 +30,6 @@ public unsafe partial class MotelySingleSearchContext
 
         if (ante % 8 == 0)
         {
-            // Finisher boss blind
             for (int i = 0; i < MotelyBossBlindExt.FinisherBossBlinds.Length; i++)
             {
                 MotelyBossBlind boss = MotelyBossBlindExt.FinisherBossBlinds[i];
@@ -51,7 +49,6 @@ public unsafe partial class MotelySingleSearchContext
                 for (int i = 0; i < MotelyBossBlindExt.FinisherBossBlinds.Length; i++)
                 {
                     MotelyBossBlind boss = MotelyBossBlindExt.FinisherBossBlinds[i];
-                    // None of them should be seen because we reset the state
                     Debug.Assert(!state.HasSeenBoss(boss));
                     Debug.Assert(poolLength < maxPoolLength);
 
@@ -61,7 +58,6 @@ public unsafe partial class MotelySingleSearchContext
         }
         else
         {
-            // Normal boss blind
             for (int i = 0; i < MotelyBossBlindExt.NormalBossBlinds.Length; i++)
             {
                 MotelyBossBlind boss = MotelyBossBlindExt.NormalBossBlinds[i];

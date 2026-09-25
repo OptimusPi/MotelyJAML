@@ -1,8 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Seed-proof for <c>pokerHand:</c> — list-search only, seeds pinned by CLI --collect.
-/// </summary>
 public sealed class PokerHandFilterTests
 {
     private const string FourOfAKind = """
@@ -57,7 +54,6 @@ public sealed class PokerHandFilterTests
     [Fact]
     public void PairOrBetter_MatchesKnownQuadSeed()
     {
-        // Quads imply Pair-or-better list membership for BestScore type.
         ProofSearch.MustMatchAll(PairOrBetter, "5S5");
     }
 }

@@ -1,9 +1,5 @@
 namespace Motely;
 
-/// <summary>
-/// Lazy <see cref="IEnumerable{T}"/> sequences and keyword tables for CLI/provider seed modes.
-/// Keeps <c>Program.cs</c> thin; enumerate without materializing huge lists.
-/// </summary>
 public static class MotelySeedKeywordSequences
 {
     public static IEnumerable<string> RepeatCharKeywords(int repeatCount)
@@ -28,7 +24,6 @@ public static class MotelySeedKeywordSequences
             yield return chars.Substring(i, length);
     }
 
-    /// <summary>Mirror-friendly strings over symmetric characters (length 3–8 from CLI).</summary>
     public static IEnumerable<string> MirrorPatternKeywords(int length)
     {
         const string symmetricChars = "AHIMOTUVWXY18";
@@ -52,35 +47,12 @@ public static class MotelySeedKeywordSequences
             yield return pattern;
     }
 
-    // All keywords must be 4–8 chars, using only 1-9A-Z (no zero), and unique within their list.
-
-    /// <summary>
-    /// Baked padded-seed totals for JAML keyword aesthetics (<see cref="JamlAesthetics.GetSeedCount"/>).
-    /// Must match <see cref="MotelyGlobals.GetPaddedSeedCountForKeywordsLong"/> for the paired <c>*Keywords</c> array;
-    /// recompute with a one-off console if those tables change (see <c>Motely.Tests</c> guard test).
-    /// </summary>
-    // Keyword-contiguous pad counts (padLen + 1 slots). Keep in sync with the generator.
-    // 2026-07-31: minimum keyword length raised 3 → 4, and exact duplicates removed (84 entries).
-    // A 3-char keyword leaves 5 free pad slots — 35^5 * 6 ≈ 315M padded seeds from one word —
-    // so a handful of them dominated every aesthetic and made the search useless.
     public const long GrossKeywordAestheticSeedCount = 307_252_260L;
     public const long FunnyKeywordAestheticSeedCount = 493_728_588L;
     public const long BalatroKeywordAestheticSeedCount = 913_677_733L;
     public const long LeetKeywordAestheticSeedCount = 1_525_175_581L;
-    // Recomputed when NsfwKeywords changes (MotelyGlobals.GetPaddedSeedCountForKeywordsLong).
-    // 2026-07-29: dropped ASS/ASSY/ASSES/ASSMAN + ambiguous short pads (ROD/WET/BLOW/…).
     public const long NsfwKeywordAestheticSeedCount = 302_944_676L;
 
-    /// <summary>
-    /// Lazy generator that yields every padded seed for the keyword-backed JAML aesthetics
-    /// (<see cref="JamlAesthetic.Gross"/>, <see cref="JamlAesthetic.Funny"/>,
-    /// <see cref="JamlAesthetic.Balatro"/>, <see cref="JamlAesthetic.Nsfw"/>). Palindrome and Psychosis
-    /// aren't keyword sequences — they live next to their own generators.
-    /// </summary>
-    /// <param name="paddingAlphabet">
-    /// Free-slot charset. Null = full seed alphabet (historical full aesthetic counts).
-    /// Digits-only pad keeps the keyword letters readable and collapses the stream.
-    /// </param>
     public static IEnumerable<string> EnumerateAestheticSeeds(
         JamlAesthetic aesthetic,
         char[]? paddingAlphabet = null
@@ -95,10 +67,6 @@ public static class MotelySeedKeywordSequences
             yield return seed;
     }
 
-    /// <summary>
-    /// Seed count for keyword-backed aesthetics. Full alphabet uses baked constants;
-    /// any explicit pad is counted live via <see cref="MotelyGlobals.GetPaddedSeedCountForKeywordsLong"/>.
-    /// </summary>
     public static long GetAestheticSeedCount(
         JamlAesthetic aesthetic,
         char[]? paddingAlphabet = null
@@ -1387,14 +1355,8 @@ public static class MotelySeedKeywordSequences
         "YOR1CK",
     ];
 
-    /// <summary>
-    /// Crude / NSFW keyword pad list (length 4–8, Motely alphabet only).
-    /// For spotting seeds you might not want in a public Balatro server.
-    /// Disability-targeted tokens are not included.
-    /// </summary>
     public static readonly string[] NsfwKeywords =
     [
-        // Short bare "ASS" / pad-bloat duds dropped — keep compounds that actually read as nsfw.
         "CUMS",
         "CUMMY",
         "CUMSHOT",

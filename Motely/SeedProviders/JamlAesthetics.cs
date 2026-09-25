@@ -1,13 +1,8 @@
 namespace Motely.SeedProviders;
 
-/// <summary>
-/// Seed-space constraints declared under top-level <c>aesthetics</c> in a JAML document.
-/// Enumeration and classification: <see cref="JamlAesthetics"/>.
-/// </summary>
 public enum JamlAesthetic
 {
     Palindrome,
-    /// <summary>ABAxBxxx letter skeleton (A,B free pad).</summary>
     Psychosis,
     Mirror,
     Repeater,
@@ -20,31 +15,10 @@ public enum JamlAesthetic
     Nsfw,
 }
 
-/// <summary>
-/// Generation and counting of JAML <see cref="JamlAesthetic"/> seed spaces over Motely's alphabet
-/// and length rules. Palindrome/Psychosis/Mirror/Repeater/Runs/Step live here; keyword-backed aesthetics
-/// (<see cref="JamlAesthetic.Gross"/>, <see cref="JamlAesthetic.Funny"/>,
-/// <see cref="JamlAesthetic.Balatro"/>, <see cref="JamlAesthetic.Nsfw"/>) delegate to
-/// <see cref="MotelySeedKeywordSequences"/>.
-/// <para>
-/// <b>Padding alphabet:</b> free / generated positions use <paramref name="paddingAlphabet"/> when
-/// provided (CLI <c>--padding</c>). Null keeps the full <see cref="MotelyGlobals.SeedDigits"/> space
-/// (historical full aesthetic). Collect's aesthetic prepass defaults to
-/// <see cref="QuickPaddingChars"/> so words stay visible and the stream is searchable.
-/// </para>
-/// </summary>
 public static class JamlAesthetics
 {
-    /// <summary>
-    /// Digit-only pad: free slots stay numeric so letter patterns (psychosis ABA…, keyword words)
-    /// stay readable. ~orders of magnitude smaller than full <see cref="MotelyGlobals.SeedDigits"/>.
-    /// </summary>
     public static readonly char[] QuickPaddingChars = "123456789".ToCharArray();
 
-    /// <summary>Returns how many seeds <paramref name="aesthetic"/> enumerates.</summary>
-    /// <param name="paddingAlphabet">
-    /// Optional charset for free/generated positions. Null = full seed alphabet.
-    /// </param>
     public static long GetSeedCount(JamlAesthetic aesthetic, char[]? paddingAlphabet = null) =>
         aesthetic switch
         {
@@ -65,7 +39,6 @@ public static class JamlAesthetics
             _ => throw new ArgumentOutOfRangeException(nameof(aesthetic)),
         };
 
-    /// <summary>Deterministic enumeration; order matches historical full-alphabet providers when pad is null.</summary>
     public static IEnumerable<string> EnumerateSeeds(
         JamlAesthetic aesthetic,
         char[]? paddingAlphabet = null
@@ -89,16 +62,10 @@ public static class JamlAesthetics
             _ => throw new ArgumentOutOfRangeException(nameof(aesthetic)),
         };
 
-    /// <summary>Resolve pad: null → full seed digits; empty after filter is invalid (caller uses full).</summary>
     internal static char[] AlphabetOrFull(char[]? paddingAlphabet) =>
         paddingAlphabet is { Length: > 0 } ? paddingAlphabet : MotelyGlobals.SeedDigits;
 }
 
-/// <summary>
-/// Four-character runs: each valid character repeated four times, padded at every possible offset
-/// in an eight-character seed. A seed with a longer run may occur more than once, matching the
-/// existing keyword-provider semantics.
-/// </summary>
 file static class RunsAestheticSeeds
 {
     private static readonly string[] RunKeywords = [
@@ -112,7 +79,6 @@ file static class RunsAestheticSeeds
         MotelyGlobals.GeneratePaddedSeedsForKeywords(RunKeywords, paddingAlphabet);
 }
 
-/// <summary>Palindrome seeds: mirror-generated halves over the pad alphabet, lengths 1..<see cref="MotelyGlobals.MaxSeedLength"/>.</summary>
 file static class PalindromeAestheticSeeds
 {
     public static long GetSeedCount(char[]? paddingAlphabet)
@@ -187,10 +153,6 @@ file static class PalindromeAestheticSeeds
     }
 }
 
-/// <summary>
-/// Psychosis seeds: pattern ABAxBxxx where A,B are A-Z and x are free pad positions (always 8 chars).
-/// Letter skeleton stays A–Z so the word shape stays visible; free slots take the pad alphabet.
-/// </summary>
 file static class PsychosisAestheticSeeds
 {
     private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -210,8 +172,6 @@ file static class PsychosisAestheticSeeds
     public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
     {
         char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
-        // Reuse one 8-char buffer instead of interpolating a fresh string per seed.
-        // Pattern ABAxBxxx: positions 0,2 = a; positions 1,4 = b; positions 3,5,6,7 = free.
         char[] buffer = new char[8];
 
         foreach (char a in Letters)
@@ -244,22 +204,15 @@ file static class PsychosisAestheticSeeds
     }
 }
 
-/// <summary>
-/// Mirror-symmetric seeds: composed only of chars that look the same in a mirror
-/// (A H I M O T U V W X Y 1 8), intersected with the pad alphabet when provided.
-/// Lengths 1..MaxSeedLength.
-/// </summary>
 file static class MirrorAestheticSeeds
 {
     private static readonly char[] MirrorChars = "AHIMOTUVWXY18".ToCharArray();
 
     private static char[] EffectiveAlphabet(char[]? paddingAlphabet)
     {
-        // Full aesthetic: all mirror-looking glyphs.
         if (paddingAlphabet is not { Length: > 0 })
             return MirrorChars;
 
-        // Quick / custom pad: only mirror glyphs that appear in the pad set (digits → 1,8).
         var set = new HashSet<char>(paddingAlphabet);
         var result = MirrorChars.Where(set.Contains).ToArray();
         return result.Length > 0 ? result : MirrorChars;
@@ -316,11 +269,6 @@ file static class MirrorAestheticSeeds
     }
 }
 
-/// <summary>
-/// Repeater seeds: a base pattern that exactly tiles all 8 characters. Patterns drawn from the pad
-/// alphabet. Only periods 1, 2, and 4 qualify; a 6-character prefix plus two repeated characters
-/// is not a repeated 8-character seed.
-/// </summary>
 file static class RepeaterAestheticSeeds
 {
     private static readonly int[] PatternLengths = [1, 2, 4];
@@ -382,10 +330,6 @@ file static class RepeaterAestheticSeeds
     }
 }
 
-/// <summary>
-/// Step seeds: evenly-spaced alphabet steps over the pad alphabet. Always 8 chars.
-/// |alphabet|² seeds (start × step).
-/// </summary>
 file static class StepAestheticSeeds
 {
     public static long GetSeedCount(char[]? paddingAlphabet)

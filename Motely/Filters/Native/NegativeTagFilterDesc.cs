@@ -26,7 +26,6 @@ public struct NegativeTagFilterDesc()
             {
                 tagStream = searchContext.CreateTagStream(ante, true);
 
-                // Small blind
                 mask &= VectorEnum256.Equals(
                     searchContext.GetNextTag(ref tagStream),
                     MotelyTag.NegativeTag
@@ -35,7 +34,6 @@ public struct NegativeTagFilterDesc()
                 if (mask.IsAllFalse())
                     break;
 
-                // Big blind
                 mask &= VectorEnum256.Equals(
                     searchContext.GetNextTag(ref tagStream),
                     MotelyTag.NegativeTag

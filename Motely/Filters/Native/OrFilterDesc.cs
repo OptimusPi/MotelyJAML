@@ -51,7 +51,7 @@ public struct OrFilterDesc(IMotelySeedFilterDesc[] filters, int min = 1)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            if (_min == 1) // Optimization for standard OR
+            if (_min == 1)
             {
                 var mask = VectorMask.NoBitsSet;
                 var len = _filters.Length;

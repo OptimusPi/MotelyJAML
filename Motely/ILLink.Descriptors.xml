@@ -1,4 +1,3 @@
 <linker>
-  <!-- Keep every Motely type and member: JamlClauseFormatter builds clauses by reflection. -->
   <assembly fullname="Motely" preserve="all" />
 </linker>

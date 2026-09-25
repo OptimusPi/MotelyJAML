@@ -4,11 +4,6 @@ using Xunit;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// <c>and:</c>/<c>or:</c> pass no antes down: each clause writes its own, and an unscoped clause
-/// defaults to 1..8 on its own record. Antes on the group is an unknown key.
-/// Neg free Oops package: Neg never ante 1, so both arms say [2..8] themselves.
-/// </summary>
 public class JamlNegFreeOopsAndTests
 {
     private const string Seed = "1F5WEAYR";

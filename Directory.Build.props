@@ -1,9 +1,6 @@
 <Project>
   <PropertyGroup>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
-    <!-- Repo version lives here, not Directory.Packages.props: this file is MSBuild's first
-         import, so the value exists by the time Version is evaluated below. In Packages.props
-         it evaluated too late and every assembly silently stamped the 1.0.0 default (W21). -->
     <MotelyVersion>26.0.2</MotelyVersion>
     <Version>$(MotelyVersion)</Version>
     <LangVersion>latest</LangVersion>

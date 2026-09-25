@@ -4,12 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using Motely.Filters;
 
-/// <summary>
-/// SIMD base filter: Negative edition + legendary-rarity joker on the soul stream (antes 1–2).
-/// Legendary rarity is detected via a single bitmask check against
-/// <see cref="MotelyJokerRarity.Legendary"/> — no per-type comparisons needed.
-/// Compose with <see cref="LegendaryJokerShopSoulFilterDesc"/> via WithAdditionalFilter.
-/// </summary>
 public readonly struct NegativeLegendaryJokerSimdFilterDesc(MotelyItemType? targetJoker = null)
     : IMotelySeedFilterDesc<NegativeLegendaryJokerSimdFilterDesc.FilterStruct>
 {
@@ -20,7 +14,6 @@ public readonly struct NegativeLegendaryJokerSimdFilterDesc(MotelyItemType? targ
     {
         for (int ante = MinAnte; ante <= MaxAnte; ante++)
         {
-            // Filter reads two stream variants with isCached: true — register both key sets.
             ctx.CacheLegendaryJokerStream(
                 ante,
                 MotelyJokerFixedRarityStreamFlags.ExcludeJokerType
@@ -95,12 +88,6 @@ public readonly struct NegativeLegendaryJokerSimdFilterDesc(MotelyItemType? targ
     }
 }
 
-/// <summary>
-/// Additional filter after <see cref="NegativeLegendaryJokerSimdFilterDesc"/>:
-/// vectorized The Soul check on arcana/Spectral shop packs, with scalar fallback
-/// when pack sizes diverge across lanes. Respects <see cref="LegendaryJokerSourceConfig"/>
-/// slot targeting and <see cref="LegendarySoulMatcher"/> stream rules.
-/// </summary>
 public readonly struct LegendaryJokerShopSoulFilterDesc(
     LegendaryJokerSourceConfig? boosterSources = null,
     int[]? searchAntes = null
@@ -119,8 +106,6 @@ public readonly struct LegendaryJokerShopSoulFilterDesc(
 
     public readonly FilterStruct CreateFilter(ref MotelyFilterCreationContext ctx)
     {
-        // Native callers (non-JAML) default to the full booster slot range when they pass null.
-        // JAML callers pass an already-defaulted LegendaryJokerSourceConfig (see JamlConfigLoader.CreateLegendaryJokerSources).
         LegendaryJokerSourceConfig normalized = boosterSources ?? DefaultAllBoosterSources;
 
         int maxPack = normalized.MaxReferencedBoosterSlot();
@@ -199,7 +184,6 @@ public readonly struct LegendaryJokerShopSoulFilterDesc(
                 bool tarotInit = false;
                 bool spectralInit = false;
 
-                // SIMD prefilter over-permissive by design; scoring re-verifies per-ante.
                 for (int p = 0; p <= maxBoosterPack; p++)
                 {
                     if (hasSoulMask.IsAllTrue())

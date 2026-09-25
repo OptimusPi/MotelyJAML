@@ -16,7 +16,6 @@ public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyTarotCard[] Tarots { get; set; } = [];
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public TarotCardSourceConfig? Sources { get; set; }
 }
 
@@ -25,15 +24,10 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 {
     private readonly TarotCardClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["tarotCard", "tarotCards"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
-    /// <summary>
-    /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.
-    /// </summary>
     internal static readonly TarotCardSourceConfig DefaultSources = new()
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
@@ -97,7 +91,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Tarots = category any
             var clause = _clause;
             int maxShopItem = _maxShopItem;
             int maxBoosterPack = _maxBoosterPack;
@@ -109,10 +102,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
             Vector256<int> matchCounts = Vector256<int>.Zero;
             var sources = clause.Sources ?? DefaultSources;
 
-            // Charm-tag bonus pack is shop-order weighted; share one match core with scoring.
-            // charmTag counts only alongside a boosterPacks list — the bonus pack's contents
-            // are gated on its pack index being in boosterPacks, so charmTag alone matches
-            // nothing by construction.
             if (sources.CharmTag)
             {
                 return ctx.SearchIndividualSeeds(
@@ -142,7 +131,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 
             foreach (var ante in clause.Antes)
             {
-                // ── Shop items SIMD ──
                 if (shopIndices.Length > 0)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -183,8 +171,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                     }
                 }
 
-                // ── Arcana packs SIMD ──
-                // Per-lane pack size (Normal=3, Jumbo/Mega=5) + ante-1 slot reachability.
                 if (boosterPacks.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -232,7 +218,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                             pack.GetPackSize(),
                             MotelyBoosterPackSize.Normal
                         );
-                        // Cards 0–2: every Arcana lane. Cards 3–4: Jumbo/Mega only.
                         VectorMask baseLanes = isArcana;
                         VectorMask extraLanes = isArcana & ~isNormal;
                         var baseMask = JamlSimdPackSupport.ToPrngMask(baseLanes);
@@ -263,7 +248,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                     }
                 }
 
-                // ── Emperor SIMD ──
                 if (emperorRolls.Length > 0)
                 {
                     var emperorStream = ctx.CreateEmperorTarotStream(ante);
@@ -308,7 +292,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                     }
                 }
 
-                // ── Purple Seal SIMD ──
                 if (sealRolls.Length > 0)
                 {
                     var purpleSealStream = ctx.CreatePurpleSealTarotStream(ante);
@@ -369,13 +352,9 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
     }
 }
 
-/// <summary>
-/// <c>sources:</c> block for <c>tarotCard:</c>. Colocated with <see cref="TarotCardFilterDesc"/> (T5).
-/// </summary>
 [YamlObject]
 public sealed partial record TarotCardSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =
     [
         "shopItems",
@@ -392,11 +371,7 @@ public sealed partial record TarotCardSourceConfig
     public int[] Emperor { get; set; } = [];
     public int[] PurpleSealOrEightBall { get; set; } = [];
 
-    /// <summary>
-    /// When true, booster arcana scoring may consume the Charm-tag bonus pack (second weighted slot, no natural Arcana).
-    /// </summary>
     public bool CharmTag { get; set; }
 
-    /// <summary>When true, only Mega-sized Arcana packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }
 }

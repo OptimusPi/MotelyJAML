@@ -23,7 +23,6 @@ public struct LuckCardFilterDesc() : IMotelySeedFilterDesc<LuckCardFilterDesc.Lu
             {
                 values = searchContext.GetNextRandom(ref luckyMoney);
 
-                // mask &= Vector512.LessThan(values, Vector512.Create(1d / 25d));
                 mask &= Vector512.LessThan(values, Vector512.Create(1d / 4d));
 
                 if (mask.IsAllFalse())

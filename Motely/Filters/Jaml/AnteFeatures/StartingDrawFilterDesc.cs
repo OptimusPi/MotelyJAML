@@ -20,10 +20,8 @@ public struct StartingDrawFilterDesc(StartingDrawClause clause)
 {
     private readonly StartingDrawClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["startingDraw"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rank", "suit"];
 
     public StartingDrawFilter CreateFilter(ref MotelyFilterCreationContext ctx)
@@ -38,7 +36,6 @@ public struct StartingDrawFilterDesc(StartingDrawClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // Single match core: same CountStartingDrawOccurrences as should-scoring.
             var clause = _clause;
             return ctx.SearchIndividualSeeds(
                 (MotelySingleSearchContext singleCtx) =>

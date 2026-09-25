@@ -13,9 +13,6 @@ public sealed partial class BusinessPayoutClause : IRollScopedClause
     public int? Max { get; set; }
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
-    // No Luck. Business Card is flat 50/50 (Chance = 2) — one Oops saturates to
-    // guaranteed, so luck is binary, not a dial. The field is gone by construction,
-    // not inherited-then-forbidden.
 }
 
 public struct BusinessPayoutFilterDesc(BusinessPayoutClause clause)
@@ -23,10 +20,8 @@ public struct BusinessPayoutFilterDesc(BusinessPayoutClause clause)
 {
     private readonly BusinessPayoutClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["businessPayout"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
 
     public BusinessPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)

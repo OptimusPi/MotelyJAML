@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Pins P3: Max is a match upper bound for must/exact confirm (not only score cap), and
-/// spectralCard sources.omenGlobe routes to the single match core with Arcana substitution.
-/// </summary>
 public sealed class JamlMaxAndOmenGlobeTests
 {
     [Theory]
@@ -14,9 +10,9 @@ public sealed class JamlMaxAndOmenGlobeTests
     [InlineData(1, 1, 1, true)]
     [InlineData(3, 2, 4, true)]
     [InlineData(5, 2, 4, false)]
-    [InlineData(0, 0, 0, true)] // max 0 is a ceiling: exactly none
+    [InlineData(0, 0, 0, true)]
     [InlineData(1, 0, 0, false)]
-    [InlineData(1, 1, 0, false)] // ceiling below the floor: nothing passes
+    [InlineData(1, 1, 0, false)]
     public void MeetsOccurrenceBounds_MinAndOptionalMax(
         int raw,
         int min,
@@ -124,8 +120,6 @@ public sealed class JamlMaxAndOmenGlobeTests
     [Fact]
     public void MaxOnMust_RejectsOvershootViaExactConfirm()
     {
-        // Boss exact path: Min=1 Max=0 invalid is loader-side; Max=1 with multi-ante can overshoot.
-        // MeetsOccurrenceBounds is the gate — covered by theory above; this pins end-to-end load.
         const string jaml = """
             name: max-must
             deck: Red

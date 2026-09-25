@@ -2,10 +2,6 @@ using System.Runtime.CompilerServices;
 
 namespace Motely;
 
-// One packed int is the only storage. Every facet reads and WRITES through it — bidirectional
-// get/set pairs — so the struct serializes with its real fields across boundaries (WASM interop
-// included) and round-trips by value. Non-mutating members are `readonly` to keep call sites on
-// readonly receivers copy-free.
 [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
 public struct MotelyItem(int value) : IEquatable<MotelyItem>
 {
@@ -167,17 +163,11 @@ public struct MotelyItem(int value) : IEquatable<MotelyItem>
         return stringified;
     }
 
-    /// <summary>
-    /// Parses a string produced by <see cref="FormatUtils.FormatItem"/>.
-    /// Prefix order matches <see cref="FormatUtils.FormatItem"/> (stickers, seal, edition, enhancement, type).
-    /// </summary>
-    /// <exception cref="FormatException">Unrecognized layout or unknown type.</exception>
     public static MotelyItem Parse(string formatted)
     {
         return FormatUtils.ParseMotelyItem(formatted);
     }
 
-    /// <inheritdoc cref="Parse"/>
     public static bool TryParse(string formatted, out MotelyItem item)
     {
         return FormatUtils.TryParseMotelyItem(formatted, out item);

@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Smoke: scalar JamlScoring paths golden tests skip. Asserts list batch ran and scored callback
-/// fired. Exact scores/seeds live in golden/behavior tests.
-/// </summary>
 public sealed class JamlScoringCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77"];
@@ -121,7 +117,6 @@ public sealed class JamlScoringCoverageTests
         );
         Assert.True(scored >= 0, "scoring callback must fire");
 
-        // Score stays 0 inside the child so CountOrOccurrences takes the matched-count branch.
         var unscoredChildren = RunShould(
             new OrClause
             {
@@ -182,8 +177,6 @@ public sealed class JamlScoringCoverageTests
     [Fact]
     public void Events_SpreadRollsWithMax_ExerciseFullLoops()
     {
-        // Rolls beyond index 0 force the skip loops; Max forces the counter to keep scanning
-        // instead of returning at min. Every event counter in JamlScoring takes both branches.
         IJamlClause[] clauses =
         [
             new LuckyMoneyClause { Rolls = [0, 2, 5], Min = 1, Max = 3 },
@@ -221,7 +214,6 @@ public sealed class JamlScoringCoverageTests
     [Fact]
     public void Tarot_DefaultSources_Score()
     {
-        // No Sources at all — the DefaultSources path in the scoring counter.
         var score = RunShould(
             new TarotCardClause { Tarots = [MotelyTarotCard.Death], Antes = [1, 2, 3] }
         );

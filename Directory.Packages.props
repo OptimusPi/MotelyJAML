@@ -1,7 +1,6 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- MotelyVersion is defined in Directory.Build.props (first import) so Version resolves. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors>$(WarningsAsErrors);NU1603</WarningsAsErrors>
   </PropertyGroup>
@@ -31,16 +30,11 @@
     <PackageVersion Include="Verify.Xunit" Version="28.6.0" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.1.2" />
     <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
-    <!-- JAML loading. Source-generated, reflection-free: survives the WASM trimmer, unlike
-         YamlDotNet. Confirm the version with `dotnet package search VYaml`. -->
     <PackageVersion Include="VYaml" Version="1.4.0" />
     <PackageVersion Include="VYaml.Annotations" Version="1.4.0" />
-    <!-- Motely.Generators. Referenced at the floor, not the SDK's Roslyn: this DLL loads into
-         whatever Roslyn the host carries, and Rider/VS ship their own on their own schedule. -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <!-- Direct pin lifts the Swashbuckle transitive past GHSA-v5pm-xwqc-g5wc (2.4.1 audit break). -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />

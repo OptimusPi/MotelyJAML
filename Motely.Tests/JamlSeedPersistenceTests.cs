@@ -3,7 +3,6 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-/// <summary>One gate: Auto/fixed decide lake, UI, and save-back together.</summary>
 public sealed class JamlSeedPersistenceTests : IDisposable
 {
     private readonly DirectoryInfo _temp = Directory.CreateTempSubdirectory("motely-persist-");

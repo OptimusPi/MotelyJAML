@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- Performance optimizations -->
     <Optimize>true</Optimize>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
@@ -18,13 +17,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <!-- IL2104 = "a referenced assembly has trim warnings" (McMaster, DuckDB.NET.Data). We can't fix
-         third-party DLLs, and Directory.Packages.props' TreatWarningsAsErrors turns it into an ilc
-         warnaserror failure (MSB3077) on AOT publish. -->
     <NoWarn>$(NoWarn);IL2104</NoWarn>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- AOT publish is ON by default. Pass -p:EnableCliAot=false to opt out. -->
     <EnableCliAot Condition="'$(EnableCliAot)' == ''">true</EnableCliAot>
     <PublishAot
       Condition="'$(EnableCliAot)' == 'true' and '$(RuntimeIdentifier)' != 'browser-wasm' and '$(DesignTimeBuild)' != 'true'"
@@ -43,7 +38,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Motely\Motely.csproj" />
-    <!-- SeedSourceProvider / SeedLakeSink — DuckDB-backed seed sources and result lake. -->
     <ProjectReference Include="..\Motely.DataLake\Motely.DataLake.csproj" />
   </ItemGroup>
 </Project>

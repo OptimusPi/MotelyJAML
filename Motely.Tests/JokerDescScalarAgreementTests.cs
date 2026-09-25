@@ -3,12 +3,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// The four joker SIMD descs, run raw (no scalar must re-eval behind them), must accept exactly
-/// the seeds <see cref="JamlScoring.ClauseMeetsMinForFilter"/> accepts: a sticker list is ALL-of,
-/// <c>None</c> is not a gate, and a clause naming a source the desc does not walk in SIMD is
-/// confirmed per seed instead of silently counting zero.
-/// </summary>
 public sealed class JokerDescScalarAgreementTests
 {
     private static readonly string[] WideSeeds =
@@ -18,7 +12,6 @@ public sealed class JokerDescScalarAgreementTests
         "474", "3X3", "GHG", "4C4", "2A2", "111", "CUC", "FMF",
     ];
 
-    // Enough common names that judgement rolls and Gold-stake sticker pairs land on the list.
     private static readonly MotelyJoker[] SomeCommons =
     [
         MotelyJoker.Joker, MotelyJoker.GreedyJoker, MotelyJoker.LustyJoker,
@@ -29,7 +22,6 @@ public sealed class JokerDescScalarAgreementTests
         MotelyJoker.HalfJoker, MotelyJoker.Banner, MotelyJoker.MysticSummit,
     ];
 
-    /// <summary>Scalar law for the same clause, one seed at a time.</summary>
     private sealed class ScalarProbeDesc(IJamlClause clause)
         : IMotelySeedFilterDesc<ScalarProbeDesc.ScalarProbeFilter>
     {
@@ -87,10 +79,6 @@ public sealed class JokerDescScalarAgreementTests
         Assert.Equal(scalar, simd);
     }
 
-    // ── Stickers ──
-    // Eternal/Perishable roll from Black stake, Rental from Gold
-    // (MotelySingleSearchContext.Jokers.cs ApplyNextStickers), so Gold exercises every arm.
-
     [Fact]
     public void Joker_SingleEternal_Gold_AgreesWithScalar()
     {
@@ -103,10 +91,6 @@ public sealed class JokerDescScalarAgreementTests
         AssertAgreeNonEmpty(Simd(clause, MotelyStake.Gold), Scalar(clause, MotelyStake.Gold));
     }
 
-    /// <summary>
-    /// Two stickers is ALL-of. The ANY-of union is provably wider on this list, so a desc that
-    /// ORs the sticker masks cannot pass.
-    /// </summary>
     [Fact]
     public void Joker_EternalAndRental_Gold_IsAllOfNotAnyOf()
     {
@@ -186,7 +170,6 @@ public sealed class JokerDescScalarAgreementTests
         Assert.Equal(scalarBoth, Simd(both, MotelyStake.Gold));
     }
 
-    /// <summary>Scalar MatchJoker treats <c>None</c> as always satisfied; so must the SIMD masks.</summary>
     [Fact]
     public void StickerNone_IsNoGate_AllFourDescs()
     {
@@ -219,8 +202,6 @@ public sealed class JokerDescScalarAgreementTests
         };
         AssertAgreeNonEmpty(Simd(rare, MotelyStake.Gold), Scalar(rare, MotelyStake.Gold));
     }
-
-    // ── Sources the SIMD walk does not cover ──
 
     [Fact]
     public void Joker_JudgementSource_ConfirmsPerSeed()
@@ -281,7 +262,6 @@ public sealed class JokerDescScalarAgreementTests
         AssertAgreeNonEmpty(Simd(clause, MotelyStake.White), Scalar(clause, MotelyStake.White));
     }
 
-    /// <summary>Uncommon keeps its native raw shop joker walks; they must still match scalar.</summary>
     [Fact]
     public void UncommonJoker_RawShopJokerSources_StillAgree()
     {
@@ -315,7 +295,6 @@ public sealed class JokerDescScalarAgreementTests
         AssertAgreeNonEmpty(Simd(clause, MotelyStake.White), Scalar(clause, MotelyStake.White));
     }
 
-    /// <summary>End to end through the JAML pipeline: a must clause on a spawn source finds seeds.</summary>
     [Fact]
     public void Jaml_MustJudgementSource_FindsSeeds()
     {

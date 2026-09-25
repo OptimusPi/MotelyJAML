@@ -1,16 +1,10 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Pins legendary edition soul prefilter for any Min (not only Min==1), and expanded exact-confirm families.
-/// </summary>
 public sealed class JamlLegendaryEditionPrefilterTests
 {
     [Fact]
     public void Legendary_Edition_MinTwo_StillFindsHieroglyphSeedWhenRangeWide()
     {
-        // Edition prefilter must not false-negative Min>1 when at least one soul has the edition.
-        // KHTW99TC has Negative Perkeo ante 1 slot 6; Min=1 is the real case — Min=2 on antes 1..8
-        // may or may not match; use Min=1 with edition to prove prefilter path with edition set.
         const string seed = "KHTW99TC";
         var jaml = """
             name: leg-ed
@@ -38,7 +32,6 @@ public sealed class JamlLegendaryEditionPrefilterTests
     [Fact]
     public void Legendary_Edition_MinTwo_DoesNotFalseNegativeOnExactConfirm()
     {
-        // Clause with edition + Min=2 must still run (prefilter applies, scalar confirm gates).
         var clause = new LegendaryJokerClause
         {
             Jokers = [MotelyJoker.Perkeo],

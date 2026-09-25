@@ -3,10 +3,6 @@ using Xunit;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Block scalars follow YAML: '|' keeps the line breaks an author typed, '>' folds them into
-/// spaces, and the chomping indicators ('-' strip, '+' keep) decide the trailing newline.
-/// </summary>
 public sealed class JamlBlockScalarTests
 {
     private static string Doc(string indicator) =>

@@ -1,7 +1,3 @@
-# Cutting a release is `git tag v24.6.0 && git push --tags`. Everything below happens
-# without anyone remembering a command: three platforms build the JAML language server,
-# the tests gate the whole thing, and the binaries land on a GitHub Release the plugin
-# bootstrap downloads from.
 name: release
 
 on:
@@ -52,8 +48,6 @@ jobs:
           dotnet publish Motely.Lsp -c Release -r ${{ matrix.rid }}
           --self-contained -p:PublishSingleFile=true -o out
 
-      # The server is only shippable if it actually speaks the protocol, so the smoke
-      # client drives the published binary over real stdio before it can be released.
       - name: Prove it over stdio
         run: node Motely.Lsp/smoke-lsp.mjs
         env:

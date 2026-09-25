@@ -26,12 +26,6 @@ public class SearchWindow : Window
     private int _resultCount = 0;
     private int _tallyColumnCount = 0;
 
-    // --cutoff semantics — one shared gate with Motely.CLI (MotelyScoreCutoff):
-    //   auto     → running maximum: emit every seed at-or-above the best so far.
-    //   <int>    → fixed floor: skip anything below this score.
-    //   off/blank→ no cutoff.
-    // The field holds the *configured* cutoff; a fresh runtime gate is built per run so the
-    // running-maximum state does not carry across searches.
     private MotelyScoreCutoff _cutoff = MotelyScoreCutoff.Auto();
 
     public SearchWindow(string configPath, string? source = null, string? sink = null)
@@ -41,7 +35,6 @@ public class SearchWindow : Window
         _sink = string.IsNullOrWhiteSpace(sink) ? null : sink;
 
         Title = $"Search: {Path.GetFileNameWithoutExtension(configPath)}";
-        // Tile on the left half so the editor / results browser can sit next to it.
         X = 0;
         Y = 0;
         Width = Dim.Percent(55);
@@ -86,7 +79,6 @@ public class SearchWindow : Window
         };
         Add(_progressLabel);
 
-        // --cutoff row: matches Motely.CLI semantics. "auto" = running max, "<int>" = floor, "" = off.
         var cutoffLabel = new Label
         {
             X = 1,
@@ -157,7 +149,6 @@ public class SearchWindow : Window
         };
         _resultsTable.Style.AlwaysShowHeaders = true;
         _resultsTable.Style.ShowHorizontalHeaderUnderline = true;
-        // Top-score rows get the gold treatment — row's score == best score so far = highlight.
         var goldScheme = new ColorScheme
         {
             Normal = new Attribute(BalatroTheme.Orange, BalatroTheme.DarkGrey),
@@ -249,9 +240,6 @@ public class SearchWindow : Window
             )
                 throw new InvalidOperationException(configError ?? "Failed to load search config.");
 
-            // One runtime gate per run so auto's running-maximum starts fresh. Fixed floors are
-            // pushed into the engine (the scorer drops below-threshold seeds before any callback);
-            // auto/off gate caller-side because the engine threshold is fixed per-plan.
             var cutoff = _cutoff.IsAuto
                 ? MotelyScoreCutoff.Auto()
                 : _cutoff.EngineCutoff > 0
@@ -349,10 +337,6 @@ public class SearchWindow : Window
 
             Application.Invoke(() => EnsureTallyColumns(plan.ScoreTallyColumnCount));
 
-            // Durability + save-back in one place (same spine as Motely.CLI). Finds buffer in
-            // in-memory DuckDB and flush to the lake at each search batch boundary (and Dispose).
-            // The lake root falls back to the configured DataLakePath so a search always
-            // persists, even when no explicit sink was passed (this was the TUI data-loss bug).
             string lakeRoot = _sink
                 ?? (string.IsNullOrWhiteSpace(TuiSettings.DataLakePath) ? null : TuiSettings.DataLakePath)
                 ?? SeedLakeSink.LakeRoot(null);
@@ -362,8 +346,6 @@ public class SearchWindow : Window
                 cutoff,
                 tallyLabels: plan.TallyLabels
             );
-            // Capture the instance locally so result callbacks (which fire on worker threads and
-            // may arrive during teardown) never observe the field after Dispose nulls it.
             var persistence = _persistence;
 
             persistence.OnScoredAccepted = tally =>
@@ -389,9 +371,6 @@ public class SearchWindow : Window
             var search = settings.Start(_cts.Token);
             _search = search;
 
-            // Start is non-blocking: workers run on engine threads. Completion is driven only by
-            // this poll (or cancel). Do not call OnSearchComplete here — that disposed the search
-            // at ~1% and painted green "Completed" while work was still running (G01).
             Application.AddTimeout(
                 TimeSpan.FromMilliseconds(1000),
                 () =>
@@ -469,7 +448,6 @@ public class SearchWindow : Window
         if (score > _highestScoreSeen)
             _highestScoreSeen = score;
 
-        // Scroll to show the newest row.
         _resultsTable.SelectedRow = _dataTable.Rows.Count - 1;
         _resultsTable.EnsureSelectedCellIsVisible();
         _resultsTable.SetNeedsDraw();
@@ -492,8 +470,6 @@ public class SearchWindow : Window
         if (_search is null)
             return;
 
-        // Snapshot before Dispose — counters stay valid post-dispose today, but hosts must not
-        // depend on that. Surface dispose failures (no empty catch).
         var searched = _search.TotalSeedsSearched;
         var matches = _search.MatchingSeeds;
         var elapsed = TimeSpan.FromMilliseconds(_search.ElapsedMs);
@@ -543,12 +519,6 @@ public class SearchWindow : Window
         SaveSeedsBack();
     }
 
-    /// <summary>
-    /// Merge the seeds found this run into the JAML seeds: block on disk. Called on both completion
-    /// and stop so a cancelled sweep never loses what it already found. Idempotent (guarded by
-    /// <see cref="_saved"/> and de-duped in the seeds: block); seeds also already reached the seed
-    /// lake as they were found, so this is the second, curated layer of durability.
-    /// </summary>
     private void SaveSeedsBack()
     {
         if (_saved || _persistence is null)
@@ -590,16 +560,12 @@ public class SearchWindow : Window
 
     protected override void Dispose(bool disposing)
     {
-        // Last-resort save-back: if the window is torn down without a clean Complete/Stop (e.g. the
-        // app is shutting down), still flush the finds to the JAML seeds: block before the lake sink
-        // closes. No-op when already saved.
         try
         {
             SaveSeedsBack();
         }
         catch
         {
-            // Never throw from Dispose during teardown.
         }
 
         _search?.Dispose();

@@ -1,13 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P3 — scalar buffoon-pack dedup-resample law: the pack the player opens never
-/// contains a duplicate joker. The raw per-card stream and the deduplicated pack walk
-/// the same main PRNG positions (resamples come from their own rarity-keyed streams),
-/// so positions where the raw roll is fresh must agree exactly, and positions where the
-/// raw roll repeats an earlier card must be replaced by a joker not already in the pack.
-/// The scan must actually witness duplicates, or it proved nothing.
-/// </summary>
 public sealed class S8P3BuffoonDedupTests
 {
     private static readonly string[] Seeds =
@@ -69,8 +61,6 @@ public sealed class S8P3BuffoonDedupTests
                                 }
                                 else if (card.Type != raw[i].Type)
                                 {
-                                    // A fresh raw roll must survive dedup untouched —
-                                    // order-within-key law.
                                     Violations.Add(
                                         $"{seed} a{ante} p{pack} c{i}: fresh raw {raw[i].Type} became {card.Type}"
                                     );

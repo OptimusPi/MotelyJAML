@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// S8.P3 — FormatUtils display contract. The strong law is the Format ↔ Parse round trip:
-/// anything <c>FormatItem</c> prints, <c>ParseMotelyItem</c> reads back to the same item.
-/// </summary>
 public sealed class S8P3FormatUtilsTests
 {
     [Fact]

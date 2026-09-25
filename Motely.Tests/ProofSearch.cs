@@ -2,10 +2,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Anti-fake rail. Proof = list-search with known seeds (or empty match).
-/// No sequential sweeps here — those hang CI when the hit rate is low.
-/// </summary>
 public static class ProofSearch
 {
     public static JamlConfig LoadOrThrow(string jaml)

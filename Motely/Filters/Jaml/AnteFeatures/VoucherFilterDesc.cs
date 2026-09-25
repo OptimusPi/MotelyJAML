@@ -17,10 +17,6 @@ public sealed partial class VoucherClause : IJamlClause, IAnteScopedClause, IRol
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyVoucher[] Vouchers { get; set; } = [];
 
-    /// <summary>
-    /// Voucher-stream indices per ante: 0 = ante award, 1+ = further draws on that ante's
-    /// voucher stream (Hieroglyph bonus, voucher-tag shop extras, etc.).
-    /// </summary>
     public int[] Rolls { get; set; } = [0];
 }
 
@@ -29,10 +25,8 @@ public struct VoucherFilterDesc(VoucherClause clause)
 {
     private readonly VoucherClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["voucher", "vouchers"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public readonly VoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)
@@ -44,7 +38,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
                 maxAnte = _clause.Antes[i];
         }
 
-        // Cache all antes 1..maxAnte so state-building passes on non-target antes work.
         for (int ante = 1; ante <= maxAnte; ante++)
             ctx.CacheAnteFirstVoucher(ante);
 
@@ -107,12 +100,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
             Vector256<int> matchCounts
         )
         {
-            // Walk the voucher stream once, index 0..maxRoll, mirroring the scalar
-            // CountVoucherOccurrences. The old code only materialized draws 1 and 2, so any
-            // requested roll index >= 3 (the clause doc says "1+") was silently dropped by SIMD
-            // while scalar scoring still counted it — a SIMD/scalar completeness gap. Index 0 is
-            // the ante award; 1+ are successive stream draws. (stackalloc of VectorEnum256 is the
-            // same pattern TagFilter uses for its tag-stream draws.)
             int maxRoll = MapFeatureRolls.MaxRollIndex(clause.Rolls);
             Span<VectorEnum256<MotelyVoucher>> draws =
                 stackalloc VectorEnum256<MotelyVoucher>[maxRoll + 1];
@@ -139,8 +126,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
             VectorMask? includeMask = null
         )
         {
-            // Vector256.Equals lanes are all-ones (-1) or 0, so the union of the per-name
-            // masks is a bitwise OR; a signed Max would pick 0 over -1 and empty the union.
             Vector256<int> matchMask = Vector256<int>.Zero;
             foreach (var v in clause.Vouchers)
                 matchMask = Vector256.BitwiseOr(matchMask, VectorEnum256.Equals(vouchers, v));

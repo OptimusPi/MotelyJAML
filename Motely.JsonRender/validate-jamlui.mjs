@@ -1,15 +1,9 @@
-// Validates a --jamlui output file against jaml-ui's native contract
-// (motely-wasm's generated TypeScript types). Fails loudly on any missing,
-// extra, or mistyped field so the JSON stays a drop-in for JamlyzerView.
-//
-// Usage: node validate-jamlui.mjs <path-to-jamlui.json>
-
 import { readFileSync } from "node:fs";
 
 const EXPECTED = {
   root: ["filter", "deck", "stake", "eventRolls", "seeds"],
   filter: ["id", "name"],
-  seed: ["seed", "score", "antes", "events", "streamStates"], // + optional erraticDeck
+  seed: ["seed", "score", "antes", "events", "streamStates"],
   seedOptional: ["erraticDeck"],
   ante: [
     "ante",

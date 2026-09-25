@@ -3,17 +3,8 @@ using Xunit.Abstractions;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// <c>StopAfter(n)</c> ends a search once at least n seeds have matched. Proven against a
-/// deliberately permissive filter over a fixed batch slice: the same slice unbounded matches
-/// thousands of seeds, so a run that returns a handful can only be StopAfter doing its job —
-/// a filter with one natural match would pass whether or not the feature worked at all.
-/// The contract is "at least n", never exactly n: a batch scores all 8 SIMD lanes before anyone
-/// polls cancellation, so the run delivers the lane that tripped the limit and its neighbours.
-/// </summary>
 public class StopAfterTests(ITestOutputHelper output)
 {
-    // Matches nearly every seed — any joker, anywhere in ante 1.
     private const string PermissiveJaml = """
         name: permissive
         deck: Red
@@ -64,12 +55,9 @@ public class StopAfterTests(ITestOutputHelper output)
         var (stopped, stoppedDelivered) = RunSlice(stopAfter: 1);
         output.WriteLine($"StopAfter(1): {stopped} matched, {stoppedDelivered} delivered");
 
-        // At least one seed actually reached the caller — stopping must not swallow the find.
         Assert.True(stoppedDelivered >= 1, "StopAfter(1) delivered no seed at all");
         Assert.Equal(stopped, stoppedDelivered);
 
-        // And it stopped somewhere near the limit rather than running the slice out. One batch of
-        // 8 lanes per thread is the overshoot the contract allows for.
         Assert.True(
             stopped < unbounded / 10,
             $"StopAfter(1) matched {stopped}, barely under the unbounded {unbounded} — it did not stop early"
@@ -94,14 +82,10 @@ public class StopAfterTests(ITestOutputHelper output)
         using var search = settings.Start();
         search.AwaitCompletion();
 
-        // Hitting the limit is the search succeeding. A caller awaiting completion must not have
-        // to tell it apart from a user-cancelled run.
         Assert.True(search.IsCompleted);
         Assert.True(search.MatchingSeeds >= 1);
     }
 
-    // A run that stops inside a batch must not report the whole batch. The failure scales with
-    // batchCharCount, so 6 is included: one batch there is 35^6 seeds.
     [Theory]
     [InlineData(4)]
     [InlineData(6)]

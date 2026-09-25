@@ -4,11 +4,6 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters.Jaml;
 
-/// <summary>
-/// Shop booster pack <em>offer</em> filter: which pack kind+size sits in which pack slot.
-/// Does not open pack contents — that is tarot/joker/planet/standard sources.
-/// Value enum is <see cref="MotelyBoosterPack"/> (already in Motely.Enums; no new enum).
-/// </summary>
 [JamlDiscriminator(
     "boosterPack",
     "boosterPacks",
@@ -24,15 +19,8 @@ public sealed partial class BoosterPackClause : IJamlClause, IAnteScopedClause, 
     public int Score { get; set; }
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
 
-    /// <summary>
-    /// Pack identities (type + size). Empty = any pack in the targeted slots (category match).
-    /// </summary>
     public MotelyBoosterPack[] Packs { get; set; } = [];
 
-    /// <summary>
-    /// Shop pack offer indices per ante (0 = first offer, 1 = second, …).
-    /// Same index space as other filters' <c>boosterPacks:</c> source lists.
-    /// </summary>
     public int[] Rolls { get; set; } = [0, 1];
 }
 
@@ -41,10 +29,8 @@ public struct BoosterPackFilterDesc(BoosterPackClause clause)
 {
     private readonly BoosterPackClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["boosterPack", "boosterPacks"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "rolls"];
 

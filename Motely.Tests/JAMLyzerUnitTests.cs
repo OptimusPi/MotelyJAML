@@ -79,7 +79,6 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(rolls, events.WheelOfFortune.Length);
         Assert.Equal(rolls, events.Misprint.Length);
 
-        // Per-ante pulls + shop-source queues are also rolls-length (Emperor is 2 per use).
         var ante1 = results[0].Antes[1];
         Assert.Equal(0, results[0].Antes[0].Ante);
         Assert.Equal(rolls, ante1.Pulls.JudgementJokers.Count);
@@ -94,10 +93,8 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void Analyze_ResumeFromStateBag_ContinuesExactlyWhereItStopped()
     {
-        // One uninterrupted window of 20.
         var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
 
-        // First 10, then resume from the returned state bag for 10 more.
         var page1 = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
         var page2 = MotelyJamlyzer.Analyze(
             SeedConfig("UNITTEST"),
@@ -105,7 +102,6 @@ public sealed class JAMLyzerUnitTests
             eventRolls: 10
         )[0];
 
-        // page1 ++ page2 must reconstruct the full window exactly (no re-roll, no drift).
         Assert.Equal<IEnumerable<MotelyItemEdition>>(
             full.Events.WheelOfFortune,
             page1.Events.WheelOfFortune.Concat(page2.Events.WheelOfFortune)
@@ -119,19 +115,14 @@ public sealed class JAMLyzerUnitTests
             page1.Events.LuckyMoney.Concat(page2.Events.LuckyMoney)
         );
 
-        // And the stitched state must land on the same end-state as the full window.
         Assert.Equal(full.StreamStates, page2.StreamStates);
 
-        // Composite (pulls/shop) streams resume by offset-replay — gate the resample-backed ones
-        // (Emperor, vouchers) and a shop stream, per ante. These are what would diverge silently
-        // if offset-replay were wrong.
         for (int a = 0; a < full.Antes.Count; a++)
         {
             var fa = full.Antes[a];
             var p1 = page1.Antes[a];
             var p2 = page2.Antes[a];
 
-            // Every pulls member.
             Assert.Equal<IEnumerable<MotelyItem>>(
                 fa.Pulls.JudgementJokers,
                 p1.Pulls.JudgementJokers.Concat(p2.Pulls.JudgementJokers)
@@ -177,7 +168,6 @@ public sealed class JAMLyzerUnitTests
                 p1.Pulls.VoucherSequence.Concat(p2.Pulls.VoucherSequence)
             );
 
-            // Every shop-source member.
             Assert.Equal<IEnumerable<MotelyItem>>(
                 fa.ShopStreams.ShopJokers,
                 p1.ShopStreams.ShopJokers.Concat(p2.ShopStreams.ShopJokers)
@@ -212,7 +202,6 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void Analyze_ChainedResume_ThreeUnequalPagesReconstructFullWindow()
     {
-        // 5 + 8 + 7 = 20, three different page sizes chained through the state bag.
         var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
         var a = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 5)[0];
         var b = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, eventRolls: 8)[0];
@@ -270,15 +259,12 @@ public sealed class JAMLyzerUnitTests
             return c;
         }
 
-        // Each seed's uninterrupted 20-roll window, keyed by seed.
         var full = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 20).ToDictionary(r => r.Seed);
 
-        // Page all three seeds together: 10 rolls, then resume each from ITS OWN bag for 10 more.
         var page1 = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 10);
         var resume = page1.ToDictionary(r => r.Seed, r => r.StreamStates);
         var page2 = MotelyJamlyzer.Analyze(Config(seeds), resume, eventRolls: 10);
 
-        // Each seed's stitched end-state equals that seed's full-window end-state — bags stay per-seed.
         foreach (var p2 in page2)
         {
             var p1 = page1.Single(r => r.Seed == p2.Seed);
@@ -303,7 +289,6 @@ public sealed class JAMLyzerUnitTests
         config.Seeds.Add("UNITTEST");
         config.Seeds.Add("ALEEB");
 
-        // Map carries only UNITTEST's bag; ALEEB is absent → must start fresh at offset 0, not throw.
         var seeded = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
         var fresh = MotelyJamlyzer.Analyze(SeedConfig("ALEEB"), eventRolls: 10)[0];
 
@@ -314,11 +299,11 @@ public sealed class JAMLyzerUnitTests
         var results = MotelyJamlyzer.Analyze(config, resume, eventRolls: 10);
 
         var aleeb = results.Single(r => r.Seed == "ALEEB");
-        Assert.Equal(10, aleeb.StreamStates.RollOffset); // fresh window, not resumed
+        Assert.Equal(10, aleeb.StreamStates.RollOffset);
         Assert.Equal(fresh.StreamStates, aleeb.StreamStates);
 
         var unittest = results.Single(r => r.Seed == "UNITTEST");
-        Assert.Equal(20, unittest.StreamStates.RollOffset); // resumed: 10 + 10
+        Assert.Equal(20, unittest.StreamStates.RollOffset);
     }
 
     [Fact]
@@ -360,12 +345,6 @@ public sealed class JAMLyzerUnitTests
         );
     }
 
-    /// <summary>
-    /// Shop depth is its own dial. It used to ride <c>eventRolls</c> behind a
-    /// <c>!= 20</c> guard, which made 20 a dead value -- asking for exactly 20 shop slots
-    /// silently returned the ante-1 default of 15 -- and made a deep shop allocate an equally
-    /// deep array for all eighteen pull and shop-source queues.
-    /// </summary>
     [Fact]
     public void Analyze_ShopSlots_IsIndependentOfEventRolls()
     {
@@ -375,26 +354,21 @@ public sealed class JAMLyzerUnitTests
                 .ShopItems.Count
         );
 
-        // eventRolls sizes the roll queues and leaves the shop on its default.
         var rolls = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 200)[0];
         Assert.Equal(15, rolls.Antes[1].ShopItems.Count);
         Assert.Equal(200, rolls.Antes[1].ShopStreams.ShopTarots.Count);
 
-        // ...and shopSlots sizes the shop and leaves the roll queues on theirs.
         var shop = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 200)[0];
         Assert.Equal(200, shop.Antes[1].ShopItems.Count);
         Assert.Equal(20, shop.Antes[1].ShopStreams.ShopTarots.Count);
     }
 
-    /// <summary>A deep ante-1 shop is one call and the items keep coming: the stream never dries up.</summary>
     [Fact]
     public void Analyze_ShopSlots_WalksPastTheAnteOneDefault()
     {
         var deep = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 500)[0];
         Assert.Equal(500, deep.Antes[1].ShopItems.Count);
 
-        // The first 15 are still exactly what the default walk returns -- deepening the walk
-        // extends the queue, it does not shift it.
         var shallow = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"))[0];
         Assert.Equal<IEnumerable<MotelyItem>>(
             shallow.Antes[1].ShopItems,

@@ -3,9 +3,6 @@ using Motely.Filters;
 
 namespace Motely;
 
-/// <summary>
-/// Built-in native C# search filters (same set as CLI <c>--native</c>).
-/// </summary>
 public enum MotelyNativeFilter
 {
     PerkeoObservatory,
@@ -25,10 +22,6 @@ public enum MotelyNativeFilter
 
 public static class MotelyNativeFilterNames
 {
-    /// <summary>
-    /// Pascal-case names shown in errors and help. Same order as <see cref="MotelyNativeFilter"/>.
-    /// Compile-time <c>nameof</c> only — safe for Native AOT / trimming (no <c>Enum.GetNames</c>).
-    /// </summary>
     public static readonly string[] DisplayNames =
     [
         nameof(MotelyNativeFilter.PerkeoObservatory),
@@ -46,9 +39,6 @@ public static class MotelyNativeFilterNames
         nameof(MotelyNativeFilter.TwoBlackHole),
     ];
 
-    /// <summary>
-    /// Parses user input (CLI <c>--native</c>, UI). Explicit switch — no enum reflection APIs.
-    /// </summary>
     public static bool TryParse(string name, out MotelyNativeFilter filter)
     {
         switch (name.Trim().ToLowerInvariant())

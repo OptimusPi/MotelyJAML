@@ -37,8 +37,6 @@ public enum MotelyShopStreamFlags
 
 public partial class MotelySingleSearchContext
 {
-    // Internal rather than private so the rarity model reads the same constant the shop rolls
-    // against, instead of carrying its own copy that can drift.
     internal const int ShopJokerRate = 20;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,11 +75,6 @@ public partial class MotelySingleSearchContext
                 flags.HasFlag(MotelyShopStreamFlags.ExcludeSpectrals) || Deck != MotelyDeck.Ghost
                     ? default
                     : CreateShopSpectralStream(ante, isCached),
-            // Deliberately uncached: CacheShopStream never registers this key, and the pseudohash
-            // cache is keyed by key *length*. "front"+"sho"+ante is 9 chars — the same length as
-            // the shop tarot key ("Tarot"+"sho"+ante) — so isCached:true only ever resolved
-            // because tarots happened to register 9 first. Under ExcludeTarots nothing registers
-            // it and GetPartialHashVector dereferences a null cache slot.
             StandardCardStream = flags.HasFlag(MotelyShopStreamFlags.ExcludeStandardCards)
                 ? MotelySinglePrngStream.Invalid
                 : CreatePrngStream(
@@ -172,26 +165,15 @@ public partial class MotelySingleSearchContext
             if (!stream.DoesProvideStandardCards)
                 return new(MotelyItemType.StandardCardExcludedByStream);
 
-            // Magic Trick shop card = Balatro's create_card('Base', ..., 'sho'): a bare playing
-            // card, one 'front'+'sho'+ante pull. create_card only applies enhancement/edition/seal
-            // inside its `_type=='Joker'` block, which a 'Base' card never enters, so none apply.
-            // (The Illusion voucher's edition/enhancement layer is not mirrored yet.)
             return GetNextShopStandardCard(ref stream.StandardCardStream);
         }
 
-        // This shop will generate a Spectral card
         if (!stream.DoesProvideSpectrals)
             return new(MotelyItemType.SpectralExcludedByStream);
 
         return GetNextSpectral(ref stream.SpectralStream);
     }
 
-    /// <summary>
-    /// The bare playing card a shop slot yields when Magic Trick is active. Mirrors Balatro's
-    /// create_card('Base', ..., 'sho'): a single 'front'+'sho'+ante draw for rank+suit, no
-    /// enhancement/edition/seal. Sequential-only by design — no SIMD prefilter queries shop
-    /// standard cards, so the vector path leaves them unread.
-    /// </summary>
     public MotelyItem GetNextShopStandardCard(ref MotelySinglePrngStream cardStream)
         => new(
             MotelyEnum<MotelyStandardCard>.Values[

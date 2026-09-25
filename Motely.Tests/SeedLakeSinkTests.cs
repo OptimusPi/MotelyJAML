@@ -4,10 +4,6 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Seeds persist as plain text files (one seed per line) under the data root, one file per filter.
-/// DuckDB reads them back for --drown. Legacy .duckdb files and CSVs in the root still pour.
-/// </summary>
 public sealed class SeedLakeSinkTests : IDisposable
 {
     private readonly string _base = Path.Combine(Path.GetTempPath(), "motely-lake-" + Guid.NewGuid().ToString("N"));
@@ -48,7 +44,6 @@ public sealed class SeedLakeSinkTests : IDisposable
             .ToArray();
     }
 
-    /// <summary>What a pre-lake per-filter file looks like: <c>seeds(seed VARCHAR PRIMARY KEY)</c>.</summary>
     private static void WriteLegacyFile(string path, params string[] seeds)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

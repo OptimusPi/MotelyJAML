@@ -4,10 +4,6 @@ using Motely.SeedProviders;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// S8 climb — list-search only. Known seeds pinned by prior CLI --seeds runs.
-/// No sequential MustFindOne (that was the hang).
-/// </summary>
 public sealed class S8CoverageClimbTests
 {
     private const string VoucherOverstock = """
@@ -57,8 +53,6 @@ public sealed class S8CoverageClimbTests
     private static readonly string[] FixtureSeeds =
         ["ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7"];
 
-    // ── R1 list proofs ──
-
     [Fact]
     public void Voucher_Overstock_KnownSeedsMatch() =>
         ProofSearch.MustMatchAll(VoucherOverstock, VoucherSeeds);
@@ -71,11 +65,6 @@ public sealed class S8CoverageClimbTests
     public void Planet_Pluto_KnownSeedsMatch() =>
         ProofSearch.MustMatchAll(PlanetPluto, PlanetSeeds);
 
-    /// <summary>
-    /// R2 differential: default sources are shop slots 0-7, so all five seeds hit. Narrowing to
-    /// slots 0-3 (+ packs 0-1) is a real gate — only the two seeds whose Pluto sits in an early
-    /// shop slot survive. A test that asserted "still matches all five" would prove the gate is dead.
-    /// </summary>
     [Fact]
     public void Planet_NarrowedShopSlots_GateOutLateSlotSeeds()
     {
@@ -89,8 +78,6 @@ public sealed class S8CoverageClimbTests
         );
         Assert.True(matched.Count < PlanetSeeds.Length, "narrowed sources must be a strict subset");
     }
-
-    // ── Filter path execution via list (coverage without sequential) ──
 
     private static void RunClause(
         IJamlClause clause,
@@ -289,8 +276,6 @@ public sealed class S8CoverageClimbTests
         );
     }
 
-    // ── Direct unit rails (no search hang) ──
-
     private sealed class RecordingSink : IMotelyResultSink
     {
         public List<string> Seeds { get; } = [];
@@ -358,8 +343,6 @@ public sealed class S8CoverageClimbTests
         Assert.Equal("Z", buf[2]);
     }
 
-    // ── UncommonJoker raw-stream sources (S8.P1) ──
-
     private const string UncommonAnyRawStreams = """
         name: s8-uncommon-any-streams
         deck: Red
@@ -412,23 +395,14 @@ public sealed class S8CoverageClimbTests
               uncommonShopJokers: [0, 1]
         """;
 
-    /// <summary>
-    /// The uncommon raw stream always yields uncommon jokers, so a wildcard clause on
-    /// uncommonShopJokers[0] matches every seed — the point is the engine walks all four
-    /// raw-stream branches (common / uncommon / rare / all-rarity) on real seeds.
-    /// </summary>
     [Fact]
     public void UncommonAny_RawStreams_MatchesAllSeeds() =>
         ProofSearch.MustMatchAll(UncommonAnyRawStreams, FixtureSeeds);
 
-    /// <summary>R2 differential vs the test above: the edition gate is live — same streams,
-    /// Negative edition required, zero fixture seeds survive.</summary>
     [Fact]
     public void UncommonAny_RawStreams_NegativeEditionGatesAll() =>
         ProofSearch.MustMatchNone(UncommonAnyRawStreamsNegative, FixtureSeeds);
 
-    /// <summary>Pack slots 4-5 on ante 1 are reachable only via Hieroglyph/Petroglyph at
-    /// ante 2 (the ante-1 extension mask). Wildcard buffoon-pack uncommon across 6 slots.</summary>
     [Fact]
     public void UncommonAny_Ante1PackExtension_PinnedMatches()
     {
@@ -443,13 +417,10 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(matching, matched.Count);
     }
 
-    /// <summary>White stake produces no Eternal/Perishable/Rental stickers, so the sticker
-    /// gate rejects every seed while the sticker-matching switch still executes.</summary>
     [Fact]
     public void UncommonAny_Stickers_WhiteStakeMatchesNone() =>
         ProofSearch.MustMatchNone(UncommonAnyStickers, FixtureSeeds);
 
-    /// <summary>Bad joker name under uncommonJoker refuses to load (TryEnumArray path).</summary>
     [Fact]
     public void Uncommon_BadJokerName_FailsLoad()
     {
@@ -470,13 +441,6 @@ public sealed class S8CoverageClimbTests
         Assert.False(string.IsNullOrWhiteSpace(error));
     }
 
-    /// <summary>
-    /// R3 parity lock for the raw-stream fix pair: the vector fixed-rarity streams carry the
-    /// Joker category bits, and the scalar must re-eval (JamlShouldScoreDesc) counts raw-stream
-    /// sources. The uncommon raw stream always yields an uncommon, so the wildcard matches all
-    /// eight seeds on every route: raw desc, JamlSearchBuilder, and JAML text agree.
-    /// commonShopJokers stays zero — a common-rarity stream can never satisfy an uncommon clause.
-    /// </summary>
     [Fact]
     public void RawStreams_VectorScalarBuilderParity()
     {
@@ -519,14 +483,6 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(FixtureSeeds.Length, (int)rawSearch.MatchingSeeds);
     }
 
-    /// <summary>
-    /// Every tarot source route against real seeds, with the full 22-card list so any tarot
-    /// draw counts. Emperor and purple-seal streams always yield tarots (8/8); shop slots and
-    /// arcana packs gate (6/8, 4/8 — the pack run also walks the ante-1 extension mask via
-    /// slots 4-5); charmTag routes the clause through the scalar exact path (8/8). charmTag
-    /// counts only alongside its boosterPacks companion — alone it matches nothing by
-    /// construction (board note).
-    /// </summary>
     [Fact]
     public void TarotSources_KnownSeedCounts()
     {
@@ -580,12 +536,6 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(8, charm);
     }
 
-    /// <summary>
-    /// Spectral source routes on the Ghost deck (spectrals reach the shop there), full
-    /// 16-card content list (Soul/BlackHole stay out — they route to the special desc).
-    /// Pack run uses slots 0-5 so ante-1 extension executes; etherealTag and omenGlobe
-    /// route through the scalar exact path.
-    /// </summary>
     [Fact]
     public void SpectralSources_KnownSeedCounts()
     {
@@ -712,11 +662,6 @@ public sealed class S8CoverageClimbTests
         }
     }
 
-    /// <summary>
-    /// Ground truth pinned from an external analyzer run: ALEEB on Ghost/White has Sigil in
-    /// ante-2 shop slot 0. The scalar single context sees it, and the scalar must re-eval
-    /// (ClauseMeetsMinForFilter) agrees the shop-sourced spectral clause is met.
-    /// </summary>
     [Fact]
     public void AleebGhostShop_ScalarSeesSigil_GroundTruth()
     {
@@ -748,8 +693,6 @@ public sealed class S8CoverageClimbTests
         Assert.Equal("sigil0=True meets=True", string.Join(" | ", ScalarProbeDesc.Log));
     }
 
-    /// <summary>20 fixture seeds + 8 soul seeds found by a real CLI collect run
-    /// (soulCardOnly wildcard, antes 1-2) — positives for every legendary route.</summary>
     private static readonly string[] WideSeeds =
     [
         "ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7",
@@ -757,14 +700,6 @@ public sealed class S8CoverageClimbTests
         "474", "3X3", "GHG", "4C4", "2A2", "111", "CUC", "FMF",
     ];
 
-    /// <summary>
-    /// Legendary soul routes over a 20-seed list (3 vector batches — the P2 multi-batch
-    /// regression). Split-mode arcana/spectral slots, soulCardOnly counting, the
-    /// requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
-    /// the same pack-order law — and the same slot numbering as <c>spectralCard: TheSoul</c>,
-    /// so the two counts agree. CUC's only Soul is ante 1's fourth rolled pack, which no run
-    /// offers: ante 1 slot 0 is the fixed Buffoon, so slots 0–3 hold three rolls, not four.
-    /// </summary>
     [Fact]
     public void LegendarySoul_KnownSeedCounts_MultiBatch()
     {
@@ -836,11 +771,6 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(0, ante0);
     }
 
-    /// <summary>
-    /// Real 8-character seeds over Balatro's own 1-9A-Z alphabet, collected by a live CLI run of
-    /// the exact JAML below. Decimal strings are not seeds: the provider drops every one holding
-    /// a '0', and 1-4 characters is not the shape the game hands out.
-    /// </summary>
     private static readonly string[] NegativeLegendaryAnte12Seeds =
     [
         "ACA1C895",
@@ -862,22 +792,12 @@ public sealed class S8CoverageClimbTests
             antes: [1, 2]
         """;
 
-    /// <summary>
-    /// The exact JAML route accepts these seeds — that is what "real seed" means here, and it is
-    /// the ground truth the prefilter is measured against.
-    /// </summary>
     [Fact]
     public void NegativeLegendaryAnte12_ExactJamlRoute_MatchesRealSeeds()
     {
         ProofSearch.MustMatchAll(NegativeLegendaryAnte12, NegativeLegendaryAnte12Seeds);
     }
 
-    /// <summary>
-    /// The SIMD front composed with the shop-soul confirm is a CANDIDATE generator: it ORs
-    /// "Negative edition at ante 1 or 2" with "Soul appears at ante 1 or 2" without linking the
-    /// two to the same ante. Over-permissive is allowed; dropping a seed the exact route accepts
-    /// is not. So the prefilter's output is a superset — every exact match survives it.
-    /// </summary>
     [Fact]
     public void NegativeLegendarySimdFront_IsASupersetOfTheExactRoute()
     {

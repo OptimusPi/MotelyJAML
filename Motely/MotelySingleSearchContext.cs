@@ -129,8 +129,6 @@ public unsafe partial class MotelySingleSearchContext
     {
         double partialHash;
 
-        // Same law as the vector context: an additional-filter context never trusts the
-        // length-keyed partial-hash cache — it was filled for the base filter's key set.
         if (!IsAdditionalFilter && (isCached || SeedHashCache->HasPartialHash(key.Length)))
         {
             partialHash = SeedHashCache->GetPartialHash(key.Length, VectorLane);
@@ -162,7 +160,6 @@ public unsafe partial class MotelySingleSearchContext
         int seedLastCharacterLength = SeedLastCharactersLength;
         double num = 1;
 
-        // First we do the first characters of the seed which are the same between all vector lanes
         for (int i = SeedFirstCharactersLength - 1; i >= 0; i--)
         {
             num =
@@ -172,7 +169,6 @@ public unsafe partial class MotelySingleSearchContext
                 ) % 1;
         }
 
-        // Then we get the characters for our lane
         for (int i = seedLastCharacterLength - 1; i >= 0; i--)
         {
             num =
@@ -204,11 +200,6 @@ public unsafe partial class MotelySingleSearchContext
 
         if (expo < DblExpoBias)
             return x;
-
-        // We don't have to worry about this edge case
-
-        // const int DblExpoSZ = 11;
-        // if (expo == ((1 << DblExpoSZ) - 1)) return double.NaN;
 
         ulong expoBiased = expo - DblExpoBias;
 
@@ -265,13 +256,6 @@ public unsafe partial class MotelySingleSearchContext
         return new(PseudoHash(key, isCached));
     }
 
-    /// <summary>
-    /// Resume a PRNG stream from a previously-captured <see cref="MotelySinglePrngStream.State"/>.
-    /// Every Motely stream is, at bottom, an infinite PRNG stream whose entire position is one
-    /// <c>double</c> — so this single method re-seats any of them exactly where it left off (the
-    /// key is only ever used to compute the *initial* state in <see cref="CreatePrngStream"/>;
-    /// after that, State carries everything forward).
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public MotelySinglePrngStream ResumeStream(double state) => new(state);
 
@@ -321,7 +305,6 @@ public unsafe partial class MotelySingleSearchContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private MotelySinglePrngStream CreateResamplePrngStream(string key, int resample, bool isCached)
     {
-        // We don't cache resamples >= 8 because they'd use an extra digit
         if (isCached && resample >= 8)
             isCached = false;
         return CreatePrngStream(key + MotelyPrngKeys.Resample + (resample + 2), isCached);

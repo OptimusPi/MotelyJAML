@@ -2,11 +2,6 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// <see cref="MotelyScoredSeedResult"/> is the per-seed tally the sinks hand out. It is reused
-/// across seeds by design, so the case that matters is that <c>Reset</c> really forgets the
-/// previous seed's tallies — a stale tally would attribute one seed's score to the next.
-/// </summary>
 public sealed class ScoredSeedResultTests
 {
     [Fact]
@@ -53,7 +48,6 @@ public sealed class ScoredSeedResultTests
         Assert.Equal(0, result.GetTally(MotelyScoredSeedResult.MAX_TALLY_COUNT));
     }
 
-    /// <summary>The reuse contract: nothing from the previous seed survives a Reset.</summary>
     [Fact]
     public void Reset_ForgetsThePreviousSeedsTallies()
     {
@@ -84,7 +78,6 @@ public sealed class ScoredSeedResultTests
         Assert.Equal(0, result.Score);
     }
 
-    /// <summary>Round-trips the tallies the way the WASM interop boundary does.</summary>
     [Fact]
     public void TalliesSetter_RestoresACapturedTally()
     {
@@ -129,7 +122,6 @@ public sealed class ScoredSeedResultTests
         );
     }
 
-    /// <summary>Tally exposes bytes; values above 255 wrap, which callers should know.</summary>
     [Fact]
     public void Tally_NarrowsToBytes()
     {

@@ -2,12 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Motely.DistributedWorker;
 
-/// <summary>AOT-safe JSON context for all DTOs used by the coordination API (pool + party).</summary>
-/// <remarks>
-/// All [JsonSerializable] attributes must live on this single partial declaration.
-/// Splitting them across files makes JsonSourceGenerator emit duplicate hintNames
-/// (e.g. WorkerJsonContext.Boolean.g.cs) and fail with CS8785.
-/// </remarks>
 [JsonSerializable(typeof(SubmitResultsDto))]
 [JsonSerializable(typeof(SubmitResponseDto))]
 [JsonSerializable(typeof(SeedResultDto))]
@@ -62,21 +56,15 @@ public sealed class ErrorDto
     public string? Error { get; set; }
 }
 
-/// <summary>POST body for /api/search/helper action=request</summary>
 public sealed class PoolClaimRequestDto
 {
     [JsonPropertyName("action")]
     public string Action { get; set; } = "request";
 
-    /// <summary>Omit when null so JSON has no <c>workerId</c> key — avoids APIs that treat explicit null as invalid.</summary>
     [JsonPropertyName("workerId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkerId { get; set; }
 
-    /// <summary>
-    /// Optional: target a specific filter ("GIMMIE WORK FOR FILTER:X").
-    /// If null, omit property — server picks any active session; explicit JSON null breaks some Zod schemas.
-    /// </summary>
     [JsonPropertyName("filterId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilterId { get; set; }
@@ -85,7 +73,6 @@ public sealed class PoolClaimRequestDto
     public int EstimatedBlocks { get; set; } = 1;
 }
 
-/// <summary>Response from /api/search/pool/claim</summary>
 public sealed class PoolClaimResponseDto
 {
     [JsonPropertyName("idle")]

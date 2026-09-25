@@ -91,7 +91,6 @@ public partial class MotelySingleSearchContext
             ]
         );
 
-        // Enhancement
         if (
             !stream.HasEnhancementPrngStream.IsInvalid
             && GetNextRandom(ref stream.HasEnhancementPrngStream) > 0.6
@@ -108,7 +107,6 @@ public partial class MotelySingleSearchContext
             );
         }
 
-        // Edition
         if (!stream.EditionPrngStream.IsInvalid)
         {
             double editionPoll = GetNextRandom(ref stream.EditionPrngStream);
@@ -120,7 +118,6 @@ public partial class MotelySingleSearchContext
                 item = item.WithEdition(MotelyItemEdition.Foil);
         }
 
-        // Seal
         if (
             !stream.HasSealPrngStream.IsInvalid
             && GetNextRandom(ref stream.HasSealPrngStream) > 0.8

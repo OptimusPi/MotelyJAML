@@ -5,16 +5,8 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// A multi-name voucher clause (<c>voucher: [A, B]</c>) is an OR over the names. The SIMD
-/// filter unions per-name <c>Vector256.Equals</c> masks, whose true lanes are all-ones (-1):
-/// a signed <c>Max</c> over those picks 0 over -1 and empties the union, so the must path
-/// rejected every seed while scalar scoring still counted them. These pin SIMD to scalar and
-/// the two-name clause to the union of its single-name clauses on a fixed seed list.
-/// </summary>
 public class VoucherOrFilterTests
 {
-    // First forty entries of JamlFilters/Zerkeo.jaml's seeds block.
     private static readonly string[] Seeds =
     [
         "F2U88X11", "JX8C8X11", "L8FJ8X11", "A68EBX11", "M2TCJX11", "BC36RX11", "4E1MRX11",
@@ -31,7 +23,6 @@ public class VoucherOrFilterTests
     private static JamlConfig Config(string id) =>
         new() { Id = id, Deck = MotelyDeck.Red, Stake = MotelyStake.White };
 
-    /// <summary>SIMD must path: VoucherClause is an exact filter confirm, so no scalar re-eval.</summary>
     private static HashSet<string> SimdMustMatches(VoucherClause clause)
     {
         var config = Config("voucher-or-must");
@@ -48,7 +39,6 @@ public class VoucherOrFilterTests
         return matched;
     }
 
-    /// <summary>Scalar path: the raw JamlScoring occurrence count of the clause per seed.</summary>
     private static Dictionary<string, int> ScalarCounts(VoucherClause clause)
     {
         clause.Score = 1;
@@ -69,11 +59,8 @@ public class VoucherOrFilterTests
 
     public static IEnumerable<object[]> Pairs()
     {
-        // Ante 2 award: Overstock on 4 of these seeds, Telescope on 1, disjoint.
         yield return [MotelyVoucher.Telescope, MotelyVoucher.Overstock, new[] { 2 }];
-        // Spread over antes 2-3 so a seed can hit both names across antes.
         yield return [MotelyVoucher.Telescope, MotelyVoucher.Overstock, new[] { 2, 3 }];
-        // Every Zerkeo seed awards Hieroglyph at ante 1: one name matches all, the other none.
         yield return [MotelyVoucher.Hieroglyph, MotelyVoucher.Telescope, new[] { 1 }];
     }
 

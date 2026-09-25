@@ -95,7 +95,6 @@ ref partial struct MotelyVectorSearchContext
         }
         else
         {
-            // Only advance PRNG for lanes that need it (using mask and not black hole mask)
             var planetMask = mask & ~blackHoleMask;
             planets = GetNextRandomInt(
                 ref planetStream.ResampleStream.InitialPrngStream,
@@ -194,9 +193,6 @@ ref partial struct MotelyVectorSearchContext
         );
     }
 
-    // The pack a player opens is deduplicated (resample rolls replace repeats), so HasThe
-    // answers from the same contents walk the scalar engine uses — the raw stream diverges
-    // whenever a duplicate resamples into the target.
     public VectorMask GetNextCelestialPackHasThe(
         ref MotelyVectorPlanetStream planetStream,
         MotelyPlanetCard targetPlanet,
@@ -209,7 +205,6 @@ ref partial struct MotelyVectorSearchContext
         );
     }
 
-    /// <inheritdoc cref="GetNextCelestialPackHasThe(ref MotelyVectorPlanetStream, MotelyPlanetCard, MotelyBoosterPackSize)"/>
     public VectorMask GetNextCelestialPackHasThe(
         ref MotelyVectorPlanetStream planetStream,
         MotelyPlanetCard[] targetPlanets,

@@ -3,11 +3,6 @@ using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// List search returns the same seed no matter how many other seeds share the list.
-/// A seed that matches on its own matches inside every larger list that contains it —
-/// list membership is the only input, list length carries no meaning.
-/// </summary>
 public sealed class ListSearchSizeParityTests
 {
     private const string KnownSeed = "1946";
@@ -30,10 +25,6 @@ public sealed class ListSearchSizeParityTests
         return [.. matched];
     }
 
-    /// <summary>
-    /// Filler drawn from the engine's own bijective base-35 space (<c>123456789A-Z</c>), so every
-    /// entry is a seed Balatro can actually produce.
-    /// </summary>
     private static string[] ListOfSize(int size, int knownSeedIndex)
     {
         var list = new List<string>(size);

@@ -3,13 +3,6 @@ using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// The loader distinguishes absent from malformed. A key that is not written takes its default;
-/// a key that is written with a value the grammar cannot read is a positioned error, never a
-/// silent default (<c>min: two</c> used to load as min 1, <c>requireMegaPack: yes</c> as false).
-/// The same rail rejects a <c>sources:</c> block that names only modifiers, keys nothing reads,
-/// negative rolls, and ante 0 on the three families whose streams begin at ante 1.
-/// </summary>
 public sealed class JamlLoaderStrictnessTests
 {
     private static string LoadError(string jaml)
@@ -23,8 +16,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         return config!;
     }
-
-    // ── (a) malformed scalars ───────────────────────────────────────────────────────────────
 
     [Theory]
     [InlineData("min: two", "'two'")]
@@ -66,8 +57,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Contains("'maybe'", error);
     }
 
-    /// <summary>One bool spelling for the whole grammar: the block loader reads yes/no the way
-    /// the clause value reader always has.</summary>
     [Theory]
     [InlineData("requireMegaPack: yes", true)]
     [InlineData("requireMega: no", false)]
@@ -125,8 +114,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Contains("'two'", error);
     }
 
-    // ── (b) sources blocks that name no slot ────────────────────────────────────────────────
-
     [Theory]
     [InlineData("joker: Blueprint", "requireMega: true")]
     [InlineData("joker: Blueprint", "requireMegaPack: false")]
@@ -168,7 +155,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Empty(clause.Sources.BoosterPacks);
     }
 
-    /// <summary>omenGlobe alone walks every arcana slot in scoring, so it is a source, not a modifier.</summary>
     [Fact]
     public void OmenGlobeAlone_IsASourceInItsOwnRight()
     {
@@ -186,8 +172,6 @@ public sealed class JamlLoaderStrictnessTests
         var clause = Assert.IsType<SpectralCardClause>(config.Must[0]);
         Assert.True(clause.Sources!.OmenGlobe);
     }
-
-    // ── (c) keys nothing consumes ───────────────────────────────────────────────────────────
 
     [Theory]
     [InlineData("legendaryJoker: Perkeo", "soulCard: [0]")]
@@ -233,8 +217,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Contains("Unknown with key: 'vouchers'", error);
     }
 
-    // ── (d) rolls ───────────────────────────────────────────────────────────────────────────
-
     [Theory]
     [InlineData("voucher: Overstock", "rolls: [-1]", 6)]
     [InlineData("tag: CharmTag", "rolls: -2", 6)]
@@ -270,8 +252,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Contains("negative", error);
     }
 
-    // ── (e) ante 0 ──────────────────────────────────────────────────────────────────────────
-
     [Theory]
     [InlineData("boss: TheWall", "antes: [0, 1]")]
     [InlineData("voucher: Overstock", "ante: 0")]
@@ -292,7 +272,6 @@ public sealed class JamlLoaderStrictnessTests
         Assert.Contains("start at ante 1", error);
     }
 
-    /// <summary>Ante 0 is Hieroglyph's extra pack round: the shop and pack families keep it.</summary>
     [Fact]
     public void AnteZero_StaysLegalForShopAndPackFamilies()
     {
@@ -333,8 +312,6 @@ public sealed class JamlLoaderStrictnessTests
         return Assert.ThrowsAny<Exception>(search.AwaitCompletion);
     }
 
-    /// <summary>A boss clause that never went through PrepareRunState (or asked about an ante it
-    /// never cached) is a caller bug; scoring says so instead of dereferencing null.</summary>
     [Fact]
     public void BossScoring_WithoutCachedBosses_FailsWithTheCause_NotANullReference()
     {

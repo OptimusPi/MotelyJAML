@@ -2,15 +2,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// R3 parity: <see cref="MotelyItemVector"/> is the 8-lane form of <see cref="MotelyItem"/>, so
-/// every vector operation is checked lane-by-lane against the scalar operation on the same item.
-/// A packing bug that shifted a field by one bit would break these without breaking a
-/// vector-only round-trip, which is the point.
-/// </summary>
 public sealed class MotelyItemVectorParityTests
 {
-    /// <summary>Eight deliberately unlike items so no lane accidentally mirrors its neighbour.</summary>
     private static MotelyItem[] SampleItems() =>
         [
             new MotelyItem(MotelyItemType.Pluto),
@@ -85,7 +78,6 @@ public sealed class MotelyItemVectorParityTests
             Assert.Equal(items[lane].IsRental, rental[lane]);
         }
 
-        // The samples are built so each sticker is set on exactly one lane.
         Assert.Equal(1, CountSetLanes(perishable));
         Assert.Equal(1, CountSetLanes(eternal));
         Assert.Equal(1, CountSetLanes(rental));
@@ -127,8 +119,6 @@ public sealed class MotelyItemVectorParityTests
         for (int lane = 0; lane < MotelyItemVector.Count; lane++)
             Assert.Equal(items[lane].Value == probe.Value, mask[lane]);
     }
-
-    // ── mutators: vector result must equal scalar result on every lane ──
 
     [Fact]
     public void AsType_MatchesScalarPerLane()
@@ -233,10 +223,6 @@ public sealed class MotelyItemVectorParityTests
         Assert.Equal(set ? 8 : 0, CountSetLanes(rental.IsRental));
     }
 
-    /// <summary>
-    /// The per-lane sticker overloads are the ones the search actually uses — they must set the
-    /// sticker only where the selector says, and clear it everywhere else.
-    /// </summary>
     [Fact]
     public void Stickers_VectorSelectorOverloadSetsOnlySelectedLanes()
     {
@@ -257,7 +243,6 @@ public sealed class MotelyItemVectorParityTests
             Assert.Equal(expected, eternal.IsEternal[lane]);
             Assert.Equal(expected, rental.IsRental[lane]);
 
-            // Setting one sticker leaves the item's type alone.
             Assert.Equal(items[lane].Type, perishable.Type[lane]);
         }
     }

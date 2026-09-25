@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Smoke: SIMD Must paths (named targets, editions, source combos) through the real search
-/// pipeline. Asserts the list batch ran. Does not pin MatchingSeeds — find-proof is golden tests.
-/// </summary>
 public sealed class JamlMustPathCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "UNITTEST"];
@@ -152,11 +148,9 @@ public sealed class JamlMustPathCoverageTests
     [Fact]
     public void Legendary_EachVariant()
     {
-        // Named legendary, no edition: the plain Soul-match path across an ante range.
         RunMust(
                 new LegendaryJokerClause { Jokers = [MotelyJoker.Canio], Antes = [1, 2, 3] }
             );
-        // Wildcard legendary from spectral packs only.
         RunMust(
                 new LegendaryJokerClause
                 {
@@ -164,7 +158,6 @@ public sealed class JamlMustPathCoverageTests
                     Sources = new LegendaryJokerSourceConfig { SpectralPacks = [0, 1] },
                 }
             );
-        // Min > 1 forces the matcher to keep counting after the first hit.
         RunMust(
                 new LegendaryJokerClause { Antes = [1, 2, 3, 4], Min = 2 }
             );

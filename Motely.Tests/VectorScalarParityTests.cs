@@ -1,19 +1,10 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Proves the SIMD engine reads the same items as the scalar engine, lane for lane, from the
-/// streams both sides implement: the full shop queue (joker/tarot/planet/spectral slot polling)
-/// and every pack-content stream (Arcana with Soul rolls, Celestial with Black Hole rolls,
-/// Spectral with both, Buffoon). A vectorized stream that drifts from the scalar one by even a
-/// single PRNG pull produces different seeds under SIMD prefilters than under --analyze, so this
-/// parity is load-bearing for search correctness (PRNG contract: order within a key is law).
-/// </summary>
 public sealed class VectorScalarParityTests
 {
     private const int MaxAnte = 3;
     private const int ShopSlots = 20;
 
-    // Eight 8-char seeds fill all lanes of one vector batch.
     private static readonly string[] Seeds =
     [
         "ALEEBOOO",
@@ -68,7 +59,6 @@ public sealed class VectorScalarParityTests
 
             public VectorMask Filter(ref MotelyVectorSearchContext ctx)
             {
-                // [ante] -> [index] -> [lane] item values read by the SIMD engine.
                 var shop = new int[MaxAnte + 1][][];
                 var arcana = new int[MaxAnte + 1][][];
                 var celestial = new int[MaxAnte + 1][][];
@@ -88,8 +78,6 @@ public sealed class VectorScalarParityTests
                         shop[ante][slot] = row;
                     }
 
-                    // Normal then Mega from one stream: exercises both pack sizes and keeps
-                    // consuming the same PRNG key, like consecutive packs in a real ante.
                     var arcanaStream = ctx.CreateArcanaPackTarotStream(ante);
                     var arcanaItems = ctx.GetNextArcanaPackContents(
                         ref arcanaStream,
@@ -257,9 +245,6 @@ public sealed class VectorScalarParityTests
     [Theory]
     [InlineData(MotelyDeck.Red, MotelyStake.White)]
     [InlineData(MotelyDeck.Ghost, MotelyStake.White)]
-    // Gold stake rolls the sticker streams (Eternal/Perishable/Rental), so sticker bits land in
-    // item.Value and any vector/scalar sticker divergence fails a lane. Caught the perishable
-    // upper-bound bug on eternal-incompatible jokers.
     [InlineData(MotelyDeck.Red, MotelyStake.Gold)]
     [InlineData(MotelyDeck.Ghost, MotelyStake.Gold)]
     public void VectorStreams_MatchScalar_LaneForLane(MotelyDeck deck, MotelyStake stake)

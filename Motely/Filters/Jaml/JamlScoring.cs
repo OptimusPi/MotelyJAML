@@ -35,11 +35,6 @@ public static class JamlScoring
         ApplyPrepareRunState(ref ctx, runState, maxAnte, maxBossAnte);
     }
 
-    /// <summary>
-    /// Single match core for SIMD filter confirmation (<c>SearchIndividualSeeds</c> arms).
-    /// Same voucher/boss prepare + raw occurrence count as should-scoring for this clause, so
-    /// FilterDesc scalar confirm paths cannot drift from <see cref="CountRawOccurrences"/>.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool ClauseMeetsMinForFilter(
         ref MotelySingleSearchContext ctx,
@@ -58,10 +53,6 @@ public static class JamlScoring
         return MeetsOccurrenceBounds(raw, clause);
     }
 
-    /// <summary>
-    /// True when the SIMD filter confirm path is the same law as scoring (no over-permissive
-    /// vector prefilter). Scoring may skip must re-eval when every must clause is exact.
-    /// </summary>
     internal static bool IsExactFilterConfirm(IJamlClause clause) =>
         clause switch
         {
@@ -69,9 +60,7 @@ public static class JamlScoring
             StartingDrawClause => true,
             PokerHandClause => true,
             StandardCardClause => true,
-            // Legendary filter is pure SIMD edition (or passthrough) — pack/Soul confirm is score-only.
             LegendaryJokerClause => false,
-            // Full vector roll walks — same law as scoring counts.
             VoucherClause => true,
             TagClause => true,
             BoosterPackClause => true,
@@ -84,7 +73,6 @@ public static class JamlScoring
             TarotCardClause tc => tc.Sources is { CharmTag: true }
                 || tc.Sources is { RequireMegaPack: true },
             PlanetCardClause pc => pc.Sources is { RequireMegaPack: true },
-            // StandardCardClause is already exact (true above).
             JokerClause jc => JokerUsesLegendaryExactPath(jc)
                 || jc.Sources is { RequireMegaPack: true },
             CommonJokerClause cjc => cjc.Sources is { RequireMegaPack: true },
@@ -92,7 +80,6 @@ public static class JamlScoring
             RareJokerClause rjc => rjc.Sources is { RequireMegaPack: true },
             AndClause a => AllExactFilterConfirm(a.Clauses),
             OrClause o => AllExactFilterConfirm(o.Clauses),
-            // Roll-scoped event filters are full vector counts (no coarse pack walk).
             LuckyMoneyClause
             or LuckyMultClause
             or MisprintMultClause
@@ -134,10 +121,6 @@ public static class JamlScoring
         return false;
     }
 
-    /// <summary>
-    /// True when every must clause already had an exact SIMD confirm — scoring re-eval of must
-    /// would only re-pay the same CountRawOccurrences law.
-    /// </summary>
     internal static bool CanSkipMustReeval(IJamlClause[] mustClauses)
     {
         if (mustClauses.Length == 0)
@@ -241,14 +224,6 @@ public static class JamlScoring
     internal static int CapScoreCountForTesting(int count, IJamlClause clause) =>
         CapScoreCount(count, clause);
 
-    /// <summary>
-    /// Match bounds contract: <see cref="IJamlClause.Min"/> is the lower gate;
-    /// <see cref="IJamlClause.Max"/> when set is the upper gate for must / filter confirm, at
-    /// every value — null is the only "no ceiling". The loader guarantees <c>1 ≤ min ≤ max</c>
-    /// (<c>JamlConfigLoader.ValidateBounds</c>), so a zero ceiling never reaches here today.
-    /// Score tallies still use <see cref="CapScoreCount"/> so should columns cap contribution.
-    /// SIMD prefilters may stay over-permissive on Max; scoring / exact confirm enforce it.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool MeetsOccurrenceBounds(int raw, IJamlClause clause)
     {
@@ -275,13 +250,6 @@ public static class JamlScoring
         return 0;
     }
 
-    /// <summary>
-    /// A child arm of <c>and:</c>/<c>or:</c> counts as matched only when its occurrence count sits
-    /// inside the child's own <c>min</c>/<c>max</c>. Nested logic arms gate themselves (they
-    /// return 0 below their arm-count <c>min</c>, and their return is an aggregate, not an
-    /// occurrence count), so for those any positive return is a match; the scored callers then
-    /// cap a nested arm at its own <c>max</c> as <see cref="CountOccurrences"/> does.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool ChildMatches(int count, IJamlClause child) =>
         child is LogicClause ? count > 0 : MeetsOccurrenceBounds(count, child);
@@ -297,8 +265,6 @@ public static class JamlScoring
             "AndClause should not be empty after JAML load (validator / loader bug)."
         );
 
-        // An AND counts COMPLETE conjunctions: min over children, not their sum.
-        // Summing double-paid the clause score (tag=1 + joker=1 → tally 2 → 2×score).
         int combos = int.MaxValue;
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
@@ -352,7 +318,6 @@ public static class JamlScoring
         return clause.Score != 0 ? aggregate : matched;
     }
 
-    /// <summary>An unscored arm weighs 1, the same default the loader gives a bare should clause.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int OrArmWeight(IJamlClause arm) => arm.Score != 0 ? arm.Score : 1;
 
@@ -381,7 +346,6 @@ public static class JamlScoring
             "AndClause should not be empty after JAML load (validator / loader bug)."
         );
 
-        // Same min-of-children semantics as CountAndOccurrences: complete conjunctions only.
         int combos = int.MaxValue;
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
@@ -423,8 +387,6 @@ public static class JamlScoring
                 continue;
             matched++;
             total += count;
-            // mode: max picks the arm with the largest count×weight (the arm CountOrOccurrences
-            // scores) and reports that arm's raw count, so tally and score describe one arm.
             int contribution = count * OrArmWeight(clause.Clauses[i]);
             if (contribution > bestContribution)
             {
@@ -451,9 +413,6 @@ public static class JamlScoring
             "BossClause.Antes must be non-empty after JAML load (validator / loader bug)."
         );
 
-        // Not Debug.Assert: ApplyPrepareRunState allocates CachedBosses only when some clause
-        // named a boss ante >= 1, so a clause that slipped past the loader must fail with the
-        // cause in Release too, not with a null dereference.
         var bosses =
             runState.CachedBosses
             ?? throw new InvalidOperationException(
@@ -536,7 +495,6 @@ public static class JamlScoring
     )
     {
         int count = 0;
-        // Scoring is authoritative, so it resolves the same defaults the SIMD desc applies.
         var sources = clause.Sources ?? TarotCardFilterDesc.DefaultSources;
         int maxShop = ArrayMax(sources.ShopItems);
         int userMaxPack = ArrayMax(sources.BoosterPacks);
@@ -583,8 +541,6 @@ public static class JamlScoring
                     if (packType == MotelyBoosterPackType.Arcana)
                     {
                         hadNaturalArcanaPack = true;
-                        // Charm Tag opens Mega Arcana (5 cards). Shop Arcana uses rolled size.
-                        // requireMega only gates whether the open counts, not stream advance.
                         var packSize = pack.GetPackSize();
                         var contents = ctx.GetNextArcanaPackContents(
                             ref tarotStream,
@@ -600,9 +556,6 @@ public static class JamlScoring
                         continue;
                     }
 
-                    // Charm: extra Arcana on the second real shop pack (after Buffoon) only if the two
-                    // weighted rolls had no Arcana — uses pack stream order, not ante-scaled indices.
-                    // Game law: Charm is always Mega Arcana (size 5 / pick 2).
                     if (charmWant && !hadNaturalArcanaPack && weightedShopDrawNumber == 2)
                     {
                         var packSize = MotelyBoosterPackSize.Mega;
@@ -735,7 +688,6 @@ public static class JamlScoring
                 }
             }
 
-            // Omen Globe: 20% of Arcana pack cards become Spectral (voucher assumed when source is set).
             if (sources.OmenGlobe)
                 count += CountOmenGlobeArcanaSpectrals(ref ctx, clause, sources, ante, runState);
 
@@ -762,12 +714,6 @@ public static class JamlScoring
             }
         }
 
-        // The two "special" spectral cards spawn from a dedicated soul/black-hole roll in pack types
-        // the loop above never reads: TheSoul also appears in Arcana packs (tarot stream), BlackHole
-        // also in Celestial packs (planet stream). The spectral-pack walk above already counts both
-        // when they land in a SPECTRAL pack; this adds the missing Arcana/Celestial sources so
-        // `spectralCard: TheSoul` / `spectralCard: BlackHole` see everywhere the card can actually
-        // spawn — the same blind spot that made the spectralCard path wrong for these two.
         if (sources.BoosterPacks.Length > 0)
         {
             if (SpectralClauseTargets(clause, MotelySpectralCard.TheSoul))
@@ -779,11 +725,6 @@ public static class JamlScoring
         return count;
     }
 
-    /// <summary>
-    /// Omen Globe: each Arcana pack card has a 1/5 chance to be generated as Spectral instead of
-    /// Tarot. Source flag assumes the voucher is owned. Pack slots follow <paramref name="sources"/>.BoosterPacks
-    /// when set; otherwise the full late-ante pack range.
-    /// </summary>
     private static int CountOmenGlobeArcanaSpectrals(
         ref MotelySingleSearchContext ctx,
         SpectralCardClause clause,
@@ -820,7 +761,6 @@ public static class JamlScoring
 
             for (int c = 0; c < cardCount; c++)
             {
-                // Balatro: type Tarot → 20% becomes Spectral via omen_globe before create_card.
                 if (ctx.GetNextOmenGlobeSpectral(ref omenStream))
                 {
                     var spectral = ctx.GetNextSpectral(ref spectralStream, packSet);
@@ -839,7 +779,6 @@ public static class JamlScoring
         return count;
     }
 
-    /// <summary>Whether a spectral clause names <paramref name="card"/> as a target.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool SpectralClauseTargets(SpectralCardClause clause, MotelySpectralCard card)
     {
@@ -850,10 +789,6 @@ public static class JamlScoring
         return false;
     }
 
-    /// <summary>
-    /// Explicit <c>sources:</c> wins. Null sources: shop-only for ordinary spectrals; pack slots
-    /// for Soul/BlackHole (they never appear in shop).
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static SpectralCardSourceConfig ResolveSpectralSources(SpectralCardClause clause) =>
         clause.Sources
@@ -863,18 +798,10 @@ public static class JamlScoring
                 : SpectralCardFilterDesc.DefaultSources
         );
 
-    /// <summary>
-    /// True when the clause names TheSoul and/or BlackHole — the "special" spectrals that need the
-    /// Arcana/Celestial pack sources. Used to route <c>spectralCard:</c> to <see cref="SpecialSpectralCardFilterDesc"/>.
-    /// </summary>
     public static bool TargetsSpecialSpectral(SpectralCardClause clause) =>
         SpectralClauseTargets(clause, MotelySpectralCard.TheSoul)
         || SpectralClauseTargets(clause, MotelySpectralCard.BlackHole);
 
-    /// <summary>
-    /// Scalar spectral count for the SIMD filter's per-seed confirmation pass.
-    /// Same prepare + count as <see cref="ClauseMeetsMinForFilter"/> / should-scoring.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int CountSpectralCardOccurrencesForFilter(
         ref MotelySingleSearchContext ctx,
@@ -886,11 +813,6 @@ public static class JamlScoring
         return CountSpectralCardOccurrences(ref ctx, clause, runState);
     }
 
-    /// <summary>
-    /// TheSoul appearing in Arcana packs (tarot stream soul roll). Same booster-pack indexing as the
-    /// spectral-pack walk in <see cref="CountSpectralCardOccurrences"/> so source slot numbers line up;
-    /// reads each Arcana pack's contents to keep the tarot stream aligned, counts only targeted slots.
-    /// </summary>
     private static int CountTheSoulInArcanaPacks(
         ref MotelySingleSearchContext ctx,
         SpectralCardClause clause,
@@ -927,10 +849,6 @@ public static class JamlScoring
         return count;
     }
 
-    /// <summary>
-    /// BlackHole appearing in Celestial packs (planet stream black-hole roll). Mirror of
-    /// <see cref="CountPlanetCardOccurrences"/>'s celestial walk; counts only the BlackHole item.
-    /// </summary>
     private static int CountBlackHoleInCelestialPacks(
         ref MotelySingleSearchContext ctx,
         SpectralCardClause clause,
@@ -974,7 +892,6 @@ public static class JamlScoring
     )
     {
         int count = 0;
-        // Scoring is authoritative, so it must see the same defaults the SIMD desc applies.
         var sources = clause.Sources ?? PlanetCardFilterDesc.DefaultSources;
         int maxShop = ArrayMax(sources.ShopItems);
         int userMaxPack = ArrayMax(sources.BoosterPacks);
@@ -1027,8 +944,6 @@ public static class JamlScoring
         MotelyRunState runState
     )
     {
-        // Start from a fresh state — PrepareRunState already activated vouchers into runState,
-        // which would cause GetAnteFirstVoucher to skip them and return wrong results.
         var localState = new MotelyRunState();
         int count = 0;
         int maxAnte = GetMaxAnte(clause);
@@ -1098,9 +1013,6 @@ public static class JamlScoring
         return count;
     }
 
-    /// <summary>
-    /// Shop pack offers (kind+size enum). Rolls = pack slot indices. Empty Packs = any pack.
-    /// </summary>
     private static int CountBoosterPackOccurrences(
         ref MotelySingleSearchContext ctx,
         BoosterPackClause clause,
@@ -1166,10 +1078,6 @@ public static class JamlScoring
         return count;
     }
 
-    /// <summary>
-    /// Count antes/rounds whose starting 8-card hand's best poker category is in the clause list.
-    /// Empty <c>antes</c> defaults to round 1 (same as a single starting-hand check).
-    /// </summary>
     private static int CountPokerHandOccurrences(
         ref MotelySingleSearchContext ctx,
         PokerHandClause clause
@@ -1183,7 +1091,6 @@ public static class JamlScoring
             string shuffleKey = MotelyPokerHandEval.ShuffleKeyForAnte(ante);
             foreach (int roll in rolls)
             {
-                // Only a blind that is actually played advances nr{ante}; at most three per ante.
                 if (roll < 0 || roll >= PokerHandFilterDesc.MaxBlindsPerAnte)
                     continue;
 
@@ -1196,8 +1103,6 @@ public static class JamlScoring
                 Span<MotelyItem> hand = deck.AsSpan(deck.Length - handSize, handSize);
                 MotelyPokerHand best = MotelyPokerHandEval.BestScore(hand).Type;
 
-                // Empty = any hand (BoosterPackClause.Packs convention). Every draw has a best
-                // hand, so an "any" clause counts every blind in scope.
                 if (clause.PokerHands.Length == 0)
                 {
                     count++;
@@ -1456,7 +1361,6 @@ public static class JamlScoring
         var stream = ctx.CreateBusinessPrngStream();
         var min = clause.Min;
         var max = clause.Max;
-        // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
         for (int i = 0; i < clause.Rolls.Length; i++)
         {
             var rollIndex = clause.Rolls[i];
@@ -1485,7 +1389,6 @@ public static class JamlScoring
         var stream = ctx.CreateBloodstonePrngStream();
         var min = clause.Min;
         var max = clause.Max;
-        // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
         foreach (var rollIndex in clause.Rolls)
         {
             for (int i = 0; i < rollIndex; i++)
@@ -1509,7 +1412,6 @@ public static class JamlScoring
         var stream = ctx.CreateParkingPrngStream();
         var min = clause.Min;
         var max = clause.Max;
-        // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
         foreach (var rollIndex in clause.Rolls)
         {
             for (int i = 0; i < rollIndex; i++)
@@ -1690,10 +1592,6 @@ public static class JamlScoring
         );
     }
 
-    /// <summary>
-    /// Scalar joker count for the SIMD filter's per-seed confirmation pass.
-    /// Same prepare + count as <see cref="ClauseMeetsMinForFilter"/> / should-scoring.
-    /// </summary>
     internal static int CountJokerClauseOccurrencesForFilter(
         ref MotelySingleSearchContext ctx,
         JokerClause clause
@@ -2368,10 +2266,6 @@ public static class JamlScoring
         return max;
     }
 
-    // The highest ante any BOSS clause in this tree asks about, or 0 for a tree holding none.
-    // PrepareRunState sizes CachedBosses from this, so it has to descend into and:/or: the same
-    // way GetMaxAnte does — a boss clause only ever reachable through a conjunction still gets
-    // its ante scored, and CountBossOccurrences indexes CachedBosses by that ante directly.
     private static int GetMaxBossAnte(IJamlClause clause) =>
         clause switch
         {
@@ -2400,8 +2294,6 @@ public static class JamlScoring
         MotelyRunState runState
     )
     {
-        // Ante 1 has two shops; a Hieroglyph/Petroglyph bought in ante 2's first shop sends the
-        // run back through both of them, so the extended ante 1 offers its normal packs twice over.
         int anteMaxPack =
             ante != 1 ? MotelyGlobals.LateAntesMaxPackSlot
             : runState.IsExtendedPackAnteActive(ante)

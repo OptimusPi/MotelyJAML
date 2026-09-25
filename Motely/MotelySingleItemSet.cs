@@ -25,7 +25,6 @@ public struct MotelySingleItemSet
 #if DEBUG
         return ref set.Items[index];
 #else
-        // Be fast and skip the bounds check
         return ref Unsafe.Add(ref Unsafe.As<ItemSet, MotelyItem>(ref set.Items), index);
 #endif
     }

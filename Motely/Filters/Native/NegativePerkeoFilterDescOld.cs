@@ -46,7 +46,6 @@ public struct NegativePerkeoFilterDescOld()
                     negativePerkeoMask,
                     (MotelySingleSearchContext searchContext) =>
                     {
-                        // We need to check if this ante has the soul
                         MotelySingleTarotStream tarotStream = default;
                         MotelySingleSpectralStream spectralStream = default;
                         bool tarotStreamInit = false,

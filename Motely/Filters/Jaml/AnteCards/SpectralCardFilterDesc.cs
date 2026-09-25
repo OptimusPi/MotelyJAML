@@ -16,7 +16,6 @@ public sealed partial class SpectralCardClause : IJamlClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelySpectralCard[] Spectrals { get; set; } = [];
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public SpectralCardSourceConfig? Sources { get; set; }
 }
 
@@ -25,42 +24,21 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 {
     private readonly SpectralCardClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["spectralCard", "spectralCards"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
-    /// <summary>
-    /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
-    /// every booster-pack slot (Spectral packs). The shop half only ever pays on the Ghost deck —
-    /// its spectral weight is zero everywhere else (<see cref="JamlRarityContext.ShopSpectralRate"/>)
-    /// — so the packs are what make the default matchable on the other fourteen decks. Sixth Sense,
-    /// Séance, Ethereal and Omen Globe need an explicit <c>sources:</c>. Slot range is the engine's
-    /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.
-    /// </summary>
     internal static readonly SpectralCardSourceConfig DefaultSources = new()
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
         BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
     };
 
-    /// <summary>
-    /// Null-sources default for TheSoul / BlackHole: those cards never appear in shop —
-    /// only Arcana/Celestial/Spectral packs — so the shop half of <see cref="DefaultSources"/>
-    /// would be wasted reads.
-    /// </summary>
     internal static readonly SpectralCardSourceConfig DefaultSpecialSources = new()
     {
         BoosterPacks = Enumerable.Range(0, MotelyGlobals.LateAntesMaxPackSlot + 1).ToArray(),
     };
 
-    /// <summary>
-    /// The one place null sources become a source block: explicit <c>sources:</c> wins; otherwise
-    /// <see cref="DefaultSpecialSources"/> when the clause names TheSoul or BlackHole, else
-    /// <see cref="DefaultSources"/>. <c>JamlScoring.ResolveSpectralSources</c> makes the same
-    /// choice from the same two fields, so filter and scorer read identical slots.
-    /// </summary>
     internal static SpectralCardSourceConfig ResolveSources(SpectralCardClause clause) =>
         clause.Sources
         ?? (JamlScoring.TargetsSpecialSpectral(clause) ? DefaultSpecialSources : DefaultSources);
@@ -131,7 +109,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            // empty Spectrals = category any
             var clause = _clause;
             int maxShopItem = _maxShopItem;
             int maxBoosterPack = _maxBoosterPack;
@@ -142,7 +119,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
             var sources = ResolveSources(clause);
-            // Mega / Ethereal / OmenGlobe: Arcana or pack-size rules live in scoring.
             if (sources.RequireMegaPack || sources.EtherealTag || sources.OmenGlobe)
                 return ctx.SearchIndividualSeeds(
                     (MotelySingleSearchContext single) =>
@@ -170,9 +146,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 
             foreach (var ante in clause.Antes)
             {
-                // ── Shop items SIMD ──
-                // Only Ghost gives the shop a spectral weight (CreateShopItemStream), so on any
-                // other deck these slots can never match and the stream is not worth walking.
                 if (shopIndices.Length > 0 && ctx.Deck == MotelyDeck.Ghost)
                 {
                     var shopStream = ctx.CreateShopItemStream(ante);
@@ -213,8 +186,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
                     }
                 }
 
-                // ── Spectral packs SIMD ──
-                // Per-lane size (Normal=2, Jumbo/Mega=4) + ante-1 slot reachability.
                 if (boosterPacks.Length > 0)
                 {
                     var packStream = ctx.CreateBoosterPackStream(ante);
@@ -284,7 +255,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
                     }
                 }
 
-                // ── Sixth Sense SIMD ──
                 if (sixthSenseRolls.Length > 0)
                 {
                     var sixthSenseStream = ctx.CreateSixthSenseSpectralStream(ante);
@@ -320,7 +290,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
                     }
                 }
 
-                // ── Seance SIMD ──
                 if (seanceRolls.Length > 0)
                 {
                     var seanceStream = ctx.CreateSeanceSpectralStream(ante);
@@ -382,13 +351,9 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     }
 }
 
-/// <summary>
-/// <c>sources:</c> block for <c>spectralCard:</c>. Colocated with <see cref="SpectralCardFilterDesc"/> (T5).
-/// </summary>
 [YamlObject]
 public sealed partial record SpectralCardSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =
     [
         "shopItems",
@@ -407,15 +372,7 @@ public sealed partial record SpectralCardSourceConfig
     public int[] Seance { get; set; } = [];
     public bool RequireMegaPack { get; set; }
 
-    /// <summary>
-    /// When true, booster Spectral scoring may consume the Ethereal-tag bonus pack (second weighted slot, no natural Spectral).
-    /// </summary>
     public bool EtherealTag { get; set; }
 
-    /// <summary>
-    /// When true, count Spectral substitutes from Arcana packs under Omen Globe (20% per card).
-    /// Uses <c>boosterPacks</c> slots when set; otherwise walks the full late-ante pack range.
-    /// Assumes Omen Globe is owned for the clause (source means search that path).
-    /// </summary>
     public bool OmenGlobe { get; set; }
 }

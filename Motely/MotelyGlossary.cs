@@ -1,15 +1,7 @@
 namespace Motely;
 
-/// <summary>
-/// One entry in <see cref="MotelyGlossary.Entries"/>: a term used across the CLI, MCP, and
-/// WASM/npm surfaces that doesn't self-explain from its name alone.
-/// </summary>
 public sealed record MotelyGlossaryTerm(string Term, string? Acronym, string Definition);
 
-/// <summary>
-/// Single glossary for JAML and JAMLyzer. CLI <c>--glossary</c>, the MCP glossary tool, and
-/// the WASM/npm export all render from this list — one write, every surface stays in lockstep.
-/// </summary>
 public static class MotelyGlossary
 {
     public static readonly IReadOnlyList<MotelyGlossaryTerm> Entries =
@@ -34,7 +26,6 @@ public static class MotelyGlossary
         ),
     ];
 
-    /// <summary>Plain-text rendering of every term, in <see cref="Entries"/> order.</summary>
     public static string Render()
     {
         var sb = new System.Text.StringBuilder();
@@ -48,7 +39,6 @@ public static class MotelyGlossary
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>Case-insensitive lookup of a single term's entry, or null if unknown.</summary>
     public static MotelyGlossaryTerm? TryGet(string term) =>
         Entries.FirstOrDefault(e => string.Equals(e.Term, term, StringComparison.OrdinalIgnoreCase));
 }

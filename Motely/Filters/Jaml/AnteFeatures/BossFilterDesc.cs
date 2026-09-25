@@ -13,9 +13,6 @@ public sealed partial class BossClause : IJamlClause, IAnteScopedClause
     public int Score { get; set; }
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyBossBlind[] Bosses { get; set; } = [];
-    // No Rolls — for now. Boss re-rolls ARE a real source, but the re-roll read isn't
-    // implemented in MotelySearchContext.Boss.cs yet (state-heavy, same blocker as joker
-    // re-rolls). Antes select the WHERE; re-add Rolls here when that source lands.
 }
 
 public readonly struct BossFilterDesc(BossClause clause)
@@ -23,15 +20,12 @@ public readonly struct BossFilterDesc(BossClause clause)
 {
     private readonly BossClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["boss", "bosses"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
 
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 
-    /// <summary>How many normal bosses may appear at <paramref name="ante"/> at all.</summary>
     private static int EligibleNormal(int ante)
     {
         int count = 0;
@@ -41,14 +35,8 @@ public readonly struct BossFilterDesc(BossClause clause)
         return count;
     }
 
-    /// <summary>How many normal-boss antes precede <paramref name="ante"/>.</summary>
     private static int NormalAntesBefore(int ante) => (ante - 1) - (ante - 1) / 8;
 
-    /// <summary>
-    /// The normal pool at <paramref name="ante"/>: the eligible bosses less the ones seen since
-    /// the last refill. Early antes cannot run dry — eligibility grows faster than the seen
-    /// count — so the refill cycle is the full normal roster, which is the pool from ante 6 on.
-    /// </summary>
     private static int NormalPool(int ante)
     {
         int roster = MotelyBossBlindExt.NormalBossBlinds.Length;
@@ -63,14 +51,12 @@ public readonly struct BossFilterDesc(BossClause clause)
 
         if (boss.GetBossType() == MotelyBossBlindType.Finisher)
         {
-            // A uniform permutation of five: whichever finisher ante it is, each is 1/5.
             return IsFinisherAnte(ante) ? 1.0 / MotelyBossBlindExt.FinisherBossBlinds.Length : 0.0;
         }
 
         if (IsFinisherAnte(ante) || ante < boss.GetBossMinAnte())
             return 0.0;
 
-        // Not drawn at any earlier eligible normal ante in the current refill cycle …
         int roster = MotelyBossBlindExt.NormalBossBlinds.Length;
         int cycleStartIndex = NormalAntesBefore(ante) / roster * roster;
         double notSeen = 1.0;
@@ -83,7 +69,6 @@ public readonly struct BossFilterDesc(BossClause clause)
             notSeen *= 1.0 - 1.0 / NormalPool(earlier);
         }
 
-        // … then drawn from this ante's pool.
         return notSeen / NormalPool(ante);
     }
 
@@ -99,7 +84,6 @@ public readonly struct BossFilterDesc(BossClause clause)
         {
             Debug.Assert(_clause.Bosses.Length > 0);
 
-            // Single match core: same PrepareRunState + CountBossOccurrences as should-scoring.
             var clause = _clause;
             return ctx.SearchIndividualSeeds(
                 (MotelySingleSearchContext singleCtx) =>

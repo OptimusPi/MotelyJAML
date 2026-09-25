@@ -5,10 +5,6 @@ public interface IMotelySeedProvider
     public long SeedCount { get; }
     public string NextSeed();
 
-    /// <summary>
-    /// Batch retrieve multiple seeds in one lock operation - much faster for multi-threaded access.
-    /// Fills the provided array with seed strings, returns the number of seeds actually retrieved.
-    /// </summary>
     public int NextSeeds(string[] seeds);
 }
 
@@ -51,9 +47,6 @@ public sealed class MotelyRandomSeedProvider(int seedCount) : IMotelySeedProvide
     }
 }
 
-/// <summary>
-/// Generates palindrome seeds lazily via <see cref="JamlAesthetics.EnumerateSeeds"/>.
-/// </summary>
 public sealed class MotelyPalindromeSeedProvider : IMotelySeedProvider
 {
     public long SeedCount { get; } = JamlAesthetics.GetSeedCount(JamlAesthetic.Palindrome);
@@ -100,9 +93,6 @@ public sealed class MotelyPalindromeSeedProvider : IMotelySeedProvider
     }
 }
 
-/// <summary>
-/// Generates psychosis seeds lazily via <see cref="JamlAesthetics.EnumerateSeeds"/> (ABAxBxxx pattern, ~1 billion seeds).
-/// </summary>
 public sealed class MotelyPsychosisSeedProvider : IMotelySeedProvider
 {
     public long SeedCount { get; } = JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis);
@@ -190,11 +180,6 @@ public sealed class MotelyAestheticSeedProvider : IMotelySeedProvider
     }
 }
 
-/// <summary>
-/// Generates repeater patterns directly from their ordinal rather than through a shared iterator.
-/// Provider search workers claim independent chunks, so pattern production does not serialize on
-/// one enumerator lock before the SIMD search can begin.
-/// </summary>
 public sealed class MotelyRepeaterSeedProvider : IMotelySeedProvider
 {
     private static readonly int[] PatternLengths = [1, 2, 4];
@@ -324,11 +309,8 @@ public sealed class MotelyKeywordSeedProvider : IMotelySeedProvider
 
 public sealed class MotelySeedListProvider : IMotelySeedProvider
 {
-    // Keep seeds as enumerable - don't materialize! Seeds are used in the order provided.
-    // For keyword generation, enumerable is lazy and avoids massive allocations.
     private readonly IEnumerator<string> _seedEnumerator;
 
-    // IEnumerator<T> is not thread-safe; lock is intentional.
     private readonly object _enumeratorLock = new();
 
     public long SeedCount { get; private set; } = -1;
@@ -393,11 +375,6 @@ public sealed class MotelySeedListProvider : IMotelySeedProvider
     }
 }
 
-/// <summary>
-/// Drains <paramref name="first"/> to exhaustion, then falls through to <paramref name="second"/>.
-/// Used to always run a JAML file's saved <c>seeds:</c> list ahead of whatever seed source the
-/// search was otherwise configured with.
-/// </summary>
 public sealed class MotelyChainedSeedProvider(IMotelySeedProvider first, IMotelySeedProvider second)
     : IMotelySeedProvider
 {
@@ -445,11 +422,6 @@ public sealed class MotelyChainedSeedProvider(IMotelySeedProvider first, IMotely
     }
 }
 
-/// <summary>
-/// Optional <see cref="IMotelySeedProvider"/> for <see cref="IAsyncEnumerable{T}"/> sources.
-/// Pass to <see cref="MotelySearchSettings{TBaseFilter}.WithProviderSearch"/>; do not use unless you
-/// truly need async streaming — prefer <see cref="MotelySeedListProvider"/> / <see cref="MotelySearchSettings{TBaseFilter}.WithSeedGenerator"/>.
-/// </summary>
 public sealed class MotelyAsyncSeedListProvider : IMotelySeedProvider, IDisposable, IAsyncDisposable
 {
     private readonly IAsyncEnumerable<string> _seeds;

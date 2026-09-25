@@ -4,19 +4,8 @@ using System.Runtime.Intrinsics.X86;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// R3 parity for the vector primitives. Every assertion recomputes the expected value with plain
-/// scalar C#, so the test states the contract instead of echoing the intrinsic.
-///
-/// Architecture note: <see cref="MotelyVectorUtils.ShiftLeft(in Vector256{int}, in Vector256{int})"/>
-/// and friends pick their branch from runtime hardware support. On x86 that is the Avx512F/Avx2
-/// path; on Apple Silicon / ARM64 the very same test drives the AdvSimd path. The asserts hold
-/// either way, so running this file on an ARM host covers the NEON branches with no source change.
-/// </summary>
 public sealed class VectorPrimitiveCoverageTests
 {
-    // ── MotelyVectorUtils: shifts ──
-
     [Fact]
     public void ShiftLeft_Int32_MatchesScalarPerLane()
     {
@@ -51,8 +40,6 @@ public sealed class VectorPrimitiveCoverageTests
         for (int lane = 0; lane < Vector256<int>.Count; lane++)
             Assert.Equal((int)doubles[lane], actual[lane]);
     }
-
-    // ── MotelyVectorUtils: widen / narrow mask conversions ──
 
     [Fact]
     public void ExtendIntMaskToLong_WidensEachLaneSignExtended()
@@ -92,7 +79,6 @@ public sealed class VectorPrimitiveCoverageTests
         Assert.Equal(small, MotelyVectorUtils.ShrinkDoubleMaskToFloat(wide.AsDouble()).AsInt32());
     }
 
-    /// <summary>The size guards are the contract: 32-bit in, 64-bit out, and nothing else.</summary>
     [Fact]
     public void Extend32MaskTo64_RejectsWrongLaneWidths()
     {
@@ -114,8 +100,6 @@ public sealed class VectorPrimitiveCoverageTests
             () => MotelyVectorUtils.Shrink64MaskTo32<int, int>(Vector512<int>.Zero)
         );
     }
-
-    // ── MotelyVectorUtils: bitmask bridges ──
 
     [Fact]
     public void VectorMaskToIntMask_ExtractsSignBitPerLane()
@@ -171,8 +155,6 @@ public sealed class VectorPrimitiveCoverageTests
     public void IsAccelerated_ReportsVector512Support() =>
         Assert.Equal(Vector512.IsHardwareAccelerated, MotelyVectorUtils.IsAccelerated);
 
-    // ── VectorMask ──
-
     [Fact]
     public void VectorMask_IndexerSetsAndClearsIndividualLanes()
     {
@@ -191,7 +173,6 @@ public sealed class VectorPrimitiveCoverageTests
         mask[3] = false;
         Assert.Equal(0b1000_0000u, mask.Value);
 
-        // Clearing a lane that is already clear is a no-op, not a toggle.
         mask[3] = false;
         Assert.Equal(0b1000_0000u, mask.Value);
     }
@@ -206,7 +187,6 @@ public sealed class VectorPrimitiveCoverageTests
         Assert.Equal(0b1110_1110u, (a | b).Value);
         Assert.Equal(0b0110_1100u, (a ^ b).Value);
 
-        // Complement stays inside the 8 lanes — the high 24 bits are masked off.
         Assert.Equal(0b0011_0101u, (~a).Value);
         Assert.Equal(VectorMask.AllBitsSet.Value, (~VectorMask.NoBitsSet).Value);
         Assert.True((a & ~a).IsAllFalse());
@@ -218,7 +198,6 @@ public sealed class VectorPrimitiveCoverageTests
     {
         Assert.Equal("00000000", VectorMask.NoBitsSet.ToString());
         Assert.Equal("11111111", VectorMask.AllBitsSet.ToString());
-        // Lane 0 prints first, so 0b0000_0011 reads "11000000".
         Assert.Equal("11000000", new VectorMask(0b0000_0011).ToString());
     }
 
@@ -243,8 +222,6 @@ public sealed class VectorPrimitiveCoverageTests
         Assert.Equal(expected, fromULong.Value);
         Assert.Equal(expected, fromDouble.Value);
     }
-
-    // ── VectorEnum256 ──
 
     [Fact]
     public void VectorEnum256_BroadcastAndCompare()
@@ -281,8 +258,6 @@ public sealed class VectorPrimitiveCoverageTests
         Assert.Contains(nameof(MotelyVoucher.Overstock), gathered.ToString());
     }
 
-    // ── MotelyVectorRunState ──
-
     [Fact]
     public void RunState_ActivateVoucher_SetsEveryLane()
     {
@@ -292,7 +267,6 @@ public sealed class VectorPrimitiveCoverageTests
         state.ActivateVoucher(MotelyVoucher.Telescope);
 
         Assert.True(((VectorMask)state.IsVoucherActive(MotelyVoucher.Telescope)).IsAllTrue());
-        // Activating one voucher leaves the others alone.
         Assert.True(((VectorMask)state.IsVoucherActive(MotelyVoucher.Overstock)).IsAllFalse());
     }
 
@@ -349,12 +323,6 @@ public sealed class VectorPrimitiveCoverageTests
             Assert.Equal(1, state.ShowmanActive[lane]);
     }
 
-    // ── Hardware inventory ──
-
-    /// <summary>
-    /// Records which SIMD branch this host drives, so a coverage report read on another
-    /// architecture is interpretable rather than mysterious.
-    /// </summary>
     [Fact]
     public void HostDrivesExactlyOneShiftBranch()
     {

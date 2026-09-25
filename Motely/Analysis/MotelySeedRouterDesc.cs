@@ -9,7 +9,6 @@ public sealed class MotelySeedRouterDesc : IMotelySeedRouterDesc, IDisposable
     private int _lane;
     private readonly IMotelySearch? _ownedSearch;
 
-    /// <summary>Direct construction — runs a single-seed search internally, keeps it alive.</summary>
     public MotelySeedRouterDesc(string seed, MotelyDeck deck, MotelyStake stake)
     {
         PassthroughFilterDesc filterDesc = new();
@@ -31,18 +30,14 @@ public sealed class MotelySeedRouterDesc : IMotelySeedRouterDesc, IDisposable
 
     private readonly struct ContextCapturingRouter(MotelySeedRouterDesc desc) : IMotelySeedRouter
     {
-        // During the SIMD pipeline setup, this is injected from MotelySearch :)
         public void InjectSingleSeedContext(in MotelySingleSearchContext ctx)
         {
-            // These stay alive as long as the router isn't disposed.
             desc._searchParams = ctx.SearchParameters;
             desc._contextParams = ctx.SearchContextParams;
             desc._lane = ctx.VectorLane;
         }
     }
 
-    // Creates a new search context with the captured parameters.
-    // Should only be called after the search has started and the context has been injected.
     public MotelySingleSearchContext Instance()
     {
         return new MotelySingleSearchContext(in _searchParams, in _contextParams, _lane);

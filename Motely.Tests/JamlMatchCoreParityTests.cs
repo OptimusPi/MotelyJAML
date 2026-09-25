@@ -1,9 +1,5 @@
 namespace Motely.Tests;
 
-/// <summary>
-/// Pins P0 single-match-core: FilterDesc scalar confirm arms and should-scoring share
-/// <see cref="JamlScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
-/// </summary>
 public sealed class JamlMatchCoreParityTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"];

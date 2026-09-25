@@ -14,9 +14,6 @@ public sealed partial class MisprintMultClause : IRollScopedClause
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
 
-    /// <summary>
-    /// Minimum Mult to hit for the filter to succeed each roll.
-    /// </summary>
     public int Mult { get; set; }
 }
 
@@ -25,10 +22,8 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
 {
     private readonly MisprintMultClause _clause = clause;
 
-    /// <inheritdoc/>
     public static string[] Discriminators => ["misprintMult"];
 
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "mult", "value"];
 
     public MisprintMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)
@@ -39,7 +34,6 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
         );
         int[] sortedRolls = [.. _clause.Rolls];
         Array.Sort(sortedRolls);
-        // Broadcast the threshold to all 8 lanes ONCE here, never per-roll in the hot path.
         Vector256<int> minMult = Vector256.Create(_clause.Mult);
         return new MisprintMultFilter(sortedRolls, _clause.Min, minMult);
     }
@@ -68,7 +62,6 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
 
             for (int idx = 0; idx <= maxRoll; idx++)
             {
-                // The roll yields an int mult (0–23). Matched = it meets the minimum Mult threshold.
                 Vector256<int> mult = ctx.GetNextMisprintMult(ref stream);
                 VectorMask trigger = new VectorMask(
                     MotelyVectorUtils.VectorizedComparisonToMask(

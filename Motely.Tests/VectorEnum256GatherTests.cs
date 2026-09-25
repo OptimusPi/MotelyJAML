@@ -2,11 +2,6 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// Table-lookup Create(indices, values) must match per-lane scalar indexing.
-/// On AVX2 hosts this path is a gather; on Apple Silicon / non-AVX2 it is the scalar fallback.
-/// Both must produce identical lanes.
-/// </summary>
 public sealed class VectorEnum256GatherTests
 {
     [Fact]
@@ -44,7 +39,6 @@ public sealed class VectorEnum256GatherTests
             MotelyTarotCard.TheEmpress,
         ];
 
-        // All lanes point at the same slot — gather and scalar both handle this.
         var indices = Vector256.Create(2);
         var got = VectorEnum256.Create(indices, values);
 

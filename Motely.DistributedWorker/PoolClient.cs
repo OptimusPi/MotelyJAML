@@ -2,11 +2,6 @@ using System.Net.Http.Json;
 
 namespace Motely.DistributedWorker;
 
-/// <summary>
-/// HTTP client for the ambient work queue pool endpoint.
-/// Workers connect with a shared pool token and get assigned work automatically.
-/// No need to know specific session IDs.
-/// </summary>
 internal sealed class PoolClient : IDisposable
 {
     private readonly HttpClient _http;
@@ -27,9 +22,6 @@ internal sealed class PoolClient : IDisposable
         _http.Timeout = TimeSpan.FromSeconds(30);
     }
 
-    /// <summary>POST /api/search/helper action=request — claim one block.</summary>
-    /// <param name="workerId">Worker identifier for heartbeat tracking.</param>
-    /// <param name="filterId">Optional: target a specific filter. Null = any active filter ("GIMMIE WORK").</param>
     public async Task<PoolClaimResponseDto> ClaimAsync(string? workerId, string? filterId = null, CancellationToken ct = default)
     {
         var url = _poolUrl;
@@ -46,11 +38,10 @@ internal sealed class PoolClient : IDisposable
         return result ?? throw new InvalidOperationException("Null pool claim response");
     }
 
-    /// <summary>POST /api/search/helper action=submit — submit results for a completed batch range.</summary>
     public async Task<SubmitResponseDto> SubmitResultsAsync(string filterId, SubmitResultsDto results, CancellationToken ct = default)
     {
         var url = _poolUrl;
-        results.FilterId = filterId; // Attach filterId to the DTO
+        results.FilterId = filterId;
         var resp = await _http.PostAsJsonAsync(url, results, WorkerJsonContext.Default.SubmitResultsDto, ct);
         if (!resp.IsSuccessStatusCode)
         {
