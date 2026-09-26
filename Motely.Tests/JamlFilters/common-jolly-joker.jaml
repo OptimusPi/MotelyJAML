@@ -1,0 +1,15 @@
+name: Jolly Joker Pair
+author: jammy
+description: Jolly Joker common for +8 Mult if played hand contains a Pair
+deck: Red
+stake: White
+must:
+  - commonJoker: JollyJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: TheDuo
+    score: 40

@@ -1,0 +1,15 @@
+name: Credit Card Debt
+author: jammy
+description: Credit Card common for going into debt up to -$20
+deck: Red
+stake: White
+must:
+  - commonJoker: CreditCard
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: ToTheMoon
+    score: 30

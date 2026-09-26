@@ -1,0 +1,17 @@
+name: Egg Sell Value Scaling
+author: jammy
+description: Egg common gains $3 sell value at end of round
+deck: Red
+stake: White
+must:
+  - commonJoker: Egg
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - tarotCard: Temperance
+    score: 50
+  - commonJoker: Swashbuckler
+    score: 40

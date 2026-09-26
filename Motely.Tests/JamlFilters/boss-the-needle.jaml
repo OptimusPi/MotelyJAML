@@ -1,0 +1,15 @@
+name: TheNeedle Boss Blind
+author: jammy
+description: TheNeedle boss blind forces you to play only 1 hand
+deck: Red
+stake: White
+must:
+  - boss: TheNeedle
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - legendaryJoker: Chicot
+    score: 60

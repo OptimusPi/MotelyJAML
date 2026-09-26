@@ -109,17 +109,22 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         {
             if (attr.RollsAreInlineValue)
                 rest.Insert(0, ("rolls", value));
-            else if (clause is LogicClause)
-                rest.Insert(0, ("clauses", value));
+            else if (clause is LogicClause && value.Map is null)
+                rest.Insert(0, ("clauses", value));      // or: [ ...arms ]
             else if (attr.ValueEnum is { } valueEnum)
                 rest.Insert(0, (ValueProperty(type, valueEnum).Name, value));
             else if (value.Map is not null)
-                rest.InsertRange(0, value.Map);          // standardCard: { rank: K, seal: Red }
+                rest.InsertRange(0, value.Map);          // or: { mode, score, clauses } / standardCard: { rank: K }
             else
-                throw Error(value.Line, $"`{wire}` takes a block of keys, not a bare value");
+                rest.Insert(0, ("label", value));        // standardCard: Ace  (a label; rank: comes next)
         }
 
         Populate(clause, rest);
+
+        // An unspecified score is worth 1, not 0. A should clause you bothered to write counts
+        // for something; explicit scores (including negative penalties) still win.
+        if (!rest.Any(kv => kv.Key.Equals("score", StringComparison.OrdinalIgnoreCase)))
+            clause.Score = 1;
 
         if (attr.RollsDefault is { } rollsDefault && clause is IRollScopedClause r && r.Rolls.Length == 0)
             r.Rolls = rollsDefault;
@@ -145,7 +150,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             };
             var prop = type.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop is null || !prop.CanWrite)
-                throw Error(value.Line, $"unknown key `{rawKey}` on {type.Name}");
+                throw Error(value.Line, $"unknown key '{rawKey}' on {type.Name}");
             prop.SetValue(target, Convert(value, prop.PropertyType, rawKey));
         }
     }

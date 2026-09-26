@@ -1,0 +1,15 @@
+name: Ceremonial Dagger Sacrifice
+author: jammy
+description: Ceremonial Dagger uncommon with Madness for joker destruction scaling
+deck: Red
+stake: White
+must:
+  - uncommonJoker: CeremonialDagger
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Madness
+    score: 50

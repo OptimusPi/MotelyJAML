@@ -6,6 +6,9 @@
     <AssemblyName>Motely.Wasm</AssemblyName>
     <RootNamespace>Motely.Wasm</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- IL2104 / IL3053 = a referenced assembly (VYaml) has trim / AOT analysis warnings. We can't fix
+         third-party DLLs, and Directory.Build.props' TreatWarningsAsErrors turns them into ilc errors. -->
+    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BootsharpName>motely-wasm</BootsharpName>
     <!-- PackageTemplate.json has no version and overwrites this project's package.json. Park it. -->

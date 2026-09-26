@@ -1,0 +1,17 @@
+name: Blue Joker Deck Size
+author: jammy
+description: Blue Joker common for +2 Chips per card remaining in deck
+deck: Plasma
+stake: White
+must:
+  - commonJoker: BlueJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: StoneJoker
+    score: 40
+  - uncommonJoker: Hiker
+    score: 35

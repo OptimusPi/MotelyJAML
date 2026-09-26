@@ -1,0 +1,17 @@
+name: Hit the Road Jack Discard
+author: jammy
+description: Hit the Road rare joker with Merry Andy for Jack discard scaling
+deck: Red
+stake: White
+must:
+  - rareJoker: HitTheRoad
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: MerryAndy
+    score: 50
+  - legendaryJoker: Yorick
+    score: 45

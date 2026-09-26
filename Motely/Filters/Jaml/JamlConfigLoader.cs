@@ -29,9 +29,22 @@ public static class JamlConfigLoader
     /// .yaml, .yml and .jaml all go through the same parser.</summary>
     public static JamlConfig FromJaml(string yaml)
     {
-        var config =
-            YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml), Options)
-            ?? throw new InvalidOperationException("JAML: the document is empty.");
+        JamlConfig? config;
+        try
+        {
+            config = YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml), Options);
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // JamlClauseFormatter already says "JAML line N: …"
+        }
+        catch (Exception ex)
+        {
+            // VYaml's own parser/serializer exceptions: one type for every host to catch.
+            throw new InvalidOperationException($"JAML: {ex.Message}", ex);
+        }
+        if (config is null)
+            throw new InvalidOperationException("JAML: the document is empty.");
 
         // VYaml's generated deserializer assigns default(T) to every key the document leaves
         // out, which skips the property initializers. Put the empty lists back so a filter

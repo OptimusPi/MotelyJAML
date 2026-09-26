@@ -1,0 +1,17 @@
+name: TheHook Boss Blind
+author: jammy
+description: TheHook boss blind discards 2 random cards each hand
+deck: Blue
+stake: White
+must:
+  - boss: TheHook
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: MerryAndy
+    score: 40
+  - commonJoker: Banner
+    score: 35

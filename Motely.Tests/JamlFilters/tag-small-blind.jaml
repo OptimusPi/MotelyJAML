@@ -1,0 +1,15 @@
+name: Small Blind Tag Example
+author: jammy
+description: Small Blind Tag appears after skipping Small Blind
+deck: Red
+stake: White
+must:
+  - smallBlindTag: InvestmentTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: ToTheMoon
+    score: 40

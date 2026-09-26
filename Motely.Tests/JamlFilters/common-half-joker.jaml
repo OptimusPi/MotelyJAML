@@ -1,0 +1,15 @@
+name: Half Joker Small Hand
+author: jammy
+description: Half Joker common for +20 Mult if played hand has 3 or fewer cards
+deck: Red
+stake: White
+must:
+  - commonJoker: HalfJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Baron
+    score: 40
