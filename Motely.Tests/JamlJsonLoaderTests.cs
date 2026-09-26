@@ -47,6 +47,22 @@ public class JamlJsonLoaderTests
     }
 
     [Fact]
+    public void TryLoadFromYaml_UnknownRootKey_IsRejectedWithLine()
+    {
+        var ok = JamlConfigLoader.TryLoad("""
+            name: typo
+            deck: Red
+            must:
+              - joker: Blueprint
+            shuold:
+              - voucher: Telescope
+            """, out _, out var error);
+        Assert.False(ok);
+        Assert.Contains("JAML line 5", error);
+        Assert.Contains("'shuold'", error);
+    }
+
+    [Fact]
     public void FromJson_NullJoker_IsCategoryAny()
     {
         var config = JamlConfigLoader.FromJaml("""{ "must": [{ "joker": null }] }""");

@@ -489,9 +489,12 @@ public static partial class JamlConfigLoader
             mapping.Set(key, IntArrayNode(values), default);
     }
 
+    // An empty list is "category any" (`joker: []`). The old parser also read `joker: ""` that
+    // way; VYaml reads "" as a one-item list holding an empty name, so the flow array is the
+    // one spelling both readers agree on.
     private static JNode DiscValueNode<TEnum>(TEnum[] values)
         where TEnum : struct, Enum =>
-        values.Length == 0 ? new JScalar("", JScalarKind.Quoted) : EnumArrayNode(values);
+        EnumArrayNode(values);
 
     private static JSeq EnumArrayNode<TEnum>(IEnumerable<TEnum> values)
         where TEnum : struct, Enum
