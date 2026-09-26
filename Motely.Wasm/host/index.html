@@ -15,8 +15,10 @@
     addEventListener("error", (e) => fail(e.error ?? e.message));
     addEventListener("motely-ready", async () => {
       try {
-        const { Search, jimmolateSeen } = globalThis.motely;
-        await Search.jimmolateList(["ALEEB", "PIROCKS"]);
+        const { Search, CancellationToken, jimmolateSeen } = globalThis.motely;
+        await Search.jimmolateSettings()
+          .withSeedList(["ALEEB", "PIROCKS"])
+          .start(new CancellationToken());
         const ok =
           jimmolateSeen.length === 2 &&
           typeof jimmolateSeen[0].seed === "string" &&

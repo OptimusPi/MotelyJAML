@@ -5,7 +5,7 @@ using VYaml.Serialization;
 namespace Motely.Filters.Jaml;
 
 /// <summary>YAML text → <see cref="JamlConfig"/>. VYaml does the document; <see cref="JamlClauseFormatter"/> does the clauses.</summary>
-public static class JamlConfigLoader
+public static partial class JamlConfigLoader
 {
     private static readonly YamlSerializerOptions Options = new()
     {

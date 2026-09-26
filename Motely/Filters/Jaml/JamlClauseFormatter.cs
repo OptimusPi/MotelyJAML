@@ -35,8 +35,12 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         return map;
     }
 
+    /// <summary>The rolls a wire fills in when the page writes none (JamlConfigWriter elides them again).</summary>
+    internal static int[]? RollsDefaultFor(string wire) =>
+        Wires.TryGetValue(wire, out var w) ? w.Attr.RollsDefault : null;
+
     public void Serialize(ref Utf8YamlEmitter emitter, IJamlClause value, YamlSerializationContext context) =>
-        throw new NotSupportedException("JAML is read-only.");
+        throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
 
     public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context) =>
         ReadClause(ReadNode(ref parser));

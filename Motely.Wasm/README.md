@@ -2,7 +2,7 @@
 
 Two hosts. Motely.dll has no Bootsharp.
 
-`import { Search, Analyze } from "motely-wasm"`
+`import { Search, Analyze } from "motely-wasm"` and `import { CancellationToken } from "motely-wasm/bcl"` (the token `start()` takes; `cancel()` it to stop).
 
 **Jimmolate** is `MotelyIndividualSeedSearcher`: JS defines `(ctx) => score` and **binds it before `boot()`**. `ctx` is the live `MotelySingleSearchContext` (specialization). Not a seed string.
 
@@ -10,7 +10,7 @@ Two hosts. Motely.dll has no Bootsharp.
 Search.jimmolate = (ctx) =>
   ctx.getAnteFirstVoucher(1) === /* MagicTrick */ 1 ? 1 : 0;
 await bootsharp.boot();
-await Search.jimmolateList(["ALEEB", "PIROCKS"]);
+await Search.jimmolateSettings().withSeedList(["ALEEB", "PIROCKS"]).start(new CancellationToken());
 ```
 
 `Search.scoreList(jaml, seeds)` is JAML list search. `Analyze.seeds(jaml)` is Jamlyzer. Both take JAML text — `JamlConfig` is a class and does not cross.
