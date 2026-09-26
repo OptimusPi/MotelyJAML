@@ -161,13 +161,8 @@ partial class Program
         var analyzeOption = app.Option<string>(
             "--analyze <SEED[,SEED...]>",
             "Analyze one or more seeds (comma-separated) as human-readable text, using the "
-                + "legacy text-block analyzer (NOT JAMLyzer — see --glossary).",
+                + "legacy text-block analyzer (NOT JAMLyzer).",
             CommandOptionType.SingleValue
-        );
-        var glossaryOption = app.Option(
-            "--glossary",
-            "Print what JAML and JAMLyzer mean, then exit.",
-            CommandOptionType.NoValue
         );
         var deckOption = app.Option<string>(
             "--deck <NAME>",
@@ -303,12 +298,6 @@ partial class Program
 
         app.OnExecuteAsync(async _ =>
         {
-            if (glossaryOption.HasValue())
-            {
-                Console.WriteLine(MotelyGlossary.Render());
-                return 0;
-            }
-
             if (args.Length == 0)
             {
                 app.ShowHelp();
