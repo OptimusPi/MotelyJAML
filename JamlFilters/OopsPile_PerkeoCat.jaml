@@ -14,8 +14,8 @@ must:
     antes: [1, 2, 3, 4, 5]
     min: 2
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
 
 should:
   # More Oops = higher score (every extra sighting through ante 8)
@@ -25,24 +25,24 @@ should:
     score: 30
     label: oops3
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: OopsAll6s
     antes: [1, 2, 3, 4, 5, 6, 7, 8]
     min: 4
     score: 50
     label: oops4
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: OopsAll6s
     antes: [1, 2, 3, 4, 5, 6, 7, 8]
     min: 5
     score: 80
     label: oops5
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
 
   # Prefer: the soul + the cat
   - legendaryJoker: Perkeo
@@ -50,14 +50,14 @@ should:
     score: 100
     label: perkeo
     sources:
-      boosterPacks: [0-5]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: LuckyCat
     antes: [1, 2, 3, 4, 5, 6, 7, 8]
     score: 90
     label: luckycat
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
 
   # Stack / clone helpers
   - joker: Showman
@@ -65,15 +65,15 @@ should:
     score: 40
     label: showman
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - spectralCard: Ankh
     antes: [1, 2, 3, 4]
     score: 35
     label: ankh
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: Blueprint
     antes: [1, 2, 3, 4, 5]
     score: 15

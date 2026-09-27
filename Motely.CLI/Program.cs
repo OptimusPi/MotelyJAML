@@ -289,6 +289,11 @@ partial class Program
             "Suppress per-batch progress lines and the startup preamble on stderr (stdout results unaffected).",
             CommandOptionType.NoValue
         );
+        var noSaveOption = app.Option(
+            "--no-save",
+            "Leave the --jaml file untouched: don't write matches back into its top-level seeds: block (benchmarks, read-only checkouts).",
+            CommandOptionType.NoValue
+        );
         threadsOption.DefaultValue = Environment.ProcessorCount;
         // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
         // true forever once a DefaultValue is set, so it could never again distinguish "user
@@ -502,18 +507,9 @@ partial class Program
                 MotelyScoreCutoff cutoff = MotelyScoreCutoff.Auto();
                 if (cutoffOption.HasValue())
                 {
-                    var cutoffValue = cutoffOption.ParsedValue.Trim();
-                    if (string.Equals(cutoffValue, "auto", StringComparison.OrdinalIgnoreCase))
+                    if (!MotelyScoreCutoff.TryParse(cutoffOption.ParsedValue, out cutoff, out var cutoffError))
                     {
-                        cutoff = MotelyScoreCutoff.Auto();
-                    }
-                    else if (int.TryParse(cutoffValue, out var cutoffFixedValue))
-                    {
-                        cutoff = MotelyScoreCutoff.Fixed(cutoffFixedValue);
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("Error: --cutoff must be an integer or 'auto'.");
+                        Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
                         return 1;
                     }
                 }
@@ -867,6 +863,7 @@ partial class Program
                 using var _search = search;
 
                 cancelled |= _cts.Token.IsCancellationRequested;
+                if (!noSaveOption.HasValue())
                 {
                     var seedsToSave = saveSeedsCollector.GetSeeds();
 

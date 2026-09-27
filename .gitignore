@@ -103,3 +103,6 @@ scripts/token_ab/results/
 !/bin/
 /bin/*
 !/bin/motely-lsp*
+
+# --- motely-wasm release gate: npm pack cache of the last published typings ---
+Motely.Wasm/.api-baseline/

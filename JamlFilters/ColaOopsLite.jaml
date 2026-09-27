@@ -32,7 +32,7 @@ should:
     score: 1
   - voucher: Petroglyph
     antes: [1,2]
-    score: 1|
+    score: 1
   - joker: OopsAll6s
     score: 10
     antes: [4]

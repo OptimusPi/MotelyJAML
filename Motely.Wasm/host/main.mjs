@@ -1,5 +1,6 @@
-import bootsharp, { Search, Analyze } from "../bin/motely-wasm/index.mjs";
-import { CancellationToken } from "../bin/motely-wasm/bcl/index.mjs";
+// CancellationToken from the root entry on purpose: that import used to resolve to nothing
+// (two `export *` clauses claimed the name). scripts/patch-dist-cancellation-export.mjs pins it.
+import bootsharp, { Search, Analyze, Jaml, CancellationToken } from "../bin/motely-wasm/index.mjs";
 
 // MotelyIndividualSeedSearcher — bind BEFORE boot.
 // ctx is the live MotelySingleSearchContext object (specialization), not a string.
@@ -14,5 +15,5 @@ Search.jimmolate = (ctx) => {
 };
 
 await bootsharp.boot();
-globalThis.motely = { Search, Analyze, CancellationToken, jimmolateSeen };
+globalThis.motely = { Search, Analyze, Jaml, CancellationToken, jimmolateSeen };
 globalThis.dispatchEvent(new CustomEvent("motely-ready"));

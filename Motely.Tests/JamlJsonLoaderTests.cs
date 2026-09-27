@@ -86,6 +86,22 @@ public class JamlJsonLoaderTests
     }
 
     [Fact]
+    public void TryLoadFromYaml_SyntaxError_NamesLineColumnAndText()
+    {
+        var ok = JamlConfigLoader.TryLoad("""
+            name: colon
+            deck: Red
+            description: keep one: Diet Cola
+            must:
+              - joker: Blueprint
+            """, out _, out var error);
+        Assert.False(ok);
+        Assert.Contains("JAML line 3:", error);
+        Assert.Contains("column 22", error);
+        Assert.Contains("`description: keep one: Diet Cola`", error);
+    }
+
+    [Fact]
     public void FromJson_NullJoker_IsCategoryAny()
     {
         var config = JamlConfigLoader.FromJaml("""{ "must": [{ "joker": null }] }""");

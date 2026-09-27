@@ -1,0 +1,56 @@
+# Benchmark filter: "Negative Perkeo in ante 1 or 2 from Small Blind Charm Tag".
+#
+# Numbers below are the JIT build unless a line says NativeAOT. The NativeAOT publish had no
+# AVX2/AVX-512 (baseline x86-64 ISA) until Motely.CLI.csproj set IlcInstructionSet=x86-64-v3,
+# and ran ~0.66M seeds/s at threads 1. For a 256-bit A/B arm use DOTNET_EnableAVX512=0;
+# DOTNET_PreferredVectorBitWidth=256 leaves Avx512F.IsSupported true and the hot code in zmm,
+# same as the default arm.
+#
+# Recipe (Release CLI, JIT via dotnet build; --no-save keeps this file unchanged, since the
+# CLI otherwise writes every match back into a top-level seeds: block here):
+#   dotnet build -c Release Motely.CLI
+#   Motely.CLI/bin/Release/net10.0/Motely.CLI --jaml JamlFilters/bench-negative-perkeo.jaml \
+#     --batchCharCount 4 --startBatch 0 --endBatch 20 --threads N --cutoff off -q --no-save
+# That is 30,012,500 seeds (20 x 35^4). Expect 43 matches, the same set on every run.
+# Cross-check: --seeds 6GR89UQF,AAAAAAAA matches 6GR89UQF only.
+#
+# Unless a line says otherwise, a number here is the CLI's "Speed:" line: the sum over
+# threads of that thread's seeds / that thread's own clock (MotelySearch.SeedsPerSecond).
+# It is not seeds / the "Time:" line, and not seeds / process wall time; timing the recipe
+# yourself gives less (see the re-run below).
+#
+# 2026-09-27, shared 4-vCPU cloud VM, Xeon family 6 model 207 (Emerald Rapids),
+# load average 0.9-2.7 from other sessions:
+#   threads 1: median 3.89M seeds/s (3.74-4.12M, n=7)
+#   threads 4: median 13.7M seeds/s (11.5-14.8M, n=9)
+# Same day, same VM, threads 4, load average 6.6-7.0, n=3, all 43 matches:
+#   "Speed:"            median 13.70M (13.38-14.36M)
+#   seeds / "Time:"     median 13.33M (12.81-13.78M), 2.8-4.2% below "Speed:"
+#   seeds / process wall (date around the call, startup included)
+#                       median 11.40M (11.04-11.84M), ~17% below "Speed:"
+# Same day, same VM, threads 1, load average 1.6-2.5, 43 matches each, same set, interleaved:
+#   NativeAOT publish with IlcInstructionSet=x86-64-v3 (the csproj default now), n=6:
+#                       "Speed:" median 4.09M (3.99-4.24M); 0 zmm, 75,280 ymm in the binary
+#   JIT (dotnet build), n=3: "Speed:" median 3.91M (3.88-4.22M)
+# Quote the median with its min-max and n, and say which of the three it is; single runs
+# on this VM swing widely.
+name: bench-negative-perkeo
+deck: Red
+stake: White
+must:
+  - or:
+      - legendaryJoker: Perkeo
+        antes: [1]
+        edition: Negative
+        sources:
+          arcanaPacks: [0, 1, 2]
+          spectralPacks: [0, 1, 2]
+      - legendaryJoker: Perkeo
+        antes: [2]
+        edition: Negative
+        sources:
+          arcanaPacks: [0, 1, 2, 3, 4, 5]
+          spectralPacks: [0, 1, 2, 3, 4, 5]
+  - smallBlindTag: CharmTag
+    antes: [1, 2]
+

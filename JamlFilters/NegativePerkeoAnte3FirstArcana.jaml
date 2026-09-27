@@ -6,10 +6,9 @@ stake: White
 # whose legendary is Perkeo, in Negative edition.
 # The soul/legendary/edition all resolve on the pack's own stream.
 must:
-  - legendaryJoker:
-      jokers: [Perkeo]
-      edition: Negative
-      antes: [3]
-      sources:
-        boosterPacks: [0]   # first booster pack of the ante
-      min: 1
+  - legendaryJoker: Perkeo
+    edition: Negative
+    antes: [3]
+    sources:
+      boosterPacks: [0]   # first booster pack of the ante
+    min: 1

@@ -1,6 +1,6 @@
 {
     "name": "motely-wasm",
-    "version": "26.1.0",
+    "version": "27.0.0",
     "description": "Balatro seed search + per-seed analysis via JAML. Same Motely engine as native, compiled to WebAssembly (Bootsharp).",
     "author": "Nathanial P. Howard",
     "license": "MIT",
@@ -18,6 +18,10 @@
         ".": {
             "types": "./bin/motely-wasm/index.d.mts",
             "default": "./bin/motely-wasm/index.mjs"
+        },
+        "./bcl": {
+            "types": "./bin/motely-wasm/bcl/index.d.mts",
+            "default": "./bin/motely-wasm/bcl/index.mjs"
         },
         "./*": {
             "types": "./bin/motely-wasm/generated/modules/*.g.d.mts",
@@ -42,7 +46,14 @@
         }
     },
     "scripts": {
-        "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs",
-        "prepublishOnly": "npm run build"
+        "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs",
+        "version:sync": "node scripts/version-sync.mjs",
+        "version:check": "node scripts/version-sync.mjs --check",
+        "api:baseline": "node scripts/api-check.mjs --write-baseline",
+        "api:check": "node scripts/api-check.mjs",
+        "readme:gen": "node scripts/readme-gen.mjs",
+        "readme:check": "node scripts/readme-gen.mjs --check",
+        "test:scripts": "node --test \"scripts/test/*.test.mjs\"",
+        "prepublishOnly": "npm run test:scripts && npm run build && npm run version:check && npm run api:check && npm run readme:check"
     }
 }

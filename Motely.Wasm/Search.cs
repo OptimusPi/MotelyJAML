@@ -79,13 +79,21 @@ public sealed class SearchSettings
     {
         _analyzeAntes = analyzeAntes;
         // Browser WASM is single-threaded. Not a JS choice.
-        _settings = settings
+        settings = settings
             .WithThreadCount(1)
             .WithQuietMode(true)
-            .WithProgressCallback(Search.Progress)
-            .WithScoredResultCallback(static t =>
+            .WithProgressCallback(Search.Progress);
+
+        // One find, one OnScored. With a score provider (any JAML with clauses) the engine reports
+        // each find twice: the bare seed on the seed-match channel, fired inside the scorer before
+        // the auto cutoff clamps, then the typed score + tally on the scored channel. Wiring both
+        // made every find reach JS twice, the first time with a made-up score of 1. So listen to
+        // the scored channel when there is one, and to seed matches only when nothing scores
+        // (jimmolate, a clause-less JAML, a native filter:).
+        _settings = settings.SeedScoreDesc is not null
+            ? settings.WithScoredResultCallback(static t =>
                 Search.Scored(new MotelySeedScore(t.Seed, t.Score, t.TallyValuesSpan.ToArray())))
-            .WithSeedMatchCallback(static s => Search.Scored(new MotelySeedScore(s, 1, [])));
+            : settings.WithSeedMatchCallback(static s => Search.Scored(new MotelySeedScore(s, 1, [])));
     }
 
     /// <summary>
