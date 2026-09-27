@@ -1,7 +1,13 @@
 # Benchmark filter: "Negative Perkeo in ante 1 or 2 from Small Blind Charm Tag".
 #
-# Recipe (Release CLI; --no-save keeps this file unchanged, since the CLI otherwise
-# writes every match back into a top-level seeds: block here):
+# Numbers below are the JIT build unless a line says NativeAOT. The NativeAOT publish had no
+# AVX2/AVX-512 (baseline x86-64 ISA) until Motely.CLI.csproj set IlcInstructionSet=x86-64-v3,
+# and ran ~0.66M seeds/s at threads 1. For a 256-bit A/B arm use DOTNET_EnableAVX512=0;
+# DOTNET_PreferredVectorBitWidth=256 leaves Avx512F.IsSupported true and the hot code in zmm,
+# same as the default arm.
+#
+# Recipe (Release CLI, JIT via dotnet build; --no-save keeps this file unchanged, since the
+# CLI otherwise writes every match back into a top-level seeds: block here):
 #   dotnet build -c Release Motely.CLI
 #   Motely.CLI/bin/Release/net10.0/Motely.CLI --jaml JamlFilters/bench-negative-perkeo.jaml \
 #     --batchCharCount 4 --startBatch 0 --endBatch 20 --threads N --cutoff off -q --no-save
@@ -22,6 +28,10 @@
 #   seeds / "Time:"     median 13.33M (12.81-13.78M), 2.8-4.2% below "Speed:"
 #   seeds / process wall (date around the call, startup included)
 #                       median 11.40M (11.04-11.84M), ~17% below "Speed:"
+# Same day, same VM, threads 1, load average 1.6-2.5, 43 matches each, same set, interleaved:
+#   NativeAOT publish with IlcInstructionSet=x86-64-v3 (the csproj default now), n=6:
+#                       "Speed:" median 4.09M (3.99-4.24M); 0 zmm, 75,280 ymm in the binary
+#   JIT (dotnet build), n=3: "Speed:" median 3.91M (3.88-4.22M)
 # Quote the median with its min-max and n, and say which of the three it is; single runs
 # on this VM swing widely.
 name: bench-negative-perkeo

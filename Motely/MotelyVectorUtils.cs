@@ -10,6 +10,10 @@ public static unsafe class MotelyVectorUtils
 {
     public static bool IsAccelerated => Vector512.IsHardwareAccelerated;
 
+    // The Avx512F.IsSupported branches here follow the ISA, not DOTNET_PreferredVectorBitWidth:
+    // on .NET 10 that knob clears Vector512.IsHardwareAccelerated but leaves Avx512F.IsSupported
+    // true, and the JIT still emits zmm code for Vector512<T>. A 256-bit A/B arm is
+    // DOTNET_EnableAVX512=0 (or an x86-64-v3 NativeAOT build), not PreferredVectorBitWidth=256.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector256<int> ConvertToVector256Int32(in Vector512<double> vector)
     {
