@@ -1,11 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using VYaml.Emitter;
+using VYaml.Parser;
 using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
 
 /// <summary>YAML text → <see cref="JamlConfig"/>. VYaml does the document; <see cref="JamlClauseFormatter"/> does the clauses.</summary>
-public static class JamlConfigLoader
+public static partial class JamlConfigLoader
 {
     private static readonly YamlSerializerOptions Options = new()
     {
@@ -29,6 +31,9 @@ public static class JamlConfigLoader
     /// .yaml, .yml and .jaml all go through the same parser.</summary>
     public static JamlConfig FromJaml(string yaml)
     {
+        // Validate root-level keys before deserializing
+        ValidateRootKeys(yaml);
+
         var config =
             YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml), Options)
             ?? throw new InvalidOperationException("JAML: the document is empty.");
@@ -42,6 +47,63 @@ public static class JamlConfigLoader
         config.Should ??= [];
         config.MustNot ??= [];
         return config;
+    }
+
+    private static void ValidateRootKeys(string yaml)
+    {
+        var bytes = Encoding.UTF8.GetBytes(yaml);
+        var sequence = new System.Buffers.ReadOnlySequence<byte>(bytes);
+        var parser = new YamlParser(sequence);
+        var keySet = new HashSet<string>(JamlConfig.RootKeys, StringComparer.OrdinalIgnoreCase);
+
+        // Skip to the first document mapping
+        while (parser.CurrentEventType is ParseEventType.StreamStart or ParseEventType.DocumentStart)
+        {
+            parser.Read();
+        }
+
+        if (parser.CurrentEventType == ParseEventType.MappingStart)
+        {
+            parser.Read();
+            while (parser.CurrentEventType != ParseEventType.MappingEnd)
+            {
+                var keyLine = parser.CurrentMark.Line;
+                var key = parser.ReadScalarAsString() ?? "";
+
+                // Validate the key against allowed root keys
+                if (!keySet.Contains(key))
+                    throw new InvalidOperationException($"JAML line {keyLine}: unknown key '{key}' on JamlConfig");
+
+                // Skip the value to move to the next key-value pair
+                parser.Read();
+                SkipValue(ref parser);
+            }
+        }
+    }
+
+    private static void SkipValue(ref YamlParser parser)
+    {
+        switch (parser.CurrentEventType)
+        {
+            case ParseEventType.Scalar:
+                parser.Read();
+                break;
+            case ParseEventType.SequenceStart:
+                parser.Read();
+                while (parser.CurrentEventType != ParseEventType.SequenceEnd)
+                    SkipValue(ref parser);
+                parser.Read();
+                break;
+            case ParseEventType.MappingStart:
+                parser.Read();
+                while (parser.CurrentEventType != ParseEventType.MappingEnd)
+                {
+                    parser.Read(); // skip key
+                    SkipValue(ref parser); // skip value
+                }
+                parser.Read();
+                break;
+        }
     }
 
     public static JamlConfig FromFile(string path) => FromJaml(File.ReadAllText(path));
