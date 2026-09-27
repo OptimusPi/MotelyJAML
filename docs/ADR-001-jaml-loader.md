@@ -42,7 +42,7 @@ Three layers. Each one knows only the layer below it.
    - `JamlFiles` (Motely.Wasm) reads bytes through Bootsharp.FileSystem and hands text to the loader.
    - `JamlConfig` never crosses to JS (it's a class; Bootsharp would pass it as a live instance). JS always passes text: `Search.settings(await JamlFiles.load(name))`.
    - Name rule: `.jaml` names drop the extension (back-compat: `sub/filter`), while `.yaml` / `.yml` / `.json` keep theirs (`sub/filter.json`). A bare name means `.jaml`.
-4. **Editor check:** `Jaml.check(text)` returns `null` or the loader's message, which names the line: `JAML line 20: \`1-8\` is not an integer (key \`antes\`)`.
+4. **Editor check:** `Jaml.check(text)` returns `null` or the loader's message, which names the line: `JAML line 20: \`8-1\` is a descending range; write \`1-8\` (key \`antes\`)`. (`antes: 1-8` itself loads: range shorthand landed with the revisit below.)
 
 ## Options Considered
 
@@ -81,7 +81,7 @@ A ships now and is proven under NativeAOT against real filters. B is the cleaner
 
 - **Easier:** any host (CLI, worker, browser, tests) loads any filter format through one call. The browser gets `.yaml`/`.yml`/`.json` from a mounted folder with no JS changes.
 - **Harder:** adding a new root-level enum or list type to `JamlConfig` means adding its formatter to the resolver list in `JamlConfigLoader`, or WASM breaks. The AOT harness below catches it.
-- **Revisit:** Option B; `antes: 1-8` range shorthand (~10 lines in `JamlClauseFormatter.Convert`).
+- **Revisit:** Option B. ~~`antes: 1-8` range shorthand~~ — done 2026-09-27: `JamlClauseFormatter.ExpandRanges` expands `1-8`, `1..8`, `1 to 8` (case-insensitive) for every `int[]` key, alone or inside a list (`[1-3, 7]`); a descending range is `JAML line n: \`8-1\` is a descending range; write \`1-8\` (key \`antes\`)`. Tests: `Motely.Tests/JamlAnteRangeTests.cs`. Release gating for the package that ships it: ADR-002.
 
 ## Action Items
 
@@ -96,6 +96,7 @@ A ships now and is proven under NativeAOT against real filters. B is the cleaner
 7. [ ] `dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release`, then `node tests/smoke.mjs`.
 8. [x] Fix the 5 authoring errors (Zerkeo:19, ColaOopsLite:35, M.yml:19, faceding:43, simplCola:3). Fixed in the filter text. The loader first cited 20/36/20/44 for the first four: `JamlClauseFormatter` read VYaml's `CurrentMark` at a value scalar, after the tokenizer had already looked ahead to the next key. It now files a value under its key's line and a `- ` item under the mark from before it; `Motely.Tests/JamlLoaderLineNumberTests.cs` pins each of these shapes to its own line. Loading all 341 files turned up 4 more, also fixed: OopsPile_PerkeoCat, KittyDicetrick (`[0-7]` in a flow list), NegativePerkeoAnte3FirstArcana (nested map under `legendaryJoker:`), loki (`rank: K`).
 9. [x] Add the load-every-filter check as a test: `JamlFilters/*` must load under the Release build. `Motely.Tests/JamlFilterCorpusLoadTests.cs` runs every .jaml/.yaml/.yml/.json in `JamlFilters/` and `Motely.Tests/JamlFilters/` through `FromFile`, enumerated at run time (160 and 182 files on 2026-09-27, after `bench-negative-perkeo.jaml` was added).
+10. [x] `antes: 1-8` / `1..8` / `1 to 8` range shorthand on every `int[]` key (`JamlClauseFormatter.ExpandRanges`, `JamlAnteRangeTests`). Written 2026-09-27 without a dotnet SDK at hand: compile and run the test on the PC alongside item 6.
 
 ## Verification (2026-09-22, cloud, .NET 10.0.401)
 
