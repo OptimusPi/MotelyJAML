@@ -98,6 +98,9 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         public string? Scalar;
         public List<Node>? Items;
         public List<(string Key, Node Value)>? Map;
+        /// <summary>The key the page wrote, when the value is bound under a different name
+        /// (`joker: X` binds to `Jokers`); errors quote this one.</summary>
+        public string? WireKey;
         public bool IsNull => Scalar is null && Items is null && Map is null;
     }
 
@@ -194,7 +197,10 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         if (!value.IsNull)
         {
             if (attr.RollsAreInlineValue)
+            {
+                value.WireKey = wire;
                 rest.Insert(0, ("rolls", value));
+            }
             else if (clause is LogicClause && value.Map is null)
                 rest.Insert(0, ("clauses", value));      // or: [ ...arms ]
             else if (attr.ValueEnum is { } valueEnum)
@@ -210,6 +216,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
                         $"`{wire}:` takes a name like `{wire}: {named ?? "<name>"}`, not a block of keys; "
                         + $"write {string.Join(", ", value.Map.Select(kv => kv.Key + ":"))} as sibling keys of the clause");
                 }
+                value.WireKey = wire;
                 rest.Insert(0, (ValueProperty(type, valueEnum).Name, value));
             }
             else if (value.Map is not null)
@@ -250,7 +257,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             var prop = type.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop is null || !prop.CanWrite)
                 throw Error(value.Line, $"unknown key '{rawKey}' on {type.Name}");
-            prop.SetValue(target, Convert(value, prop.PropertyType, rawKey));
+            prop.SetValue(target, Convert(value, prop.PropertyType, value.WireKey ?? rawKey));
         }
     }
 

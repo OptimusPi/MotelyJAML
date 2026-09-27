@@ -76,7 +76,18 @@ public sealed class JamlLoaderLineNumberTests
         const string yaml = "name: m\nshould:\n  - rareJoker: InvisibleJoker\n    antes: [1]\n"
                           + "  - commonJoker: Showman\n    antes: [1, 2]\n    score: 80";
         AssertLine(yaml, "commonJoker: Showman", 5);
-        Assert.Contains("`Showman` is not a MotelyJokerCommon", LoadError(yaml));
+        Assert.Contains("`Showman` is not a MotelyJokerCommon (key `commonJoker`)", LoadError(yaml));
+    }
+
+    [Fact]
+    public void BadDiscriminatorValue_NamesTheKeyAsWritten()
+    {
+        // `joker: X` binds to the C# property `Jokers`; the error quotes the page's key.
+        const string yaml = "name: probe\nmust:\n  - joker: NotAJoker\n";
+        AssertLine(yaml, "joker: NotAJoker", 3);
+        var error = LoadError(yaml);
+        Assert.Contains("`NotAJoker` is not a MotelyJoker (key `joker`)", error);
+        Assert.DoesNotContain("`Jokers`", error);
     }
 
     [Fact]
