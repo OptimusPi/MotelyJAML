@@ -11,7 +11,9 @@
 //
 // Rules, compared to the baseline's version:
 //   removed or signature-changed name while MAJOR did not bump  -> exit 1, every symbol named
-//   added name while only PATCH bumped                          -> warning
+//   added name, or a container that only gained members         -> added; warning under a PATCH bump
+//     (new enum member at the end, new optional field on a type, new interface/class member,
+//      new namespace function; a new REQUIRED type field or a mid-list enum member is a change)
 //   current version not above the baseline                      -> exit 1
 //
 // Runs after `dotnet publish`: bin/ is gitignored, so the typings only exist post-build.
@@ -20,7 +22,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { join, relative, resolve, basename } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { parseSurface, diffSurfaces, memberDetail, defaultTypings, wasmDir } from "./api-surface.mjs";
+import { parseSurface, diffSurfaces, memberDetailText, defaultTypings, wasmDir } from "./api-surface.mjs";
 import { readMotelyVersion } from "./version-sync.mjs";
 
 const repoRoot = join(wasmDir, "..");
@@ -193,7 +195,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const to = parseSemver(currentVersion);
     const bump = bumpKind(from, to);
 
-    const { removed, added, changed } = diffSurfaces(baseline.surface, current);
+    const { removed, added: addedNames, changed, extended } = diffSurfaces(baseline.surface, current);
+    const added = [...addedNames, ...extended.map((e) => e.symbol)].sort();
 
     console.log(`\napi-check: motely-wasm ${baseline.version} (published) -> ${currentVersion} (this build): ${bump} bump`);
     console.log(`  baseline: ${baseline.source}`);
@@ -201,17 +204,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 
     const rows = [
         ...removed.map((s) => ["REMOVED", s, ""]),
-        ...changed.map(({ symbol, from, to }) => {
-            // Containers get member-level detail; a function/const/let is one signature → show both.
-            if (!/^(namespace|interface|class|enum|type) /.test(symbol)) return ["CHANGED", symbol, `${from}  →  ${to}`];
-            const d = memberDetail(from, to);
-            const parts = [];
-            if (d.removed.length) parts.push(`-${d.removed.join(", -")}`);
-            if (d.added.length) parts.push(`+${d.added.join(", +")}`);
-            if (d.changed.length) parts.push(d.changed.join("; "));
-            return ["CHANGED", symbol, parts.join("  ") || `${from}  →  ${to}`];
-        }),
-        ...added.map((s) => ["added", s, ""]),
+        // Containers get member-level detail; a function/const/let/alias is one signature → show both.
+        ...changed.map(({ symbol, from, to, members }) => ["CHANGED", symbol, (members && memberDetailText(members)) || `${from}  →  ${to}`]),
+        ...extended.map(({ symbol, members }) => ["added", symbol, memberDetailText(members)]),
+        ...addedNames.map((s) => ["added", s, ""]),
     ];
     console.log(rows.length ? table(rows, ["status", "symbol", "detail"]) : "  no API changes against the published typings");
 
