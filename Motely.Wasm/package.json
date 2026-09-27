@@ -51,6 +51,8 @@
         "version:check": "node scripts/version-sync.mjs --check",
         "api:baseline": "node scripts/api-check.mjs --write-baseline",
         "api:check": "node scripts/api-check.mjs",
-        "prepublishOnly": "npm run build && npm run version:check && npm run api:check"
+        "readme:gen": "node scripts/readme-gen.mjs",
+        "readme:check": "node scripts/readme-gen.mjs --check",
+        "prepublishOnly": "npm run build && npm run version:check && npm run api:check && npm run readme:check"
     }
 }
