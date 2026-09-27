@@ -502,18 +502,9 @@ partial class Program
                 MotelyScoreCutoff cutoff = MotelyScoreCutoff.Auto();
                 if (cutoffOption.HasValue())
                 {
-                    var cutoffValue = cutoffOption.ParsedValue.Trim();
-                    if (string.Equals(cutoffValue, "auto", StringComparison.OrdinalIgnoreCase))
+                    if (!MotelyScoreCutoff.TryParse(cutoffOption.ParsedValue, out cutoff, out var cutoffError))
                     {
-                        cutoff = MotelyScoreCutoff.Auto();
-                    }
-                    else if (int.TryParse(cutoffValue, out var cutoffFixedValue))
-                    {
-                        cutoff = MotelyScoreCutoff.Fixed(cutoffFixedValue);
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("Error: --cutoff must be an integer or 'auto'.");
+                        Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
                         return 1;
                     }
                 }
