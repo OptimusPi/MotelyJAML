@@ -19,6 +19,10 @@
             "types": "./bin/motely-wasm/index.d.mts",
             "default": "./bin/motely-wasm/index.mjs"
         },
+        "./bcl": {
+            "types": "./bin/motely-wasm/bcl/index.d.mts",
+            "default": "./bin/motely-wasm/bcl/index.mjs"
+        },
         "./*": {
             "types": "./bin/motely-wasm/generated/modules/*.g.d.mts",
             "default": "./bin/motely-wasm/generated/modules/*.g.mjs"
@@ -42,7 +46,7 @@
         }
     },
     "scripts": {
-        "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs",
+        "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs",
         "prepublishOnly": "npm run build"
     }
 }
