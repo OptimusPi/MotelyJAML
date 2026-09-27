@@ -1,0 +1,20 @@
+name: bench-negative-perkeo
+deck: Red
+stake: White
+must:
+  - or:
+      - legendaryJoker: Perkeo
+        antes: [1]
+        edition: Negative
+        sources:
+          arcanaPacks: [0, 1, 2]
+          spectralPacks: [0, 1, 2]
+      - legendaryJoker: Perkeo
+        antes: [2]
+        edition: Negative
+        sources:
+          arcanaPacks: [0, 1, 2, 3, 4, 5]
+          spectralPacks: [0, 1, 2, 3, 4, 5]
+  - smallBlindTag: CharmTag
+    antes: [1, 2]
+
