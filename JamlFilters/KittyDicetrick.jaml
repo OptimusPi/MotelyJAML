@@ -27,8 +27,8 @@ must:
   - joker: LuckyCat
     antes: [1, 2, 3, 4, 5, 6]
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
 
 should:
   # early kitty = freer scaling
@@ -37,22 +37,22 @@ should:
     score: 120
     label: earlycat
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: LuckyCat
     antes: [4]
     score: 60
     label: cat4
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
   - joker: LuckyCat
     antes: [5, 6]
     score: 30
     label: latecat
     sources:
-      shopItems: [0-7]
-      boosterPacks: [0-5]
+      shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
+      boosterPacks: [0, 1, 2, 3, 4, 5]
 
   # must-Oops shop row (A5 slots 2–8) — support crew, 10 pts
   - jokers: [Blueprint, Brainstorm, InvisibleJoker, LuckyCat, HangingChad, SockAndBuskin]
