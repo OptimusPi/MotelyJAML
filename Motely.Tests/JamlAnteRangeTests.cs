@@ -101,8 +101,42 @@ public sealed class JamlAnteRangeTests
                 out var error
             )
         );
-        Assert.Contains("a range covers at most 1024", error);
+        Assert.Contains("at most 1024 values per key", error);
         Assert.Contains("`antes`", error);
+    }
+
+    [Theory]
+    [InlineData("[0-1023, 0-1023]")]
+    [InlineData("[0..600, 601..1024]")]
+    [InlineData("[5, 0-1023]")]
+    public void RangesPastTheCapTogether_AreALoadErrorNotAnAllocation(string antes)
+    {
+        Assert.False(
+            JamlConfigLoader.TryLoad(
+                $"""
+                must:
+                  - joker: Blueprint
+                    antes: {antes}
+                """,
+                out _,
+                out var error
+            )
+        );
+        Assert.Contains("at most 1024 values per key", error);
+        Assert.Contains("`antes`", error);
+        Assert.Contains("JAML line 3", error);
+    }
+
+    // `to` at int.MaxValue used to wrap the expansion counter to int.MinValue and loop forever.
+    [Theory]
+    [InlineData("2147483647-2147483647", 1)]
+    [InlineData("2147483640..2147483647", 8)]
+    public async Task RangeEndingAtIntMax_Terminates(string antes, int count)
+    {
+        // WaitAsync throws TimeoutException instead of hanging the whole run on a regression.
+        var loaded = await Task.Run(() => LoadSingleMust($"    antes: {antes}").Antes).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(count, loaded.Length);
+        Assert.Equal(int.MaxValue, loaded[^1]);
     }
 
     [Fact]

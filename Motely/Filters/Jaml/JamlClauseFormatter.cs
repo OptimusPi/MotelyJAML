@@ -343,18 +343,25 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             }
             if (from > to)
                 throw Error(item.Line, $"`{item.Scalar}` is a descending range; write `{to}-{from}` (key `{key}`)");
-            // Jaml.check runs per keystroke in the editor: `1-999999999` must be an error, not
-            // a billion-node allocation. No int[] key means anything near this wide.
-            if (to - from >= MaxRangeLength)
-                throw Error(item.Line, $"`{item.Scalar}` spans {(long)to - from + 1} values; a range covers at most {MaxRangeLength} (key `{key}`)");
+            // Jaml.check runs per keystroke on untrusted text: `1-999999999`, or a thousand
+            // `0-1023` items in one list, must be an error, not a billion-node allocation. The cap
+            // is on everything the key holds once its ranges are expanded. The widest real key is
+            // antes (0-39); source indices and rolls are single digits to low tens.
+            int span = to - from + 1;                             // from, to >= 0: no overflow
+            int before = expanded?.Count ?? i;
+            if (span > MaxExpandedLength - before)
+                throw Error(item.Line, before == 0
+                    ? $"`{item.Scalar}` spans {span} values; ranges cover at most {MaxExpandedLength} values per key (key `{key}`)"
+                    : $"`{item.Scalar}` brings the list to {(long)before + span} values; ranges cover at most {MaxExpandedLength} values per key (key `{key}`)");
             expanded ??= [.. items.Take(i)];
-            for (int v = from; v <= to; v++)
-                expanded.Add(new Node { Line = item.Line, Scalar = v.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+            // Count, not `v <= to; v++`: with `to == int.MaxValue` that counter wraps and never stops.
+            for (int k = 0; k < span; k++)
+                expanded.Add(new Node { Line = item.Line, Scalar = (from + k).ToString(System.Globalization.CultureInfo.InvariantCulture) });
         }
         return expanded ?? items;
     }
 
-    internal const int MaxRangeLength = 1024;
+    internal const int MaxExpandedLength = 1024;
 
     private static bool TryParseRange(string scalar, out int from, out int to)
     {
