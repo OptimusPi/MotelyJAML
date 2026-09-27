@@ -91,9 +91,10 @@ A ships now and is proven under NativeAOT against real filters. B is the cleaner
 4. [x] `Motely.Wasm/JamlFiles.cs`: `.jaml .yaml .yml .json`, back-compatible names.
 5. [x] `Motely.Wasm/Jaml.cs`: `Jaml.check(text)`.
 6. [ ] On the PC: `dotnet build Motely.slnx -c Release` + `dotnet test`. The cloud build couldn't restore the sponsor-feed package or see concurrent edits.
+   - 2026-09-27, cloud, SDK 10.0.301: `Motely.slnx` restores from nuget.org alone (Bootsharp.FileSystem is referenced only by Motely.Wasm, which is not in the solution). Build: 0 warnings, 0 errors. Test: 495/495 after the fixes below (master was 491/492: `JamlWildcardTests.AliasSyntaxIsRejected`). Left open for the PC run.
 7. [ ] `dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release`, then `node tests/smoke.mjs`.
-8. [ ] Fix the 5 authoring errors (Zerkeo:20, ColaOopsLite:36, M.yml:20, faceding:44, simplCola:3).
-9. [ ] Add the load-every-filter check as a test: `JamlFilters/*` must load under the Release build.
+8. [x] Fix the 5 authoring errors (Zerkeo:20, ColaOopsLite:36, M.yml:20, faceding:44, simplCola:3). Fixed in the filter text; the offending text sits one line above the cited number for the first four (the loader reports the line after a block value). Loading all 341 files turned up 4 more, also fixed: OopsPile_PerkeoCat, KittyDicetrick (`[0-7]` in a flow list), NegativePerkeoAnte3FirstArcana (nested map under `legendaryJoker:`), loki (`rank: K`).
+9. [x] Add the load-every-filter check as a test: `JamlFilters/*` must load under the Release build. `Motely.Tests/JamlFilterCorpusLoadTests.cs` runs every .jaml/.yaml/.yml/.json in `JamlFilters/` (159) and `Motely.Tests/JamlFilters/` (182) through `FromFile`.
 
 ## Verification (2026-09-22, cloud, .NET 10.0.401)
 
