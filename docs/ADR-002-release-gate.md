@@ -6,7 +6,7 @@
 
 ## Context
 
-- `motely-wasm` is published from `Motely.Wasm/` with `npm publish`; `prepublishOnly` ran `dotnet publish -c Release` plus the base64 polyfill patch and nothing else.
+- `motely-wasm` is published from `Motely.Wasm/` with `npm publish`; `prepublishOnly` ran `npm run build` (`dotnet publish -c Release` plus the base64-polyfill and CancellationToken-export dist patches) and nothing else.
 - The version was written by hand in two places, `<MotelyVersion>` in `Directory.Build.props` and `"version"` in `Motely.Wasm/package.json`. Git history shows them bumped separately (`2356c6b` to 26.0.3, `e1ed28e`, `c6c1d50` to 26.1.0); a sync script that once existed (`7ed6e8c`, 23.3.0) was lost.
 - The published API had already been rewritten under a minor bump once: 25.0.3 → 25.1.0 removed six namespaces (`MotelyJaml.fromJaml/validate/validateLine/canonicalizeLine`, `MotelySearch.searchList/collect/findOne/searchSequential`, `MotelyUtilities.*`, `MotelyLsp.*`), 55 names in all, and replaced them with `Analyze`/`Search`. Downstream code (seedfinder.app) was written against a README that still described the old surface.
 - Master at `09a0f37` carries the next one: commit `28478ca` (`Names.Node`) strips the `Motely` prefix from every enum in TS, so the next build renames all 17 published enums (`MotelyDeck` → `Deck`, …) relative to npm latest 26.0.2, while `MotelyVersion` says 26.1.0 — a minor bump. `Motely.Wasm/README.md` still documented `Search.scoreList`, removed in 26.0.0.
@@ -62,4 +62,5 @@ Rejected for now: adds a devDependency to a package that has none, for a file wh
 3. [x] `scripts/readme-gen.mjs` + `readme:gen` / `readme:check`; markers in `Motely.Wasm/README.md`.
 4. [x] `prepublishOnly` wired; jaml-lang reminder line.
 5. [ ] On the PC: `npm run build` in `Motely.Wasm`, then `npm run api:check` — decide 27.0.0 vs reverting the enum rename — then `npm run readme:gen`.
+   - 2026-09-27, cloud: a scratch `dotnet publish` of Motely.Wasm at 22d0a10 (throwaway copy without `JamlFiles.cs` / Bootsharp.FileSystem, which only the sponsor feed serves) fed to `api-check.mjs --offline --typings …`: exit 1, `17 removed + 7 changed exported name(s) need a MAJOR bump (26.x -> 27.0.0)` — the 17 `Motely*` enums, `JamlAesthetic` (+`Runs`), `SearchSettings`, `MotelySingleSearchContext`, `MotelyItem`, `MotelyJamlyzerAnteResult/Pack/Pulls`. The same typings with `--version 27.0.0`: exit 0. `readme:check` on them: exit 1 (stale block, as predicted). Against the 26.0.2 typings all three checks exit 0.
 6. [ ] After the next publish: `npm run api:baseline` and commit `api-baseline.json`.
