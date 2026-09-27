@@ -24,7 +24,7 @@ public static partial class JamlConfigLoader
                 new JamlClauseFormatter(),
                 new EnumAsStringFormatter<MotelyDeck>(),
                 new EnumAsStringFormatter<MotelyStake>(),
-                new ListFormatter<IJamlClause>(),
+                new JamlClauseListFormatter(),
                 new ListFormatter<string>(),
             },
             new IYamlFormatterResolver[] { StandardResolver.Instance }),

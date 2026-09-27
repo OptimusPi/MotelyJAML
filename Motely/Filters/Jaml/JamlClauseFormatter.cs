@@ -42,8 +42,43 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     public void Serialize(ref Utf8YamlEmitter emitter, IJamlClause value, YamlSerializationContext context) =>
         throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
 
-    public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context) =>
-        ReadClause(ReadNode(ref parser));
+    public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context)
+    {
+        // Entered on the clause's own event, so there is no earlier mark to go on. A clause is a
+        // mapping, and a mapping's start mark is right (see ReadNode). JamlClauseListFormatter
+        // reads must:/should:/mustNot: items through ReadClause instead, with the earlier mark.
+        var prevLine = parser.CurrentMark.Line;
+        return ReadClause(ReadNode(ref parser, ref prevLine));
+    }
+
+    /// <summary>A must:/should:/mustNot: list. Same result as VYaml's ListFormatter, but each item is
+    /// read with the mark from before it, so a scalar item (`- Blueprint`) reports its own line.</summary>
+    internal static List<IJamlClause>? ReadClauseList(ref YamlParser parser, YamlDeserializationContext context, IYamlFormatter<IJamlClause> itemFormatter)
+    {
+        if (parser.IsNullScalar())
+        {
+            parser.Read();
+            return null;
+        }
+        if (parser.CurrentEventType != ParseEventType.SequenceStart)
+            throw Error(parser.CurrentMark.Line, "must:, should: and mustNot: are lists of clauses like `- joker: Blueprint`");
+
+        var prevLine = parser.CurrentMark.Line;
+        parser.Read();
+        var list = new List<IJamlClause>();
+        while (parser.CurrentEventType != ParseEventType.SequenceEnd)
+        {
+            if (parser.CurrentEventType == ParseEventType.Alias || parser.TryGetCurrentAnchor(out _))
+            {
+                list.Add(context.DeserializeWithAlias(itemFormatter, ref parser)); // anchors: VYaml's bookkeeping
+                prevLine = parser.CurrentMark.Line;
+                continue;
+            }
+            list.Add(ReadClause(ReadNode(ref parser, ref prevLine)));
+        }
+        parser.Read();
+        return list;
+    }
 
     // ── YAML events → tiny tree ──
 
@@ -56,37 +91,61 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         public bool IsNull => Scalar is null && Items is null && Map is null;
     }
 
-    private static Node ReadNode(ref YamlParser parser)
+    // Line numbers. VYaml 1.4 has no per-event start mark: CurrentMark is where the tokenizer's
+    // reader is, and the tokenizer runs one token ahead of the parser. On a collection start that
+    // is still inside the collection's first line, so it's right. On a scalar it is not: to end a
+    // plain scalar the tokenizer reads on to the next key or `- ` (past newlines, comments and
+    // blank lines), so `antes: 1-8` on line 19 showed up as line 20. The mark taken one event
+    // earlier (the key, the previous `- ` item, the `[`) is on the scalar's own line, so
+    // `prevLine` carries the mark from before each Read, and a mapping value is filed under its
+    // key's line.
+    private static Node ReadNode(ref YamlParser parser, ref int prevLine)
     {
-        var node = new Node { Line = parser.CurrentMark.Line };
         switch (parser.CurrentEventType)
         {
             case ParseEventType.Scalar:
+            {
+                var node = new Node { Line = prevLine };
+                prevLine = parser.CurrentMark.Line;
                 node.Scalar = parser.IsNullScalar() ? null : parser.ReadScalarAsString();
                 if (node.Scalar is null) parser.Read();
                 return node;
+            }
 
             case ParseEventType.SequenceStart:
+            {
+                var node = new Node { Line = parser.CurrentMark.Line, Items = [] };
+                prevLine = parser.CurrentMark.Line;
                 parser.Read();
-                node.Items = [];
                 while (parser.CurrentEventType != ParseEventType.SequenceEnd)
-                    node.Items.Add(ReadNode(ref parser));
+                    node.Items.Add(ReadNode(ref parser, ref prevLine));
+                prevLine = parser.CurrentMark.Line;
                 parser.Read();
                 return node;
+            }
 
             case ParseEventType.MappingStart:
+            {
+                var node = new Node { Line = parser.CurrentMark.Line, Map = [] };
+                prevLine = parser.CurrentMark.Line;
                 parser.Read();
-                node.Map = [];
                 while (parser.CurrentEventType != ParseEventType.MappingEnd)
                 {
+                    // A key's mark sits just past its `:`, on the key's line.
+                    var keyLine = parser.CurrentMark.Line;
+                    prevLine = keyLine;
                     var key = parser.ReadScalarAsString() ?? "";
-                    node.Map.Add((key, ReadNode(ref parser)));
+                    var value = ReadNode(ref parser, ref prevLine);
+                    value.Line = keyLine;
+                    node.Map.Add((key, value));
                 }
+                prevLine = parser.CurrentMark.Line;
                 parser.Read();
                 return node;
+            }
 
             default:
-                throw Error(node.Line, $"unexpected YAML event {parser.CurrentEventType}");
+                throw Error(prevLine, $"unexpected YAML event {parser.CurrentEventType}");
         }
     }
 
@@ -211,4 +270,16 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
     private static InvalidOperationException Error(int line, string message) =>
         new($"JAML line {line}: {message}");
+}
+
+/// <summary>Registered in place of <c>ListFormatter&lt;IJamlClause&gt;</c>; see <see cref="JamlClauseFormatter.ReadClauseList"/>.</summary>
+public sealed class JamlClauseListFormatter : IYamlFormatter<List<IJamlClause>?>
+{
+    private static readonly JamlClauseFormatter Item = new();
+
+    public void Serialize(ref Utf8YamlEmitter emitter, List<IJamlClause>? value, YamlSerializationContext context) =>
+        throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
+
+    public List<IJamlClause>? Deserialize(ref YamlParser parser, YamlDeserializationContext context) =>
+        JamlClauseFormatter.ReadClauseList(ref parser, context, Item);
 }
