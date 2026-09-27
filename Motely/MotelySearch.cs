@@ -137,6 +137,15 @@ public interface IMotelySearchSettings
 {
     IMotelySeedFilterDesc BaseFilterDescBase { get; }
     IList<IMotelySeedFilterDesc>? AdditionalFilters { get; }
+
+    /// <summary>
+    /// The score provider, when one is set. Decides which result channel a find arrives on: with a
+    /// provider, every find is reported on <see cref="WithScoredResultCallback"/> (and the provider
+    /// also sends the bare seed to <see cref="WithSeedMatchCallback"/>); without one, only
+    /// <see cref="WithSeedMatchCallback"/> fires.
+    /// </summary>
+    IMotelySeedScoreDesc? SeedScoreDesc { get; }
+
     IMotelySearchSettings WithAdditionalFilter(IMotelySeedFilterDesc filterDesc);
     IMotelySearchSettings WithThreadCount(int threadCount);
     IMotelySearchSettings WithBatchCharacterCount(int batchCharacterCount);

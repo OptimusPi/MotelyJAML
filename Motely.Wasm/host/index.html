@@ -15,21 +15,47 @@
     addEventListener("error", (e) => fail(e.error ?? e.message));
     addEventListener("motely-ready", async () => {
       try {
-        const { Search, CancellationToken, jimmolateSeen } = globalThis.motely;
+        const { Search, Jaml, CancellationToken, jimmolateSeen } = globalThis.motely;
         await Search.jimmolateSettings()
           .withSeedList(["ALEEB", "PIROCKS"])
           .start(new CancellationToken());
-        const ok =
+        const jimmolateOk =
           jimmolateSeen.length === 2 &&
           typeof jimmolateSeen[0].seed === "string" &&
           typeof jimmolateSeen[0].voucher === "number" &&
           typeof jimmolateSeen[0].boss === "number";
+
+        // JamlFilters/bench-negative-perkeo.jaml. 6GR89UQF matches it, AAAAAAAA does not. One
+        // find must be exactly one onScored (it used to arrive twice, first with score 1).
+        const jaml = [
+          "name: bench-negative-perkeo", "deck: Red", "stake: White", "must:",
+          "  - or:",
+          "      - legendaryJoker: Perkeo", "        antes: [1]", "        edition: Negative",
+          "        sources:", "          arcanaPacks: [0, 1, 2]", "          spectralPacks: [0, 1, 2]",
+          "      - legendaryJoker: Perkeo", "        antes: [2]", "        edition: Negative",
+          "        sources:", "          arcanaPacks: [0, 1, 2, 3, 4, 5]", "          spectralPacks: [0, 1, 2, 3, 4, 5]",
+          "  - smallBlindTag: CharmTag", "    antes: [1, 2]", "",
+        ].join("\n");
+        const scored = [];
+        const onScored = (s) => scored.push(s.seed + ":" + s.score);
+        Search.onScored.subscribe(onScored);
+        await Search.settings(jaml).withSeedList(["6GR89UQF", "AAAAAAAA"]).start(new CancellationToken());
+        Search.onScored.unsubscribe(onScored);
+        const jamlOk = scored.length === 1 && scored[0].startsWith("6GR89UQF:");
+
+        const checkValid = Jaml.check(jaml);
+        const checkBroken = Jaml.check("name: x\nmust:\n  - joker: Blueprint\n    antes: [1\n  - voucher: Telescope\n");
+        const checkOk = checkValid === null && /line \d+/i.test(checkBroken ?? "");
+
+        const ok = jimmolateOk && jamlOk && checkOk;
         out.textContent =
           jimmolateSeen
             .map((h) => h.seed + " voucher=" + h.voucher + " boss=" + h.boss)
             .join("\n") +
-          "\nok=" +
-          ok;
+          "\njimmolate ok=" + jimmolateOk +
+          "\njaml onScored=[" + scored.join(", ") + "] ok=" + jamlOk +
+          "\nJaml.check broken=" + JSON.stringify(checkBroken) + " ok=" + checkOk +
+          "\nok=" + ok;
         document.title = ok ? "MOTELY-WASM-OK" : "MOTELY-WASM-FAIL";
       } catch (e) {
         fail(e);
