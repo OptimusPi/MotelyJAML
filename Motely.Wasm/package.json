@@ -53,6 +53,7 @@
         "api:check": "node scripts/api-check.mjs",
         "readme:gen": "node scripts/readme-gen.mjs",
         "readme:check": "node scripts/readme-gen.mjs --check",
-        "prepublishOnly": "npm run build && npm run version:check && npm run api:check && npm run readme:check"
+        "test:scripts": "node --test \"scripts/test/*.test.mjs\"",
+        "prepublishOnly": "npm run test:scripts && npm run build && npm run version:check && npm run api:check && npm run readme:check"
     }
 }

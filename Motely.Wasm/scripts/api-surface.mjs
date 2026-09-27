@@ -10,7 +10,8 @@
 //     namespaces: { Search: { members: { scoreList: { kind: "function", sig: "(jaml: string): Promise<void>" } } } },
 //     interfaces: { SearchSettings: { members: { start: "(token: CancellationToken): Promise<void>" } } },
 //     enums:      { MotelyDeck: ["Red", "Blue", …] },
-//     types:      { MotelyItem: { fields: ["value: number", …] } | { alias: "string" } },
+//     types:      { MotelyItem: { shape: "Readonly<{…}>", fields: ["value: number", …] } | { alias: "string" } },
+//                 (shape is the text around the braces; absent for a bare `{ … }`)
 //     classes:    { Foo: { members: {…} } },
 //     functions:  { name: { kind, sig } }            // top-level export function/const/let
 //   }
@@ -39,8 +40,9 @@ function block(lines, i) {
         if (depth <= 0) break;
     }
     // last pushed line is the closing brace itself
-    if (body.length && /^\s*\}/.test(body[body.length - 1])) body.pop();
-    return { body, end: j };
+    let close = "";
+    if (body.length && /^\s*\}/.test(body[body.length - 1])) close = body.pop().trim();
+    return { body, end: j, close };
 }
 
 function readMembers(body) {
@@ -82,8 +84,11 @@ export function parseSurface(text) {
             i = end;
         } else if ((m = l.match(/^export (?:declare )?type (\w+)(<[^=]*>)? = (.*)$/))) {
             if (l.includes("{") && !/;\s*$/.test(l)) {
-                const { body, end } = block(lines, i);
-                out.types[m[1]] = { fields: body.map(stripSemi).filter(Boolean) };
+                const { body, end, close } = block(lines, i);
+                // `Readonly<{ … }>` and `{ … }` hold the same fields but are not the same type:
+                // keep what wraps the braces, or mutable -> readonly slips past the gate.
+                const shape = `${m[3].slice(0, m[3].indexOf("{")).trim()}{…}${stripSemi(close.slice(1))}`;
+                out.types[m[1]] = { ...(shape === "{…}" ? {} : { shape }), fields: body.map(stripSemi).filter(Boolean) };
                 i = end;
             } else {
                 out.types[m[1]] = { alias: stripSemi(m[3]) };
@@ -115,7 +120,7 @@ export function flatten(surface) {
     for (const [name, def] of Object.entries(surface.classes)) flat.set(`class ${name}`, members(def));
     for (const [name, values] of Object.entries(surface.enums)) flat.set(`enum ${name}`, values.join(", "));
     for (const [name, def] of Object.entries(surface.types))
-        flat.set(`type ${name}`, def.alias ?? [...def.fields].sort().join("; "));
+        flat.set(`type ${name}`, def.alias ?? `${def.shape ?? "{…}"} ${[...def.fields].sort().join("; ")}`);
     for (const [name, mem] of Object.entries(surface.functions)) flat.set(name, `${mem.kind} ${mem.sig}`);
     return flat;
 }
