@@ -38,12 +38,34 @@ public class JamlJsonLoaderTests
     public void TryLoadFromJson_UnknownRootKey_IsRejected()
     {
         var ok = JamlConfigLoader.TryLoad("""{ "must": [{ "joker": "Blueprint" }], "boses": [] }""",
+
             out _,
             out var error
         );
 
         Assert.False(ok);
+        Assert.NotNull(error);
         Assert.Contains("boses", error);
+    }
+
+    [Fact]
+    public void TryLoadFromYaml_UnknownRootKey_IsRejected()
+    {
+        var ok = JamlConfigLoader.TryLoad("""
+            name: test
+            deck: Red
+            stake: White
+            unknownKey: value
+            must:
+              - joker: Blueprint
+            """,
+            out _,
+            out var error
+        );
+
+        Assert.False(ok);
+        Assert.Contains("unknownKey", error);
+        Assert.Contains("JAML line", error);
     }
 
     [Fact]
@@ -60,6 +82,7 @@ public class JamlJsonLoaderTests
         Assert.False(ok);
         Assert.Contains("JAML line 5", error);
         Assert.Contains("'shuold'", error);
+
     }
 
     [Fact]
