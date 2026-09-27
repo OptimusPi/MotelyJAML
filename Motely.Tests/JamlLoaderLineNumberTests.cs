@@ -4,7 +4,7 @@ namespace Motely.Tests;
 /// Clause-level loader errors name the line the bad text is on. VYaml's CurrentMark is the
 /// tokenizer's position, and after a plain scalar the tokenizer has already looked ahead to the
 /// next key (or past the end of the file), so reading the mark at a value scalar used to give
-/// the following line: Zerkeo `antes: 1-8` on 19 reported as 20, M.yml `Showman` on 19 (of 20)
+/// the following line: Zerkeo `antes: 1-8` (before range shorthand) on 19 reported as 20, M.yml `Showman` on 19 (of 20)
 /// reported as 20, and so on. Each case is the shape of a real filter that failed to load.
 /// In flow style (every .json filter, `- {joker: X}`, `[1,\n 2]`) the tokenizer reads a whole
 /// collection ahead, so no mark is on the right line: lines come from JamlScalarLines, which
@@ -40,17 +40,19 @@ public sealed class JamlLoaderLineNumberTests
     [Fact]
     public void RangeShorthand_InBlockMapping_ReportsItsOwnLine()
     {
-        // Zerkeo.jaml before 0a77ab2: `antes: 1-8` followed by another key.
+        // Zerkeo.jaml before 0a77ab2: `antes: 1-8` followed by another key. `1-8` loads now
+        // (range shorthand, JamlAnteRangeTests); a descending range is the error in that shape.
         const string yaml = """
             name: zerkeo
             deck: Red
             should:
               - joker: Perkeo
-                antes: 1-8
+                antes: 8-1
                 score: 1
             """;
-        AssertLine(yaml, "antes: 1-8", 5);
-        Assert.Contains("`1-8` is not an integer (key `antes`)", LoadError(yaml));
+        AssertLine(yaml, "antes: 8-1", 5);
+        Assert.Contains("`8-1` is a descending range; write `1-8` (key `antes`)", LoadError(yaml));
+        Assert.True(JamlConfigLoader.TryLoad(yaml.Replace("8-1", "1-8"), out _, out var error), error);
     }
 
     [Fact]
@@ -140,11 +142,11 @@ public sealed class JamlLoaderLineNumberTests
                 # a comment
 
                 # another
-                antes: 1-8   # trailing comment
+                antes: 1-8-9   # trailing comment
 
                 score: 2
             """;
-        AssertLine(yaml, "antes: 1-8", 7);
+        AssertLine(yaml, "antes: 1-8-9", 7);
     }
 
     [Fact]
