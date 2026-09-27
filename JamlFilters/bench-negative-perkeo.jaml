@@ -1,3 +1,19 @@
+# Benchmark filter: "Negative Perkeo in ante 1 or 2 from Small Blind Charm Tag".
+#
+# Recipe (Release CLI; --no-save keeps this file unchanged, since the CLI otherwise
+# writes every match back into a top-level seeds: block here):
+#   dotnet build -c Release Motely.CLI
+#   Motely.CLI/bin/Release/net10.0/Motely.CLI --jaml JamlFilters/bench-negative-perkeo.jaml \
+#     --batchCharCount 4 --startBatch 0 --endBatch 20 --threads N --cutoff off -q --no-save
+# That is 30,012,500 seeds (20 x 35^4). Expect 43 matches, the same set on every run.
+# Cross-check: --seeds 6GR89UQF,AAAAAAAA matches 6GR89UQF only.
+#
+# 2026-09-27, shared 4-vCPU cloud VM, Xeon family 6 model 207 (Emerald Rapids),
+# load average 0.9-2.7 from other sessions:
+#   threads 1: median 3.89M seeds/s (3.74-4.12M, n=7)
+#   threads 4: median 13.7M seeds/s (11.5-14.8M, n=9)
+#   An independent n=9 at threads 4 on the same VM: median 13.6M/s (8.3-15.6M).
+# Quote the median with its min-max and n; single runs on this VM swing widely.
 name: bench-negative-perkeo
 deck: Red
 stake: White
