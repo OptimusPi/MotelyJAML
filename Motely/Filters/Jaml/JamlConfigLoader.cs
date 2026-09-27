@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using VYaml.Parser;
 using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
@@ -29,8 +30,22 @@ public static class JamlConfigLoader
     /// .yaml, .yml and .jaml all go through the same parser.</summary>
     public static JamlConfig FromJaml(string yaml)
     {
+        var bytes = Encoding.UTF8.GetBytes(yaml);
+
+        // Validate root-level keys before deserialization
+        try
+        {
+            ValidateRootKeys(bytes);
+        }
+        catch (Exception ex) when (!(ex is InvalidOperationException))
+        {
+            // Re-throw non-InvalidOperationException exceptions (e.g., VYaml parser exceptions)
+            // as InvalidOperationException for consistent error handling
+            throw new InvalidOperationException($"JAML: {ex.Message}", ex);
+        }
+
         var config =
-            YamlSerializer.Deserialize<JamlConfig>(Encoding.UTF8.GetBytes(yaml), Options)
+            YamlSerializer.Deserialize<JamlConfig>(bytes, Options)
             ?? throw new InvalidOperationException("JAML: the document is empty.");
 
         // VYaml's generated deserializer assigns default(T) to every key the document leaves
@@ -43,6 +58,92 @@ public static class JamlConfigLoader
         config.MustNot ??= [];
         return config;
     }
+
+    private static void ValidateRootKeys(byte[] yamlBytes)
+    {
+        var sequence = new System.Buffers.ReadOnlySequence<byte>(yamlBytes);
+        var parser = new YamlParser(sequence);
+
+        // Read the first event to get started
+        if (parser.CurrentEventType is ParseEventType.Nothing)
+            parser.Read();
+
+        // Skip document markers if present
+        if (parser.CurrentEventType is ParseEventType.StreamStart)
+            parser.Read();
+        if (parser.CurrentEventType is ParseEventType.DocumentStart)
+            parser.Read();
+
+        // The root must be a mapping
+        if (parser.CurrentEventType != ParseEventType.MappingStart)
+            return; // Not a mapping, will fail during deserialization anyway
+
+        parser.Read();
+
+        // Check all keys in the root mapping
+        while (parser.CurrentEventType != ParseEventType.MappingEnd)
+        {
+            // Read the key - must be a scalar
+            if (parser.CurrentEventType != ParseEventType.Scalar)
+                throw new InvalidOperationException($"JAML line {parser.CurrentMark.Line}: expected a key");
+
+            var keyLine = parser.CurrentMark.Line;
+            var key = parser.ReadScalarAsString() ?? "";
+
+            // Check if this key is allowed (case-insensitive)
+            if (!JamlConfig.RootKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"JAML line {keyLine}: unknown key '{key}'");
+            }
+
+            // Skip the value - ReadNode reads the value and advances parser
+            _ = ReadNode(ref parser);
+        }
+    }
+
+    private sealed class Node
+    {
+        public int Line;
+        public string? Scalar;
+        public List<Node>? Items;
+        public List<(string Key, Node Value)>? Map;
+    }
+
+    private static Node ReadNode(ref YamlParser parser)
+    {
+        var node = new Node { Line = parser.CurrentMark.Line };
+        switch (parser.CurrentEventType)
+        {
+            case ParseEventType.Scalar:
+                node.Scalar = parser.IsNullScalar() ? null : parser.ReadScalarAsString();
+                if (node.Scalar is null) parser.Read();
+                return node;
+
+            case ParseEventType.SequenceStart:
+                parser.Read();
+                node.Items = [];
+                while (parser.CurrentEventType != ParseEventType.SequenceEnd)
+                    node.Items.Add(ReadNode(ref parser));
+                parser.Read();
+                return node;
+
+            case ParseEventType.MappingStart:
+                parser.Read();
+                node.Map = [];
+                while (parser.CurrentEventType != ParseEventType.MappingEnd)
+                {
+                    var key = parser.ReadScalarAsString() ?? "";
+                    node.Map.Add((key, ReadNode(ref parser)));
+                }
+                parser.Read();
+                return node;
+
+            default:
+                parser.Read();
+                return node;
+        }
+    }
+
 
     public static JamlConfig FromFile(string path) => FromJaml(File.ReadAllText(path));
 

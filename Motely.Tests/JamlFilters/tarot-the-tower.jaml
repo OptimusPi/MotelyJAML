@@ -1,0 +1,17 @@
+name: TheTower Stone Joker
+author: jammy
+description: TheTower tarotCard with Stone Joker for Stone enhancement scaling
+deck: Red
+stake: White
+must:
+  - tarotCard: TheTower
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: StoneJoker
+    score: 60
+  - uncommonJoker: MarbleJoker
+    score: 40

@@ -1,0 +1,17 @@
+name: TheStar Diamond Flush
+author: jammy
+description: TheStar tarotCard with Greedy Joker for Diamond suit conversion
+deck: Red
+stake: White
+must:
+  - tarotCard: TheStar
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: GreedyJoker
+    score: 40
+  - uncommonJoker: RoughGem
+    score: 30

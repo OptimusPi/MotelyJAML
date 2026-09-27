@@ -1,0 +1,17 @@
+name: The Duo Trio Family
+author: jammy
+description: The Duo with The Trio and The Family for hand type X Mult stacking
+deck: Red
+stake: White
+must:
+  - rareJoker: TheDuo
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: TheTrio
+    score: 50
+  - rareJoker: TheFamily
+    score: 45

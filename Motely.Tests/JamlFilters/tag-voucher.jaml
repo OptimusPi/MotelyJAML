@@ -1,0 +1,15 @@
+name: Voucher Tag Free Voucher
+author: jammy
+description: Voucher Tag for free voucher in next shop
+deck: Red
+stake: White
+must:
+  - tag: VoucherTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - voucher: Overstock
+    score: 40

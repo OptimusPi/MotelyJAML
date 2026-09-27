@@ -1,0 +1,17 @@
+name: TheDevil Gold Enhancement
+author: jammy
+description: TheDevil tarotCard with Golden Ticket for Gold enhancement synergy
+deck: Red
+stake: White
+must:
+  - tarotCard: TheDevil
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: GoldenTicket
+    score: 45
+  - uncommonJoker: MidasMask
+    score: 35

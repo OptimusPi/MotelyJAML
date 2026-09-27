@@ -1,0 +1,17 @@
+name: Familiar Face Card Build
+author: jammy
+description: Familiar spectralCard with Photograph for enhanced face card synergy
+deck: Red
+stake: White
+must:
+  - spectralCard: Familiar
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: Photograph
+    score: 50
+  - uncommonJoker: SockAndBuskin
+    score: 40

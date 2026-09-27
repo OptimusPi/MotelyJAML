@@ -1,0 +1,21 @@
+name: Hex Polychrome Baron
+author: jammy
+description: Hex spectralCard to add Polychrome to Baron joker
+deck: Red
+stake: White
+must:
+  - spectralCard: Hex
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+  - rareJoker: Baron
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: Cavendish
+    score: 40

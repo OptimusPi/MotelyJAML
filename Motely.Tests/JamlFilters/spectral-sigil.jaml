@@ -1,0 +1,17 @@
+name: Sigil Flush Build
+author: jammy
+description: Sigil spectralCard with Blackboard for suit conversion to Flush
+deck: Red
+stake: White
+must:
+  - spectralCard: Sigil
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Blackboard
+    score: 50
+  - uncommonJoker: SmearedJoker
+    score: 40

@@ -1,0 +1,17 @@
+name: Wheel of Fortune Edition
+author: jammy
+description: Wheel of Fortune tarotCard with Oops All 6s for doubled edition chance
+deck: Red
+stake: White
+must:
+  - tarotCard: TheWheelOfFortune
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: OopsAll6s
+    score: 50
+  - rareJoker: Baron
+    score: 40

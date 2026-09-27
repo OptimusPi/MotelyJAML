@@ -1,0 +1,17 @@
+name: Blue Deck Banner Build
+author: jammy
+description: Blue Deck with Banner joker to maximize unused discard value
+deck: Blue
+stake: White
+must:
+  - commonJoker: Banner
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: DelayedGratification
+    score: 40
+  - uncommonJoker: MerryAndy
+    score: 20

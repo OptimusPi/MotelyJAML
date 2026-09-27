@@ -1,0 +1,15 @@
+name: TheEmpress Mult Enhancement
+author: jammy
+description: TheEmpress tarotCard with Vampire for Mult enhancement consumption
+deck: Red
+stake: White
+must:
+  - tarotCard: TheEmpress
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Vampire
+    score: 45
