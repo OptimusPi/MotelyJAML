@@ -272,6 +272,8 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             if (node.Scalar is not null && node.Scalar.Equals("any", StringComparison.OrdinalIgnoreCase))
                 return Array.CreateInstanceFromArrayType(type, 0); // category any
             var items = node.Items ?? [node];                     // scalar → one-element array
+            if (elem == typeof(int))
+                items = ExpandRanges(items, key);                 // antes: 1-8 / [1..3, 7] / 1 to 8
             var array = Array.CreateInstanceFromArrayType(type, items.Count);
             for (int i = 0; i < items.Count; i++)
                 array.SetValue(Convert(items[i], elem, key), i);
@@ -319,6 +321,47 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         var nested = Activator.CreateInstance(t)!;
         Populate(nested, node.Map);
         return nested;
+    }
+
+    /// <summary>
+    /// ADR-001 revisit: every <c>int[]</c> key takes range shorthand. A scalar item shaped
+    /// <c>1-8</c>, <c>1..8</c> or <c>1 to 8</c> (case-insensitive) expands to the integers it
+    /// names, in place, so <c>antes: 1-8</c> and <c>antes: [1..3, 7]</c> both work. Anything
+    /// else passes through to the integer branch of <see cref="Convert"/> untouched, so a plain
+    /// <c>-1</c> is still just an integer.
+    /// </summary>
+    private static List<Node> ExpandRanges(List<Node> items, string key)
+    {
+        List<Node>? expanded = null;
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (item.Scalar is null || !TryParseRange(item.Scalar, out var from, out var to))
+            {
+                expanded?.Add(item);
+                continue;
+            }
+            if (from > to)
+                throw Error(item.Line, $"`{item.Scalar}` is a descending range; write `{to}-{from}` (key `{key}`)");
+            expanded ??= [.. items.Take(i)];
+            for (int v = from; v <= to; v++)
+                expanded.Add(new Node { Line = item.Line, Scalar = v.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        }
+        return expanded ?? items;
+    }
+
+    private static bool TryParseRange(string scalar, out int from, out int to)
+    {
+        from = to = 0;
+        var s = scalar.AsSpan().Trim();
+        int sep, sepLength;
+        if ((sep = s.IndexOf("..", StringComparison.Ordinal)) >= 0) sepLength = 2;
+        else if ((sep = s.IndexOf(" to ", StringComparison.OrdinalIgnoreCase)) >= 0) sepLength = 4;
+        else if ((sep = s.IndexOf('-')) > 0) sepLength = 1;     // > 0: a leading '-' is a sign, not a range
+        else return false;
+        // NumberStyles.None: ASCII digits only, so neither side can smuggle a sign or a second range.
+        return int.TryParse(s[..sep].Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out from)
+            && int.TryParse(s[(sep + sepLength)..].Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out to);
     }
 
     private static InvalidOperationException Error(int line, string message) =>
