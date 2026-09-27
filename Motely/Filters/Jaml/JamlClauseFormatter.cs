@@ -343,12 +343,18 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             }
             if (from > to)
                 throw Error(item.Line, $"`{item.Scalar}` is a descending range; write `{to}-{from}` (key `{key}`)");
+            // Jaml.check runs per keystroke in the editor: `1-999999999` must be an error, not
+            // a billion-node allocation. No int[] key means anything near this wide.
+            if (to - from >= MaxRangeLength)
+                throw Error(item.Line, $"`{item.Scalar}` spans {(long)to - from + 1} values; a range covers at most {MaxRangeLength} (key `{key}`)");
             expanded ??= [.. items.Take(i)];
             for (int v = from; v <= to; v++)
                 expanded.Add(new Node { Line = item.Line, Scalar = v.ToString(System.Globalization.CultureInfo.InvariantCulture) });
         }
         return expanded ?? items;
     }
+
+    internal const int MaxRangeLength = 1024;
 
     private static bool TryParseRange(string scalar, out int from, out int to)
     {

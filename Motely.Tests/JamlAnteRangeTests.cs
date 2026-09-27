@@ -86,6 +86,30 @@ public sealed class JamlAnteRangeTests
     }
 
     [Theory]
+    [InlineData("0-1024")]
+    [InlineData("[1, 1..999999999]")]
+    public void OversizedRange_IsALoadErrorNotAnAllocation(string antes)
+    {
+        Assert.False(
+            JamlConfigLoader.TryLoad(
+                $"""
+                must:
+                  - joker: Blueprint
+                    antes: {antes}
+                """,
+                out _,
+                out var error
+            )
+        );
+        Assert.Contains("a range covers at most 1024", error);
+        Assert.Contains("`antes`", error);
+    }
+
+    [Fact]
+    public void WidestAllowedRange_Loads() =>
+        Assert.Equal(1024, LoadSingleMust("    antes: 0-1023").Antes.Length);
+
+    [Theory]
     [InlineData("1-8-9")]
     [InlineData("one to eight")]
     public void MalformedRange_IsStillNotAnInteger(string antes)
