@@ -47,6 +47,8 @@
     },
     "scripts": {
         "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs",
-        "prepublishOnly": "npm run build"
+        "version:sync": "node scripts/version-sync.mjs",
+        "version:check": "node scripts/version-sync.mjs --check",
+        "prepublishOnly": "npm run build && npm run version:check"
     }
 }
