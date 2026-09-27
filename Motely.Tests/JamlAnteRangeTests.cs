@@ -127,21 +127,55 @@ public sealed class JamlAnteRangeTests
         Assert.Contains("JAML line 3", error);
     }
 
-    // `to` at int.MaxValue used to wrap the expansion counter to int.MinValue and loop forever.
-    [Theory]
-    [InlineData("2147483647-2147483647", 1)]
-    [InlineData("2147483640..2147483647", 8)]
-    public async Task RangeEndingAtIntMax_Terminates(string antes, int count)
+    private static string LoadError(string antes)
     {
-        // WaitAsync throws TimeoutException instead of hanging the whole run on a regression.
-        var loaded = await Task.Run(() => LoadSingleMust($"    antes: {antes}").Antes).WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.Equal(count, loaded.Length);
-        Assert.Equal(int.MaxValue, loaded[^1]);
+        Assert.False(
+            JamlConfigLoader.TryLoad(
+                $"""
+                must:
+                  - joker: Blueprint
+                    antes: {antes}
+                """,
+                out _,
+                out var error
+            )
+        );
+        return error!;
     }
 
+    // `to` at int.MaxValue used to wrap the expansion counter to int.MinValue and loop forever.
+    // Antes stop at 39, so these are now fast load errors, never a hang.
+    [Theory]
+    [InlineData("2147483647-2147483647")]
+    [InlineData("2147483640..2147483647")]
+    public async Task RangeEndingAtIntMax_TerminatesWithAnError(string antes)
+    {
+        // WaitAsync throws TimeoutException instead of hanging the whole run on a regression.
+        var error = await Task.Run(() => LoadError(antes)).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Contains("out of range", error);
+    }
+
+    // 0-2147483647 is 2^31 values: its span overflowed int to a negative number, slipped under
+    // the cap, and expanded to nothing. A long span makes it a cap error.
     [Fact]
-    public void WidestAllowedRange_Loads() =>
-        Assert.Equal(1024, LoadSingleMust("    antes: 0-1023").Antes.Length);
+    public void RangeFromZeroToIntMax_IsACapError() =>
+        Assert.Contains("spans 2147483648 values", LoadError("0-2147483647"));
+
+    [Fact]
+    public void AllAntes_Load() =>
+        Assert.Equal(40, LoadSingleMust("    antes: 0-39").Antes.Length);
+
+    [Theory]
+    [InlineData("40")]
+    [InlineData("-1")]
+    [InlineData("[1, 2, 99]")]
+    [InlineData("30-40")]
+    public void AnteOutsideZeroToThirtyNine_IsALoadError(string antes)
+    {
+        var error = LoadError(antes);
+        Assert.Contains("antes run 0-39", error);
+        Assert.Contains("JAML line 3", error);
+    }
 
     [Theory]
     [InlineData("1-8-9")]

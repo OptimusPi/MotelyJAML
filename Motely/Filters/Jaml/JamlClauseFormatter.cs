@@ -276,7 +276,12 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
                 items = ExpandRanges(items, key);                 // antes: 1-8 / [1..3, 7] / 1 to 8
             var array = Array.CreateInstanceFromArrayType(type, items.Count);
             for (int i = 0; i < items.Count; i++)
-                array.SetValue(Convert(items[i], elem, key), i);
+            {
+                var value = Convert(items[i], elem, key);
+                if (IsAnteKey(key) && value is int ante && (ante < MinAnte || ante > MaxAnte))
+                    throw Error(items[i].Line, $"ante `{ante}` is out of range; antes run {MinAnte}-{MaxAnte} (key `{key}`)");
+                array.SetValue(value, i);
+            }
             return array;
         }
 
@@ -347,7 +352,7 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             // `0-1023` items in one list, must be an error, not a billion-node allocation. The cap
             // is on everything the key holds once its ranges are expanded. The widest real key is
             // antes (0-39); source indices and rolls are single digits to low tens.
-            int span = to - from + 1;                             // from, to >= 0: no overflow
+            long span = (long)to - from + 1;                      // long: 0-2147483647 is 2^31 values
             int before = expanded?.Count ?? i;
             if (span > MaxExpandedLength - before)
                 throw Error(item.Line, before == 0
@@ -355,13 +360,19 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
                     : $"`{item.Scalar}` brings the list to {(long)before + span} values; ranges cover at most {MaxExpandedLength} values per key (key `{key}`)");
             expanded ??= [.. items.Take(i)];
             // Count, not `v <= to; v++`: with `to == int.MaxValue` that counter wraps and never stops.
-            for (int k = 0; k < span; k++)
+            for (int k = 0; k < (int)span; k++)                   // span <= MaxExpandedLength here
                 expanded.Add(new Node { Line = item.Line, Scalar = (from + k).ToString(System.Globalization.CultureInfo.InvariantCulture) });
         }
         return expanded ?? items;
     }
 
     internal const int MaxExpandedLength = 1024;
+
+    internal const int MinAnte = 0;
+    internal const int MaxAnte = 39;
+
+    private static bool IsAnteKey(string key) =>
+        key.Equals("antes", StringComparison.OrdinalIgnoreCase) || key.Equals("ante", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryParseRange(string scalar, out int from, out int to)
     {
