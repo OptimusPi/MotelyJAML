@@ -6,6 +6,9 @@ namespace Motely.Tests;
 /// next key (or past the end of the file), so reading the mark at a value scalar used to give
 /// the following line: Zerkeo `antes: 1-8` on 19 reported as 20, M.yml `Showman` on 19 (of 20)
 /// reported as 20, and so on. Each case is the shape of a real filter that failed to load.
+/// In flow style (every .json filter, `- {joker: X}`, `[1,\n 2]`) the tokenizer reads a whole
+/// collection ahead, so no mark is on the right line: lines come from JamlScalarLines, which
+/// reads them off the source.
 /// </summary>
 public sealed class JamlLoaderLineNumberTests
 {
@@ -28,6 +31,8 @@ public sealed class JamlLoaderLineNumberTests
     private static void AssertLine(string yaml, string marker, int expected)
     {
         Assert.Equal(expected, LineOf(yaml, marker)); // the test's own arithmetic
+        // The line comes from the source walk, not the mark fallback.
+        Assert.NotNull(JamlScalarLines.TryBuild(System.Text.Encoding.UTF8.GetBytes(yaml)));
         var error = LoadError(yaml);
         Assert.StartsWith($"JAML line {expected}:", error);
     }
@@ -237,6 +242,187 @@ public sealed class JamlLoaderLineNumberTests
             """;
         AssertLine(yaml, "- Blueprint", 3);
         Assert.Contains("a clause must be a mapping", LoadError(yaml));
+    }
+
+    [Fact]
+    public void FlowSequenceItem_OnContinuationLine_ReportsItsOwnLine()
+    {
+        // The tokenizer stops at the `,` after `1`, so a mark taken there is on the `[1,` line.
+        const string yaml = """
+            name: c
+            deck: Red
+            must:
+              - joker: Blueprint
+                antes: [1,
+                  x, 3]
+                score: 2
+            """;
+        AssertLine(yaml, "x, 3]", 6);
+        Assert.Contains("`x` is not an integer (key `antes`)", LoadError(yaml));
+    }
+
+    [Fact]
+    public void BadValue_FollowedByAKeyWithTheSameText_ReportsItsOwnLine()
+    {
+        const string yaml = """
+            name: v
+            must:
+              - joker: Blueprint
+                score: x
+                x: 1
+            """;
+        AssertLine(yaml, "score: x", 4);
+    }
+
+    [Fact]
+    public void Json_MultiLine_ReportsTheItemsLine()
+    {
+        // .json goes through the same loader; the tokenizer reads a whole `{ … }` ahead.
+        const string json = """
+            {
+              "name": "bad2",
+              "deck": "Red",
+              "must": [
+                { "joker": "Blueprint", "antes": [1, 2] },
+                { "joker": "NotAJoker" }
+              ]
+            }
+            """;
+        AssertLine(json, "NotAJoker", 6);
+        Assert.Contains("`NotAJoker` is not a MotelyJoker", LoadError(json));
+    }
+
+    [Fact]
+    public void Json_OneLine_ReportsLineOne()
+    {
+        const string json = """{"name":"bad2","deck":"Red","must":[{"joker":"NotAJoker"}]}""";
+        AssertLine(json, "NotAJoker", 1);
+    }
+
+    [Fact]
+    public void Json_BadNestedValue_AfterEscapedStrings_ReportsItsOwnLine()
+    {
+        const string json = """
+            {
+              "name": "esc \"quoted\" \u0041",
+              "description": "a:b, [c] {d} # not a comment",
+              "must": [
+                {
+                  "joker": "Blueprint",
+                  "sources": {
+                    "shopItems": [0, 1],
+                    "boosterPacks": "x"
+                  }
+                }
+              ]
+            }
+            """;
+        AssertLine(json, "\"boosterPacks\": \"x\"", 9);
+    }
+
+    [Fact]
+    public void Json_UnknownRootKey_ReportsItsOwnLine()
+    {
+        const string json = """
+            {"name": "x",
+             "boses": []}
+            """;
+        AssertLine(json, "boses", 2);
+        Assert.Contains("unknown key 'boses'", LoadError(json));
+    }
+
+    [Fact]
+    public void FlowMappingItem_ReportsItsOwnLine()
+    {
+        const string yaml = """
+            name: s
+            deck: Red
+            must:
+              - joker: Blueprint
+
+              - {joker: Nope}
+              - joker: Baron
+            """;
+        AssertLine(yaml, "{joker: Nope}", 6);
+    }
+
+    [Fact]
+    public void ClauseListGivenAScalar_ReportsItsLine()
+    {
+        const string yaml = """
+            name: s
+            deck: Red
+            must: joker
+            should: []
+            """;
+        AssertLine(yaml, "must: joker", 3);
+        Assert.Contains("lists of clauses", LoadError(yaml));
+    }
+
+    [Fact]
+    public void BadValue_AfterBlockScalarsAnchorsTagsAndQuotes_ReportsItsOwnLine()
+    {
+        // Everything the line walk has to step over between two scalars.
+        const string yaml = """
+            %YAML 1.2
+            ---
+            name: 'it''s # here'
+            description: |
+              line one: [not] {a} - flow
+                # indented, still text
+
+              - x
+            author: >-
+              folded
+              plain
+            deck: !!str Red
+            should:
+              - &bp
+                joker: Blueprint
+                antes: [1, 2]
+              - *bp
+              - joker: "Baron"   # a comment: with, [flow] chars
+                label: multi
+                  line plain
+                antes: [1,
+                   2, y]
+            """;
+        AssertLine(yaml, "2, y]", 22);
+    }
+
+    [Fact]
+    public void BlockUnderANameDiscriminator_SaysSo()
+    {
+        // NegativePerkeoAnte3FirstArcana.jaml before it was fixed: the clause's keys indented
+        // under `legendaryJoker:`. Used to read "`` is not a MotelyJoker".
+        const string yaml = """
+            name: Negative Perkeo in Ante 3 First Arcana Pack
+            deck: Red
+            must:
+              - legendaryJoker:
+                  jokers: [Perkeo]
+                  edition: Negative
+                  antes: [3]
+            """;
+        AssertLine(yaml, "legendaryJoker:", 4);
+        var error = LoadError(yaml);
+        Assert.Contains("`legendaryJoker:` takes a name like `legendaryJoker: Perkeo`, not a block of keys", error);
+        Assert.Contains("jokers:, edition:, antes:", error);
+        Assert.DoesNotContain("``", error);
+    }
+
+    [Fact]
+    public void BlockWhereASingleValueGoes_SaysSo()
+    {
+        const string yaml = """
+            name: s
+            must:
+              - joker: Blueprint
+                score:
+                  value: 2
+            """;
+        AssertLine(yaml, "score:", 4);
+        Assert.Contains("`score` takes a single value, not a block of keys (value:)", LoadError(yaml));
     }
 
     [Fact]

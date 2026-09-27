@@ -42,6 +42,13 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     public void Serialize(ref Utf8YamlEmitter emitter, IJamlClause value, YamlSerializationContext context) =>
         throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
 
+    /// <summary>
+    /// Scalar lines for the document being loaded, read off the source (see
+    /// <see cref="JamlScalarLines"/>). Set by <see cref="JamlConfigLoader.FromJaml"/> around the
+    /// deserialize; null when the formatter runs without it, and then lines come from marks.
+    /// </summary>
+    [ThreadStatic] internal static JamlScalarLines? Source;
+
     public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context)
     {
         // Entered on the clause's own event, so there is no earlier mark to go on. A clause is a
@@ -51,17 +58,20 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         return ReadClause(ReadNode(ref parser, ref prevLine));
     }
 
-    /// <summary>A must:/should:/mustNot: list. Same result as VYaml's ListFormatter, but each item is
-    /// read with the mark from before it, so a scalar item (`- Blueprint`) reports its own line.</summary>
+    /// <summary>A must:/should:/mustNot: list. Same result as VYaml's ListFormatter, but it tells
+    /// <see cref="Source"/> a list is starting, and without Source each item is read with the mark
+    /// from before it, so a scalar item (`- Blueprint`) still reports its own line.</summary>
     internal static List<IJamlClause>? ReadClauseList(ref YamlParser parser, YamlDeserializationContext context, IYamlFormatter<IJamlClause> itemFormatter)
     {
+        Source?.BeginList();
         if (parser.IsNullScalar())
         {
+            Source?.TryTake(null, out _);
             parser.Read();
             return null;
         }
         if (parser.CurrentEventType != ParseEventType.SequenceStart)
-            throw Error(parser.CurrentMark.Line, "must:, should: and mustNot: are lists of clauses like `- joker: Blueprint`");
+            throw Error(PeekLine(parser.CurrentMark.Line), "must:, should: and mustNot: are lists of clauses like `- joker: Blueprint`");
 
         var prevLine = parser.CurrentMark.Line;
         parser.Read();
@@ -92,29 +102,39 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     }
 
     // Line numbers. VYaml 1.4 has no per-event start mark: CurrentMark is where the tokenizer's
-    // reader is, and the tokenizer runs one token ahead of the parser. On a collection start that
-    // is still inside the collection's first line, so it's right. On a scalar it is not: to end a
-    // plain scalar the tokenizer reads on to the next key or `- ` (past newlines, comments and
-    // blank lines), so `antes: 1-8` on line 19 showed up as line 20. The mark taken one event
-    // earlier (the key, the previous `- ` item, the `[`) is on the scalar's own line, so
-    // `prevLine` carries the mark from before each Read, and a mapping value is filed under its
-    // key's line.
+    // reader is, and the tokenizer runs ahead of the parser (to the next key after a plain
+    // scalar, past a whole `{ … }` in flow style). So the line of each scalar comes from
+    // Source, which read it off the text. Without Source, the fallback is the mark taken one
+    // event earlier (the key, the previous `- ` item), which is right for block style: that is
+    // `prevLine`, and a mapping value is filed under its key's line.
+
+    /// <summary>The line of the scalar just read with this text.</summary>
+    private static int TakeLine(string? value, int fallback) =>
+        Source is { } s && s.TryTake(value, out var line) ? line : fallback;
+
+    /// <summary>The line of the next scalar, not yet read. A collection starts on or before its
+    /// first scalar's line, and never after its own start mark.</summary>
+    private static int PeekLine(int mark) =>
+        Source is { } s && s.TryPeek(out var line) ? Math.Min(line, mark) : mark;
+
     private static Node ReadNode(ref YamlParser parser, ref int prevLine)
     {
         switch (parser.CurrentEventType)
         {
             case ParseEventType.Scalar:
             {
-                var node = new Node { Line = prevLine };
+                var node = new Node();
+                var fallback = prevLine;
                 prevLine = parser.CurrentMark.Line;
                 node.Scalar = parser.IsNullScalar() ? null : parser.ReadScalarAsString();
                 if (node.Scalar is null) parser.Read();
+                node.Line = TakeLine(node.Scalar, fallback);
                 return node;
             }
 
             case ParseEventType.SequenceStart:
             {
-                var node = new Node { Line = parser.CurrentMark.Line, Items = [] };
+                var node = new Node { Line = PeekLine(parser.CurrentMark.Line), Items = [] };
                 prevLine = parser.CurrentMark.Line;
                 parser.Read();
                 while (parser.CurrentEventType != ParseEventType.SequenceEnd)
@@ -126,15 +146,18 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
             case ParseEventType.MappingStart:
             {
-                var node = new Node { Line = parser.CurrentMark.Line, Map = [] };
+                var node = new Node { Line = PeekLine(parser.CurrentMark.Line), Map = [] };
                 prevLine = parser.CurrentMark.Line;
                 parser.Read();
                 while (parser.CurrentEventType != ParseEventType.MappingEnd)
                 {
-                    // A key's mark sits just past its `:`, on the key's line.
-                    var keyLine = parser.CurrentMark.Line;
-                    prevLine = keyLine;
-                    var key = parser.ReadScalarAsString() ?? "";
+                    // Without Source: a block key's mark sits just past its `:`, on the key's line.
+                    var markLine = parser.CurrentMark.Line;
+                    prevLine = markLine;
+                    var keyText = parser.IsNullScalar() ? null : parser.ReadScalarAsString();
+                    if (keyText is null) parser.Read();
+                    var key = keyText ?? "";
+                    var keyLine = TakeLine(keyText, markLine);
                     var value = ReadNode(ref parser, ref prevLine);
                     value.Line = keyLine;
                     node.Map.Add((key, value));
@@ -175,7 +198,20 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
             else if (clause is LogicClause && value.Map is null)
                 rest.Insert(0, ("clauses", value));      // or: [ ...arms ]
             else if (attr.ValueEnum is { } valueEnum)
+            {
+                // `legendaryJoker:` with an indented `jokers: / edition: / antes:` block under it.
+                if (value.Map is not null)
+                {
+                    // Name the value the block was reaching for (`jokers: [Perkeo]` → Perkeo).
+                    var named = value.Map
+                        .Select(kv => kv.Value.Scalar ?? kv.Value.Items?.FirstOrDefault()?.Scalar)
+                        .FirstOrDefault(v => v is not null && Enum.TryParse(valueEnum, v, ignoreCase: true, out _));
+                    throw Error(value.Line,
+                        $"`{wire}:` takes a name like `{wire}: {named ?? "<name>"}`, not a block of keys; "
+                        + $"write {string.Join(", ", value.Map.Select(kv => kv.Key + ":"))} as sibling keys of the clause");
+                }
                 rest.Insert(0, (ValueProperty(type, valueEnum).Name, value));
+            }
             else if (value.Map is not null)
                 rest.InsertRange(0, value.Map);          // or: { mode, score, clauses } / standardCard: { rank: K }
             else
@@ -239,6 +275,16 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
         if (typeof(IJamlClause).IsAssignableFrom(t))
             return ReadClause(node);
+
+        // A single value where the page wrote a block or a list: say so, rather than quote an
+        // empty scalar ("`` is not a MotelyJoker").
+        if (t.IsEnum || t == typeof(int) || t == typeof(bool) || t == typeof(string))
+        {
+            if (node.Map is not null)
+                throw Error(node.Line, $"`{key}` takes a single value, not a block of keys ({string.Join(", ", node.Map.Select(kv => kv.Key + ":"))})");
+            if (node.Items is not null)
+                throw Error(node.Line, $"`{key}` takes a single value here, not a list");
+        }
 
         if (t.IsEnum)
         {

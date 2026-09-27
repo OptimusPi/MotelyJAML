@@ -36,9 +36,12 @@ public static partial class JamlConfigLoader
     {
         var bytes = Encoding.UTF8.GetBytes(yaml);
         JamlConfig? config;
+        var lines = JamlScalarLines.TryBuild(bytes);
+        var outer = JamlClauseFormatter.Source;
+        JamlClauseFormatter.Source = lines;
         try
         {
-            RejectUnknownRootKeys(bytes);
+            RejectUnknownRootKeys(bytes, lines);
             config = YamlSerializer.Deserialize<JamlConfig>(bytes, Options);
         }
         catch (InvalidOperationException)
@@ -49,6 +52,10 @@ public static partial class JamlConfigLoader
         {
             // VYaml's own parser/serializer exceptions: one type for every host to catch.
             throw new InvalidOperationException(DescribeYamlError(yaml, ex.Message), ex);
+        }
+        finally
+        {
+            JamlClauseFormatter.Source = outer;
         }
         if (config is null)
             throw new InvalidOperationException("JAML: the document is empty.");
@@ -69,7 +76,7 @@ public static partial class JamlConfigLoader
     /// VYaml's generated deserializer skips keys JamlConfig doesn't have, so `boses:` would load
     /// as a filter with no bosses. Walk the root mapping's events first and name the typo and its line.
     /// </summary>
-    private static void RejectUnknownRootKeys(byte[] bytes)
+    private static void RejectUnknownRootKeys(byte[] bytes, JamlScalarLines? lines)
     {
         var parser = new YamlParser(new System.Buffers.ReadOnlySequence<byte>(bytes));
         while (parser.CurrentEventType is ParseEventType.Nothing or ParseEventType.StreamStart or ParseEventType.DocumentStart)
@@ -77,10 +84,12 @@ public static partial class JamlConfigLoader
         if (parser.CurrentEventType != ParseEventType.MappingStart)
             return; // not a mapping: Deserialize reports that
         parser.Read();
-        while (parser.CurrentEventType != ParseEventType.MappingEnd)
+        for (int n = 0; parser.CurrentEventType != ParseEventType.MappingEnd; n++)
         {
-            int line = parser.CurrentMark.Line;
+            int line = parser.CurrentMark.Line; // past the key; in flow style, past much more
             var key = parser.ReadScalarAsString() ?? "";
+            if (lines is not null && n < lines.RootKeys.Count && lines.RootKeys[n].Key == key)
+                line = lines.RootKeys[n].Line;
             if (Array.FindIndex(JamlConfig.RootKeys, k => k.Equals(key, StringComparison.OrdinalIgnoreCase)) < 0)
                 throw new InvalidOperationException(
                     $"JAML line {line}: unknown key '{key}' (root keys are {string.Join(", ", JamlConfig.RootKeys)})");
