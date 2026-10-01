@@ -31,11 +31,12 @@ try {
   const body = await page.locator("#out").textContent();
   console.log(body);
   await browser.close();
+  // exitCode, not exit(): exit() here skips the finally and orphans the server, which keeps
+  // the port and any pipe on this process's stdout open.
   if (title !== "MOTELY-WASM-OK") {
     console.error(`SMOKE FAIL: title=${title}`);
-    process.exit(1);
-  }
-  console.log("SMOKE PASS");
+    process.exitCode = 1;
+  } else console.log("SMOKE PASS");
 } finally {
   server.kill();
 }
