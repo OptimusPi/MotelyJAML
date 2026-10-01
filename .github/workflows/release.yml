@@ -1,7 +1,9 @@
-# Cutting a release is `git tag v24.6.0 && git push --tags`. Everything below happens
-# without anyone remembering a command: three platforms build the JAML language server,
-# the tests gate the whole thing, and the binaries land on a GitHub Release the plugin
-# bootstrap downloads from.
+# Cutting a release is `git tag v27.0.0 && git push --tags`. ci.yml gates it (the xunit suite,
+# the motely-wasm build and its headless-Chrome smoke), then the GitHub Release is created with
+# docs/RELEASE-<version>.md as its body when that file exists, generated notes otherwise.
+# npm publishing stays on the sponsor machine: the published package carries
+# Bootsharp.FileSystem, which only the rewaffle feed serves (docs/RELEASE-27.0.0.md).
+# Motely.Lsp, which this workflow used to build, was removed from the repo in ab0f025.
 name: release
 
 on:
@@ -10,77 +12,31 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and release (e.g. v24.5.0)"
+        description: "Tag to release (e.g. v27.0.0)"
         required: true
 
 permissions:
   contents: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-      - run: dotnet test --configuration Release
-
-  server:
-    needs: test
-    strategy:
-      matrix:
-        include:
-          - rid: win-x64
-            os: windows-latest
-            exe: Motely.Lsp.exe
-          - rid: osx-arm64
-            os: macos-latest
-            exe: Motely.Lsp
-          - rid: linux-x64
-            os: ubuntu-latest
-            exe: Motely.Lsp
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Publish the language server
-        run: >
-          dotnet publish Motely.Lsp -c Release -r ${{ matrix.rid }}
-          --self-contained -p:PublishSingleFile=true -o out
-
-      # The server is only shippable if it actually speaks the protocol, so the smoke
-      # client drives the published binary over real stdio before it can be released.
-      - name: Prove it over stdio
-        run: node Motely.Lsp/smoke-lsp.mjs
-        env:
-          MOTELY_LSP_SERVER: out/${{ matrix.exe }}
-
-      - name: Package
-        shell: bash
-        run: |
-          cd out
-          tar -czf ../jaml-lsp-${{ matrix.rid }}.tar.gz ${{ matrix.exe }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: jaml-lsp-${{ matrix.rid }}
-          path: jaml-lsp-${{ matrix.rid }}.tar.gz
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   release:
-    needs: server
+    needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: jaml-lsp-*
-          merge-multiple: true
-
+      - uses: actions/checkout@v4
+      - name: Pick the notes
+        id: notes
+        shell: bash
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          notes="docs/RELEASE-${tag#v}.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -f "$notes" ]; then echo "file=$notes" >> "$GITHUB_OUTPUT"; fi
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          generate_release_notes: true
-          files: jaml-lsp-*.tar.gz
+          tag_name: ${{ steps.notes.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.file }}
+          generate_release_notes: ${{ steps.notes.outputs.file == '' }}

@@ -1,0 +1,53 @@
+# The engine's gate: every push to master, every PR, and every release (release.yml calls this).
+# `test` is the whole xunit suite in Release. `wasm` builds motely-wasm the way a clone without
+# the Bootsharp.FileSystem sponsor feed can (build:no-fs: same exports, folder calls reject) and
+# drives the result in headless Chrome, so a release cannot ship an engine the browser can't boot.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Motely.slnx -c Release
+      - run: dotnet test Motely.slnx -c Release --no-build
+
+  wasm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Motely.Wasm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: dotnet workload install wasm-tools
+      - run: npm run test:scripts
+      - run: npm run version:check
+      - run: npm run build:no-fs
+      - run: npm ci
+        working-directory: Motely.Wasm/tests
+      - name: Smoke in headless Chrome
+        run: node tests/smoke.mjs
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+      # Offline: compares against the checked-in api-baseline.json, so a registry hiccup can't
+      # fail CI. The publish itself (prepublishOnly) checks against npm.
+      - run: node scripts/api-check.mjs --offline
+      - run: npm run readme:check
