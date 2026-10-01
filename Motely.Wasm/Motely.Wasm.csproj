@@ -15,15 +15,40 @@
     <BootsharpPackageDirectory>$(MSBuildProjectDirectory)\obj</BootsharpPackageDirectory>
   </PropertyGroup>
 
+  <!-- Bootsharp.FileSystem (JamlFiles' folder access) is a Bootsharp sponsor reward served only
+       from the rewaffle feed, so it is opt-in: a clone without that feed restores and builds.
+       Turn it on with -p:MotelyFileSystem=true or MOTELY_FILESYSTEM=true in the environment.
+       `npm run build` (the publish path) passes it explicitly, so the npm package always ships
+       folder support. Off, JamlFiles keeps the same exports; pickFolder() rejects and
+       isSupported() is false. -->
+  <!-- Normalized into its own property: a -p: value is global and can't be reassigned here. -->
+  <PropertyGroup>
+    <MotelyFileSystemEnabled>$(MotelyFileSystem)</MotelyFileSystemEnabled>
+    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' == ''">$(MOTELY_FILESYSTEM)</MotelyFileSystemEnabled>
+    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' == '1'">true</MotelyFileSystemEnabled>
+    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' == '' or '$(MotelyFileSystemEnabled)' == '0'">false</MotelyFileSystemEnabled>
+    <DefineConstants Condition="'$(MotelyFileSystemEnabled)' == 'true'">$(DefineConstants);MOTELY_FILESYSTEM</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="MotelyCheckFileSystemSwitch" BeforeTargets="CollectPackageReferences;BeforeBuild">
+    <Error
+      Condition="'$(MotelyFileSystemEnabled)' != 'true' and '$(MotelyFileSystemEnabled)' != 'false'"
+      Text="MotelyFileSystem / MOTELY_FILESYSTEM must be true, false, 1 or 0; got '$(MotelyFileSystemEnabled)'."
+    />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Bootsharp" />
     <PackageReference Include="Bootsharp.Inject" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <!-- Sponsor-feed only (nuget.pkg.github.com/rewaffle). Restore needs the user-level
-         `rewaffle` source; see nuget.config. -->
-    <PackageReference Include="Bootsharp.FileSystem" />
     <PackageReference Include="VYaml" GeneratePathProperty="true" />
     <PackageReference Include="VYaml.Annotations" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <!-- Sponsor-feed only (nuget.pkg.github.com/rewaffle). Restore needs the user-level
+       `rewaffle` source; see nuget.config. -->
+  <ItemGroup Condition="'$(MotelyFileSystemEnabled)' == 'true'">
+    <PackageReference Include="Bootsharp.FileSystem" />
   </ItemGroup>
 
   <ItemGroup>

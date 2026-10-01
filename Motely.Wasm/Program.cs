@@ -8,8 +8,9 @@ public static class Boot
     public static void Main()
     {
         // AddBootsharp() registers the generated implementations of every [assembly: Import]
-        // interface - including IFileMounter from Bootsharp.FileSystem. JamlFiles resolves it
-        // lazily through MotelyServices, so booting without the JS fs package still works.
+        // interface - including IFileMounter from Bootsharp.FileSystem when the build has it
+        // (MotelyFileSystem=true). JamlFiles resolves it lazily through MotelyServices, so booting
+        // without the JS fs package still works.
         MotelyServices.Init(new ServiceCollection().AddBootsharp().BuildServiceProvider());
         Console.WriteLine("motely-wasm: runtime up");
     }

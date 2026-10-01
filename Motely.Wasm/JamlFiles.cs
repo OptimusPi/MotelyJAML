@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+#if MOTELY_FILESYSTEM
 using Bootsharp.FileSystem;
+#endif
 
 /// <summary>
 /// A filter file event under the mounted folder. <c>Kind</c> is one of
@@ -15,17 +17,46 @@ public readonly record struct JamlFileChange(string Kind, string Name, string? F
 /// <summary>
 /// Local .jaml files through the browser's File System Access API (Bootsharp.FileSystem).
 /// <c>JamlFiles.pickFolder()</c> once, then <c>list()</c> / <c>load(name)</c> / <c>save(name, jaml)</c> /
-/// <c>delete(name)</c>. <see cref="OnChange"/> fires for every .jaml add/remove/modify/move under the
-/// folder - including the initial listing right after mount - so a UI can just subscribe and
-/// re-render. Everything else in the engine works without a mounted folder; this is the only
+/// <c>$delete(name)</c> (Bootsharp prefixes the JS reserved word) / <c>rename(from, to)</c>.
+/// <see cref="OnChange"/> fires for every .jaml add/remove/modify/move under the folder - including
+/// the initial listing right after mount - so a UI can just subscribe and re-render. Everything else in the engine works without a mounted folder; this is the only
 /// door that needs one.
 ///
 /// JS side: <c>@rewaffle/bootsharp-file-system</c> (sponsor registry) must be initialized before
 /// <c>bootsharp.boot()</c>: <c>fs.init(Bootsharp.FileSystem.FileMounter)</c>. Consumers without
 /// the package can still boot; only this class is dead.
+///
+/// Bootsharp.FileSystem is compiled in only with <c>MotelyFileSystem=true</c> (see
+/// Motely.Wasm.csproj). Without it every export below still exists, so typings and callers are the
+/// same for both builds: <see cref="IsSupported"/> is false, <see cref="List"/> is empty, and
+/// <see cref="PickFolder"/> and the file calls reject with a message naming the missing package.
 /// </summary>
 public static partial class JamlFiles
 {
+    private static readonly SortedSet<string> _names = new(StringComparer.OrdinalIgnoreCase);
+
+    // Never raised without Bootsharp.FileSystem; declared anyway so both builds export it.
+#pragma warning disable CS0067
+    [Export]
+    public static event Action<JamlFileChange>? OnChange;
+#pragma warning restore CS0067
+
+    /// <summary>True when this build can mount a folder (it was built with Bootsharp.FileSystem).
+    /// A UI can hide its folder picker when this is false.</summary>
+    [Export]
+    public static bool IsSupported() =>
+#if MOTELY_FILESYSTEM
+        true;
+#else
+        false;
+#endif
+
+    /// <summary>Every filter file under the folder, sorted, recursive. Nested files keep their
+    /// relative path: <c>sub/filter</c> (a .jaml), <c>sub/other.yaml</c>, <c>sub/x.json</c>.</summary>
+    [Export]
+    public static string[] List() => [.. _names];
+
+#if MOTELY_FILESYSTEM
     /// <summary>Default extension. A name with no known extension means <c>name.jaml</c>.</summary>
     private const string Ext = ".jaml";
 
@@ -35,10 +66,6 @@ public static partial class JamlFiles
 
     private static string? _rootId;
     private static IFileSystem? _fs;
-    private static readonly SortedSet<string> _names = new(StringComparer.OrdinalIgnoreCase);
-
-    [Export]
-    public static event Action<JamlFileChange>? OnChange;
 
     /// <summary>True once <see cref="PickFolder"/> succeeded and until <see cref="Unmount"/>.</summary>
     [Export]
@@ -83,11 +110,6 @@ public static partial class JamlFiles
         _names.Clear();
         await MotelyServices.Get<IFileMounter>().Unmount(root);
     }
-
-    /// <summary>Every filter file under the folder, sorted, recursive. Nested files keep their
-    /// relative path: <c>sub/filter</c> (a .jaml), <c>sub/other.yaml</c>, <c>sub/x.json</c>.</summary>
-    [Export]
-    public static string[] List() => [.. _names];
 
     [Export]
     public static async Task<string> Load(string name) =>
@@ -168,4 +190,36 @@ public static partial class JamlFiles
             return Task.CompletedTask;
         }
     }
+#else
+    /// <summary>Always false: this build has no Bootsharp.FileSystem, so nothing can be mounted.</summary>
+    [Export]
+    public static bool IsMounted() => false;
+
+    /// <summary>Rejects: this build has no Bootsharp.FileSystem. Check <see cref="IsSupported"/> first.</summary>
+    [Export]
+    public static Task<bool> PickFolder() => Task.FromException<bool>(Unsupported());
+
+    /// <summary>Nothing is ever mounted in this build, so there is nothing to unmount.</summary>
+    [Export]
+    public static Task Unmount() => Task.CompletedTask;
+
+    [Export]
+    public static Task<string> Load(string name) => Task.FromException<string>(Unsupported());
+
+    [Export]
+    public static Task Save(string name, string jaml) => Task.FromException(Unsupported());
+
+    [Export]
+    public static Task Delete(string name) => Task.FromException(Unsupported());
+
+    [Export]
+    public static Task Rename(string fromName, string toName) => Task.FromException(Unsupported());
+
+    private static NotSupportedException Unsupported() =>
+        new(
+            "This motely-wasm build has no folder access: it was built without Bootsharp.FileSystem "
+                + "(MotelyFileSystem=false). JamlFiles.isSupported() is false; pass JAML text to "
+                + "Search.settings / Analyze.seeds / Jaml.check instead."
+        );
+#endif
 }
