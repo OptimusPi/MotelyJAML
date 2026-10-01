@@ -6,7 +6,7 @@ using Motely;
 
 /// <summary>
 /// A filter desc crosses as an opaque handle. Its members drive ref-struct contexts, so there is
-/// nothing JavaScript can read or implement ΓÇö but the settings surface names the type, and the
+/// nothing JavaScript can read or implement — but the settings surface names the type, and the
 /// generator needs a declared shape rather than a value serializer.
 /// </summary>
 [SpecializeImport(typeof(IMotelySeedFilterDesc))]
@@ -22,7 +22,7 @@ public sealed class MotelySeedFilterDescExport(IMotelySeedFilterDesc desc)
 /// <para>
 /// Registered on the OPEN generic, and that is load-bearing. Bootsharp stores a specialization
 /// under the attribute argument exactly as written (Preferences.cs:84) but looks it up through
-/// OpenGeneric (Preferences.cs:52) ΓÇö so <c>typeof(IEnumerable&lt;string&gt;)</c> is filed under the
+/// OpenGeneric (Preferences.cs:52) — so <c>typeof(IEnumerable&lt;string&gt;)</c> is filed under the
 /// closed type and searched for under <c>IEnumerable&lt;&gt;</c>, and never matches. The miss makes
 /// IsSpecialized false, which makes IsUserType false (CoreLib is not a user assembly), which makes
 /// IsInstanced false, so the type falls through to BuildObject and the generator emits
@@ -30,7 +30,7 @@ public sealed class MotelySeedFilterDescExport(IMotelySeedFilterDesc desc)
 /// </para>
 /// <para>
 /// This exists because <see cref="IMotelySearchSettings.WithSeedGenerator"/> takes a lazy sequence
-/// on purpose ΓÇö it streams a keyspace that can never be materialized. WithSeedList(string[]) is the
+/// on purpose — it streams a keyspace that can never be materialized. WithSeedList(string[]) is the
 /// materialized door; the generator must stay deferred.
 /// </para>
 /// </summary>

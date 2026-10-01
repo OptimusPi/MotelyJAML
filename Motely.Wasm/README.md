@@ -40,6 +40,27 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 | `Analyze.seedsPaged` | function | `(jaml: string, eventRolls: number, shopSlots?: number): Array<MotelyJamlyzerSeedResult>` |
 | `Analyze.seedsResume` | function | `(jaml: string, resumeFrom: MotelyJamlyzerStreamStates, eventRolls: number, shopSlots?: number): Array<MotelyJamlyzerSeedResult>` |
 
+#### `Jaml`
+
+| member | kind | signature |
+|---|---|---|
+| `Jaml.check` | function | `(text: string): string \| null` |
+
+#### `JamlFiles`
+
+| member | kind | signature |
+|---|---|---|
+| `JamlFiles.onChange` | event | `$bcl.Event<[obj: JamlFileChange]>` |
+| `JamlFiles.isSupported` | function | `(): boolean` |
+| `JamlFiles.list` | function | `(): Array<string>` |
+| `JamlFiles.isMounted` | function | `(): boolean` |
+| `JamlFiles.pickFolder` | function | `(): Promise<boolean>` |
+| `JamlFiles.unmount` | function | `(): Promise<void>` |
+| `JamlFiles.load` | function | `(name: string): Promise<string>` |
+| `JamlFiles.save` | function | `(name: string, jaml: string): Promise<void>` |
+| `JamlFiles.$delete` | function | `(name: string): Promise<void>` |
+| `JamlFiles.rename` | function | `(fromName: string, toName: string): Promise<void>` |
+
 #### `Search`
 
 | member | kind | signature |
@@ -57,31 +78,31 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 
 | member | kind | signature |
 |---|---|---|
-| `deck` | readonly property | `: MotelyDeck` |
-| `stake` | readonly property | `: MotelyStake` |
+| `deck` | readonly property | `: Deck` |
+| `stake` | readonly property | `: Stake` |
 | `getSeed` | method | `(): string` |
 | `pseudoHash` | method | `(key: string, isCached?: boolean): number` |
 | `createPrngStream` | method | `(key: string, isCached?: boolean): MotelySinglePrngStream` |
 | `resumeStream` | method | `(state: number): MotelySinglePrngStream` |
 | `createBossStream` | method | `(): MotelySingleBossStream` |
-| `getBossForAnte` | method | `(ante: number): MotelyBossBlind` |
-| `getAnteFirstVoucher` | method | `(ante: number, isCached?: boolean): MotelyVoucher` |
+| `getBossForAnte` | method | `(ante: number): BossBlind` |
+| `getAnteFirstVoucher` | method | `(ante: number, isCached?: boolean): Voucher` |
 | `createVoucherStream` | method | `(ante: number, isCached?: boolean): MotelySingleVoucherStream` |
 | `createTagStream` | method | `(ante: number, isCached?: boolean): MotelySingleTagStream` |
-| `createShopItemStream` | method | `(ante: number, flags: MotelyShopStreamFlags, jokerFlags: MotelyJokerStreamFlags, isCached?: boolean): MotelySingleShopItemStream` |
+| `createShopItemStream` | method | `(ante: number, flags: ShopStreamFlags, jokerFlags: JokerStreamFlags, isCached?: boolean): MotelySingleShopItemStream` |
 | `createBoosterPackStream` | method | `(ante: number, isCached?: boolean): MotelySingleBoosterPackStream` |
 | `createBoosterPackStreamWithGeneratedFirstPack` | method | `(ante: number, generatedFirstPack: boolean, isCached?: boolean): MotelySingleBoosterPackStream` |
-| `createShopJokerStream` | method | `(ante: number, flags: MotelyJokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
-| `createBuffoonPackJokerStream` | method | `(ante: number, flags: MotelyJokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
-| `createJudgementJokerStream` | method | `(ante: number, flags: MotelyJokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
-| `createWraithJokerStream` | method | `(ante: number, flags: MotelyJokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
-| `createLegendaryJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createRareTagJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createUncommonTagJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createRiffRaffJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createCommonShopJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createUncommonShopJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
-| `createRareShopJokerStream` | method | `(ante: number, flags: MotelyJokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createShopJokerStream` | method | `(ante: number, flags: JokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
+| `createBuffoonPackJokerStream` | method | `(ante: number, flags: JokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
+| `createJudgementJokerStream` | method | `(ante: number, flags: JokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
+| `createWraithJokerStream` | method | `(ante: number, flags: JokerStreamFlags, isCached?: boolean): MotelySingleJokerStream` |
+| `createLegendaryJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createRareTagJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createUncommonTagJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createRiffRaffJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createCommonShopJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createUncommonShopJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
+| `createRareShopJokerStream` | method | `(ante: number, flags: JokerFixedRarityStreamFlags, isCached?: boolean): MotelySingleJokerFixedRarityStream` |
 | `createArcanaPackTarotStream` | method | `(ante: number, soulOnly: boolean, isCached?: boolean): MotelySingleTarotStream` |
 | `createShopTarotStream` | method | `(ante: number, isCached?: boolean): MotelySingleTarotStream` |
 | `createEmperorTarotStream` | method | `(ante: number, isCached?: boolean): MotelySingleTarotStream` |
@@ -92,7 +113,7 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 | `createSeanceSpectralStream` | method | `(ante: number, isCached?: boolean): MotelySingleSpectralStream` |
 | `createCelestialPackPlanetStream` | method | `(ante: number, isCached?: boolean): MotelySinglePlanetStream` |
 | `createShopPlanetStream` | method | `(ante: number, isCached?: boolean): MotelySinglePlanetStream` |
-| `createStandardPackCardStream` | method | `(ante: number, flags: MotelyStandardCardStreamFlags, isCached?: boolean): MotelySingleStandardCardStream` |
+| `createStandardPackCardStream` | method | `(ante: number, flags: StandardCardStreamFlags, isCached?: boolean): MotelySingleStandardCardStream` |
 | `createMisprintPrngStream` | method | `(isCached?: boolean): MotelySinglePrngStream` |
 | `createLuckyCardMoneyStream` | method | `(isCached?: boolean): MotelySinglePrngStream` |
 | `createLuckyCardMultStream` | method | `(isCached?: boolean): MotelySinglePrngStream` |
@@ -122,7 +143,6 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 | `totalBatchCount` | readonly property | `: bigint` |
 | `completedBatchCount` | readonly property | `: bigint` |
 | `resumeBatchIndex` | readonly property | `: bigint` |
-| `results` | readonly property | `: Array<MotelySeedScore>` |
 | `withAnalysis` | method | `(eventRolls: number): SearchSettings` |
 | `withBatchCharacterCount` | method | `(batchCharacterCount: number): SearchSettings` |
 | `withProviderBatchSeedCount` | method | `(seedCount: number): SearchSettings` |
@@ -133,8 +153,8 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 | `withKeywordSearch` | method | `(keywords: Array<string>, quickPad: boolean): SearchSettings` |
 | `withAestheticSearch` | method | `(aesthetic: JamlAesthetic, quickPad: boolean): SearchSettings` |
 | `withSequentialSearch` | method | `(): SearchSettings` |
-| `withDeck` | method | `(deck: MotelyDeck): SearchSettings` |
-| `withStake` | method | `(stake: MotelyStake): SearchSettings` |
+| `withDeck` | method | `(deck: Deck): SearchSettings` |
+| `withStake` | method | `(stake: Stake): SearchSettings` |
 | `withProgressReportIntervalMs` | method | `(intervalMs: bigint): SearchSettings` |
 | `withAutoScoreCutoff` | method | `(enabled: boolean): SearchSettings` |
 | `stopAfter` | method | `(matchCount: bigint): SearchSettings` |
@@ -151,37 +171,38 @@ Everything below the markers is generated from the built typings (`bin/motely-wa
 
 | enum | values | members |
 |---|---|---|
-| `MotelyBoosterPack` | 15 | `Arcana`, `JumboArcana`, `MegaArcana`, `Celestial`, `JumboCelestial`, `MegaCelestial`, `Standard`, `JumboStandard`, `MegaStandard`, `Buffoon`, `JumboBuffoon`, `MegaBuffoon`, `Spectral`, `JumboSpectral`, `MegaSpectral` |
-| `MotelyBossBlind` | 28 | `TheClub`, `TheGoad`, `TheHead`, `TheHook`, `TheManacle`, … (28 values) |
-| `MotelyDeck` | 15 | `Red`, `Blue`, `Yellow`, `Green`, `Black`, `Magic`, `Nebula`, `Ghost`, `Abandoned`, `Checkered`, `Zodiac`, `Painted`, `Anaglyph`, `Plasma`, `Erratic` |
-| `MotelyItemEdition` | 5 | `None`, `Foil`, `Holographic`, `Polychrome`, `Negative` |
-| `MotelyItemEnhancement` | 9 | `None`, `Bonus`, `Mult`, `Wild`, `Glass`, `Steel`, `Stone`, `Gold`, `Lucky` |
-| `MotelyItemSeal` | 5 | `None`, `Gold`, `Red`, `Blue`, `Purple` |
-| `MotelyItemType` | 261 | `TwoOfClubs`, `ThreeOfClubs`, `FourOfClubs`, `FiveOfClubs`, `SixOfClubs`, … (261 values) |
-| `MotelyItemTypeCategory` | 6 | `Standardcard`, `SpectralCard`, `TarotCard`, `PlanetCard`, `Joker`, `Invalid` |
-| `MotelyStake` | 8 | `White`, `Red`, `Green`, `Black`, `Blue`, `Purple`, `Orange`, `Gold` |
-| `MotelyStandardcardRank` | 13 | `Two`, `Three`, `Four`, `Five`, `Six`, `Seven`, `Eight`, `Nine`, `Ten`, `Jack`, `Queen`, `King`, `Ace` |
-| `MotelyStandardcardSuit` | 4 | `Clubs`, `Diamonds`, `Hearts`, `Spades` |
-| `MotelyTag` | 24 | `UncommonTag`, `RareTag`, `NegativeTag`, `FoilTag`, `HolographicTag`, … (24 values) |
-| `MotelyVoucher` | 32 | `Overstock`, `OverstockPlus`, `ClearanceSale`, `Liquidation`, `Hone`, … (32 values) |
-| `MotelyJokerFixedRarityStreamFlags` | 4 | `Default`, `ExcludeStickers`, `ExcludeEdition`, `ExcludeJokerType` |
-| `MotelyJokerStreamFlags` | 7 | `Default`, `ExcludeStickers`, `ExcludeEdition`, `ExcludeJokerType`, `ExcludeCommonJokers`, `ExcludeUncommonJokers`, `ExcludeRareJokers` |
-| `MotelyShopStreamFlags` | 6 | `Default`, `ExcludeJokers`, `ExcludeTarots`, `ExcludePlanets`, `ExcludeSpectrals`, `ExcludeStandardCards` |
-| `MotelyStandardCardStreamFlags` | 4 | `Default`, `ExcludeEnhancement`, `ExcludeEdition`, `ExcludeSeal` |
-| `JamlAesthetic` | 10 | `Palindrome`, `Psychosis`, `Mirror`, `Repeater`, `Step`, `Leet`, `Gross`, `Funny`, `Balatro`, `Nsfw` |
+| `BoosterPack` | 15 | `Arcana`, `JumboArcana`, `MegaArcana`, `Celestial`, `JumboCelestial`, `MegaCelestial`, `Standard`, `JumboStandard`, `MegaStandard`, `Buffoon`, `JumboBuffoon`, `MegaBuffoon`, `Spectral`, `JumboSpectral`, `MegaSpectral` |
+| `BossBlind` | 28 | `TheClub`, `TheGoad`, `TheHead`, `TheHook`, `TheManacle`, … (28 values) |
+| `Deck` | 15 | `Red`, `Blue`, `Yellow`, `Green`, `Black`, `Magic`, `Nebula`, `Ghost`, `Abandoned`, `Checkered`, `Zodiac`, `Painted`, `Anaglyph`, `Plasma`, `Erratic` |
+| `ItemEdition` | 5 | `None`, `Foil`, `Holographic`, `Polychrome`, `Negative` |
+| `ItemEnhancement` | 9 | `None`, `Bonus`, `Mult`, `Wild`, `Glass`, `Steel`, `Stone`, `Gold`, `Lucky` |
+| `ItemSeal` | 5 | `None`, `Gold`, `Red`, `Blue`, `Purple` |
+| `ItemType` | 261 | `TwoOfClubs`, `ThreeOfClubs`, `FourOfClubs`, `FiveOfClubs`, `SixOfClubs`, … (261 values) |
+| `ItemTypeCategory` | 6 | `Standardcard`, `SpectralCard`, `TarotCard`, `PlanetCard`, `Joker`, `Invalid` |
+| `Stake` | 8 | `White`, `Red`, `Green`, `Black`, `Blue`, `Purple`, `Orange`, `Gold` |
+| `StandardcardRank` | 13 | `Two`, `Three`, `Four`, `Five`, `Six`, `Seven`, `Eight`, `Nine`, `Ten`, `Jack`, `Queen`, `King`, `Ace` |
+| `StandardcardSuit` | 4 | `Clubs`, `Diamonds`, `Hearts`, `Spades` |
+| `Tag` | 24 | `UncommonTag`, `RareTag`, `NegativeTag`, `FoilTag`, `HolographicTag`, … (24 values) |
+| `Voucher` | 32 | `Overstock`, `OverstockPlus`, `ClearanceSale`, `Liquidation`, `Hone`, … (32 values) |
+| `JokerFixedRarityStreamFlags` | 4 | `Default`, `ExcludeStickers`, `ExcludeEdition`, `ExcludeJokerType` |
+| `JokerStreamFlags` | 7 | `Default`, `ExcludeStickers`, `ExcludeEdition`, `ExcludeJokerType`, `ExcludeCommonJokers`, `ExcludeUncommonJokers`, `ExcludeRareJokers` |
+| `ShopStreamFlags` | 6 | `Default`, `ExcludeJokers`, `ExcludeTarots`, `ExcludePlanets`, `ExcludeSpectrals`, `ExcludeStandardCards` |
+| `StandardCardStreamFlags` | 4 | `Default`, `ExcludeEnhancement`, `ExcludeEdition`, `ExcludeSeal` |
+| `JamlAesthetic` | 11 | `Palindrome`, `Psychosis`, `Mirror`, `Repeater`, `Runs`, `Step`, `Leet`, `Gross`, `Funny`, `Balatro`, `Nsfw` |
 
 ### Types
 
 | type | shape |
 |---|---|
-| `MotelyJamlyzerAnteResult` | `ante: number`, `boss: MotelyBossBlind`, `voucher: MotelyVoucher`, `smallBlindTag: MotelyTag`, `bigBlindTag: MotelyTag`, `shopItems: Array<MotelyItem>`, `packs: Array<MotelyJamlyzerPack>`, `pulls: MotelyJamlyzerPulls`, `shopStreams: MotelyJamlyzerShopStreams` |
+| `JamlFileChange` | `kind: string`, `name: string`, `fromName?: string` |
+| `MotelyJamlyzerAnteResult` | `ante: number`, `boss: BossBlind`, `voucher: Voucher`, `smallBlindTag: Tag`, `bigBlindTag: Tag`, `shopItems: Array<MotelyItem>`, `packs: Array<MotelyJamlyzerPack>`, `pulls: MotelyJamlyzerPulls`, `shopStreams: MotelyJamlyzerShopStreams` |
 | `MotelyJamlyzerEvents` | `luckyMoney: Array<boolean>`, `luckyMult: Array<boolean>`, `wheelOfFortune: Int32Array`, `cavendish: Array<boolean>`, `grosMichel: Array<boolean>`, `space: Array<boolean>`, `business: Array<boolean>`, `bloodstone: Array<boolean>`, `parking: Array<boolean>`, `eightBall: Array<boolean>`, `glass: Array<boolean>`, `omenGlobe: Array<boolean>`, `theWheel: Array<boolean>`, `misprint: Int32Array` |
-| `MotelyJamlyzerPack` | `pack: MotelyBoosterPack`, `items: Array<MotelyItem>` |
-| `MotelyJamlyzerPulls` | `judgementJokers: Array<MotelyItem>`, `wraithJokers: Array<MotelyItem>`, `emperorTarots: Array<MotelyItem>`, `purpleSealTarots: Array<MotelyItem>`, `sixthSenseSpectrals: Array<MotelyItem>`, `seanceSpectrals: Array<MotelyItem>`, `riffRaffJokers: Array<MotelyItem>`, `rareTagJokers: Array<MotelyItem>`, `uncommonTagJokers: Array<MotelyItem>`, `legendaryJokers: Array<MotelyItem>`, `voucherSequence: Array<MotelyVoucher>` |
+| `MotelyJamlyzerPack` | `pack: BoosterPack`, `items: Array<MotelyItem>` |
+| `MotelyJamlyzerPulls` | `judgementJokers: Array<MotelyItem>`, `wraithJokers: Array<MotelyItem>`, `emperorTarots: Array<MotelyItem>`, `purpleSealTarots: Array<MotelyItem>`, `sixthSenseSpectrals: Array<MotelyItem>`, `seanceSpectrals: Array<MotelyItem>`, `riffRaffJokers: Array<MotelyItem>`, `rareTagJokers: Array<MotelyItem>`, `uncommonTagJokers: Array<MotelyItem>`, `legendaryJokers: Array<MotelyItem>`, `voucherSequence: Array<Voucher>` |
 | `MotelyJamlyzerSeedResult` | `seed: string`, `score: number`, `antes: Array<MotelyJamlyzerAnteResult>`, `events: MotelyJamlyzerEvents`, `streamStates: MotelyJamlyzerStreamStates`, `erraticDeck?: Array<MotelyItem>`, `tally?: Int32Array` |
 | `MotelyJamlyzerShopStreams` | `shopJokers: Array<MotelyItem>`, `commonShopJokers: Array<MotelyItem>`, `uncommonShopJokers: Array<MotelyItem>`, `rareShopJokers: Array<MotelyItem>`, `shopTarots: Array<MotelyItem>`, `shopPlanets: Array<MotelyItem>`, `shopSpectrals: Array<MotelyItem>` |
 | `MotelyJamlyzerStreamStates` | `rollOffset: number`, `shopOffset: number`, `luckyMoney: number`, `luckyMult: number`, `wheelOfFortune: number`, `cavendish: number`, `grosMichel: number`, `space: number`, `business: number`, `bloodstone: number`, `parking: number`, `eightBall: number`, `glass: number`, `omenGlobe: number`, `theWheel: number`, `misprint: number` |
-| `MotelyItem` | `value: number`, `type: MotelyItemType`, `typeCategory: MotelyItemTypeCategory`, `seal: MotelyItemSeal`, `enhancement: MotelyItemEnhancement`, `edition: MotelyItemEdition`, `standardcardSuit: MotelyStandardcardSuit`, `standardcardRank: MotelyStandardcardRank`, `isPerishable: boolean`, `isEternal: boolean`, `isRental: boolean` |
+| `MotelyItem` | `value: number`, `type: ItemType`, `typeCategory: ItemTypeCategory`, `seal: ItemSeal`, `enhancement: ItemEnhancement`, `edition: ItemEdition`, `standardcardSuit: StandardcardSuit`, `standardcardRank: StandardcardRank`, `isPerishable: boolean`, `isEternal: boolean`, `isRental: boolean` |
 | `MotelyProgress` | `seedsSearched: bigint`, `matchingSeeds: bigint`, `seedsPerMillisecond: number`, `percentComplete: number`, `elapsedMilliseconds: bigint`, `estimatedTimeRemainingMilliseconds?: bigint` |
 | `MotelySeedScore` | `seed: string`, `score: number`, `tally: Int32Array` |
 | `MotelySingleBoosterPackStream` | _opaque handle_ |
@@ -208,7 +229,21 @@ Bootsharp BCL re-exports: `event`, `collection`, `list`, `dictionary`, `cancella
 `[RenameModule] => index`. `[RenameNode]` erases `Boot`, `Names`, specialization Import/Export proxies. `Motely*` enums emit without the prefix in TS (`Joker`, `TarotCard`, `SpectralCard`, …). Engine enum names stay.
 
 ```sh
-dotnet publish Motely.Wasm/Motely.Wasm.csproj -c Release
+cd Motely.Wasm
+npm run build         # the publish build: with Bootsharp.FileSystem (needs the rewaffle feed)
+npm run build:no-fs   # any clone: same exports, JamlFiles.isSupported() is false
 ```
 
-**Always `-c Release`.** Release is NativeAOT-LLVM. `-c Debug` is Mono: fat, slow, not the module.
+Both are `dotnet publish -c Release` plus the `scripts/patch-dist-*.mjs` fixes to Bootsharp's output, so run them rather than a bare `dotnet publish`. **Always `-c Release`.** Release is NativeAOT-LLVM. `-c Debug` is Mono: fat, slow, not the module. Needs the `wasm-tools` workload (`dotnet workload install wasm-tools`); `wasm-opt` (Binaryen) on the PATH makes the output smaller, and the build only warns without it.
+
+**Bootsharp.FileSystem is optional.** It is a Bootsharp sponsor reward served only from the `rewaffle` NuGet feed (see `nuget.config`), and only `JamlFiles` uses it. `MotelyFileSystem` switches it: `-p:MotelyFileSystem=true` or `MOTELY_FILESYSTEM=true` in the environment turns it on for a bare `dotnet build`/`publish`; it is off otherwise. `npm run build` always passes `true`, so `npm publish` (whose `prepublishOnly` runs it) can't ship a package without folder access. Without it, `JamlFiles` keeps every export, `isSupported()` is false, `list()` is empty, and `pickFolder()` / `load()` / `save()` / `$delete()` / `rename()` reject naming the missing package.
+
+**Errors carry their message.** The NativeAOT runtime turns every C# exception into `Error("C# exception from NativeAOT")`; `scripts/patch-dist-exception-message.mjs` makes it pass the real one, so `Search.settings(badJaml)` throws `JAML line 3: ...`, the same text `Jaml.check` returns.
+
+**Smoke test** (headless Chromium, after either build):
+
+```sh
+cd Motely.Wasm/tests && npm ci && CHROMIUM_PATH=/path/to/chrome node smoke.mjs
+```
+
+CI (`.github/workflows/ci.yml`) runs `build:no-fs`, the smoke test, the script tests and the API/README gates on every PR.

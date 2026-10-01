@@ -35,7 +35,9 @@ public static partial class Search
     /// <summary>
     /// JS predicate. Gets the live <see cref="MotelySingleSearchContext"/> (specialization rail),
     /// not a seed string. Return score; 0 drops. Same contract as
-    /// <see cref="MotelyIndividualSeedSearcher"/> / JimmolateFilterTests.
+    /// <see cref="MotelyIndividualSeedSearcher"/> / JimmolateFilterTests. The context is valid
+    /// only during the call: the engine reuses it for the next seed, so a kept reference reads
+    /// whatever seed it holds by then. Copy out what you need (<c>ctx.getSeed()</c>, ...).
     /// </summary>
     [Import]
     public static partial int Jimmolate(MotelySingleSearchContext ctx);

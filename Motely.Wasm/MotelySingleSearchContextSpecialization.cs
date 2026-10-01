@@ -8,7 +8,7 @@ using Motely;
 // RunState members aren't on this surface yet; nothing blocks adding them. MotelyRunState is a
 // sealed record and MotelySingleSearchContext is a class, so both cross as ordinary types.
 // Bootsharp serializes records by value, so a member that advances run state returns the new
-// state alongside its result ΓÇö mutating a crossed copy in place changes nothing on the far side.
+// state alongside its result — mutating a crossed copy in place changes nothing on the far side.
 
 [SpecializeImport(typeof(MotelySingleSearchContext))]
 public abstract class MotelySingleSearchContextImport(int id) : SpecializedImport(id)
