@@ -1,9 +1,7 @@
-# Cutting a release is `git tag v27.0.0 && git push --tags`. ci.yml gates it (the xunit suite,
-# the motely-wasm build and its headless-Chrome smoke), then the GitHub Release is created with
-# docs/RELEASE-<version>.md as its body when that file exists, generated notes otherwise.
-# npm publishing stays on the sponsor machine: the published package carries
-# Bootsharp.FileSystem, which only the rewaffle feed serves (docs/RELEASE-27.0.0.md).
-# Motely.Lsp, which this workflow used to build, was removed from the repo in ab0f025.
+# Cutting a release is `git tag v27.0.0 && git push --tags`. ci.yml gates it (the xunit suite),
+# then the GitHub Release is created with docs/RELEASE-<version>.md as its body when that file
+# exists, generated notes otherwise. Motely.Lsp, which this workflow used to build, was removed
+# from the repo in ab0f025.
 name: release
 
 on:
