@@ -46,8 +46,8 @@
         }
     },
     "scripts": {
-        "build": "dotnet publish Motely.Wasm.csproj -c Release -p:MotelyFileSystem=true && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs",
-        "build:no-fs": "dotnet publish Motely.Wasm.csproj -c Release -p:MotelyFileSystem=false && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs",
+        "build": "dotnet publish Motely.Wasm.csproj -c Release -p:MotelyFileSystem=true && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs && node scripts/patch-dist-exception-message.mjs",
+        "build:no-fs": "dotnet publish Motely.Wasm.csproj -c Release -p:MotelyFileSystem=false && node scripts/patch-dist-base64-polyfill.mjs && node scripts/patch-dist-cancellation-export.mjs && node scripts/patch-dist-exception-message.mjs",
         "version:sync": "node scripts/version-sync.mjs",
         "version:check": "node scripts/version-sync.mjs --check",
         "api:baseline": "node scripts/api-check.mjs --write-baseline",
