@@ -51,10 +51,10 @@ function readMembers(body) {
         const s = stripSemi(raw);
         if (!s) continue;
         let m;
-        if ((m = s.match(/^export function (\w+)(\(.*)$/))) members[m[1]] = { kind: "function", sig: m[2] };
-        else if ((m = s.match(/^export const (\w+): (.*)$/))) members[m[1]] = { kind: "const", sig: m[2] };
-        else if ((m = s.match(/^export let (\w+): (.*)$/))) members[m[1]] = { kind: "let", sig: m[2] };
-        else if ((m = s.match(/^(readonly )?(\w+)(\??)(\(.*|: .*)$/)))
+        if ((m = s.match(/^export function ([\w$]+)(\(.*)$/))) members[m[1]] = { kind: "function", sig: m[2] };
+        else if ((m = s.match(/^export const ([\w$]+): (.*)$/))) members[m[1]] = { kind: "const", sig: m[2] };
+        else if ((m = s.match(/^export let ([\w$]+): (.*)$/))) members[m[1]] = { kind: "let", sig: m[2] };
+        else if ((m = s.match(/^(readonly )?([\w$]+)(\??)(\(.*|: .*)$/)))
             members[m[2]] = { kind: m[4].startsWith("(") ? "method" : m[1] ? "readonly property" : "property", sig: `${m[3]}${m[4]}` };
     }
     return members;
@@ -66,23 +66,23 @@ export function parseSurface(text) {
     for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
         let m;
-        if ((m = l.match(/^export (?:declare )?namespace (\w+) \{/))) {
+        if ((m = l.match(/^export (?:declare )?namespace ([\w$]+) \{/))) {
             const { body, end } = block(lines, i);
             out.namespaces[m[1]] = { members: readMembers(body) };
             i = end;
-        } else if ((m = l.match(/^export (?:declare )?interface (\w+)[^{]*\{/))) {
+        } else if ((m = l.match(/^export (?:declare )?interface ([\w$]+)[^{]*\{/))) {
             const { body, end } = block(lines, i);
             out.interfaces[m[1]] = { members: readMembers(body) };
             i = end;
-        } else if ((m = l.match(/^export (?:declare )?(?:abstract )?class (\w+)[^{]*\{/))) {
+        } else if ((m = l.match(/^export (?:declare )?(?:abstract )?class ([\w$]+)[^{]*\{/))) {
             const { body, end } = block(lines, i);
             out.classes[m[1]] = { members: readMembers(body) };
             i = end;
-        } else if ((m = l.match(/^export (?:declare )?(?:const )?enum (\w+) \{/))) {
+        } else if ((m = l.match(/^export (?:declare )?(?:const )?enum ([\w$]+) \{/))) {
             const { body, end } = block(lines, i);
             out.enums[m[1]] = body.map((s) => stripSemi(s).replace(/,$/, "").replace(/\s*=.*$/, "")).filter(Boolean);
             i = end;
-        } else if ((m = l.match(/^export (?:declare )?type (\w+)(<[^=]*>)? = (.*)$/))) {
+        } else if ((m = l.match(/^export (?:declare )?type ([\w$]+)(<[^=]*>)? = (.*)$/))) {
             if (l.includes("{") && !/;\s*$/.test(l)) {
                 const { body, end, close } = block(lines, i);
                 // `Readonly<{ … }>` and `{ … }` hold the same fields but are not the same type:
@@ -93,9 +93,9 @@ export function parseSurface(text) {
             } else {
                 out.types[m[1]] = { alias: stripSemi(m[3]) };
             }
-        } else if ((m = l.match(/^export (?:declare )?function (\w+)(\(.*)$/))) {
+        } else if ((m = l.match(/^export (?:declare )?function ([\w$]+)(\(.*)$/))) {
             out.functions[m[1]] = { kind: "function", sig: stripSemi(m[2]) };
-        } else if ((m = l.match(/^export (?:declare )?(const|let) (\w+): (.*)$/))) {
+        } else if ((m = l.match(/^export (?:declare )?(const|let) ([\w$]+): (.*)$/))) {
             out.functions[m[2]] = { kind: m[1], sig: stripSemi(m[3]) };
         }
     }
@@ -142,7 +142,7 @@ function containerMembers(surface) {
         out.set(`enum ${name}`, { kind: "enum", members: new Map(values.map((v, i) => [v, `${v} = ${i}`])) });
     for (const [name, def] of Object.entries(surface.types)) {
         if (def.alias !== undefined) continue; // an alias is one signature, compared whole
-        const fields = new Map(def.fields.map((f) => [f.match(/^(?:readonly )?(\w+)/)?.[1] ?? f, f]));
+        const fields = new Map(def.fields.map((f) => [f.match(/^(?:readonly )?([\w$]+)/)?.[1] ?? f, f]));
         out.set(`type ${name}`, { kind: "type", shape: def.shape ?? "{…}", members: fields });
     }
     return out;
@@ -162,7 +162,7 @@ export function containerDiff(from, to) {
         .filter(([k, v]) => from.kind !== "namespace" && to.members.has(k) && to.members.get(k) !== v)
         .map(([k, v]) => `${v}  →  ${to.members.get(k)}`);
     if (from.shape !== to.shape) changed.unshift(`${from.shape}  →  ${to.shape}`);
-    const requiredField = to.kind === "type" ? added.filter((f) => !/^(?:readonly )?\w+\?:/.test(f)) : [];
+    const requiredField = to.kind === "type" ? added.filter((f) => !/^(?:readonly )?[\w$]+\?:/.test(f)) : [];
     return { removed, added, changed, breaking: removed.length > 0 || changed.length > 0 || requiredField.length > 0 };
 }
 

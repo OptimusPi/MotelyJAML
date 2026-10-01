@@ -144,3 +144,22 @@ test("identical typings are no change at all", () => {
     const d = diffSurfaces(parseSurface(BASE), parseSurface(BASE));
     assert.deepEqual([d.removed, d.added, d.changed, d.extended], [[], [], [], []]);
 });
+
+// ── identifiers Bootsharp prefixes with `$` (a C# `Delete` export is JS `$delete`) ──
+
+const FILES = `export namespace JamlFiles {
+    export function load(name: string): Promise<string>;
+    export function $delete(name: string): Promise<void>;
+}
+`;
+
+test("a `$`-prefixed namespace function is on the surface", () => {
+    const ns = parseSurface(FILES).namespaces.JamlFiles.members;
+    assert.deepEqual(Object.keys(ns).sort(), ["$delete", "load"]);
+});
+
+test("removing a `$`-prefixed function is breaking", () => {
+    const r = gate(FILES, FILES.replace("    export function $delete(name: string): Promise<void>;\n", ""), "1.1.0");
+    assert.equal(r.code, 1, r.out);
+    assert.match(row(r.out, "JamlFiles.$delete"), /^\| REMOVED/);
+});
