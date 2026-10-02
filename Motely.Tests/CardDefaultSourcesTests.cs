@@ -3,13 +3,6 @@ using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
-/// <summary>
-/// A clause with no <c>sources:</c> must default to somewhere the engine can actually produce the
-/// item. The shop's playing-card weight is the Magic Trick weight and its spectral weight is Ghost
-/// only, so the old shop-only defaults made <c>standardCard:</c> match nothing on every deck and
-/// <c>spectralCard:</c> match nothing on fourteen of fifteen. Fixed seed lists throughout; the
-/// seeds are the first hits of a sequential walk from batch 0.
-/// </summary>
 public sealed class CardDefaultSourcesTests
 {
     private static HashSet<string> Run(string jaml, string[] seeds)
@@ -56,11 +49,6 @@ public sealed class CardDefaultSourcesTests
         Assert.Contains("E1111111", found);
     }
 
-    /// <summary>
-    /// The engine fact behind the default: no deck starts with Magic Trick, so a shop slot never
-    /// rolls a playing card and an explicit shop-only source finds nothing — on the very seeds
-    /// whose Standard packs hold Aces, and across the whole first 35³ sequential batch.
-    /// </summary>
     [Fact]
     public void StandardCard_ExplicitShopOnly_RedDeck_MatchesNothing()
     {
@@ -117,10 +105,6 @@ public sealed class CardDefaultSourcesTests
         Assert.Contains("H1111111", found);
     }
 
-    /// <summary>
-    /// 41111111 has Ectoplasm only in a Ghost shop; H1111111 has it in a Spectral pack. The default
-    /// reads both on Ghost, and on Red — where the shop's spectral weight is zero — only the pack.
-    /// </summary>
     [Theory]
     [InlineData("Ghost", true)]
     [InlineData("Red", false)]
