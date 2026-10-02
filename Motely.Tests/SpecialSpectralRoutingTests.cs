@@ -10,7 +10,7 @@ namespace Motely.Tests;
 public class SpecialSpectralRoutingTests
 {
     [Fact]
-    public void ClauseToFilterDesc_RoutesTheSoulToSpecialSpectral()
+    public void CreateFilterDesc_RoutesTheSoulToSpecialSpectral()
     {
         var clause = new SpectralCardClause
         {
@@ -19,11 +19,11 @@ public class SpecialSpectralRoutingTests
         };
 
         Assert.True(SpecialSpectralCardFilterDesc.Handles(clause));
-        Assert.IsType<SpecialSpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
+        Assert.IsType<SpecialSpectralCardFilterDesc>(clause.CreateFilterDesc());
     }
 
     [Fact]
-    public void ClauseToFilterDesc_RoutesBlackHoleToSpecialSpectral()
+    public void CreateFilterDesc_RoutesBlackHoleToSpecialSpectral()
     {
         var clause = new SpectralCardClause
         {
@@ -32,11 +32,11 @@ public class SpecialSpectralRoutingTests
         };
 
         Assert.True(SpecialSpectralCardFilterDesc.Handles(clause));
-        Assert.IsType<SpecialSpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
+        Assert.IsType<SpecialSpectralCardFilterDesc>(clause.CreateFilterDesc());
     }
 
     [Fact]
-    public void ClauseToFilterDesc_KeepsOrdinarySpectralOnContentPath()
+    public void CreateFilterDesc_KeepsOrdinarySpectralOnContentPath()
     {
         var clause = new SpectralCardClause
         {
@@ -45,11 +45,11 @@ public class SpecialSpectralRoutingTests
         };
 
         Assert.False(SpecialSpectralCardFilterDesc.Handles(clause));
-        Assert.IsType<SpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
+        Assert.IsType<SpectralCardFilterDesc>(clause.CreateFilterDesc());
     }
 
     [Fact]
-    public void ClauseToFilterDesc_MixedSpecialAndOrdinary_StillSpecialPath()
+    public void CreateFilterDesc_MixedSpecialAndOrdinary_StillSpecialPath()
     {
         var clause = new SpectralCardClause
         {
@@ -57,7 +57,7 @@ public class SpecialSpectralRoutingTests
             Antes = [1],
         };
 
-        Assert.IsType<SpecialSpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
+        Assert.IsType<SpecialSpectralCardFilterDesc>(clause.CreateFilterDesc());
     }
 
     /// <summary>

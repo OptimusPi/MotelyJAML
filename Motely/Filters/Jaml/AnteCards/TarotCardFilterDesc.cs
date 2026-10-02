@@ -18,6 +18,8 @@ public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public TarotCardSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new TarotCardFilterDesc(this);
 }
 
 public struct TarotCardFilterDesc(TarotCardClause clause)

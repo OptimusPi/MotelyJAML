@@ -32,6 +32,8 @@ public sealed partial class LegendaryJokerClause : IJamlClause, IAnteScopedClaus
     /// could otherwise false-negative the prefilter.
     /// </summary>
     public int SoulEditionRolls { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new LegendaryJokerFilterDesc(this);
 }
 
 public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)

@@ -34,6 +34,8 @@ public sealed partial class BoosterPackClause : IJamlClause, IAnteScopedClause, 
     /// Same index space as other filters' <c>boosterPacks:</c> source lists.
     /// </summary>
     public int[] Rolls { get; set; } = [0, 1];
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new BoosterPackFilterDesc(this);
 }
 
 public struct BoosterPackFilterDesc(BoosterPackClause clause)

@@ -14,6 +14,8 @@ public sealed partial class LuckyMoneyClause : IRollScopedClause, IWithScopedCla
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new LuckyMoneyFilterDesc(this);
 }
 
 public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)

@@ -6,7 +6,11 @@ namespace Motely.Filters;
 
 [JamlDiscriminator("and")]
 [YamlObject]
-public sealed partial class AndClause : LogicClause { }
+public sealed partial class AndClause : LogicClause
+{
+    public override IMotelySeedFilterDesc CreateFilterDesc() =>
+        new AndFilterDesc([.. Clauses.Select(c => c.CreateFilterDesc())]);
+}
 
 public struct AndFilterDesc(IMotelySeedFilterDesc[] filters)
     : IMotelySeedFilterDesc<AndFilterDesc.AndFilter>

@@ -16,6 +16,8 @@ public sealed partial class BloodstoneTriggerClause : IRollScopedClause
     // No Luck. Bloodstone is flat 50/50 (Chance = 2) — one Oops saturates to
     // guaranteed, so luck is binary, not a dial. The field is gone by construction,
     // not inherited-then-forbidden.
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new BloodstoneTriggerFilterDesc(this);
 }
 
 public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)

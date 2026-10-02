@@ -18,6 +18,11 @@ public sealed partial class SpectralCardClause : IJamlClause, IAnteScopedClause
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public SpectralCardSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() =>
+        SpecialSpectralCardFilterDesc.Handles(this)
+            ? new SpecialSpectralCardFilterDesc(this)
+            : new SpectralCardFilterDesc(this);
 }
 
 public struct SpectralCardFilterDesc(SpectralCardClause clause)

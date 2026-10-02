@@ -255,6 +255,11 @@ internal static class CliSearchMode
         // the explicit `--replay`. Nothing is lost by not guessing.
         {
             int batchCharacterCount = input.BatchCharacterCount ?? DefaultBatchCharacterCount;
+            if (batchCharacterCount is < 1 or >= MotelyGlobals.MaxSeedLength)
+            {
+                error = $"Error: --batchCharCount must be 1-{MotelyGlobals.MaxSeedLength - 1}.";
+                return false;
+            }
             updated = new MotelySearchIntent(
                 SequentialBatchCharacterCount: batchCharacterCount
             ).ApplyTo(updated);
@@ -292,8 +297,7 @@ internal static class CliSearchMode
             }
             else
             {
-                int nonBatchChars = MotelyGlobals.MaxSeedLength - batchCharacterCount;
-                long maxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, nonBatchChars);
+                long maxBatch = MotelyGlobals.SequentialBatchCount(batchCharacterCount);
                 long startBatch = 0;
 
                 if (input.StartBatch.HasValue)

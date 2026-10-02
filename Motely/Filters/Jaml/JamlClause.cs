@@ -7,6 +7,10 @@ public interface IJamlClause
     int Min { get; set; }
     int? Max { get; set; }
     int Score { get; set; }
+
+    /// <summary>The SIMD filter this clause installs. Each clause type names its own, so there is
+    /// no list of clause types to keep in step: a clause without one does not compile.</summary>
+    IMotelySeedFilterDesc CreateFilterDesc();
 }
 
 /// <summary>

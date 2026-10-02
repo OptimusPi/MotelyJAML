@@ -14,6 +14,8 @@ public sealed partial class GlassDestroyClause : IRollScopedClause, IWithScopedC
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new GlassDestroyFilterDesc(this);
 }
 
 public struct GlassDestroyFilterDesc(GlassDestroyClause clause)

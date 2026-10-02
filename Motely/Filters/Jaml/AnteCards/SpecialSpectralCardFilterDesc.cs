@@ -23,7 +23,7 @@ namespace Motely.Filters.Jaml;
 ///
 /// <b>KEEP — real SIMD, not dead code.</b> Reuses <see cref="SpectralCardClause"/> (no separate
 /// JAML keyword). Live route: <c>spectralCard:</c> → <see cref="Handles"/> true →
-/// <see cref="JamlSearchBuilder.ClauseToFilterDesc"/> installs this filter instead of
+/// <see cref="SpectralCardClause.CreateFilterDesc"/> installs this filter instead of
 /// <see cref="SpectralCardFilterDesc"/>. Gate is <see cref="Handles"/> /
 /// <see cref="JamlScoring.TargetsSpecialSpectral"/> — leave this type on the tree.
 /// </summary>

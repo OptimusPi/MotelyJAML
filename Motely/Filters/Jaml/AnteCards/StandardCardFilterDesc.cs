@@ -20,6 +20,8 @@ public sealed partial class StandardCardClause : IJamlClause, IAnteScopedClause
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public StandardCardSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new StandardCardFilterDesc(this);
 }
 
 public struct StandardCardFilterDesc(StandardCardClause clause)

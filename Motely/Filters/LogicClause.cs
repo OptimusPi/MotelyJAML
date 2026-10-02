@@ -29,4 +29,6 @@ public abstract class LogicClause : IJamlClause
     public JamlLogicScoreMode Mode { get; set; } = JamlLogicScoreMode.Sum;
 
     public IJamlClause[] Clauses { get; set; } = [];
+
+    public abstract IMotelySeedFilterDesc CreateFilterDesc();
 }
