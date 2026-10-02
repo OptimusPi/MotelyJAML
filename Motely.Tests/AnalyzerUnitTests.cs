@@ -21,6 +21,21 @@ public sealed class AnalyzerUnitTests
             .UseDirectory("seeds");
     }
 
+    /// <summary>
+    /// A seed the engine cannot search never reaches the filter. Analyze returned null for it, and
+    /// the CLI's <c>--analyze ABCDEFGHIJK</c> died reading <c>.Error</c> off that null.
+    /// </summary>
+    [Theory]
+    [InlineData("ABCDEFGHIJK")]
+    [InlineData("")]
+    [InlineData("OO0O")]
+    public void TestAnalyzer_UnsearchableSeed_ReturnsError(string seed)
+    {
+        var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, MotelyDeck.Red, MotelyStake.White));
+        Assert.NotNull(analysis);
+        Assert.False(string.IsNullOrEmpty(analysis.Error));
+    }
+
     private string GetAnalyzerOutput(string seed, MotelyDeck deck = MotelyDeck.Red, MotelyStake stake = MotelyStake.White)
     {
         return MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake)).ToString();
