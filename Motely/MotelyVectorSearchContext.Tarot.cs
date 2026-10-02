@@ -186,16 +186,30 @@ ref partial struct MotelyVectorSearchContext
     public MotelyItemVector GetNextTarot(
         ref MotelyVectorTarotStream tarotStream,
         in MotelyVectorItemSet itemSet
+    ) => GetNextTarot(ref tarotStream, in itemSet, Vector512<double>.AllBitsSet);
+
+    /// <summary>
+    /// Pack draw (deduplicated against <paramref name="itemSet"/>, Soul at most once) for the
+    /// lanes in <paramref name="mask"/> only: lanes outside it pull nothing from any stream, so a
+    /// walk over packs whose type or size differs per lane stays on the scalar engine's draws.
+    /// </summary>
+    public MotelyItemVector GetNextTarot(
+        ref MotelyVectorTarotStream tarotStream,
+        in MotelyVectorItemSet itemSet,
+        in Vector512<double> mask
     )
     {
         Vector512<double> soulMaskDbl;
         Vector256<int> soulMaskInt;
+        Vector256<int> laneMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(mask);
 
         if (tarotStream.IsSoulable)
         {
-            Vector512<double> soulValidMask = MotelyVectorUtils.ExtendIntMaskToDouble(
-                ~itemSet.Contains(MotelyItemType.TheSoul)
-            );
+            Vector512<double> soulValidMask =
+                mask
+                & MotelyVectorUtils.ExtendIntMaskToDouble(
+                    ~itemSet.Contains(MotelyItemType.TheSoul)
+                );
             soulMaskDbl =
                 soulValidMask
                 & Vector512.GreaterThan(
@@ -222,7 +236,7 @@ ref partial struct MotelyVectorSearchContext
                 ref tarotStream.ResampleStream.InitialPrngStream,
                 0,
                 MotelyEnum<MotelyTarotCard>.ValueCount,
-                ~soulMaskDbl
+                mask & ~soulMaskDbl
             );
 
             tarots = Vector256.Create((int)MotelyItemTypeCategory.TarotCard) | tarots;
@@ -233,8 +247,8 @@ ref partial struct MotelyVectorSearchContext
             {
                 Vector256<int> resampleMaskInt = itemSet.Contains(new MotelyItemVector(tarots));
 
-                // Don't resmaple lanes which have the soul
-                resampleMaskInt &= ~soulMaskInt;
+                // Don't resmaple lanes which have the soul, or lanes that drew nothing
+                resampleMaskInt &= ~soulMaskInt & laneMaskInt;
 
                 if (Vector256.EqualsAll(resampleMaskInt, Vector256<int>.Zero))
                     break;

@@ -258,10 +258,15 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
                         VectorMask extraLanes = isSpectral & ~isNormal;
                         var baseMask = JamlSimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = JamlSimdPackSupport.ToPrngMask(extraLanes);
+                        // Deduplicated against this pack (Soul/Black Hole once each), as the
+                        // scalar pack contents are: the raw draw resamples a rolled Soul away
+                        // and keeps repeats the scalar engine replaces.
+                        MotelyVectorItemSet packItems = new();
 
                         for (int c = 0; c < 2; c++)
                         {
-                            var card = ctx.GetNextSpectral(ref spectralStream, baseMask);
+                            var card = ctx.GetNextSpectral(ref spectralStream, in packItems, baseMask);
+                            packItems.Append(card);
                             if (countLanes.IsPartiallyTrue())
                                 JamlSimdPackSupport.AddMatchCounts(
                                     MatchSpectrals(card, clause) & countLanes & baseLanes,
@@ -273,7 +278,8 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
                         {
                             for (int c = 0; c < 2; c++)
                             {
-                                var card = ctx.GetNextSpectral(ref spectralStream, extraMask);
+                                var card = ctx.GetNextSpectral(ref spectralStream, in packItems, extraMask);
+                                packItems.Append(card);
                                 if (countLanes.IsPartiallyTrue())
                                     JamlSimdPackSupport.AddMatchCounts(
                                         MatchSpectrals(card, clause) & countLanes & extraLanes,
