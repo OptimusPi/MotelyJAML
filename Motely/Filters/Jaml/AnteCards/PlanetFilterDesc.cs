@@ -19,6 +19,8 @@ public sealed partial class PlanetCardClause : IJamlClause, IAnteScopedClause
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     // applies. Any explicit block (even partial) is used verbatim — defaults never merge in.
     public PlanetSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new PlanetCardFilterDesc(this);
 }
 
 public struct PlanetCardFilterDesc(PlanetCardClause clause)

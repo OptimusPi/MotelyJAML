@@ -16,6 +16,8 @@ public sealed partial class ErraticRankClause : IJamlClause, IAnteScopedClause
     public int Score { get; set; }
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyStandardcardRank Rank { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new ErraticRankFilterDesc(this);
 }
 
 public struct ErraticRankFilterDesc(ErraticRankClause clause)

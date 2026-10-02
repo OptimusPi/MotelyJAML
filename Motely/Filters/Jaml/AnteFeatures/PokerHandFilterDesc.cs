@@ -33,6 +33,8 @@ public sealed partial class PokerHandClause : IJamlClause, IAnteScopedClause, IR
     /// Defaults to <c>[0]</c>, which is the behaviour every pre-<c>rolls</c> config had.
     /// </summary>
     public int[] Rolls { get; set; } = [0];
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new PokerHandFilterDesc(this);
 }
 
 public struct PokerHandFilterDesc(PokerHandClause clause)

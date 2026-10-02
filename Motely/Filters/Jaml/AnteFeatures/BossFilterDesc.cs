@@ -16,6 +16,8 @@ public sealed partial class BossClause : IJamlClause, IAnteScopedClause
     // No Rolls — for now. Boss re-rolls ARE a real source, but the re-roll read isn't
     // implemented in MotelySearchContext.Boss.cs yet (state-heavy, same blocker as joker
     // re-rolls). Antes select the WHERE; re-add Rolls here when that source lands.
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new BossFilterDesc(this);
 }
 
 public readonly struct BossFilterDesc(BossClause clause)

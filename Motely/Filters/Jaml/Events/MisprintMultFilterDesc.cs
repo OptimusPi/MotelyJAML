@@ -18,6 +18,8 @@ public sealed partial class MisprintMultClause : IRollScopedClause
     /// Minimum Mult to hit for the filter to succeed each roll.
     /// </summary>
     public int Mult { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new MisprintMultFilterDesc(this);
 }
 
 public struct MisprintMultFilterDesc(MisprintMultClause clause)

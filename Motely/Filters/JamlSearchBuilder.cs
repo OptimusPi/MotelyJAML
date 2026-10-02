@@ -65,7 +65,7 @@ public static class JamlSearchBuilder
                 .Concat(simdMustNot.Select(c => (clause: c, negate: true)))
         )
         {
-            var desc = ClauseToFilterDesc(clause);
+            var desc = clause.CreateFilterDesc();
             settings = settings.WithAdditionalFilter(
                 negate ? new NegationFilterDesc(desc) : desc
             );
@@ -85,50 +85,4 @@ public static class JamlSearchBuilder
 
         return settings;
     }
-
-    /// <summary>
-    /// Maps one JAML clause to its SIMD filter desc. Soul/BlackHole spectral clauses route to
-    /// <see cref="SpecialSpectralCardFilterDesc"/> (T4); every other spectral stays on the content path.
-    /// Internal so tests can lock the special-spectral gate without reflecting private methods.
-    /// </summary>
-    internal static IMotelySeedFilterDesc ClauseToFilterDesc(IJamlClause clause) =>
-        clause switch
-        {
-            JokerClause c => new JokerFilterDesc(c),
-            CommonJokerClause c => new CommonJokerFilterDesc(c),
-            UncommonJokerClause c => new UncommonJokerFilterDesc(c),
-            RareJokerClause c => new RareJokerFilterDesc(c),
-            LegendaryJokerClause c => new LegendaryJokerFilterDesc(c),
-            VoucherClause c => new VoucherFilterDesc(c),
-            TarotCardClause c => new TarotCardFilterDesc(c),
-            SpectralCardClause c => SpecialSpectralCardFilterDesc.Handles(c)
-                ? new SpecialSpectralCardFilterDesc(c)
-                : new SpectralCardFilterDesc(c),
-            PlanetCardClause c => new PlanetCardFilterDesc(c),
-            BossClause c => new BossFilterDesc(c),
-            TagClause c => new TagFilterDesc(c),
-            BoosterPackClause c => new BoosterPackFilterDesc(c),
-            StandardCardClause c => new StandardCardFilterDesc(c),
-            ErraticRankClause c => new ErraticRankFilterDesc(c),
-            ErraticSuitClause c => new ErraticSuitFilterDesc(c),
-            LuckyMoneyClause c => new LuckyMoneyFilterDesc(c),
-            LuckyMultClause c => new LuckyMultFilterDesc(c),
-            MisprintMultClause c => new MisprintMultFilterDesc(c),
-            WheelOfFortuneClause c => new WheelOfFortuneFilterDesc(c),
-            CavendishExtinctClause c => new CavendishExtinctFilterDesc(c),
-            GrosMichelExtinctClause c => new GrosMichelExtinctFilterDesc(c),
-            SpaceLevelupClause c => new SpaceLevelupFilterDesc(c),
-            BusinessPayoutClause c => new BusinessPayoutFilterDesc(c),
-            BloodstoneTriggerClause c => new BloodstoneTriggerFilterDesc(c),
-            ParkingPayoutClause c => new ParkingPayoutFilterDesc(c),
-            GlassDestroyClause c => new GlassDestroyFilterDesc(c),
-            WheelStaysFlippedClause c => new WheelStaysFlippedFilterDesc(c),
-            StartingDrawClause c => new StartingDrawFilterDesc(c),
-            PokerHandClause c => new PokerHandFilterDesc(c),
-            AndClause c => new AndFilterDesc([.. c.Clauses.Select(ClauseToFilterDesc)]),
-            OrClause c => new OrFilterDesc([.. c.Clauses.Select(ClauseToFilterDesc)], c.Min),
-            _ => throw new InvalidOperationException(
-                $"JamlSearchBuilder: clause '{clause.GetType().Name}' is not supported in the SIMD filter pass."
-            ),
-        };
 }

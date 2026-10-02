@@ -26,6 +26,8 @@ public sealed partial class TagClause : IJamlClause, IAnteScopedClause, IRollSco
     /// 2+ = further draws on the same ante stream (replay / double-tag extras).
     /// </summary>
     public int[] Rolls { get; set; } = [];
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new TagFilterDesc(this);
 }
 
 public struct TagFilterDesc(TagClause clause)

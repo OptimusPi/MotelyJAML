@@ -102,7 +102,7 @@ public sealed class JamlWildcardTests
         Assert.Empty(clause.Spectrals);
         Assert.Null(clause.Sources);
         Assert.False(SpecialSpectralCardFilterDesc.Handles(clause));
-        Assert.IsType<SpectralCardFilterDesc>(JamlSearchBuilder.ClauseToFilterDesc(clause));
+        Assert.IsType<SpectralCardFilterDesc>(clause.CreateFilterDesc());
     }
 
     [Fact]

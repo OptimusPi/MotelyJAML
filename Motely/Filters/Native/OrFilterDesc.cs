@@ -8,7 +8,11 @@ namespace Motely.Filters;
 
 [JamlDiscriminator("or")]
 [YamlObject]
-public sealed partial class OrClause : LogicClause { }
+public sealed partial class OrClause : LogicClause
+{
+    public override IMotelySeedFilterDesc CreateFilterDesc() =>
+        new OrFilterDesc([.. Clauses.Select(c => c.CreateFilterDesc())], Min);
+}
 
 public static class MotelySeedFilterDescExtensions
 {

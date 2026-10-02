@@ -25,6 +25,8 @@ public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
     /// <summary>Legendary-path sources for any Legendary names in this mixed clause. Null = apply
     /// <see cref="LegendaryJokerFilterDesc.DefaultSources"/> (same convention as <see cref="Sources"/>).</summary>
     public LegendaryJokerSourceConfig? LegendarySources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new JokerFilterDesc(this);
 }
 
 public struct JokerFilterDesc(JokerClause clause)
@@ -355,6 +357,8 @@ public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
 }
 
 [JamlDiscriminator("uncommonJoker", "uncommonJokers",
@@ -371,6 +375,8 @@ public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new UncommonJokerFilterDesc(this);
 }
 
 [JamlDiscriminator("rareJoker", "rareJokers",
@@ -387,6 +393,8 @@ public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new RareJokerFilterDesc(this);
 }
 
 /// <summary>

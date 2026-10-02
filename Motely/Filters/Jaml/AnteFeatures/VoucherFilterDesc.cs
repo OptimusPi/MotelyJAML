@@ -22,6 +22,8 @@ public sealed partial class VoucherClause : IJamlClause, IAnteScopedClause, IRol
     /// voucher stream (Hieroglyph bonus, voucher-tag shop extras, etc.).
     /// </summary>
     public int[] Rolls { get; set; } = [0];
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new VoucherFilterDesc(this);
 }
 
 public struct VoucherFilterDesc(VoucherClause clause)

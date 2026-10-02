@@ -16,6 +16,8 @@ public sealed partial class ParkingPayoutClause : IRollScopedClause
     // No Luck. Reserved Parking is flat 50/50 (Chance = 2) — one Oops saturates to
     // guaranteed, so luck is binary, not a dial. The field is gone by construction,
     // not inherited-then-forbidden.
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new ParkingPayoutFilterDesc(this);
 }
 
 public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)

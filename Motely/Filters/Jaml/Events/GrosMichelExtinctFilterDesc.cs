@@ -14,6 +14,8 @@ public sealed partial class GrosMichelExtinctClause : IRollScopedClause, IWithSc
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new GrosMichelExtinctFilterDesc(this);
 }
 
 public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
