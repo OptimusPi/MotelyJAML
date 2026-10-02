@@ -106,3 +106,7 @@ scripts/token_ab/results/
 
 # --- motely-wasm release gate: npm pack cache of the last published typings ---
 Motely.Wasm/.api-baseline/
+
+# MotelyHome's queue
+*.duckdb
+*.duckdb.wal

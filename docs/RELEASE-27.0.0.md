@@ -15,6 +15,20 @@ Major release: the TypeScript enum names changed. Everything else is additive or
 - `CancellationToken` is importable from JS.
 - `JamlFiles.isSupported()`: false in a build without Bootsharp.FileSystem, so a UI can hide its folder picker.
 
+## Your own pool: MotelyHome + MotelyWorker + Motely.MCP
+
+- `MotelyHome` is the queue: queue a JAML filter and every `MotelyWorker` on the LAN grinds it,
+  no arguments, found over a UDP beacon. The filter's `name:` slugged is its id; the finds pile up
+  under it in one DuckDB file (`motely.duckdb`) that survives restarts and answers SQL.
+- The queue is an MCP server (`/mcp`, streamable HTTP, stateless): `queue_filter`, `list_filters`,
+  `get_filter`, `get_seeds`, `remove_filter`. Add it as a connector in the Claude app and queue a
+  filter from your phone. The same over HTTP: `POST /filters`, `GET /filters/{slug}/seeds`.
+- Slices are sized to about 30 seconds of work from each worker's measured rate, handed out
+  first-gap-first and round-robin across filters; an unreported slice is re-handed after two minutes.
+- `Motely.CLI --party <id>` grinds a seedfinder.app Search Party with the same engine.
+- Every JAML clause builds its own SIMD filter (`IJamlClause.CreateFilterDesc`); the hand-kept
+  clause→filter switch is gone.
+
 ## Fixed
 
 - `onScored` fires once per find (26.0.2 fired it twice).
