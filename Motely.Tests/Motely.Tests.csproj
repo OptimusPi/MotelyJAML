@@ -42,6 +42,12 @@
     <Compile Remove="AppHostModelTests.cs" />
   </ItemGroup>
 
+  <!-- The CLI's Search Party transport, compiled in directly: referencing the CLI exe would clash
+       with this project's own top-level Program. The file depends on nothing else in the CLI. -->
+  <ItemGroup>
+    <Compile Include="../Motely.CLI/HttpPartyCoordinator.cs" Link="Linked/HttpPartyCoordinator.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

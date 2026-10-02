@@ -969,9 +969,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     {
         ThrowIfInvalidBatchCharacterCount(settings.SequentialBatchCharacterCount);
 
-        long totalBatches = 1;
-        for (int i = settings.SequentialBatchCharacterCount; i < MotelyGlobals.MaxSeedLength; i++)
-            totalBatches *= MotelyGlobals.SeedDigits.Length;
+        long totalBatches = MotelyGlobals.SequentialBatchCount(settings.SequentialBatchCharacterCount);
 
         long start = settings.StartBatchIndex;
         long end = settings.EndBatchIndex;

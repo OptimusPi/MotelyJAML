@@ -294,6 +294,16 @@ partial class Program
             "Leave the --jaml file untouched: don't write matches back into its top-level seeds: block (benchmarks, read-only checkouts).",
             CommandOptionType.NoValue
         );
+        var partyOption = app.Option<string>(
+            "--party <ID>",
+            "Join a seedfinder.app Search Party: lease block ranges, search them, report finds, until the party is settled. Uses --threads and -q; the party's JAML and leases decide everything else.",
+            CommandOptionType.SingleValue
+        );
+        var serverOption = app.Option<string>(
+            "--server <URL>",
+            "Search Party coordinator for --party (default https://www.seedfinder.app).",
+            CommandOptionType.SingleValue
+        );
         threadsOption.DefaultValue = Environment.ProcessorCount;
         // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
         // true forever once a DefaultValue is set, so it could never again distinguish "user
@@ -308,6 +318,14 @@ partial class Program
                 app.ShowHelp();
                 return 0;
             }
+
+            if (partyOption.HasValue())
+                return await RunPartyMode(
+                    partyOption.ParsedValue,
+                    serverOption.HasValue() ? serverOption.ParsedValue : "https://www.seedfinder.app",
+                    threadsOption.ParsedValue,
+                    quietOption.HasValue()
+                );
 
             // --analyze mode — supports single seed or comma-separated batch.
             if (analyzeOption.HasValue())
@@ -670,10 +688,7 @@ partial class Program
 
                 if (autoSampleSequential)
                 {
-                    long totalBatches = (long)Math.Pow(
-                        MotelyGlobals.SeedDigits.Length,
-                        MotelyGlobals.MaxSeedLength - batchCharCount
-                    );
+                    long totalBatches = MotelyGlobals.SequentialBatchCount(batchCharCount);
                     long sampleBatches = cutoffSampleBatchesOption.HasValue()
                         ? Math.Min(cutoffSampleBatchesOption.ParsedValue, totalBatches)
                         : Math.Clamp(
