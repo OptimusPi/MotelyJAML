@@ -199,10 +199,14 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
                         VectorMask extraLanes = isCelestial & ~isNormal;
                         var baseMask = JamlSimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = JamlSimdPackSupport.ToPrngMask(extraLanes);
+                        // Deduplicated against this pack, as the scalar pack contents are: a raw
+                        // draw keeps the repeat the scalar engine resamples (often into a target).
+                        MotelyVectorItemSet packItems = new();
 
                         for (int c = 0; c < 3; c++)
                         {
-                            var card = ctx.GetNextPlanet(ref planetStream, baseMask);
+                            var card = ctx.GetNextPlanet(ref planetStream, in packItems, baseMask);
+                            packItems.Append(card);
                             if (countLanes.IsPartiallyTrue())
                                 JamlSimdPackSupport.AddMatchCounts(
                                     MatchPlanets(card, clause) & countLanes & baseLanes,
@@ -214,7 +218,8 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
                         {
                             for (int c = 0; c < 2; c++)
                             {
-                                var card = ctx.GetNextPlanet(ref planetStream, extraMask);
+                                var card = ctx.GetNextPlanet(ref planetStream, in packItems, extraMask);
+                                packItems.Append(card);
                                 if (countLanes.IsPartiallyTrue())
                                     JamlSimdPackSupport.AddMatchCounts(
                                         MatchPlanets(card, clause) & countLanes & extraLanes,

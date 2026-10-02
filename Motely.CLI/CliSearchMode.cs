@@ -31,6 +31,27 @@ internal static class CliSearchMode
     /// <summary>Default batch character count when the caller didn't pass one explicitly.</summary>
     private const int DefaultBatchCharacterCount = 4;
 
+    /// <summary>What <see cref="TryNormalizeSeed"/> accepts, for error messages.</summary>
+    public const string SeedRule = "1-8 characters of 1-9, A-Z";
+
+    /// <summary>
+    /// Normalizes a typed seed (trim, upper-case, 0 to O) and checks it is 1-8 characters of
+    /// 1-9/A-Z, the only seeds the engine searches. Anything else used to slip through: '!' or a
+    /// space was hashed as if it were a seed, and an over-long one was silently dropped (0 seeds
+    /// searched, exit 0).
+    /// </summary>
+    public static bool TryNormalizeSeed(string input, [NotNullWhen(true)] out string? seed)
+    {
+        seed = MotelyGlobals.NormalizeSeed(input);
+        if (
+            seed.Length is >= 1 and <= MotelyGlobals.MaxSeedLength
+            && seed.All(static c => Array.IndexOf(MotelyGlobals.SeedDigits, c) >= 0)
+        )
+            return true;
+        seed = null;
+        return false;
+    }
+
     public static bool TryApplySearchMode(
         IMotelySearchSettings settings,
         in Input input,
@@ -87,6 +108,37 @@ internal static class CliSearchMode
 
         bool hasKeywordMode = input.KeywordInputs.Count > 0;
 
+        // --padding with no seed character in it reached the engine as an empty alphabet, and a
+        // short keyword without one tripped the engine's own guard: both died with a stack trace.
+        char[]? paddingChars = null;
+        if (input.PaddingCharsOption is not null)
+        {
+            paddingChars = MotelyGlobals.ParsePaddingChars(input.PaddingCharsOption);
+            if (paddingChars is null)
+            {
+                error =
+                    $"Error: --padding '{input.PaddingCharsOption}' has no seed characters (1-9, A-Z).";
+                return false;
+            }
+        }
+
+        var keywords = new List<string>(input.KeywordInputs.Count);
+        foreach (var raw in input.KeywordInputs)
+        {
+            if (!TryNormalizeSeed(raw, out var keyword))
+            {
+                error = $"Error: keyword '{raw}' is not part of a seed ({SeedRule}).";
+                return false;
+            }
+            if (keyword.Length <= 2 && paddingChars is null)
+            {
+                error =
+                    $"Error: keyword '{keyword}' is {keyword.Length} character(s); keywords that short need --padding (e.g. --padding 123456789).";
+                return false;
+            }
+            keywords.Add(keyword);
+        }
+
         int explicitSearchModeCount = 0;
         if (hasSeedsArg)
             explicitSearchModeCount++;
@@ -135,7 +187,8 @@ internal static class CliSearchMode
                 return false;
             }
 
-            var inlineSeeds = ParseInlineSeeds(seedsValue);
+            if (!TryParseInlineSeeds(seedsValue, out var inlineSeeds, out error))
+                return false;
             if (inlineSeeds.Count == 0)
             {
                 error = "Error: --seeds requires at least one inline seed.";
@@ -156,7 +209,7 @@ internal static class CliSearchMode
         {
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.Keyword,
-                Keywords: [.. input.KeywordInputs],
+                Keywords: [.. keywords],
                 PaddingAlphabet: input.PaddingCharsOption
             ).ApplyTo(updated);
         }
@@ -239,20 +292,34 @@ internal static class CliSearchMode
             }
             else
             {
+                int nonBatchChars = MotelyGlobals.MaxSeedLength - batchCharacterCount;
+                long maxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, nonBatchChars);
+                long startBatch = 0;
+
                 if (input.StartBatch.HasValue)
-                    updated = updated.WithStartBatchIndex(input.StartBatch.Value);
+                {
+                    // A negative index crashed a worker (IndexOutOfRange, stack trace); one past
+                    // the end searched nothing and exited 0 as if it had finished.
+                    startBatch = input.StartBatch.Value;
+                    if (startBatch < 0 || startBatch >= maxBatch)
+                    {
+                        error =
+                            $"Error: --startBatch must be 0..{maxBatch - 1} (batchCharCount {batchCharacterCount}).";
+                        return false;
+                    }
+                    updated = updated.WithStartBatchIndex(startBatch);
+                }
                 else if (input.StartPercent.HasValue)
                 {
                     double pct = input.StartPercent.Value;
-                    if (pct < 0 || pct > 100)
+                    // Negated so NaN fails too; NaN used to slip past and sweep from batch 0.
+                    if (!(pct >= 0 && pct <= 100))
                     {
                         error = "Error: --startPercent must be between 0 and 100.";
                         return false;
                     }
 
-                    int nonBatchChars = MotelyGlobals.MaxSeedLength - batchCharacterCount;
-                    long maxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, nonBatchChars);
-                    long startBatch = (long)(maxBatch * (pct / 100.0));
+                    startBatch = (long)(maxBatch * (pct / 100.0));
                     if (startBatch < 0)
                         startBatch = 0;
                     if (maxBatch > 0 && startBatch >= maxBatch)
@@ -261,16 +328,30 @@ internal static class CliSearchMode
                 }
 
                 if (input.EndBatch.HasValue)
+                {
+                    // An end at or before the start searched nothing and still exited 0.
+                    if (input.EndBatch.Value <= startBatch)
+                    {
+                        error =
+                            $"Error: --endBatch {input.EndBatch.Value} must be greater than the start batch {startBatch}.";
+                        return false;
+                    }
                     updated = updated.WithEndBatchIndex(input.EndBatch.Value);
+                }
             }
         }
 
         return true;
     }
 
-    private static List<string> ParseInlineSeeds(string value)
+    private static bool TryParseInlineSeeds(
+        string value,
+        out List<string> seeds,
+        [NotNullWhen(false)] out string? error
+    )
     {
-        var seeds = new List<string>();
+        seeds = [];
+        error = null;
         foreach (
             var part in value.Split(
                 ',',
@@ -278,9 +359,15 @@ internal static class CliSearchMode
             )
         )
         {
-            if (!string.IsNullOrWhiteSpace(part))
-                seeds.Add(MotelyGlobals.NormalizeSeed(part));
+            if (string.IsNullOrWhiteSpace(part))
+                continue;
+            if (!TryNormalizeSeed(part, out var seed))
+            {
+                error = $"Error: --seeds: '{part}' is not a seed ({SeedRule}).";
+                return false;
+            }
+            seeds.Add(seed);
         }
-        return seeds;
+        return true;
     }
 }

@@ -1,0 +1,24 @@
+# The engine's gate: every push to master, every PR, and every release (release.yml calls this).
+# `test` builds Motely.slnx and runs the whole xunit suite in Release.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Motely.slnx -c Release
+      - run: dotnet test Motely.slnx -c Release --no-build
+

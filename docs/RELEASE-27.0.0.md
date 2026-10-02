@@ -13,16 +13,24 @@ Major release: the TypeScript enum names changed. Everything else is additive or
 - `Jaml.check(text)` returns the loader's line-numbered message, or null when the document loads.
 - Range shorthand on every `int[]` key: `antes: 1-8`, `[1..3, 7]`, `1 to 8`. A key expands to at most 1024 values.
 - `CancellationToken` is importable from JS.
+- `JamlFiles.isSupported()`: false in a build without Bootsharp.FileSystem, so a UI can hide its folder picker.
 
 ## Fixed
 
 - `onScored` fires once per find (26.0.2 fired it twice).
 - Loader errors name the source line, column and offending text, in block and flow style.
 - All 341 filters under `JamlFilters/` load.
+- C# exceptions reach JS with their message. NativeAOT turned every one into `Error("C# exception from NativeAOT")`, so `Search.settings(badJaml)` lost its `JAML line n: ...` text; `scripts/patch-dist-exception-message.mjs` restores it in the build.
+- `JamlFiles` docs name the real JS method, `$delete(name)` (Bootsharp prefixes the reserved word).
+
+## Build
+
+- Bootsharp.FileSystem is opt-in (`MotelyFileSystem=true`, or `MOTELY_FILESYSTEM=true`), so a clone without the sponsor feed restores and builds. `npm run build` turns it on; `npm run build:no-fs` is the same build without it. Both builds export the same API.
+- CI: `.github/workflows/ci.yml` runs the xunit suite, `build:no-fs`, the headless-Chrome smoke test and the API/README gates on every PR and push to master. `release.yml` runs it before cutting a GitHub Release; it no longer builds `Motely.Lsp`, which was removed from the repo.
 
 ## Publish
 
-From a machine with the Bootsharp.FileSystem sponsor feed and `wasm-opt`:
+From a machine with the Bootsharp.FileSystem sponsor feed and `wasm-opt` (`npm run build` needs the feed; it fails at restore without it rather than publishing a package without folder access):
 
 ```
 cd Motely.Wasm

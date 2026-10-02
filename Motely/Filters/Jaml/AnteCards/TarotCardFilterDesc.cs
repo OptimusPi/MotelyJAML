@@ -237,10 +237,14 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                         VectorMask extraLanes = isArcana & ~isNormal;
                         var baseMask = JamlSimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = JamlSimdPackSupport.ToPrngMask(extraLanes);
+                        // Deduplicated against this pack, as the scalar pack contents are: a raw
+                        // draw keeps the repeat the scalar engine resamples (often into a target).
+                        MotelyVectorItemSet packItems = new();
 
                         for (int c = 0; c < 3; c++)
                         {
-                            var card = ctx.GetNextTarot(ref tarotStream, baseMask);
+                            var card = ctx.GetNextTarot(ref tarotStream, in packItems, baseMask);
+                            packItems.Append(card);
                             if (countLanes.IsPartiallyTrue())
                                 JamlSimdPackSupport.AddMatchCounts(
                                     MatchTarots(card, clause) & countLanes & baseLanes,
@@ -252,7 +256,8 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
                         {
                             for (int c = 0; c < 2; c++)
                             {
-                                var card = ctx.GetNextTarot(ref tarotStream, extraMask);
+                                var card = ctx.GetNextTarot(ref tarotStream, in packItems, extraMask);
+                                packItems.Append(card);
                                 if (countLanes.IsPartiallyTrue())
                                     JamlSimdPackSupport.AddMatchCounts(
                                         MatchTarots(card, clause) & countLanes & extraLanes,

@@ -82,6 +82,13 @@ public sealed record MotelyJamlyzerPulls(
 /// <see cref="RollOffset"/> is the cumulative number of windows-worth of rolls already consumed —
 /// it is the composites' entire state (they are pure functions of seed + offset).
 /// </para>
+/// <para>
+/// The shop resumes by replay too, from two counters: <see cref="ShopOffset"/> is the items
+/// consumed by windows that set <c>shopSlots</c>, and <see cref="ShopDefaultWindows"/> counts the
+/// windows that left it at 0 and so walked each ante's default depth (15 on antes 0-1, 50
+/// beyond) — a depth that differs per ante, which one item count cannot express. Ante
+/// <c>a</c> resumes at <c>ShopOffset + ShopDefaultWindows * default(a)</c>.
+/// </para>
 /// </summary>
 public sealed record MotelyJamlyzerStreamStates(
     int RollOffset,
@@ -99,7 +106,8 @@ public sealed record MotelyJamlyzerStreamStates(
     double Glass,
     double OmenGlobe,
     double TheWheel,
-    double Misprint
+    double Misprint,
+    int ShopDefaultWindows = 0
 );
 
 public sealed record MotelyJamlyzerEvents(
@@ -121,6 +129,20 @@ public sealed record MotelyJamlyzerEvents(
 
 public static class MotelyJamlyzer
 {
+    /// <summary>
+    /// The deepest any roll queue is walked: <c>eventRolls</c>, and on a resumed window
+    /// <c>RollOffset + eventRolls</c> (the replayed prefix is walked too), may not exceed it.
+    /// The bound is what keeps one call from allocating gigabytes or pinning the browser's only
+    /// thread for minutes; scroll deeper than this and the call throws instead.
+    /// </summary>
+    public const int MaxEventRolls = 10_000;
+
+    /// <summary>
+    /// The deepest any ante's shop is walked: <c>shopSlots</c>, and on a resumed window the
+    /// replayed prefix plus this window's depth, may not exceed it.
+    /// </summary>
+    public const int MaxShopSlots = 100_000;
+
     /// <summary>Analyze each seed with every event stream starting at the seed's natural start (0).</summary>
     public static IReadOnlyList<MotelyJamlyzerSeedResult> Analyze(
         JamlConfig config,
@@ -149,6 +171,9 @@ public static class MotelyJamlyzer
                     + "Scroll one seed at a time, or use the per-seed dictionary overload — the "
                     + "state bag is seed-specific."
             );
+        // Nothing to resume, same answer as the fresh overload: no seeds, no rows.
+        if (config.Seeds.Count == 0)
+            return AnalyzeCore(config, resumeStates: null, eventRolls, shopSlots);
         return AnalyzeCore(
             config,
             new Dictionary<string, MotelyJamlyzerStreamStates> { [config.Seeds[0]] = resumeFrom },
@@ -204,6 +229,7 @@ public static class MotelyJamlyzer
         int shopSlots = 0
     )
     {
+        MotelyJamlyzerWindow.ThrowIfOutOfRange(eventRolls, shopSlots);
         var antesToAnalyze = ComputeAntes(config);
         bool hasScore = config.Must.Count + config.Should.Count > 0;
         var results = new List<MotelyJamlyzerSeedResult>(config.Seeds.Count);
@@ -213,6 +239,8 @@ public static class MotelyJamlyzer
             // Each seed resumes from its own bag; one absent from the map starts fresh (offset 0).
             MotelyJamlyzerStreamStates? seedResume =
                 resumeStates is not null && resumeStates.TryGetValue(seed, out var s) ? s : null;
+            if (seedResume is not null)
+                ThrowIfNotResumable(seedResume, eventRolls, shopSlots);
             var filterDesc = new MotelyJamlyzerFilterDesc(
                 antesToAnalyze,
                 eventRolls,
@@ -256,6 +284,69 @@ public static class MotelyJamlyzer
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// A bag only ever comes back from a previous result, but across the JS boundary it is just
+    /// an object. A negative offset used to leave the first slots of every queue as
+    /// default(MotelyItem) (an int.MaxValue one overflowed into an empty walk), a huge one replayed
+    /// for minutes, and a state outside the PRNG's [0, 1] range rolled nonsense. Refuse them.
+    /// </summary>
+    private static void ThrowIfNotResumable(
+        MotelyJamlyzerStreamStates bag,
+        int eventRolls,
+        int shopSlots
+    )
+    {
+        const string Hint = " Pass back the streamStates of a previous result unchanged.";
+        if (bag.RollOffset < 0 || (long)bag.RollOffset + eventRolls > MaxEventRolls)
+            throw new ArgumentOutOfRangeException(
+                "resumeFrom",
+                $"RollOffset {bag.RollOffset} + eventRolls {eventRolls} must be 0..{MaxEventRolls}."
+                    + Hint
+            );
+
+        // The deepest shop this window walks is an ante past 1, whose default depth is 50.
+        int maxDefault = MotelyJamlyzerWindow.DefaultShopSlots(2);
+        long shopDepth =
+            (long)bag.ShopOffset
+            + ((long)bag.ShopDefaultWindows + (shopSlots > 0 ? 0 : 1)) * maxDefault
+            + shopSlots;
+        if (bag.ShopOffset < 0 || bag.ShopDefaultWindows < 0 || shopDepth > MaxShopSlots)
+            throw new ArgumentOutOfRangeException(
+                "resumeFrom",
+                $"ShopOffset {bag.ShopOffset} and ShopDefaultWindows {bag.ShopDefaultWindows} "
+                    + $"walk the shop to depth {shopDepth}; it must be 0..{MaxShopSlots}."
+                    + Hint
+            );
+
+        ReadOnlySpan<(string Name, double State)> states =
+        [
+            (nameof(bag.LuckyMoney), bag.LuckyMoney),
+            (nameof(bag.LuckyMult), bag.LuckyMult),
+            (nameof(bag.WheelOfFortune), bag.WheelOfFortune),
+            (nameof(bag.Cavendish), bag.Cavendish),
+            (nameof(bag.GrosMichel), bag.GrosMichel),
+            (nameof(bag.Space), bag.Space),
+            (nameof(bag.Business), bag.Business),
+            (nameof(bag.Bloodstone), bag.Bloodstone),
+            (nameof(bag.Parking), bag.Parking),
+            (nameof(bag.EightBall), bag.EightBall),
+            (nameof(bag.Glass), bag.Glass),
+            (nameof(bag.OmenGlobe), bag.OmenGlobe),
+            (nameof(bag.TheWheel), bag.TheWheel),
+            (nameof(bag.Misprint), bag.Misprint),
+        ];
+        foreach (var (name, state) in states)
+        {
+            // A PRNG state is a 13-digit fraction in [0, 1]. Written as a negated range check so
+            // NaN fails it too.
+            if (!(state >= 0 && state <= 1))
+                throw new ArgumentOutOfRangeException(
+                    "resumeFrom",
+                    $"{name} state {state} is not a PRNG stream state (0..1)." + Hint
+                );
+        }
     }
 
     /// <summary>

@@ -206,20 +206,35 @@ ref partial struct MotelyVectorSearchContext
     public MotelyItemVector GetNextSpectral(
         ref MotelyVectorSpectralStream stream,
         in MotelyVectorItemSet itemSet
+    ) => GetNextSpectral(ref stream, in itemSet, Vector512<double>.AllBitsSet);
+
+    /// <summary>
+    /// Pack draw (deduplicated against <paramref name="itemSet"/>, Soul and Black Hole at most
+    /// once each) for the lanes in <paramref name="mask"/> only: lanes outside it pull nothing
+    /// from any stream, so a walk over packs whose type or size differs per lane stays on the
+    /// scalar engine's draws.
+    /// </summary>
+    public MotelyItemVector GetNextSpectral(
+        ref MotelyVectorSpectralStream stream,
+        in MotelyVectorItemSet itemSet,
+        in Vector512<double> mask
     )
     {
         Vector512<double> soulMaskDbl;
         Vector256<int> soulMaskInt;
         Vector512<double> blackHoleMaskDbl;
         Vector256<int> blackHoleMaskInt;
+        Vector256<int> laneMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(mask);
 
         if (stream.IsSoulBlackHoleable)
         {
             // Lanes whose pack already holds TheSoul skip the soul roll entirely (no PRNG pull),
             // exactly like the scalar itemSet variant.
-            Vector512<double> soulValidMask = MotelyVectorUtils.ExtendIntMaskToDouble(
-                ~itemSet.Contains(MotelyItemType.TheSoul)
-            );
+            Vector512<double> soulValidMask =
+                mask
+                & MotelyVectorUtils.ExtendIntMaskToDouble(
+                    ~itemSet.Contains(MotelyItemType.TheSoul)
+                );
             soulMaskDbl =
                 soulValidMask
                 & Vector512.GreaterThan(
@@ -231,7 +246,8 @@ ref partial struct MotelyVectorSearchContext
             // Black Hole roll: skipped for lanes that just rolled TheSoul and lanes whose pack
             // already holds BlackHole.
             Vector512<double> blackHoleValidMask =
-                MotelyVectorUtils.ExtendIntMaskToDouble(
+                mask
+                & MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.BlackHole)
                 ) & ~soulMaskDbl;
             blackHoleMaskDbl =
@@ -260,7 +276,7 @@ ref partial struct MotelyVectorSearchContext
         }
         else
         {
-            Vector512<double> rollMask = ~soulMaskDbl & ~blackHoleMaskDbl;
+            Vector512<double> rollMask = mask & ~soulMaskDbl & ~blackHoleMaskDbl;
             spectrals = GetNextRandomInt(
                 ref stream.ResampleStream.InitialPrngStream,
                 0,
@@ -288,7 +304,8 @@ ref partial struct MotelyVectorSearchContext
                         )
                     )
                     & ~soulMaskInt
-                    & ~blackHoleMaskInt;
+                    & ~blackHoleMaskInt
+                    & laneMaskInt;
 
                 if (Vector256.EqualsAll(resampleMaskInt, Vector256<int>.Zero))
                     break;

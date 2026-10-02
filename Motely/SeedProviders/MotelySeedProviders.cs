@@ -14,8 +14,20 @@ public interface IMotelySeedProvider
 
 public sealed class MotelyRandomSeedProvider(int seedCount) : IMotelySeedProvider
 {
-    public long SeedCount { get; } = seedCount;
-    private int _seedsGenerated;
+    // A negative count searched nothing yet reported a provider of "unknown" size.
+    public long SeedCount { get; } =
+        seedCount >= 0
+            ? seedCount
+            : throw new ArgumentOutOfRangeException(
+                nameof(seedCount),
+                seedCount,
+                "Random seed count cannot be negative."
+            );
+
+    // long, not int: every call past the end still increments, and at seedCount = int.MaxValue
+    // an int counter wrapped negative on the very next seed and never read as "done" again —
+    // the provider, and the search, ran forever.
+    private long _seedsGenerated;
 
     public string NextSeed()
     {
@@ -333,10 +345,21 @@ public sealed class MotelySeedListProvider : IMotelySeedProvider
 
     public long SeedCount { get; private set; } = -1;
 
+    /// <summary>
+    /// True when the seeds are an in-memory collection rather than a lazy sequence. Only then is
+    /// the list the whole, bounded workload that the search may run inline on the caller.
+    /// </summary>
+    internal bool IsMaterialized { get; }
+
     public MotelySeedListProvider(IEnumerable<string> seeds, long seedCount = -1)
     {
         _seedEnumerator = seeds.GetEnumerator();
         SeedCount = ResolveSeedCount(seeds, seedCount);
+        IsMaterialized =
+            seeds
+                is ICollection<string>
+                    or IReadOnlyCollection<string>
+                    or System.Collections.ICollection;
     }
 
     private static long ResolveSeedCount(IEnumerable<string> seeds, long seedCount)

@@ -75,8 +75,9 @@ public static class JamlScoring
             VoucherClause => true,
             TagClause => true,
             BoosterPackClause => true,
-            ErraticRankClause => true,
-            ErraticSuitClause => true,
+            // The erratic and event SIMD filters count up to min only (and stop early once every
+            // lane is decided), so they are the scoring law only while there is no max to enforce.
+            ErraticRankClause or ErraticSuitClause => clause.Max is null,
             SpectralCardClause sc => SpecialSpectralCardFilterDesc.Handles(sc)
                 || sc.Sources is { RequireMegaPack: true }
                 || sc.Sources is { EtherealTag: true }
@@ -92,7 +93,8 @@ public static class JamlScoring
             RareJokerClause rjc => rjc.Sources is { RequireMegaPack: true },
             AndClause a => AllExactFilterConfirm(a.Clauses),
             OrClause o => AllExactFilterConfirm(o.Clauses),
-            // Roll-scoped event filters are full vector counts (no coarse pack walk).
+            // Roll-scoped event filters are vector counts over the same absolute roll indices as
+            // scoring (no coarse pack walk) — min only, so exact only without a max.
             LuckyMoneyClause
             or LuckyMultClause
             or MisprintMultClause
@@ -104,7 +106,7 @@ public static class JamlScoring
             or BloodstoneTriggerClause
             or ParkingPayoutClause
             or GlassDestroyClause
-            or WheelStaysFlippedClause => true,
+            or WheelStaysFlippedClause => clause.Max is null,
             _ => false,
         };
 
@@ -1243,6 +1245,13 @@ public static class JamlScoring
         return count;
     }
 
+    // ── Event clauses ──
+    // `rolls` are absolute indices into the event's own PRNG stream: roll i is the i-th pull,
+    // the same index the SIMD event filters walk (sorted, 0..max) and the Jamlyzer's event queues
+    // report. Each requested index counts once, and the whole count is returned: the tally
+    // reports every hit, and min/max are judged by the caller (MeetsOccurrenceBounds / should
+    // min-gating), never cut short here.
+
     private static int CountLuckyMoneyOccurrences(
         ref MotelySingleSearchContext ctx,
         LuckyMoneyClause clause,
@@ -1251,25 +1260,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateLuckyCardMoneyStream(isCached: false);
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextLuckyMoney(ref stream, luck);
-            if (ctx.GetNextLuckyMoney(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextLuckyMoney(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1281,25 +1276,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateLuckyCardMultStream(isCached: false);
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextLuckyMult(ref stream, luck);
-            if (ctx.GetNextLuckyMult(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextLuckyMult(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1310,24 +1291,10 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateMisprintPrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextMisprintMult(ref stream);
-            if (ctx.GetNextMisprintMult(ref stream) >= clause.Mult)
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextMisprintMult(ref stream) >= clause.Mult && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1338,25 +1305,14 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateWheelOfFortuneStream();
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextWheelOfFortune(ref stream, luck);
-            if (ctx.GetNextWheelOfFortune(ref stream, luck) != MotelyItemEdition.None)
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (
+                ctx.GetNextWheelOfFortune(ref stream, luck) != MotelyItemEdition.None
+                && ArrayContains(clause.Rolls, roll)
+            )
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1367,25 +1323,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateCavendishPrngStream(false);
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextCavendishExtinct(ref stream, luck);
-            if (ctx.GetNextCavendishExtinct(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextCavendishExtinct(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1396,25 +1338,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateGrosMichelPrngStream(false);
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextGrosMichelExtinct(ref stream, luck);
-            if (ctx.GetNextGrosMichelExtinct(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextGrosMichelExtinct(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1425,25 +1353,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateSpacePrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextSpaceLevelup(ref stream, luck);
-            if (ctx.GetNextSpaceLevelup(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextSpaceLevelup(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1454,25 +1368,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateBusinessPrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
-        for (int i = 0; i < clause.Rolls.Length; i++)
-        {
-            var rollIndex = clause.Rolls[i];
-            for (int j = 0; j < rollIndex; j++)
-                ctx.GetNextBusinessPayout(ref stream);
-            if (ctx.GetNextBusinessPayout(ref stream))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextBusinessPayout(ref stream) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-
-            int rollsRemaining = clause.Rolls.Length - 1 - i;
-            if (count + rollsRemaining < min)
-                return 0;
-        }
         return count;
     }
 
@@ -1483,20 +1383,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateBloodstonePrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
-        foreach (var rollIndex in clause.Rolls)
-        {
-            for (int i = 0; i < rollIndex; i++)
-                ctx.GetNextBloodstoneTrigger(ref stream);
-            if (ctx.GetNextBloodstoneTrigger(ref stream))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextBloodstoneTrigger(ref stream) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-        }
         return count;
     }
 
@@ -1507,20 +1398,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateParkingPrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         // Flat 50/50 (Chance = 2) — no luck/Oops multiplier.
-        foreach (var rollIndex in clause.Rolls)
-        {
-            for (int i = 0; i < rollIndex; i++)
-                ctx.GetNextParkingPayout(ref stream);
-            if (ctx.GetNextParkingPayout(ref stream))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextParkingPayout(ref stream) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-        }
         return count;
     }
 
@@ -1531,20 +1413,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateGlassPrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        foreach (var rollIndex in clause.Rolls)
-        {
-            for (int i = 0; i < rollIndex; i++)
-                ctx.GetNextGlassDestroy(ref stream, luck);
-            if (ctx.GetNextGlassDestroy(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextGlassDestroy(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-        }
         return count;
     }
 
@@ -1555,20 +1428,11 @@ public static class JamlScoring
     {
         int count = 0;
         var stream = ctx.CreateTheWheelPrngStream();
-        var min = clause.Min;
-        var max = clause.Max;
         double luck = (double)clause.With.Luck;
-        foreach (var rollIndex in clause.Rolls)
-        {
-            for (int i = 0; i < rollIndex; i++)
-                ctx.GetNextWheelStaysFlipped(ref stream, luck);
-            if (ctx.GetNextWheelStaysFlipped(ref stream, luck))
-            {
+        int maxRoll = ArrayMax(clause.Rolls);
+        for (int roll = 0; roll <= maxRoll; roll++)
+            if (ctx.GetNextWheelStaysFlipped(ref stream, luck) && ArrayContains(clause.Rolls, roll))
                 count++;
-                if (max is null && count >= min)
-                    return count;
-            }
-        }
         return count;
     }
 

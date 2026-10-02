@@ -56,6 +56,16 @@ public ref struct MotelyVectorRunState
         VoucherStateBitfield |= Vector256.BitwiseAnd(voucherBits, maskVector);
     }
 
+    /// <summary>
+    /// Lanes (all-ones) where every voucher is redeemed and the pool falls back to Blank — see
+    /// <see cref="MotelyRunState.AreAllVouchersActive"/>.
+    /// </summary>
+    public readonly Vector256<int> AreAllVouchersActive()
+    {
+        var all = Vector256.Create(MotelyRunState.AllVouchersBitfield);
+        return Vector256.Equals(VoucherStateBitfield & all, all);
+    }
+
     public readonly Vector256<int> IsVoucherActive(MotelyVoucher voucher)
     {
         return Vector256.OnesComplement(

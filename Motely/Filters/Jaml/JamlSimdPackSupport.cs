@@ -13,8 +13,9 @@ namespace Motely.Filters.Jaml;
 internal static class JamlSimdPackSupport
 {
     /// <summary>
-    /// Lanes where ante-2 Hieroglyph or Petroglyph extends ante-1 pack slots to 4–5
-    /// (same voucher path as <see cref="JamlScoring"/> PrepareRunState).
+    /// Lanes where ante-2 Hieroglyph or Petroglyph extends ante-1 pack slots to 4–7
+    /// (same voucher path as <see cref="JamlScoring"/> PrepareRunState, including the bonus
+    /// voucher an ante-1 Hieroglyph draws before ante 2's voucher is rolled).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static VectorMask Ante1PackExtensionMask(ref MotelyVectorSearchContext ctx)
@@ -22,14 +23,24 @@ internal static class JamlSimdPackSupport
         var state = new MotelyVectorRunState();
         var ante1 = ctx.GetAnteFirstVoucher(1, state);
         state.ActivateVoucher(ante1);
+        VectorMask ante1Reduces =
+            VectorEnum256.Equals(ante1, MotelyVoucher.Hieroglyph)
+            | VectorEnum256.Equals(ante1, MotelyVoucher.Petroglyph);
+        if (ante1Reduces.IsPartiallyTrue())
+        {
+            var voucherStream = ctx.CreateVoucherStream(1);
+            var bonus = ctx.GetNextVoucher(ref voucherStream, state);
+            state.ActivateVoucher(bonus, ante1Reduces);
+        }
         var ante2 = ctx.GetAnteFirstVoucher(2, state);
         return VectorEnum256.Equals(ante2, MotelyVoucher.Hieroglyph)
             | VectorEnum256.Equals(ante2, MotelyVoucher.Petroglyph);
     }
 
     /// <summary>
-    /// Per-lane whether pack index is reachable this ante.
-    /// Ante ≠ 1 always; ante 1 slots 0–3 always; slots 4–5 only with Hieroglyph/Petroglyph extension.
+    /// Per-lane whether pack index is reachable this ante — the same ceiling scoring's
+    /// <c>ClampBoosterPackSlotForAnte</c> applies: slots 0–5 on every ante but 1; ante 1 slots
+    /// 0–3 always and 4–7 only with the Hieroglyph/Petroglyph extension.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static VectorMask SlotReachableMask(
@@ -38,10 +49,17 @@ internal static class JamlSimdPackSupport
         VectorMask ante1Extended
     )
     {
-        if (ante != 1 || packIndex <= MotelyGlobals.EarlyAnteMaxPackSlot)
+        if (ante != 1)
+            return packIndex <= MotelyGlobals.LateAntesMaxPackSlot
+                ? VectorMask.AllBitsSet
+                : VectorMask.NoBitsSet;
+        if (packIndex <= MotelyGlobals.EarlyAnteMaxPackSlot)
             return VectorMask.AllBitsSet;
-        return ante1Extended;
+        return packIndex <= Ante1ExtendedMaxPackSlot ? ante1Extended : VectorMask.NoBitsSet;
     }
+
+    /// <summary>Ante 1 with the extension walks both of its shops' packs twice over.</summary>
+    public const int Ante1ExtendedMaxPackSlot = 2 * (MotelyGlobals.EarlyAnteMaxPackSlot + 1) - 1;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector512<double> ToPrngMask(VectorMask mask) =>
