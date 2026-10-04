@@ -1,60 +1,57 @@
-# motely-wasm 27.0.0
+# Motely 27.0.0
 
-Major release: the TypeScript enum names changed. Everything else is additive or a fix.
+The engine audited end to end, a pool you run yourself, and the JAML grammar that builds its own
+filters. Major because the Search API now rejects what it used to run badly.
 
-## Breaking
+## Engine
 
-- **Enum rename.** All 17 TS enums drop the `Motely` prefix (`MotelyDeck` is now `Deck`, `MotelyItemEdition` is now `ItemEdition`, and so on). Members and values are identical. Rename your imports; `import { Deck as MotelyDeck }` keeps old call sites working.
-- **`SearchSettings.results` removed.** Read matches from `Search.onScored`.
-- **`JamlAesthetic` renumbered.** `Runs` was inserted before `Step`, so Step through Nsfw each move up one ordinal. Compare by name, not number.
+- **Bad settings fail at `Start()`**, not in a worker thread: a batch character count outside 1-7,
+  a start batch past the seed space, an end before the start, a negative random count, a keyword
+  outside the seed alphabet. Keywords and padding are folded to upper case the way the game does.
+- **A throwing worker stops the search** instead of leaving the others running forever. Disposing
+  from inside a callback is deferred, so no double free; the native buffers are released once.
+- **The SIMD prefilter matches the scalar pass.** Vector pack draws are deduplicated the way the
+  scalar draws are; Soul/Black Hole spectrals route to the per-seed path from shop, Sixth Sense and
+  Séance sources; the ante-1 pack extension reaches slots 4-7; when every voucher is redeemed the
+  draw ends as Blank in both passes.
+- **Jamlyzer** bounds its inputs (10,000 event rolls, 100,000 shop slots), resumes shops exactly,
+  and reports one-line errors. The CLI validates `--seeds`, keywords, padding, `--startBatch`,
+  `--endBatch`, `--batchCharCount` and NaN before it starts.
+- `MotelyGlobals.SeedsPerSequentialBatch(n)` and `SequentialBatchCount(n)` hold the batch math
+  (35^n seeds per batch, 35^(8-n) batches) that the search, the CLI and the workers each used to
+  derive on their own.
 
-## Added
+## JAML
 
-- `Jaml.check(text)` returns the loader's line-numbered message, or null when the document loads.
-- Range shorthand on every `int[]` key: `antes: 1-8`, `[1..3, 7]`, `1 to 8`. A key expands to at most 1024 values.
-- `CancellationToken` is importable from JS.
-- `JamlFiles.isSupported()`: false in a build without Bootsharp.FileSystem, so a UI can hide its folder picker.
+- Every clause builds its own SIMD filter (`IJamlClause.CreateFilterDesc`). The hand-kept
+  clause-to-filter switch is gone: a clause without a filter does not compile.
+- Range shorthand on every `int[]` key: `antes: 1-8`, `[1..3, 7]`, `1 to 8`, at most 1024 values.
+- Loader errors name the source line, column and offending text, in block and flow style. Unknown
+  root keys are rejected instead of ignored.
+- All 341 filters under `JamlFilters/` load.
 
-## Your own pool: MotelyHome + MotelyWorker + Motely.MCP
+## Your own pool: MotelyHome, MotelyWorker, Motely.MCP
 
-- `MotelyHome` is the queue: queue a JAML filter and every `MotelyWorker` on the LAN grinds it,
-  no arguments, found over a UDP beacon. The filter's `name:` slugged is its id; the finds pile up
-  under it in one DuckDB file (`motely.duckdb`) that survives restarts and answers SQL.
-- The queue is an MCP server (`/mcp`, streamable HTTP, stateless): `queue_filter`, `list_filters`,
+- `MotelyHome` is the queue. Queue a JAML filter and every `MotelyWorker` on the LAN grinds it:
+  workers take no arguments and find home over a UDP beacon. The filter's `name:` slugged is its
+  id; the finds pile up under it in one DuckDB file (`motely.duckdb`) that survives restarts and
+  answers SQL.
+- The queue is an MCP server (`/mcp`, streamable HTTP): `queue_filter`, `list_filters`,
   `get_filter`, `get_seeds`, `remove_filter`. Add it as a connector in the Claude app and queue a
   filter from your phone. The same over HTTP: `POST /filters`, `GET /filters/{slug}/seeds`.
 - Slices are sized to about 30 seconds of work from each worker's measured rate, handed out
-  first-gap-first and round-robin across filters; an unreported slice is re-handed after two minutes.
-- `Motely.CLI --party <id>` grinds a seedfinder.app Search Party with the same engine.
-- Every JAML clause builds its own SIMD filter (`IJamlClause.CreateFilterDesc`); the hand-kept
-  clause→filter switch is gone.
+  first-gap-first and round-robin across filters; an unreported slice is re-handed after two
+  minutes. See `Motely.HomeApi/README.md`.
+- `Motely.CLI --party <id> [--server url]` grinds a seedfinder.app Search Party with the same
+  engine, threads and output as any search.
 
-## Fixed
+## Removed
 
-- `onScored` fires once per find (26.0.2 fired it twice).
-- Loader errors name the source line, column and offending text, in block and flow style.
-- All 341 filters under `JamlFilters/` load.
-- C# exceptions reach JS with their message. NativeAOT turned every one into `Error("C# exception from NativeAOT")`, so `Search.settings(badJaml)` lost its `JAML line n: ...` text; `scripts/patch-dist-exception-message.mjs` restores it in the build.
-- `JamlFiles` docs name the real JS method, `$delete(name)` (Bootsharp prefixes the reserved word).
+- `Motely.Wasm`, the browser build, is no longer in this repo; the npm package `motely-wasm`
+  stays at 26.0.2 until it is rebuilt.
+- `Motely.Lsp` and the DuckLake-era `Motely.DistributedWorker` and `Motely.DataLake`.
 
-## Build
+## CI
 
-- Bootsharp.FileSystem is opt-in (`MotelyFileSystem=true`, or `MOTELY_FILESYSTEM=true`), so a clone without the sponsor feed restores and builds. `npm run build` turns it on; `npm run build:no-fs` is the same build without it. Both builds export the same API.
-- CI: `.github/workflows/ci.yml` runs the xunit suite, `build:no-fs`, the headless-Chrome smoke test and the API/README gates on every PR and push to master. `release.yml` runs it before cutting a GitHub Release; it no longer builds `Motely.Lsp`, which was removed from the repo.
-
-## Publish
-
-From a machine with the Bootsharp.FileSystem sponsor feed and `wasm-opt` (`npm run build` needs the feed; it fails at restore without it rather than publishing a package without folder access):
-
-```
-cd Motely.Wasm
-npm run build
-npm run api:check        # must say: major bump allows it
-npm run readme:gen       # regenerate the API section from the real typings
-npm run readme:check
-npm publish
-```
-
-`prepublishOnly` re-runs the script tests, build, version, API and README checks, so a failing gate stops the publish.
-
-Then publish jaml-lang from this same commit, and bump consumers: jaml-ui 7.0.0 (import rename, ready on a local branch), then seedfinder.app.
+`.github/workflows/ci.yml` builds `Motely.slnx` and runs the xunit suite (639 tests) in Release on
+every PR and push to master. `release.yml` runs it before cutting a GitHub Release from these notes.
