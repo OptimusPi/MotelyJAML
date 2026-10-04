@@ -1,6 +1,13 @@
 # ADR-002: motely-wasm release gate — one version, one API baseline, one README source
 
-**Status:** Accepted
+> **Superseded.** Motely.Wasm was rebuilt from the Bootsharp guide for 27.0.0 and none of the
+> scripts below came back: no `version-sync`, `api-check`, `readme-gen` or dist patches. Today the
+> version is typed twice, `<MotelyVersion>` in `Directory.Build.props` and `"version"` in
+> `Motely.Wasm/package.json`, and the gate is the `wasm` job in `.github/workflows/ci.yml`, which
+> publishes the package and runs `Motely.Wasm/tests/smoke.mjs`. The rest of this record is kept as
+> history.
+
+**Status:** Superseded (2026-10-04)
 **Date:** 2026-09-27
 **Deciders:** Nat (pifreak)
 

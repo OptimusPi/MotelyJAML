@@ -1,5 +1,6 @@
 # The engine's gate: every push to master, every PR, and every release (release.yml calls this).
-# `test` builds Motely.slnx and runs the whole xunit suite in Release.
+# `test` builds Motely.slnx and runs the whole xunit suite in Release. `wasm` publishes
+# Motely.Wasm (NativeAOT-LLVM) and runs its Node smoke test.
 name: ci
 
 on:
