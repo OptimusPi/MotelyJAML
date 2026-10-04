@@ -1,7 +1,7 @@
 // Boots the built package under Node and drives the public surface once.
 // Usage: node tests/smoke.mjs   (after `dotnet publish -c Release` in Motely.Wasm)
 import assert from "node:assert/strict";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, dirname } from "node:path";
 
 // The package embeds its assemblies as base64 and decodes them with Uint8Array.fromBase64,
@@ -11,7 +11,7 @@ if (typeof Uint8Array.fromBase64 !== "function")
   Uint8Array.fromBase64 = (s) => new Uint8Array(Buffer.from(s, "base64"));
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "motely-wasm");
-const { default: bootsharp, Search, Analyze, Jaml, JamlFiles } = await import(join(dist, "index.mjs"));
+const { default: bootsharp, Search, Analyze, Jaml, JamlFiles } = await import(pathToFileURL(join(dist, "index.mjs")).href);
 
 await bootsharp.boot();
 
