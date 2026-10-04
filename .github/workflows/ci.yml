@@ -22,3 +22,18 @@ jobs:
       - run: dotnet build Motely.slnx -c Release
       - run: dotnet test Motely.slnx -c Release --no-build
 
+
+  # The browser build: NativeAOT-LLVM publish of Motely.Wasm, then a Node smoke over the package.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: dotnet workload install wasm-tools
+      - run: dotnet publish Motely.Wasm -c Release
+      - run: node Motely.Wasm/tests/smoke.mjs
