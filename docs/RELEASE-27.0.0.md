@@ -47,11 +47,21 @@ filters. Major because the Search API now rejects what it used to run badly.
 
 ## Browser: Motely.Wasm
 
-Rebuilt from the Bootsharp 0.9 docs: one thread, NativeAOT-LLVM, assemblies embedded in the package,
-nothing patched after the build. `Search.settings(jaml)`, `Analyze.seeds`, `Jaml.check` and
-`JamlFiles` (folder access stays opt-in through `MotelyFileSystem`). The Jimmolate hook is not
-rebuilt. It decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 24+, Chrome 140+,
-Safari 18.2+, Firefox 133+. CI builds the package and runs a Node smoke test on every PR.
+Rebuilt from the Bootsharp 0.9 guide: one thread, NativeAOT-LLVM, assemblies embedded in the
+package, nothing patched after the build. Four interop modules: `Search`, `Analyze`, `Jaml` and
+`JamlFiles`; folder access stays opt-in through `MotelyFileSystem`.
+
+Breaking for 26.x callers:
+
+- `search.start()` takes no token. Call `search.cancel()` to stop; `start()` resolves. The
+  `motely-wasm/bcl` CancellationToken is gone from the surface.
+- A rejected `with*` or `start()` leaves its reason on `search.error`, because NativeAOT drops
+  exception messages at the boundary. `Jaml.check` still explains a filter that does not load.
+- The Jimmolate hook (`Search.jimmolate`, `jimmolateSettings`) is not rebuilt.
+- Enums keep their C# names (`MotelyDeck`, `MotelyStake`, ...), as jaml-ui imports them.
+
+The package decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 24+, Chrome 140+,
+Safari 18.2+, Firefox 133+. CI publishes it and runs a Node smoke test on every PR.
 
 ## Removed
 
