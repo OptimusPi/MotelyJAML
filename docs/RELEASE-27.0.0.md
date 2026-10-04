@@ -45,10 +45,16 @@ filters. Major because the Search API now rejects what it used to run badly.
 - `Motely.CLI --party <id> [--server url]` grinds a seedfinder.app Search Party with the same
   engine, threads and output as any search.
 
+## Browser: Motely.Wasm
+
+Rebuilt from the Bootsharp 0.9 docs: one thread, NativeAOT-LLVM, assemblies embedded in the package,
+nothing patched after the build. `Search.settings(jaml)`, `Analyze.seeds`, `Jaml.check` and
+`JamlFiles` (folder access stays opt-in through `MotelyFileSystem`). The Jimmolate hook is not
+rebuilt. It decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 24+, Chrome 140+,
+Safari 18.2+, Firefox 133+. CI builds the package and runs a Node smoke test on every PR.
+
 ## Removed
 
-- `Motely.Wasm`, the browser build, is no longer in this repo; the npm package `motely-wasm`
-  stays at 26.0.2 until it is rebuilt.
 - `Motely.Lsp` and the DuckLake-era `Motely.DistributedWorker` and `Motely.DataLake`.
 
 ## CI
