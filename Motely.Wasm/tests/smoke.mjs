@@ -12,7 +12,6 @@ if (typeof Uint8Array.fromBase64 !== "function")
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "motely-wasm");
 const { default: bootsharp, Search, Analyze, Jaml, JamlFiles } = await import(join(dist, "index.mjs"));
-const { CancellationToken } = await import(join(dist, "bcl", "index.mjs"));
 
 await bootsharp.boot();
 
@@ -27,7 +26,7 @@ const finds = [];
 const onScored = (s) => finds.push(s.seed);
 Search.onScored.subscribe(onScored);
 const list = Search.settings(jaml).withSeedList(["ALEEB", "AAAAAAAA", "PIROCKS"]);
-await list.start(new CancellationToken());
+await list.start();
 Search.onScored.unsubscribe(onScored);
 assert.equal(list.totalSeedsSearched, 3n);
 assert.equal(finds.length, Number(list.matchingSeeds));
@@ -38,18 +37,29 @@ const slice = Search.settings(jaml).withSequentialSearch().withBatchCharacterCou
 const sliceFinds = [];
 const onSlice = (s) => sliceFinds.push(s.seed);
 Search.onScored.subscribe(onSlice);
-await slice.start(new CancellationToken());
+await slice.start();
 Search.onScored.unsubscribe(onSlice);
 assert.ok(slice.isCompleted && slice.totalSeedsSearched > 0n);
 assert.ok(sliceFinds.length > 0, "a Telescope ante-1 slice must find seeds");
 assert.equal(BigInt(sliceFinds.length), slice.matchingSeeds, "one onScored per find");
 
-const token = new CancellationToken();
 const long = Search.settings(jaml).withSequentialSearch().withBatchCharacterCount(2);
-const running = long.start(token);
-token.cancel();
+const running = long.start();
+long.cancel();
 await running;
 assert.ok(!long.stoppedOnMatchLimit);
+assert.ok(long.totalSeedsSearched < 35n ** 8n, "cancel stops the sweep");
+
+// NativeAOT drops exception messages at the boundary, so the settings keep the reason on .error:
+// for a value rejected on the spot and for one rejected when the run starts.
+const badCount = Search.settings(jaml).withSequentialSearch();
+assert.throws(() => badCount.withBatchCharacterCount(9));
+assert.match(badCount.error ?? "", /\S/);
+const badRange = Search.settings(jaml).withSequentialSearch().withBatchCharacterCount(3)
+  .withStartBatchIndex(5n).withEndBatchIndex(2n);
+await assert.rejects(badRange.start());
+assert.match(badRange.error ?? "", /\S/);
+console.log("errors:", JSON.stringify(badCount.error), "|", JSON.stringify(badRange.error));
 
 // Analyze: one seed in, one result out.
 const seeds = Analyze.seeds("name: a\ndeck: Red\nstake: White\nseeds: [ALEEB]\nmust:\n  - voucher: Telescope\n    antes: [1]\n");

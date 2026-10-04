@@ -1,38 +1,37 @@
+// Entry point of the browser build. Bootsharp generates the JS bindings for the modules listed
+// below (guide: interop-modules) and Bootsharp.Inject wires them up (guide: dependency-injection).
+// The engine itself knows nothing about JavaScript.
+
 using Bootsharp;
 using Bootsharp.Inject;
 using Microsoft.Extensions.DependencyInjection;
 
-/// <summary>Entry point. Erased from JS by <see cref="Names"/>.</summary>
-public static class Boot
-{
-    public static void Main() =>
-        // AddBootsharp registers the generated implementation of every imported interface,
-        // IFileMounter included when the build has Bootsharp.FileSystem.
-        MotelyServices.Init(new ServiceCollection().AddBootsharp().BuildServiceProvider());
-}
+[assembly: Export(typeof(ISearch), typeof(IAnalyze), typeof(IJaml), typeof(IJamlFiles))]
 
-/// <summary>The process-wide container. Erased from JS by <see cref="Names"/>.</summary>
-public static class MotelyServices
-{
-    private static IServiceProvider? _services;
+new ServiceCollection()
+    // Generated implementations of the imported modules (IFileMounter when the build has
+    // Bootsharp.FileSystem).
+    .AddBootsharp()
+    .AddSingleton<ISearch, SearchModule>()
+    .AddSingleton<IAnalyze, AnalyzeModule>()
+    .AddSingleton<IJaml, JamlModule>()
+    .AddSingleton<IJamlFiles, JamlFilesModule>()
+    .BuildServiceProvider()
+    // Hands the exported modules to the generated JS bindings.
+    .RunBootsharp();
 
-    public static void Init(IServiceProvider services) => _services = services;
-
-    public static T Get<T>() where T : notnull =>
-        (_services ?? throw new InvalidOperationException("The runtime has not booted."))
-            .GetRequiredService<T>();
-}
-
-/// <summary>
-/// One module, so <c>import { Search, Analyze } from "motely-wasm"</c> works. The plumbing types
-/// are erased from the JS surface.
-/// </summary>
+/// <summary>Renaming (guide: renaming).</summary>
 public static class Names
 {
+    /// <summary>Engine types live in several C# namespaces; JS gets one module, so
+    /// <c>import { Search, MotelyDeck } from "motely-wasm"</c> works.</summary>
     [RenameModule]
     public static string Module(Type type, string @default) => "index";
 
+    /// <summary>Modules drop the interface prefix: ISearch is <c>Search</c> in JS.</summary>
     [RenameNode]
     public static string Node(Type type, string @default) =>
-        type.Name is "Boot" or "Names" or "MotelyServices" ? null! : @default;
+        type.IsInterface && @default.Length > 1 && @default[0] == 'I' && char.IsUpper(@default[1])
+            ? @default[1..]
+            : @default;
 }

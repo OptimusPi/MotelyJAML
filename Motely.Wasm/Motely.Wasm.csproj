@@ -15,6 +15,9 @@
     <!-- Bootsharp writes package.json from PackageTemplate.json on every build; keep it out of
          this folder so the hand-written package.json stays. -->
     <BootsharpPackageDirectory>$(MSBuildProjectDirectory)/obj/pkg</BootsharpPackageDirectory>
+    <!-- Bootsharp trims exception text down to resource keys. Keep the real messages: search.error
+         and Jaml.check hand them to JS. Costs about 55 KB on a 15 MB package. -->
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
   </PropertyGroup>
 
   <!-- Bootsharp.FileSystem (folder access for JamlFiles) is served only from the sponsor feed, so it
