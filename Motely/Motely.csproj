@@ -9,8 +9,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
-    <InvariantGlobalization>true</InvariantGlobalization>
-  </PropertyGroup>
+    <InvariantGlobalization>true</InvariantGlobalization>  </PropertyGroup>
 
   <!-- JAML clauses are read by reflection (JamlClauseFormatter). This descriptor travels
        inside Motely.dll and tells the trimmer / NativeAOT / WASM to keep all of Motely. -->
