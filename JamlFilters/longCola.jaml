@@ -11,13 +11,13 @@ must:
     sources:
       boosterPacks: [0,1]
   - legendaryJoker: Perkeo
-    antes: [1,2,3]
+    antes: [1,2]
     sources:
       boosterPacks: [0,1,2,3]
   - spectralCard: Ankh
-    antes: [1,2,3]
+    antes: [1,2]
     sources:
-      shopItems: [0,1,2,3,4,5]
+      shopItems: [0,1,2,3]
 should:
   - jokers: [Blueprint, Brainstorm, InvisibleJoker]
     sources:
