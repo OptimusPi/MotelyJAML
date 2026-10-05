@@ -15,10 +15,24 @@ public sealed class AnalyzerUnitTests
     {
         string actualOutput = GetAnalyzerOutput(seed, deck, stake);
 
-        // Assert using Verify - this will create a nice diff view
         await Verify(actualOutput)
             .UseFileName(seed)
             .UseDirectory("seeds");
+    }
+
+    /// <summary>
+    /// A seed the engine cannot search never reaches the filter. Analyze returned null for it, and
+    /// the CLI's <c>--analyze ABCDEFGHIJK</c> died reading <c>.Error</c> off that null.
+    /// </summary>
+    [Theory]
+    [InlineData("ABCDEFGHIJK")]
+    [InlineData("")]
+    [InlineData("OO0O")]
+    public void TestAnalyzer_UnsearchableSeed_ReturnsError(string seed)
+    {
+        var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, MotelyDeck.Red, MotelyStake.White));
+        Assert.NotNull(analysis);
+        Assert.False(string.IsNullOrEmpty(analysis.Error));
     }
 
     private string GetAnalyzerOutput(string seed, MotelyDeck deck = MotelyDeck.Red, MotelyStake stake = MotelyStake.White)
@@ -26,21 +40,16 @@ public sealed class AnalyzerUnitTests
         return MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake)).ToString();
     }
 
-    // This method is now only used by other tests that don't use Verify yet
     private void AssertOutputsMatch(string expected, string actual, string seed)
     {
-        // Normalize line endings
         expected = expected.Replace("\r\n", "\n").Trim();
         actual = actual.Replace("\r\n", "\n").Trim();
 
-        // Split into lines for detailed comparison
         var expectedLines = expected.Split('\n');
         var actualLines = actual.Split('\n');
 
-        // First check line count
         Assert.Equal(expectedLines.Length, actualLines.Length);
 
-        // Compare line by line for better error messages
         for (int i = 0; i < expectedLines.Length; i++)
         {
             var expectedLine = expectedLines[i].TrimEnd();
@@ -48,7 +57,6 @@ public sealed class AnalyzerUnitTests
 
             if (expectedLine != actualLine)
             {
-                // Provide detailed error message showing the difference
                 var message = $"Seed {seed} - Line {i + 1} mismatch:\n" +
                               $"Expected: {expectedLine}\n" +
                               $"Actual:   {actualLine}";
@@ -60,16 +68,13 @@ public sealed class AnalyzerUnitTests
     [Fact]
     public void TestAnalyzer_PackContentsFormat()
     {
-        // Test that pack contents are formatted correctly
         string seed = "UNITTEST";
         var output = GetAnalyzerOutput(seed);
 
-        // Check that packs have the correct format: "Pack Name - Card1, Card2"
         Assert.Contains("Buffoon Pack - ", output);
         Assert.Contains("Arcana Pack - ", output);
         Assert.Contains("Standard Pack - ", output);
 
-        // Check that Mega packs DON'T have the "(pick 2)" suffix (Immolate doesn't use it)
         Assert.Contains("Mega Standard Pack - ", output);
         Assert.Contains("Mega Arcana Pack - ", output);
         Assert.Contains("Mega Celestial Pack - ", output);
@@ -78,11 +83,9 @@ public sealed class AnalyzerUnitTests
     [Fact]
     public void TestAnalyzer_TagsNotActivated()
     {
-        // Test that tags are just listed, not "activated" to show their packs
         string seed = "UNITTEST";
         var output = GetAnalyzerOutput(seed);
 
-        // Check first ante has Speed Tags but no extra packs from them
         var lines = output.Split('\n');
         bool inAnte1 = false;
         int packCount = 0;
@@ -109,7 +112,6 @@ public sealed class AnalyzerUnitTests
             }
         }
 
-        // Ante 1 should have exactly 4 packs
         Assert.Equal(4, packCount);
     }
 }

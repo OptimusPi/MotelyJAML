@@ -137,6 +137,15 @@ public interface IMotelySearchSettings
 {
     IMotelySeedFilterDesc BaseFilterDescBase { get; }
     IList<IMotelySeedFilterDesc>? AdditionalFilters { get; }
+
+    /// <summary>
+    /// The score provider, when one is set. Decides which result channel a find arrives on: with a
+    /// provider, every find is reported on <see cref="WithScoredResultCallback"/> (and the provider
+    /// also sends the bare seed to <see cref="WithSeedMatchCallback"/>); without one, only
+    /// <see cref="WithSeedMatchCallback"/> fires.
+    /// </summary>
+    IMotelySeedScoreDesc? SeedScoreDesc { get; }
+
     IMotelySearchSettings WithAdditionalFilter(IMotelySeedFilterDesc filterDesc);
     IMotelySearchSettings WithThreadCount(int threadCount);
     IMotelySearchSettings WithBatchCharacterCount(int batchCharacterCount);
@@ -291,18 +300,23 @@ public sealed class MotelySearchSettings<TBaseFilter>(
 
     public MotelySearchSettings<TBaseFilter> WithStartBatchIndex(long startBatchIndex)
     {
+        // A negative batch indexes the seed alphabet with a negative digit — the worker thread
+        // dies on an IndexOutOfRangeException instead of searching anything.
+        ArgumentOutOfRangeException.ThrowIfNegative(startBatchIndex);
         StartBatchIndex = startBatchIndex;
         return this;
     }
 
     public MotelySearchSettings<TBaseFilter> WithEndBatchIndex(long endBatchIndex)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(endBatchIndex);
         EndBatchIndex = endBatchIndex;
         return this;
     }
 
     public MotelySearchSettings<TBaseFilter> WithBatchCharacterCount(int batchCharacterCount)
     {
+        MotelySearch<TBaseFilter>.ThrowIfInvalidBatchCharacterCount(batchCharacterCount);
         SequentialBatchCharacterCount = batchCharacterCount;
         return this;
     }
@@ -324,12 +338,14 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         int seedCount = -1
     )
     {
+        ArgumentNullException.ThrowIfNull(seeds);
         return WithProviderSearch(new MotelySeedListProvider(seeds, seedCount));
     }
 
     /// <summary>Materialized seed list; count is exact. See <see cref="IMotelySearchSettings.WithSeedList"/>.</summary>
     public MotelySearchSettings<TBaseFilter> WithSeedList(string[] seeds)
     {
+        ArgumentNullException.ThrowIfNull(seeds);
         return WithSeedGenerator(seeds, seeds.Length);
     }
 
@@ -338,18 +354,84 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         return WithProviderSearch(new MotelyRandomSeedProvider(count));
     }
 
+    /// <summary>
+    /// Pads each keyword out to every 8-character seed that contains it. Keywords are seed text, so
+    /// they are folded to upper case (as the game's seed box does) and must otherwise be 1–8
+    /// characters of the seed alphabet (1-9, A-Z). Anything else throws: a lowercase or punctuated
+    /// keyword used to be padded verbatim into seeds no one can type, and a '0' or over-long one
+    /// produced an empty search that "completed" instantly.
+    /// </summary>
     public MotelySearchSettings<TBaseFilter> WithKeywordSearch(
         IReadOnlyList<string> keywords,
         char[]? paddingAlphabet = null
     )
     {
-        var seedCount = MotelyGlobals.GetPaddedSeedCountForKeywordsLong(keywords, paddingAlphabet);
+        string[] normalizedKeywords = NormalizeKeywords(keywords);
+        char[]? normalizedPadding = NormalizePaddingAlphabet(paddingAlphabet);
+        var seedCount = MotelyGlobals.GetPaddedSeedCountForKeywordsLong(
+            normalizedKeywords,
+            normalizedPadding
+        );
         return WithProviderSearch(
             new MotelySeedListProvider(
-                MotelyGlobals.GeneratePaddedSeedsForKeywords(keywords, paddingAlphabet),
+                MotelyGlobals.GeneratePaddedSeedsForKeywords(normalizedKeywords, normalizedPadding),
                 seedCount
             )
         );
+    }
+
+    private static string[] NormalizeKeywords(IReadOnlyList<string> keywords)
+    {
+        ArgumentNullException.ThrowIfNull(keywords);
+
+        var normalized = new List<string>(keywords.Count);
+        foreach (string? keyword in keywords)
+        {
+            string upper = (keyword ?? string.Empty).Trim().ToUpperInvariant();
+            if (
+                upper.Length is 0 or > MotelyGlobals.MaxSeedLength
+                || upper.AsSpan().IndexOfAnyExcept(MotelyGlobals.SeedDigits) >= 0
+            )
+            {
+                throw new ArgumentException(
+                    $"Keyword '{keyword}' is not a seed fragment: keywords are 1-{MotelyGlobals.MaxSeedLength} characters of 1-9 and A-Z (Balatro seeds have no 0).",
+                    nameof(keywords)
+                );
+            }
+
+            // "cats" and "CATS" fold to one keyword; searching both would report every seed twice.
+            if (!normalized.Contains(upper))
+                normalized.Add(upper);
+        }
+
+        if (normalized.Count == 0)
+            throw new ArgumentException("Keyword search needs at least one keyword.", nameof(keywords));
+
+        return [.. normalized];
+    }
+
+    private static char[]? NormalizePaddingAlphabet(char[]? paddingAlphabet)
+    {
+        if (paddingAlphabet is null)
+            return null;
+
+        var normalized = new List<char>(paddingAlphabet.Length);
+        foreach (char raw in paddingAlphabet)
+        {
+            char c = char.ToUpperInvariant(raw);
+            if (Array.IndexOf(MotelyGlobals.SeedDigits, c) < 0)
+            {
+                throw new ArgumentException(
+                    $"Padding character '{raw}' is not a seed character (1-9, A-Z).",
+                    nameof(paddingAlphabet)
+                );
+            }
+
+            // A repeated pad character would emit every padded seed once per repeat.
+            if (!normalized.Contains(c))
+                normalized.Add(c);
+        }
+        return [.. normalized];
     }
 
     public MotelySearchSettings<TBaseFilter> WithAestheticSearch(
@@ -573,6 +655,8 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     /// <inheritdoc cref="StopAfterMatches" />
     public MotelySearchSettings<TBaseFilter> StopAfter(long matchCount)
     {
+        // 0 is the documented "no limit"; a negative limit silently meant the same thing.
+        ArgumentOutOfRangeException.ThrowIfNegative(matchCount);
         StopAfterMatches = matchCount;
         return this;
     }
@@ -658,7 +742,8 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
     // StopAfter: workers already poll _cancellationToken at every batch boundary, so reaching the
     // match limit cancels through that same path rather than adding a second stop signal for every
-    // loop to check. The source is linked to the caller's token, so either can end the run.
+    // loop to check. The source is linked to the caller's token, so either can end the run. A
+    // worker that throws stops its siblings through the same source.
     private readonly long _stopAfterMatches;
     private long _stopMatchCount;
     private CancellationTokenSource? _stopSource;
@@ -846,8 +931,78 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     private long _lastProgressReportElapsedMs = -1;
     private long _lastReportSeeds;
 
+    // Every worker calls PrintReport at its own batch boundaries. One report at a time: the
+    // progress callback is not assumed thread-safe, and the last-report fields below are a
+    // read-modify-write that concurrent reporters tore (reports inside the interval, 0 seeds/ms).
+    private readonly object _progressReportGate = new();
+
+    // Taken by an inline run for its whole duration and by Dispose; see StartSearchThreads.
+    private readonly object _inlineRunGate = new();
+
+    // Set by a Dispose that ran inside the run itself (a callback on a worker or the inline
+    // thread); the last runner out frees instead. Written and read on that same thread.
+    private bool _nativeReleaseDeferred;
+
+    /// <summary>
+    /// A sequential batch varies its last <paramref name="batchCharacterCount"/> characters, so 1–7
+    /// are the only splits of an 8-character seed. 0 or less walked the hash recursion off the end
+    /// of its native buffers (heap corruption, then a crashed process); 8 or more left zero batches,
+    /// a search that "completed" without looking at a single seed.
+    /// </summary>
+    internal static void ThrowIfInvalidBatchCharacterCount(int batchCharacterCount)
+    {
+        if (batchCharacterCount is < 1 or >= MotelyGlobals.MaxSeedLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(batchCharacterCount),
+                batchCharacterCount,
+                $"Batch character count must be 1-{MotelyGlobals.MaxSeedLength - 1}."
+            );
+        }
+    }
+
+    /// <summary>
+    /// Sequential range checks that need more than one setting, so they run when the search is
+    /// built rather than in the setters (which can be called in any order).
+    /// </summary>
+    private static void ThrowIfInvalidSequentialRange(MotelySearchSettings<TBaseFilter> settings)
+    {
+        ThrowIfInvalidBatchCharacterCount(settings.SequentialBatchCharacterCount);
+
+        long totalBatches = MotelyGlobals.SequentialBatchCount(settings.SequentialBatchCharacterCount);
+
+        long start = settings.StartBatchIndex;
+        long end = settings.EndBatchIndex;
+
+        // start == totalBatches is a finished range (what ResumeBatchIndex reports after a full
+        // sweep), so it is allowed and searches nothing. Past it there is no such batch, and a
+        // start near long.MaxValue overflowed start + threadIndex into a negative batch.
+        if (start < 0 || start > totalBatches)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(settings.StartBatchIndex),
+                start,
+                $"Start batch must be 0-{totalBatches:N0}: a {settings.SequentialBatchCharacterCount}-character batch splits the seed space into {totalBatches:N0} batches."
+            );
+        }
+
+        if (end < start)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(settings.EndBatchIndex),
+                end,
+                $"End batch (exclusive) is before start batch {start:N0}."
+            );
+        }
+    }
+
     public MotelySearch(MotelySearchSettings<TBaseFilter> settings)
     {
+        // Validate before anything native is allocated: a throwing constructor leaves the rest of
+        // the object for the finalizer.
+        if (settings.Mode == MotelySearchMode.Sequential)
+            ThrowIfInvalidSequentialRange(settings);
+
         _isProviderMode = settings.Mode == MotelySearchMode.Provider;
         _searchParameters = new() { Deck = settings.Deck, Stake = settings.Stake };
         _progressCallback = settings.ProgressCallback;
@@ -923,7 +1078,13 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // pump between. Run it on the calling thread so the synchronous AwaitCompletion() works
         // on every platform, including the browser's single thread where the pump would deadlock
         // it. Generative providers (sequential, random, aesthetic) are open-ended and still pump.
-        _runInline = settings.SeedProvider is MotelySeedListProvider;
+        // A lazy sequence wrapped in the list provider (keyword search, WithSeedGenerator over an
+        // iterator, multi-aesthetic) is generative too: inlining it pinned millions of seeds to
+        // one thread whatever the thread count, and on the browser froze the page with no turn of
+        // the event loop for a cancel to arrive on. And only provider mode: a sequential search
+        // left holding a list provider ran plan 0 alone, i.e. every W-th batch of the space.
+        _runInline =
+            _isProviderMode && settings.SeedProvider is MotelySeedListProvider { IsMaterialized: true };
         _workerCount = OperatingSystem.IsBrowser() ? 1 : _threadCount;
         _plans = new MotelySearchPlan[_threadCount];
         for (int i = 0; i < _threadCount; i++)
@@ -989,17 +1150,26 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         if (Interlocked.Exchange(ref _hasStarted, 1) != 0)
             throw new InvalidOperationException("Search has already been started.");
 
-        if (_stopAfterMatches > 0)
-        {
-            _stopSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _cancellationToken = _stopSource.Token;
-        }
-        else
-        {
-            _cancellationToken = cancellationToken;
-        }
+        // Always linked, not only for StopAfter: a worker that throws stops the others through this
+        // same source (see WorkerCoordinator). Without it the faulted thread exited alone and the
+        // rest swept on — over the full space, days — before the error could reach the awaiter.
+        _stopSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _cancellationToken = _stopSource.Token;
 
         StartSearchThreads();
+    }
+
+    /// <summary>Ends the run for every worker at its next cancellation poll.</summary>
+    private void StopAllWorkers()
+    {
+        try
+        {
+            _stopSource?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed mid-run: the search is already ending, which is what cancelling wanted.
+        }
     }
 
     /// <summary>
@@ -1019,14 +1189,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // Exactly the thread that crosses the threshold cancels, so Cancel() runs once even
         // though later matches keep incrementing past it.
         Interlocked.Exchange(ref _stoppedOnMatchLimit, 1);
-        try
-        {
-            _stopSource?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Disposed mid-run: the search is already ending, which is what cancelling wanted.
-        }
+        StopAllWorkers();
     }
 
     /// <summary>
@@ -1048,18 +1211,33 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // thread where the pump below would deadlock it.
         if (_runInline)
         {
-            try
+            // Held for the whole run. Dispose takes it too, so a Dispose from another thread waits
+            // for this run to see _isDisposed and unwind instead of freeing the plan's buffers
+            // under it (there is no worker thread to Join here) — that was an access violation
+            // that took the process down.
+            lock (_inlineRunGate)
             {
-                RunWorkerBody(_plans[0]);
-            }
-            catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
-            {
-                // honour cooperative cancellation — no error
-            }
-            catch (Exception ex)
-            {
-                _completionSource.TrySetException(ex);
-                return;
+                try
+                {
+                    if (Volatile.Read(ref _isDisposed) == 0)
+                        RunWorkerBody(_plans[0]);
+                }
+                catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+                {
+                    // honour cooperative cancellation — no error
+                }
+                catch (Exception ex)
+                {
+                    _completionSource.TrySetException(ex);
+                    return;
+                }
+                finally
+                {
+                    // Dispose from a callback inside this very run could not wait for the run it
+                    // was nested in, so it left the free to the run's exit.
+                    if (_nativeReleaseDeferred)
+                        ReleaseNativeMemory();
+                }
             }
             SignalSearchCompleted();
             return;
@@ -1137,11 +1315,20 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             {
                 Console.WriteLine($"[WORKER EXCEPTION] {ex}");
                 Interlocked.CompareExchange(ref _firstError, ex, null);
+                // The error only surfaces when the LAST worker exits, so the others must stop
+                // too — otherwise a callback that throws once leaves the awaiter hanging for
+                // the rest of the sweep.
+                _owner.StopAllWorkers();
             }
             finally
             {
                 if (Interlocked.Decrement(ref _remaining) == 0)
                 {
+                    // A Dispose from inside one of our callbacks left the free to the last
+                    // worker out; nothing touches the native buffers past this point.
+                    if (_owner._nativeReleaseDeferred)
+                        _owner.ReleaseNativeMemory();
+
                     // Last worker out stops the wall clock, so ElapsedMs is "first in → last out"
                     // and not "…plus however long the caller took to read it".
                     _owner._elapsedTime.Stop();
@@ -1182,18 +1369,37 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         if (_progressCallback == null)
             return;
 
-        long elapsedMS = _elapsedTime.ElapsedMilliseconds;
-        if (
-            _progressReportIntervalMs > 0
-            && _lastProgressReportElapsedMs >= 0
-            && elapsedMS - _lastProgressReportElapsedMs < _progressReportIntervalMs
-        )
+        // Cheap unlocked pre-check so the common "not due yet" batch never touches the gate.
+        if (!IsProgressReportDue(_elapsedTime.ElapsedMilliseconds))
             return;
 
+        // Another worker is already reporting this tick: skip rather than queue behind it.
+        if (!Monitor.TryEnter(_progressReportGate))
+            return;
+        try
+        {
+            long elapsedMS = _elapsedTime.ElapsedMilliseconds;
+            // Re-check under the gate: the reporter we raced may have just reset the interval.
+            if (IsProgressReportDue(elapsedMS))
+                ReportProgress(elapsedMS);
+        }
+        finally
+        {
+            Monitor.Exit(_progressReportGate);
+        }
+    }
+
+    private bool IsProgressReportDue(long elapsedMS) =>
+        _progressReportIntervalMs <= 0
+        || Volatile.Read(ref _lastProgressReportElapsedMs) < 0
+        || elapsedMS - Volatile.Read(ref _lastProgressReportElapsedMs) >= _progressReportIntervalMs;
+
+    private void ReportProgress(long elapsedMS)
+    {
         // Save previous report state for windowed (instantaneous) throughput before updating.
         long prevReportSeeds = _lastReportSeeds;
         long prevReportMs = _lastProgressReportElapsedMs;
-        _lastProgressReportElapsedMs = elapsedMS;
+        Volatile.Write(ref _lastProgressReportElapsedMs, elapsedMS);
 
         // One pass over the plans for every counter this report needs.
         long completedBatches = 0,
@@ -1276,7 +1482,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             ElapsedMilliseconds = elapsedMS,
             EstimatedTimeRemainingMilliseconds = etaMs,
         };
-        _progressCallback(progress);
+        _progressCallback!(progress);
     }
 
     public void Dispose()
@@ -1288,14 +1494,45 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // so each worker drops out at its next batch boundary; Join then waits for any in-flight
         // batch to actually finish — otherwise the FreeHGlobal below races a thread mid-read.
         // Skip self-join (Dispose from a worker/finalizer thread) to avoid deadlocking on self.
+        bool calledFromWorker = false;
         if (_workerThreads is not null)
         {
             int self = Environment.CurrentManagedThreadId;
             foreach (Thread t in _workerThreads)
+            {
                 if (t.ManagedThreadId != self)
                     t.Join();
+                else
+                    calledFromWorker = true;
+            }
         }
 
+        // Called from a result callback, this thread is still inside a batch that reads these
+        // buffers — freeing them here crashed the process (double free / heap corruption). Its
+        // siblings are joined above, so it is the last worker out and frees on its way out (see
+        // WorkerCoordinator). The inline path has no thread to Join; its run holds
+        // _inlineRunGate instead: nested inside it the same rule applies, and from any other
+        // thread taking the gate waits for that run to unwind.
+        if (calledFromWorker || Monitor.IsEntered(_inlineRunGate))
+        {
+            _nativeReleaseDeferred = true;
+        }
+        else
+        {
+            lock (_inlineRunGate)
+                ReleaseNativeMemory();
+        }
+
+        // After the Join above, so no worker is still inside NoteMatchForStop calling Cancel().
+        _stopSource?.Dispose();
+
+        _completionSource.TrySetResult(false);
+
+        GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseNativeMemory()
+    {
         // A constructor that threw (bad Mode, filter creation failure) still queues this
         // object for finalization, so Dispose runs against partially-built state: _plans
         // may be null or have null tail entries, and the native buffer may never have been
@@ -1304,13 +1541,6 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             for (int i = 0; i < _plans.Length; i++)
                 _plans[i]?.Dispose();
         Marshal.FreeHGlobal((nint)_pseudoHashKeyLengths);
-
-        // After the Join above, so no worker is still inside NoteMatchForStop calling Cancel().
-        _stopSource?.Dispose();
-
-        _completionSource.TrySetResult(false);
-
-        GC.SuppressFinalize(this);
     }
 
     ~MotelySearch()
@@ -2057,7 +2287,10 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             filterBatch->SeedCount = 0;
         }
 
-        public void Dispose()
+        // Virtual: the search holds its plans as MotelySearchPlan and disposes them through this
+        // type. The derived plans used `new void Dispose()`, which that call never reached, so
+        // every plan's hash buffers, hash cache and seed matrix (~2.8 KB) leaked per search.
+        public virtual void Dispose()
         {
             // FIX: Check if _filterSeedBatches is not null before freeing
             if (_filterSeedBatches != null)
@@ -2164,34 +2397,16 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
             for (int seedIdx = 0; seedIdx < fetched; seedIdx++)
             {
-                ReadOnlySpan<char> seed = _seedBatchBuffer[packStart + seedIdx].AsSpan();
-
-                if (
-                    seed.IsEmpty
-                    || seed.Length > MotelyGlobals.MaxSeedLength
-                    || seed.IndexOf('0') >= 0
-                )
-                {
-                    continue;
-                }
-
                 int lane = validCount;
                 if (lane >= MotelyGlobals.MaxVectorWidth)
                     break;
 
-                seedLengths[lane] = seed.Length;
-                if (lane > 0 && seedLengths[0] != seed.Length)
-                    homogeneousSeedLength = false;
+                if (!TryPackSeed(_seedBatchBuffer[packStart + seedIdx], lane, out int seedLength))
+                    continue;
 
-                for (int i = 0; i < seed.Length; i++)
-                {
-                    ((double*)_seedCharacterMatrix)[i * MotelyGlobals.MaxVectorWidth + lane] =
-                        seed[i];
-                }
-                for (int i = seed.Length; i < MotelyGlobals.MaxSeedLength; i++)
-                {
-                    ((double*)_seedCharacterMatrix)[i * MotelyGlobals.MaxVectorWidth + lane] = 0;
-                }
+                seedLengths[lane] = seedLength;
+                if (lane > 0 && seedLengths[0] != seedLength)
+                    homogeneousSeedLength = false;
 
                 validCount++;
             }
@@ -2276,6 +2491,37 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             }
         }
 
+        /// <summary>
+        /// Writes one provider seed into <paramref name="lane"/> of the character matrix, as the
+        /// game would read it: surrounding whitespace trimmed and a-z folded to A-Z (the seed box
+        /// is all caps). Returns false — lane left for the next seed — for anything that is not
+        /// then 1–8 characters of 1-9/A-Z. Hashing such a string verbatim searched, and reported,
+        /// a seed no one can enter: "abcdefgh" matched as itself instead of as ABCDEFGH.
+        /// </summary>
+        private bool TryPackSeed(string? rawSeed, int lane, out int seedLength)
+        {
+            ReadOnlySpan<char> seed = rawSeed.AsSpan().Trim();
+            seedLength = seed.Length;
+            if (seed.IsEmpty || seed.Length > MotelyGlobals.MaxSeedLength)
+                return false;
+
+            double* matrix = (double*)_seedCharacterMatrix;
+            for (int i = 0; i < seed.Length; i++)
+            {
+                char c = seed[i];
+                if (c is >= 'a' and <= 'z')
+                    c = (char)(c - ('a' - 'A'));
+                else if (c is not ((>= '1' and <= '9') or (>= 'A' and <= 'Z')))
+                    return false;
+
+                matrix[i * MotelyGlobals.MaxVectorWidth + lane] = c;
+            }
+            for (int i = seed.Length; i < MotelyGlobals.MaxSeedLength; i++)
+                matrix[i * MotelyGlobals.MaxVectorWidth + lane] = 0;
+
+            return true;
+        }
+
         internal override void SearchSequentialBatch(long batchIdx)
         {
             throw new InvalidOperationException(
@@ -2332,7 +2578,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             );
         }
 
-        public new void Dispose()
+        public override void Dispose()
         {
             base.Dispose();
 
@@ -2561,7 +2807,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             }
         }
 
-        public new void Dispose()
+        public override void Dispose()
         {
             base.Dispose();
 

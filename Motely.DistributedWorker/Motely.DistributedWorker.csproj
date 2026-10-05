@@ -1,38 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <Optimize>true</Optimize>
-    <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
-    <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilationQuickJitForLoops>false</TieredCompilationQuickJitForLoops>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <EnableHardwareIntrinsics>true</EnableHardwareIntrinsics>
-    <EnableAVX2>true</EnableAVX2>
-    <EnableAVX512F>true</EnableAVX512F>
-    <EnableAVX512BW>true</EnableAVX512BW>
   </PropertyGroup>
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <AssemblyName>MotelyWorker</AssemblyName>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Motely.DistributedWorker</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PublishAot Condition="'$(RuntimeIdentifier)' != 'browser-wasm' and '$(DesignTimeBuild)' != 'true'">true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PublishAot Condition="'$(DesignTimeBuild)' != 'true'">true</PublishAot>
+    <!-- Same reason as Motely.CLI: NativeAOT defaults to baseline x86-64, which leaves the SIMD engine on software vectors. -->
+    <IlcInstructionSet Condition="'$(IlcInstructionSet)' == '' and ($(RuntimeIdentifier.EndsWith('-x64')) or ('$(RuntimeIdentifier)' == '' and $(NETCoreSdkRuntimeIdentifier.EndsWith('-x64'))))">x86-64-v3</IlcInstructionSet>
+    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
     <ProjectReference Include="..\Motely\Motely.csproj" />
-    <ProjectReference Include="..\Motely.DataLake\Motely.DataLake.csproj" />
   </ItemGroup>
-
-  <!-- DuckDB.NET uses P/Invoke (fully AOT-safe) but triggers static analysis warnings. Suppress them. -->
-  <PropertyGroup>
-    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
-  </PropertyGroup>
 </Project>

@@ -5,7 +5,6 @@ using McMaster.Extensions.CommandLineUtils;
 using Motely;
 using Motely.Analysis;
 using Motely.CLI;
-using Motely.DataLake;
 using Motely.Enums;
 using Motely.Filters;
 using Motely.Filters.Jaml;
@@ -162,13 +161,8 @@ partial class Program
         var analyzeOption = app.Option<string>(
             "--analyze <SEED[,SEED...]>",
             "Analyze one or more seeds (comma-separated) as human-readable text, using the "
-                + "legacy text-block analyzer (NOT JAMLyzer — see --glossary).",
+                + "legacy text-block analyzer (NOT JAMLyzer).",
             CommandOptionType.SingleValue
-        );
-        var glossaryOption = app.Option(
-            "--glossary",
-            "Print what JAML and JAMLyzer mean, then exit.",
-            CommandOptionType.NoValue
         );
         var deckOption = app.Option<string>(
             "--deck <NAME>",
@@ -187,7 +181,7 @@ partial class Program
         );
         var batchCharCountOption = app.Option<int>(
             "--batchCharCount <N>",
-            "Sequential default search only (1–7, default 4). Ignored for --keyword/--random/--aesthetic/--source list modes.",
+            "Sequential default search only (1–7, default 4). Ignored for --seeds/--replay/--keyword/--random/--aesthetic.",
             CommandOptionType.SingleValue
         );
         var startBatchOption = app.Option<long>(
@@ -230,16 +224,6 @@ partial class Program
             $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({JamlAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
             CommandOptionType.SingleValue
         );
-        var sourceOption = app.Option<string>(
-            "--source <NAME_OR_PATH>",
-            "Seed source: .csv/.txt/.parquet/.duckdb/.db file (DuckDB reads them all), local or http(s)/s3. Seeds ride the first column.",
-            CommandOptionType.SingleValue
-        );
-        var drownOption = app.Option(
-            "--drown",
-            "Cannonball into the seed lake: re-search EVERY seed ever saved — all filters' *.duckdb lakes plus any CSV/TXT under <results-path>, plus this JAML's own seeds: block — deduped. With nothing saved anywhere yet it runs the normal sequential sweep (which fills the lake).",
-            CommandOptionType.NoValue
-        );
         var replayOption = app.Option(
             "--replay",
             "Replay only the seeds: block of the given --jaml file — verify what's already saved, nothing more.",
@@ -249,11 +233,6 @@ partial class Program
             "--verify-seeds",
             "Alias for --replay.",
             CommandOptionType.NoValue
-        );
-        var resultsPathOption = app.Option<string>(
-            "--results-path <PATH>",
-            "Root folder of the seed lake (default: Seeds; env MOTELY_DATALAKE_PATH).",
-            CommandOptionType.SingleValue
         );
         var seedsOption = app.Option<string>(
             "--seeds <LIST>",
@@ -297,7 +276,7 @@ partial class Program
         );
         var nativeOption = app.Option<string>(
             "--native <NAME>",
-            "Run a native C# filter by name (e.g. PerkeoObservatory, Observatory, Trickeoglyph, NaturalNegatives, ...). Seed-input flags match JAML: --source, --seeds, --keyword(s), --random, --aesthetic, or default sequential (--startBatch/--endBatch/--startPercent or --startSeed/--stopSeed).",
+            "Run a native C# filter by name (e.g. PerkeoObservatory, Observatory, Trickeoglyph, NaturalNegatives, ...). Seed-input flags match JAML: --seeds, --keyword(s), --random, --aesthetic, or default sequential (--startBatch/--endBatch/--startPercent or --startSeed/--stopSeed).",
             CommandOptionType.SingleValue
         );
         var nativeRandomCountOption = app.Option<int>(
@@ -310,10 +289,20 @@ partial class Program
             "Suppress per-batch progress lines and the startup preamble on stderr (stdout results unaffected).",
             CommandOptionType.NoValue
         );
-        var estimateOption = app.Option(
-            "--estimate",
-            "Print how rare the filter is and how long it should take, then exit without searching. Computed from the game's odds, so it returns immediately.",
+        var noSaveOption = app.Option(
+            "--no-save",
+            "Leave the --jaml file untouched: don't write matches back into its top-level seeds: block (benchmarks, read-only checkouts).",
             CommandOptionType.NoValue
+        );
+        var partyOption = app.Option<string>(
+            "--party <ID>",
+            "Join a seedfinder.app Search Party: lease block ranges, search them, report finds, until the party is settled. Uses --threads and -q; the party's JAML and leases decide everything else.",
+            CommandOptionType.SingleValue
+        );
+        var serverOption = app.Option<string>(
+            "--server <URL>",
+            "Search Party coordinator for --party (default https://www.seedfinder.app).",
+            CommandOptionType.SingleValue
         );
         threadsOption.DefaultValue = Environment.ProcessorCount;
         // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
@@ -324,17 +313,19 @@ partial class Program
 
         app.OnExecuteAsync(async _ =>
         {
-            if (glossaryOption.HasValue())
-            {
-                Console.WriteLine(MotelyGlossary.Render());
-                return 0;
-            }
-
             if (args.Length == 0)
             {
                 app.ShowHelp();
                 return 0;
             }
+
+            if (partyOption.HasValue())
+                return await RunPartyMode(
+                    partyOption.ParsedValue,
+                    serverOption.HasValue() ? serverOption.ParsedValue : "https://www.seedfinder.app",
+                    threadsOption.ParsedValue,
+                    quietOption.HasValue()
+                );
 
             // --analyze mode — supports single seed or comma-separated batch.
             if (analyzeOption.HasValue())
@@ -423,14 +414,9 @@ partial class Program
                     !CliSearchMode.TryApplySearchMode(
                         nSettings,
                         new CliSearchMode.Input(
-                            SourcePath: sourceOption.HasValue() ? sourceOption.ParsedValue : null,
                             SeedsArgument: seedsOption.HasValue() ? seedsOption.ParsedValue : null,
-                            Drown: drownOption.HasValue(),
                             Replay: false,
                             JamlPath: null,
-                            ResultsRootPath: resultsPathOption.HasValue()
-                                ? resultsPathOption.ParsedValue
-                                : null,
                             FilterId: null,
                             JamlSeeds: null,
                             KeywordInputs: BuildKeywordInputs(keywordOption, keywordsOption),
@@ -456,16 +442,13 @@ partial class Program
                         ),
                         msg => Console.Error.WriteLine(msg),
                         out var nSearchModeError,
-                        out nSettings,
-                        out var nSourceLifetime
+                        out nSettings
                     )
                 )
                 {
                     Console.Error.WriteLine(nSearchModeError);
                     return 1;
                 }
-
-                using var _nSourceLifetime = nSourceLifetime;
 
                 // Always attach a progress callback so 'p' hotkey has fresh data;
                 // quiet mode just swaps in the silent capture variant.
@@ -525,24 +508,6 @@ partial class Program
 
                 var deck = config.Deck;
                 var stake = config.Stake;
-                bool drown = drownOption.HasValue();
-                if (drown)
-                {
-                    // --drown with nothing saved anywhere (no lake files, no seeds: block) has
-                    // no haystack; CliSearchMode degrades it to the sequential sweep. Decide
-                    // that here too, so the space label and banner describe the run that
-                    // actually happens rather than "the entire seed lake".
-                    string drownRoot = SeedLakeSink.LakeRoot(
-                        resultsPathOption.HasValue() ? resultsPathOption.ParsedValue : null
-                    );
-                    if (!SeedSourceProvider.HasLakeFiles(drownRoot) && config.Seeds.Count == 0)
-                    {
-                        drown = false;
-                        Console.Error.WriteLine(
-                            $"Note: nothing to drown in yet — the seed lake at '{drownRoot}' holds no seeds and the JAML has no seeds: block. Running the default sequential sweep instead; every find lands in the lake for the next --drown."
-                        );
-                    }
-                }
                 bool replay = replayOption.HasValue() || verifySeedsOption.HasValue();
                 int threads = threadsOption.HasValue()
                     ? threadsOption.ParsedValue
@@ -560,18 +525,9 @@ partial class Program
                 MotelyScoreCutoff cutoff = MotelyScoreCutoff.Auto();
                 if (cutoffOption.HasValue())
                 {
-                    var cutoffValue = cutoffOption.ParsedValue.Trim();
-                    if (string.Equals(cutoffValue, "auto", StringComparison.OrdinalIgnoreCase))
+                    if (!MotelyScoreCutoff.TryParse(cutoffOption.ParsedValue, out cutoff, out var cutoffError))
                     {
-                        cutoff = MotelyScoreCutoff.Auto();
-                    }
-                    else if (int.TryParse(cutoffValue, out var cutoffFixedValue))
-                    {
-                        cutoff = MotelyScoreCutoff.Fixed(cutoffFixedValue);
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("Error: --cutoff must be an integer or 'auto'.");
+                        Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
                         return 1;
                     }
                 }
@@ -638,10 +594,8 @@ partial class Program
                     keywordOption.HasValue()
                     || keywordsOption.HasValue()
                     || aestheticOption.HasValue()
-                    || sourceOption.HasValue()
                     || seedsOption.HasValue()
                     || randomOption.HasValue()
-                    || drown
                     || replay;
 
                 double cutoffSamplePercent = cutoffSampleOption.HasValue()
@@ -668,61 +622,13 @@ partial class Program
                     return 1;
                 }
 
-                // Only the untouched sequential sweep can state its size. Every other mode draws
-                // from a list whose length is not known until it loads, or from a slice this block
-                // would have to re-derive from batch indices — so they name the mode instead of
-                // inventing a count, and the report drops the odds lines rather than guessing.
-                JamlSearchSpace searchSpace =
-                    namedExplicitSeedInput
-                        ? new JamlSearchSpace(
-                            -1,
-                            drown ? "the entire seed lake"
-                            : replay ? "the JAML seeds: block"
-                            : "an explicitly named seed set"
-                        )
-                    : collectSequentialOnly ? new JamlSearchSpace(-1, "a narrowed sequential range")
-                    : collectLimit > 0 ? new JamlSearchSpace(-1, "every aesthetic, then sequential")
-                    : new JamlSearchSpace(
-                        JamlRarityReport.FullSequentialSeedSpace,
-                        "full sequential sweep"
-                    );
-
-                // stderr, not stdout: `--jaml x -q > seeds.txt` must produce seeds and nothing else.
-                // --estimate prints even under --quiet, since printing this is the whole request.
-                if (!quietOption.HasValue())
-                {
-
-                    foreach (
-                        string line in JamlRarityReport.Render(
-                            JamlRarityEstimator.Estimate(config),
-                            searchSpace,
-                            config.SimdCostPerSeed(),
-                            config.EstimateFilterCrunches(),
-                            collectLimit
-                        )
-                    )
-                    {
-                        Console.Error.WriteLine(line);
-                    }
-                }
-
-                // Nothing disposable exists yet, so this exit unwinds cleanly. It costs one probe
-                // batch — under a second — which is what turns the estimate into a number.
-                if (estimateOption.HasValue())
-                    return _cts.Token.IsCancellationRequested ? 1 : 0;
-
                 if (
                     !CliSearchMode.TryApplySearchMode(
                         settings,
                         new CliSearchMode.Input(
-                            SourcePath: sourceOption.HasValue() ? sourceOption.ParsedValue : null,
                             SeedsArgument: seedsOption.HasValue() ? seedsOption.ParsedValue : null,
-                            Drown: drown,
                             Replay: replay,
                             JamlPath: docPath,
-                            ResultsRootPath: resultsPathOption.HasValue()
-                                ? resultsPathOption.ParsedValue
-                                : null,
                             FilterId: config.Id,
                             JamlSeeds: config.Seeds,
                             KeywordInputs: BuildKeywordInputs(keywordOption, keywordsOption),
@@ -746,16 +652,13 @@ partial class Program
                         ),
                         msg => Console.Error.WriteLine(msg),
                         out var jamlSearchModeError,
-                        out settings,
-                        out var jamlSourceLifetime
+                        out settings
                     )
                 )
                 {
                     Console.Error.WriteLine(jamlSearchModeError);
                     return 1;
                 }
-
-                using var _jamlSourceLifetime = jamlSourceLifetime;
 
                 // Auto sampling deliberately stays a CLI policy: the engine still only receives
                 // ordinary sequential ranges and fixed score floors. It applies only where this
@@ -785,10 +688,7 @@ partial class Program
 
                 if (autoSampleSequential)
                 {
-                    long totalBatches = (long)Math.Pow(
-                        MotelyGlobals.SeedDigits.Length,
-                        MotelyGlobals.MaxSeedLength - batchCharCount
-                    );
+                    long totalBatches = MotelyGlobals.SequentialBatchCount(batchCharCount);
                     long sampleBatches = cutoffSampleBatchesOption.HasValue()
                         ? Math.Min(cutoffSampleBatchesOption.ParsedValue, totalBatches)
                         : Math.Clamp(
@@ -862,17 +762,7 @@ partial class Program
                     }
                 }
 
-                string? lakeRoot = resultsPathOption.HasValue()
-                    ? resultsPathOption.ParsedValue
-                    : null;
-
                 using var consoleSink = new ConsoleResultSink(plan.TallyLabels);
-                using var persistSink = new CompositeMotelyResultSink(
-                    [
-                        new SeedLakeSink(lakeRoot, config.Id, plan.TallyLabels),
-                        new ScoredResultsCsvSink(lakeRoot, config.Id, plan.TallyLabels),
-                    ]
-                );
                 var saveSeedsCollector = new MotelyTopSeedSink.Collector(int.MaxValue);
 
                 // Always attach a progress callback so 'p' hotkey stays current;
@@ -881,14 +771,12 @@ partial class Program
                     .WithProgressCallback(
                         quietOption.HasValue() ? CaptureProgress : WriteProgressLineToStderr
                     )
-                    .WithBatchBoundaryCallback(persistSink.Flush)
                     .WithAutoScoreCutoff(cutoff.IsAuto)
                     .WithScoredResultCallback(tally =>
                     {
                         if (!cutoff.ShouldEmit(tally.Score))
                             return;
 
-                        persistSink.OnScored(in tally);
                         consoleSink.OnScored(in tally);
                         saveSeedsCollector.Consider(tally.Seed, tally.Score);
                     });
@@ -896,7 +784,7 @@ partial class Program
                 if (!quietOption.HasValue())
                 {
                     Console.Error.WriteLine(
-                        $"Motely: {config.Name ?? docPath} | {deck} {stake} | threads={threads} | batchCharCount={batchCharCount} {(drown ? "| drown=entire seed lake" : replay ? "| replay=JAML seeds: block" : "(sequential only)")}"
+                        $"Motely: {config.Name ?? docPath} | {deck} {stake} | threads={threads} | batchCharCount={batchCharCount} {(replay ? "| replay=JAML seeds: block" : "(sequential only)")}"
                     );
                 }
 
@@ -911,8 +799,8 @@ partial class Program
                 }
                 else if (collectLimit > 0)
                 {
-                    // CliSearchMode already installed keyword / aesthetic / source / random /
-                    // drown / inline-seeds providers onto settings. --collect must StopAfter that
+                    // CliSearchMode already installed keyword / aesthetic / random / replay /
+                    // inline-seeds providers onto settings. --collect must StopAfter that
                     // intent — stomping it with the multi-aesthetic prepass is the pigeonhole
                     // (CUM hunt silently became "pretty seeds" and wiped operator seed lists).
                     // JAML seeds: alone still takes the default aesthetic collect path.
@@ -990,6 +878,7 @@ partial class Program
                 using var _search = search;
 
                 cancelled |= _cts.Token.IsCancellationRequested;
+                if (!noSaveOption.HasValue())
                 {
                     var seedsToSave = saveSeedsCollector.GetSeeds();
 
@@ -1043,7 +932,7 @@ partial class Program
             Console.WriteLine($"  Found: {matches:N0} seed(s) (StopAfter; SIMD/thread overshoot ok)");
         Console.WriteLine($"  Seeds: {seeds:N0} searched, {matches:N0} matched");
         Console.WriteLine($"  Time:  {elapsed:hh\\:mm\\:ss\\.fff}");
-        Console.WriteLine($"  Speed: {JamlRarityReport.Speed(search.SeedsPerSecond)}");
+        Console.WriteLine($"  Speed: {search.SeedsPerSecond:N0} seeds/s");
         if (search.IsSequentialBatchSearch)
         {
             long max = search.TotalBatchCount;
@@ -1126,8 +1015,7 @@ partial class Program
 
     static void FormatProgressToStderr(MotelyProgress p)
     {
-        // Same formatter as the rarity projection and the final summary, so the three agree.
-        string speed = JamlRarityReport.Speed(p.SeedsPerMillisecond * 1000.0);
+        string speed = $"{p.SeedsPerMillisecond * 1000.0:N0} seeds/s";
         string eta =
             p.EstimatedTimeRemainingMilliseconds is long etaMs && etaMs > 0
                 ? $" | ETA {FormatEtaMs(etaMs)}"

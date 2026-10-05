@@ -14,13 +14,14 @@ namespace Motely.Filters.Jaml;
     ValueEnum = typeof(MotelyPokerHand),
     RollsDefault = new[] { 0 }
 )]
-public sealed class PokerHandClause : IJamlClause, IAnteScopedClause, IRollScopedClause
+[YamlObject]
+public sealed partial class PokerHandClause : IJamlClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPokerHand[] PokerHands { get; set; } = [];
 
     /// <summary>
@@ -32,11 +33,12 @@ public sealed class PokerHandClause : IJamlClause, IAnteScopedClause, IRollScope
     /// Defaults to <c>[0]</c>, which is the behaviour every pre-<c>rolls</c> config had.
     /// </summary>
     public int[] Rolls { get; set; } = [0];
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new PokerHandFilterDesc(this);
 }
 
 public struct PokerHandFilterDesc(PokerHandClause clause)
-    : IMotelySeedFilterDesc<PokerHandFilterDesc.PokerHandFilter>,
-      IJamlClauseDesc<PokerHandClause>
+    : IMotelySeedFilterDesc<PokerHandFilterDesc.PokerHandFilter>
 {
     private readonly PokerHandClause _clause = clause;
 
@@ -65,18 +67,6 @@ public struct PokerHandFilterDesc(PokerHandClause clause)
 
     /// <summary>Hieroglyph and Petroglyph — the vouchers that call <c>ease_ante(-1)</c>.</summary>
     public const int AnteReductionVouchers = 2;
-
-    /// <inheritdoc/>
-    public static bool Set(PokerHandClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(PokerHandClause clause, IJamlValueReader value)
-    {
-        if (!value.TryEnumArray<MotelyPokerHand>(out var hands))
-            return false;
-        clause.PokerHands = hands;
-        return true;
-    }
 
     public PokerHandFilter CreateFilter(ref MotelyFilterCreationContext ctx) =>
         new PokerHandFilter(_clause);

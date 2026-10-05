@@ -17,6 +17,35 @@ public static partial class MotelyGlobals
     public const int DefaultProviderBatchSeedCount = 35 * 35 * 35; // 42_875
 
     /// <summary>
+    /// Seeds in one sequential batch: a batch varies the last <paramref name="batchCharacterCount"/>
+    /// characters, so it is 35^batchCharacterCount seeds (1,500,625 at 4). The one place this math
+    /// lives; workers, the CLI and coordinators read it here instead of re-deriving it.
+    /// </summary>
+    public static long SeedsPerSequentialBatch(int batchCharacterCount) =>
+        Pow35(ValidBatchCharacterCount(batchCharacterCount));
+
+    /// <summary>Batches in the 8-character space at this batch size: 35^(8 - batchCharacterCount).</summary>
+    public static long SequentialBatchCount(int batchCharacterCount) =>
+        Pow35(MaxSeedLength - ValidBatchCharacterCount(batchCharacterCount));
+
+    private static int ValidBatchCharacterCount(int batchCharacterCount) =>
+        batchCharacterCount is >= 1 and < MaxSeedLength
+            ? batchCharacterCount
+            : throw new ArgumentOutOfRangeException(
+                nameof(batchCharacterCount),
+                batchCharacterCount,
+                $"Batch character count must be 1-{MaxSeedLength - 1}."
+            );
+
+    private static long Pow35(int exponent)
+    {
+        long result = 1;
+        for (int i = 0; i < exponent; i++)
+            result *= SeedDigits.Length;
+        return result;
+    }
+
+    /// <summary>
     /// Canonical seed normalization: uppercase and replace '0' with 'O'.
     /// Call this everywhere user-provided seeds enter the engine.
     /// </summary>

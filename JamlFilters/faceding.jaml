@@ -40,54 +40,64 @@ should:
     score: 3
   - and:
     - smallBlindTag: NegativeTag
-      or:
-      - jokers: [SockAndBuskin, HangingChad, Photograph]
-        sources:
-          shopItems: [2,3]
-      - jokers: [SockAndBuskin, HangingChad, Photograph]
-        sources:
-          shopItems: [4,5]
       antes: [3]
-  - and:
-    - smallBlindTag: NegativeTag
-      or:
+    - or:
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [2,3]
+        antes: [3]
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [4,5]
+        antes: [3]
+  - and:
+    - smallBlindTag: NegativeTag
       antes: [4]
-  - and:
-    - smallBlindTag: NegativeTag
-      or:
+    - or:
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [2,3]
+        antes: [4]
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [4,5]
+        antes: [4]
+  - and:
+    - smallBlindTag: NegativeTag
       antes: [5]
-  - and:
-    - smallBlindTag: NegativeTag
-      or:
+    - or:
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [2,3]
+        antes: [5]
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [4,5]
+        antes: [5]
+  - and:
+    - smallBlindTag: NegativeTag
       antes: [6]
-  - and:
-    - smallBlindTag: NegativeTag
-      or:
+    - or:
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [2,3]
+        antes: [6]
       - jokers: [SockAndBuskin, HangingChad, Photograph]
         sources:
           shopItems: [4,5]
+        antes: [6]
+  - and:
+    - smallBlindTag: NegativeTag
       antes: [7]
+    - or:
+      - jokers: [SockAndBuskin, HangingChad, Photograph]
+        sources:
+          shopItems: [2,3]
+        antes: [7]
+      - jokers: [SockAndBuskin, HangingChad, Photograph]
+        sources:
+          shopItems: [4,5]
+        antes: [7]
 
   - rareJoker: Blueprint
     antes: [1, 2, 3, 4]

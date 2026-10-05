@@ -11,8 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Motely/Motely.csproj" />
-    <ProjectReference Include="../Motely.DataLake/Motely.DataLake.csproj" />
-    <ProjectReference Include="../Motely.Lsp/Motely.Lsp.csproj" />
+    <ProjectReference Include="../Motely.MCP/Motely.MCP.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +41,14 @@
        more. It cannot compile until an AppHost comes back, so exclude rather than delete. -->
   <ItemGroup>
     <Compile Remove="AppHostModelTests.cs" />
+  </ItemGroup>
+
+  <!-- The CLI's Search Party transport, compiled in directly: referencing the CLI exe would clash
+       with this project's own top-level Program. The file depends on nothing else in the CLI. -->
+  <ItemGroup>
+    <Compile Include="../Motely.CLI/HttpPartyCoordinator.cs" Link="Linked/HttpPartyCoordinator.cs" />
+    <!-- Same for MotelyWorker's loop; it depends only on Motely. -->
+    <Compile Include="../Motely.DistributedWorker/HomeWorker.cs" Link="Linked/HomeWorker.cs" />
   </ItemGroup>
 
   <ItemGroup>

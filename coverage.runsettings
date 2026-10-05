@@ -5,7 +5,6 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[Motely.DataLake]*,[Motely.JsonRender]*,[Motely.TUI]*</Exclude>
           <!-- MotelyVectorUtils: 138 of 202 statements are AdvSimd/PackedSimd/scalar fallbacks
                unreachable on this x86 AVX-512 host (board section D). Operator-approved exclude;
                the ARM64 cobertura-merge verb re-credits the file honestly and removes this line. -->

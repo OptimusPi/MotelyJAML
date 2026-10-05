@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("cavendishExtinct", RollsAreInlineValue = true)]
-public sealed class CavendishExtinctClause : IRollScopedClause, IWithScopedClause
+[YamlObject]
+public sealed partial class CavendishExtinctClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -13,11 +14,12 @@ public sealed class CavendishExtinctClause : IRollScopedClause, IWithScopedClaus
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new CavendishExtinctFilterDesc(this);
 }
 
 public struct CavendishExtinctFilterDesc(CavendishExtinctClause clause)
-    : IMotelySeedFilterDesc<CavendishExtinctFilterDesc.CavendishExtinctFilter>,
-      IJamlClauseDesc<CavendishExtinctClause>
+    : IMotelySeedFilterDesc<CavendishExtinctFilterDesc.CavendishExtinctFilter>
 {
     private readonly CavendishExtinctClause _clause = clause;
 
@@ -26,16 +28,6 @@ public struct CavendishExtinctFilterDesc(CavendishExtinctClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(CavendishExtinctClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(CavendishExtinctClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.JokerCavendishChance, (double)clause.With.Luck)
-        );
 
     public CavendishExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

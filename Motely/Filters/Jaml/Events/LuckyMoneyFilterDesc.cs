@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("luckyMoney", RollsAreInlineValue = true)]
-public sealed class LuckyMoneyClause : IRollScopedClause, IWithScopedClause
+[YamlObject]
+public sealed partial class LuckyMoneyClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -13,11 +14,12 @@ public sealed class LuckyMoneyClause : IRollScopedClause, IWithScopedClause
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new LuckyMoneyFilterDesc(this);
 }
 
 public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
-    : IMotelySeedFilterDesc<LuckyMoneyFilterDesc.LuckyMoneyFilter>,
-      IJamlClauseDesc<LuckyMoneyClause>
+    : IMotelySeedFilterDesc<LuckyMoneyFilterDesc.LuckyMoneyFilter>
 {
     private readonly LuckyMoneyClause _clause = clause;
 
@@ -26,19 +28,6 @@ public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(LuckyMoneyClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(LuckyMoneyClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(
-                MotelyGlobals.EnhancementLuckyMoneyChance,
-                (double)clause.With.Luck
-            )
-        );
 
     public LuckyMoneyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

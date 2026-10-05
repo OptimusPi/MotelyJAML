@@ -53,6 +53,16 @@ public sealed record MotelyRunState
         return (VoucherBitfield & (1 << (int)voucher)) != 0;
     }
 
+    /// <summary>Bit set of every voucher; the voucher pool is empty once all of them are active.</summary>
+    internal static readonly int AllVouchersBitfield = (int)((1L << MotelyEnum<MotelyVoucher>.ValueCount) - 1);
+
+    /// <summary>
+    /// Every voucher is redeemed, so no draw can find an open one. Balatro's
+    /// <c>get_current_pool</c> then falls back to Blank (<c>v_blank</c>); the draw loops use this
+    /// to return it instead of resampling forever (antes run to 39, the 32 vouchers are gone by ~33).
+    /// </summary>
+    public bool AreAllVouchersActive => (VoucherBitfield & AllVouchersBitfield) == AllVouchersBitfield;
+
     public void ActivateExtendedPackAnte(int ante)
     {
         if (ante > 0)

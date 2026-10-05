@@ -88,6 +88,16 @@ ref partial struct MotelyVectorSearchContext
         );
         int resampleCount = 0;
 
+        // Lanes with every voucher redeemed get Blank, as the scalar draw does, and never resample.
+        Vector256<int> exhaustedMask = voucherState.AreAllVouchersActive();
+        vouchers = new(
+            Vector256.ConditionalSelect(
+                exhaustedMask,
+                Vector256.Create((int)MotelyVoucher.Blank),
+                vouchers.HardwareVector
+            )
+        );
+
         while (true)
         {
             Vector256<int> alreadyUnlockedMask = voucherState.IsVoucherActive(vouchers);
@@ -113,7 +123,8 @@ ref partial struct MotelyVectorSearchContext
 
             // Mask of vouchers we need to resample
             Vector256<int> resampleMask =
-                alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask);
+                (alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask))
+                & ~exhaustedMask;
 
             if (Vector256.EqualsAll(resampleMask, Vector256<int>.Zero))
                 break;
@@ -158,6 +169,16 @@ ref partial struct MotelyVectorSearchContext
         );
         int resampleCount = 0;
 
+        // Lanes with every voucher redeemed get Blank, as the scalar draw does, and never resample.
+        Vector256<int> exhaustedMask = voucherState.AreAllVouchersActive();
+        vouchers = new(
+            Vector256.ConditionalSelect(
+                exhaustedMask,
+                Vector256.Create((int)MotelyVoucher.Blank),
+                vouchers.HardwareVector
+            )
+        );
+
         while (true)
         {
             Vector256<int> alreadyUnlockedMask = voucherState.IsVoucherActive(vouchers);
@@ -183,7 +204,8 @@ ref partial struct MotelyVectorSearchContext
 
             // Mask of vouchers we need to resample
             Vector256<int> resampleMask =
-                alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask);
+                (alreadyUnlockedMask | Vector256.OnesComplement(prerequisiteSatisfiedMask))
+                & ~exhaustedMask;
 
             if (Vector256.EqualsAll(resampleMask, Vector256<int>.Zero))
                 break;

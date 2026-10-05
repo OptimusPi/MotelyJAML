@@ -119,8 +119,9 @@ public sealed class JAMLyzerUnitTests
             page1.Events.LuckyMoney.Concat(page2.Events.LuckyMoney)
         );
 
-        // And the stitched state must land on the same end-state as the full window.
-        Assert.Equal(full.StreamStates, page2.StreamStates);
+        // And the stitched state must land on the same end-state as the full window. The one
+        // difference is the shop: two default-depth pages walked it twice, the full window once.
+        Assert.Equal(full.StreamStates with { ShopDefaultWindows = 2 }, page2.StreamStates);
 
         // Composite (pulls/shop) streams resume by offset-replay — gate the resample-backed ones
         // (Emperor, vouchers) and a shop stream, per ante. These are what would diverge silently
@@ -222,7 +223,7 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(5, a.StreamStates.RollOffset);
         Assert.Equal(13, b.StreamStates.RollOffset);
         Assert.Equal(20, c.StreamStates.RollOffset);
-        Assert.Equal(full.StreamStates, c.StreamStates);
+        Assert.Equal(full.StreamStates with { ShopDefaultWindows = 3 }, c.StreamStates);
 
         Assert.Equal<IEnumerable<int>>(
             full.Events.Misprint,
@@ -284,7 +285,7 @@ public sealed class JAMLyzerUnitTests
             var p1 = page1.Single(r => r.Seed == p2.Seed);
             var f = full[p2.Seed];
 
-            Assert.Equal(f.StreamStates, p2.StreamStates);
+            Assert.Equal(f.StreamStates with { ShopDefaultWindows = 2 }, p2.StreamStates);
             Assert.Equal<IEnumerable<MotelyItemEdition>>(
                 f.Events.WheelOfFortune,
                 p1.Events.WheelOfFortune.Concat(p2.Events.WheelOfFortune)
@@ -385,6 +386,204 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(200, shop.Antes[1].ShopItems.Count);
         Assert.Equal(20, shop.Antes[1].ShopStreams.ShopTarots.Count);
     }
+
+    /// <summary>
+    /// Analyze.SeedsResume promises the shop picks up exactly where the last window stopped. With
+    /// shopSlots left at 0 it did not: the bag's ShopOffset never moved, so every resumed window
+    /// re-read the same 15 / 50 items. Default windows, explicit windows and a mix of the two must
+    /// all tile each ante's one continuous shop queue -- no item repeated, none skipped.
+    /// </summary>
+    [Fact]
+    public void Analyze_ResumedShop_DefaultAndExplicitWindowsTileTheQueue()
+    {
+        var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0, shopSlots: 200)[0];
+
+        var a = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0)[0]; // default depth
+        var b = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, 0)[0]; // default again
+        var c = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), b.StreamStates, 0, 7)[0]; // explicit 7
+        var d = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), c.StreamStates, 0)[0]; // default again
+
+        Assert.Equal(9, full.Antes.Count);
+        for (int i = 0; i < full.Antes.Count; i++)
+        {
+            int ante = full.Antes[i].Ante;
+            int depth = ante <= 1 ? 15 : 50;
+            Assert.Equal(depth, a.Antes[i].ShopItems.Count);
+            Assert.Equal(7, c.Antes[i].ShopItems.Count);
+
+            var stitched = a.Antes[i]
+                .ShopItems.Concat(b.Antes[i].ShopItems)
+                .Concat(c.Antes[i].ShopItems)
+                .Concat(d.Antes[i].ShopItems)
+                .ToArray();
+            Assert.Equal(3 * depth + 7, stitched.Length);
+            Assert.Equal<IEnumerable<MotelyItem>>(
+                full.Antes[i].ShopItems.Take(stitched.Length),
+                stitched
+            );
+        }
+
+        Assert.Equal(7, d.StreamStates.ShopOffset);
+        Assert.Equal(3, d.StreamStates.ShopDefaultWindows);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(int.MinValue, 0)]
+    [InlineData(MotelyJamlyzer.MaxEventRolls + 1, 0)]
+    [InlineData(int.MaxValue, 0)]
+    [InlineData(20, -1)]
+    [InlineData(20, MotelyJamlyzer.MaxShopSlots + 1)]
+    [InlineData(20, int.MaxValue)]
+    public void Analyze_OutOfRangeWindow_ThrowsArgumentOutOfRange(int eventRolls, int shopSlots)
+    {
+        // These used to surface as OverflowException / OutOfMemoryException from an array
+        // allocation, or walk for minutes. JS can pass anything; the call must say what is wrong.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
+        );
+        // Checked up front, so a seedless config is no way around it.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
+        );
+        // Search.withAnalysis(eventRolls) builds the rider straight from the JS argument.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
+        );
+    }
+
+    [Fact]
+    public void Analyze_AtTheCaps_IsAccepted()
+    {
+        var config = JamlConfigLoader.FromJaml(
+            "must:\n  - voucher: Overstock\n    antes: [1]\nseeds: [UNITTEST]"
+        );
+        var r = MotelyJamlyzer.Analyze(
+            config,
+            MotelyJamlyzer.MaxEventRolls,
+            MotelyJamlyzer.MaxShopSlots
+        )[0];
+        var ante1 = r.Antes.Single(a => a.Ante == 1);
+        Assert.Equal(MotelyJamlyzer.MaxEventRolls, ante1.Pulls.JudgementJokers.Count);
+        Assert.Equal(MotelyJamlyzer.MaxShopSlots, ante1.ShopItems.Count);
+    }
+
+    public static TheoryData<string, Func<MotelyJamlyzerStreamStates, MotelyJamlyzerStreamStates>> CorruptBags =>
+        new()
+        {
+            { "negative RollOffset", s => s with { RollOffset = -5 } },
+            { "RollOffset int.MaxValue", s => s with { RollOffset = int.MaxValue } },
+            { "RollOffset past the cap", s => s with { RollOffset = MotelyJamlyzer.MaxEventRolls } },
+            { "negative ShopOffset", s => s with { ShopOffset = -5 } },
+            { "ShopOffset int.MaxValue", s => s with { ShopOffset = int.MaxValue } },
+            { "negative ShopDefaultWindows", s => s with { ShopDefaultWindows = -1 } },
+            { "ShopDefaultWindows int.MaxValue", s => s with { ShopDefaultWindows = int.MaxValue } },
+            { "NaN state", s => s with { Misprint = double.NaN } },
+            { "infinite state", s => s with { LuckyMoney = double.PositiveInfinity } },
+            { "negative state", s => s with { Glass = -0.25 } },
+            { "state above 1", s => s with { TheWheel = 1.5 } },
+        };
+
+    /// <summary>
+    /// A bag crosses the JS boundary as a plain object. Before, a negative offset silently left the
+    /// first slots of every queue as default(MotelyItem), int.MaxValue overflowed into an empty walk
+    /// with a negative RollOffset handed back, 1e9 replayed for minutes, and NaN states rolled
+    /// nonsense. Each must be refused with ArgumentOutOfRange naming resumeFrom.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CorruptBags))]
+    public void Analyze_ResumeFromCorruptBag_ThrowsArgumentOutOfRange(
+        string _,
+        Func<MotelyJamlyzerStreamStates, MotelyJamlyzerStreamStates> corrupt
+    )
+    {
+        var good = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), corrupt(good), eventRolls: 10)
+        );
+        Assert.Equal("resumeFrom", ex.ParamName);
+    }
+
+    [Fact]
+    public void Analyze_ResumeWithNoSeeds_ReturnsNoRows()
+    {
+        var bag = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
+        // Was ArgumentOutOfRangeException "Index was out of range" from config.Seeds[0].
+        Assert.Empty(MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), bag, 10));
+    }
+
+    /// <summary>
+    /// JAML antes run to 39, and the Jamlyzer redeems one voucher per ante. From ante 33 on every
+    /// voucher is redeemed, and the voucher resample loop could never land on an unredeemed one:
+    /// Analyze spun forever (in the browser, a frozen tab). Balatro's empty pool offers Blank.
+    /// </summary>
+    [Fact]
+    public async Task Analyze_AntesPastTheVoucherPool_FinishesWithBlank()
+    {
+        var config = JamlConfigLoader.FromJaml(
+            "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
+        );
+        // Off the test thread with a deadline: a regression fails here instead of hanging the run.
+        var result = await Task.Run(() => MotelyJamlyzer.Analyze(config, eventRolls: 3)[0])
+            .WaitAsync(TimeSpan.FromSeconds(60));
+
+        var antes = result.Antes.Where(a => a.Ante >= 1).ToList();
+        Assert.Equal(39, antes.Count);
+        // Antes 1..32 redeem each of the 32 vouchers exactly once...
+        Assert.Equal(
+            MotelyEnum<MotelyVoucher>.ValueCount,
+            antes.Take(32).Select(a => a.Voucher).Distinct().Count()
+        );
+        // ...after which the pool is empty.
+        Assert.All(antes.Skip(32), a => Assert.Equal(MotelyVoucher.Blank, a.Voucher));
+        Assert.All(
+            antes.Skip(32),
+            a => Assert.All(a.Pulls.VoucherSequence, v => Assert.Equal(MotelyVoucher.Blank, v))
+        );
+    }
+
+    /// <summary>
+    /// Same JAML, same answer: repeated calls agree, and a batched multi-seed call (with scoring,
+    /// on the Erratic deck) equals the same seeds analyzed one at a time.
+    /// </summary>
+    [Fact]
+    public void Analyze_IsDeterministic_AndBatchedEqualsOneAtATime()
+    {
+        string[] seeds = ["UNITTEST", "ALEEB", "1234567", "KK1XD111", "11111111", "ZZZZZZZZ"];
+        const string Jaml = """
+            deck: Erratic
+            must:
+              - joker: []
+                antes: [1, 2]
+            should:
+              - joker: Blueprint
+                score: 3
+              - tarotCard: TheFool
+                score: 1
+            seeds: []
+            """;
+        JamlConfig Config(params string[] s)
+        {
+            var c = JamlConfigLoader.FromJaml(Jaml);
+            c.Seeds.AddRange(s);
+            return c;
+        }
+
+        var batched = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
+        var again = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
+        var single = seeds
+            .SelectMany(s => MotelyJamlyzer.Analyze(Config(s), eventRolls: 6, shopSlots: 9))
+            .ToList();
+
+        Assert.Equal(seeds, batched.Select(r => r.Seed));
+        Assert.All(batched, r => Assert.Equal(52, r.ErraticDeck!.Length));
+        Assert.Contains(batched, r => r.Tally is not null);
+        Assert.Equal(batched.Select(Fingerprint), again.Select(Fingerprint));
+        Assert.Equal(batched.Select(Fingerprint), single.Select(Fingerprint));
+    }
+
+    private static string Fingerprint(MotelyJamlyzerSeedResult r) =>
+        System.Text.Json.JsonSerializer.Serialize(r);
 
     /// <summary>A deep ante-1 shop is one call and the items keep coming: the stream never dries up.</summary>
     [Fact]

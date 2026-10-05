@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("glassDestroy", RollsAreInlineValue = true)]
-public sealed class GlassDestroyClause : IRollScopedClause, IWithScopedClause
+[YamlObject]
+public sealed partial class GlassDestroyClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -13,11 +14,12 @@ public sealed class GlassDestroyClause : IRollScopedClause, IWithScopedClause
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new GlassDestroyFilterDesc(this);
 }
 
 public struct GlassDestroyFilterDesc(GlassDestroyClause clause)
-    : IMotelySeedFilterDesc<GlassDestroyFilterDesc.GlassDestroyFilter>,
-      IJamlClauseDesc<GlassDestroyClause>
+    : IMotelySeedFilterDesc<GlassDestroyFilterDesc.GlassDestroyFilter>
 {
     private readonly GlassDestroyClause _clause = clause;
 
@@ -26,16 +28,6 @@ public struct GlassDestroyFilterDesc(GlassDestroyClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(GlassDestroyClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(GlassDestroyClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.CardGlassChance, (double)clause.With.Luck)
-        );
 
     public GlassDestroyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

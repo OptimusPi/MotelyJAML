@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("parkingPayout", RollsAreInlineValue = true)]
-public sealed class ParkingPayoutClause : IRollScopedClause
+[YamlObject]
+public sealed partial class ParkingPayoutClause : IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -15,11 +16,12 @@ public sealed class ParkingPayoutClause : IRollScopedClause
     // No Luck. Reserved Parking is flat 50/50 (Chance = 2) — one Oops saturates to
     // guaranteed, so luck is binary, not a dial. The field is gone by construction,
     // not inherited-then-forbidden.
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new ParkingPayoutFilterDesc(this);
 }
 
 public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
-    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>,
-      IJamlClauseDesc<ParkingPayoutClause>
+    : IMotelySeedFilterDesc<ParkingPayoutFilterDesc.ParkingPayoutFilter>
 {
     private readonly ParkingPayoutClause _clause = clause;
 
@@ -28,13 +30,6 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
-    /// <inheritdoc/>
-    public static bool Set(ParkingPayoutClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(ParkingPayoutClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(clause, JamlRollRarity.Rate(MotelyGlobals.JokerParkingChance));
 
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

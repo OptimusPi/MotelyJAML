@@ -9,13 +9,14 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("joker", "jokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(JokerSourceConfig))]
-public sealed class JokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyJoker[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
@@ -24,11 +25,12 @@ public sealed class JokerClause : IJamlClause, IAnteScopedClause
     /// <summary>Legendary-path sources for any Legendary names in this mixed clause. Null = apply
     /// <see cref="LegendaryJokerFilterDesc.DefaultSources"/> (same convention as <see cref="Sources"/>).</summary>
     public LegendaryJokerSourceConfig? LegendarySources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new JokerFilterDesc(this);
 }
 
 public struct JokerFilterDesc(JokerClause clause)
-    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>,
-      IJamlClauseDesc<JokerClause>
+    : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>
 {
     private readonly JokerClause _clause = clause;
 
@@ -39,36 +41,6 @@ public struct JokerFilterDesc(JokerClause clause)
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 
-    /// <inheritdoc/>
-    public static bool Set(JokerClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            case "stickers":
-                if (!value.TryEnumArray<MotelyJokerSticker>(out var stickers)) return false;
-                clause.Stickers = stickers;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(JokerClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyJoker>(out var jokers))
-            return false;
-        clause.Jokers = jokers;
-        return true;
-    }
-
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
     /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and
@@ -78,14 +50,6 @@ public struct JokerFilterDesc(JokerClause clause)
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
-
-    /// <summary>
-    /// Shop slots, buffoon packs and the specialty streams for the ordinary names, the soul path
-    /// for any legendary ones, the two convolved under one window — the same split
-    /// <c>CountJokerClauseOccurrences</c> makes. See <see cref="JamlJokerRarity"/>.
-    /// </summary>
-    public static double EstimateRarity(JokerClause clause, in JamlRarityContext ctx) =>
-        JamlJokerRarity.EstimateJoker(clause, in ctx);
 
     public JokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -381,54 +345,64 @@ public struct JokerFilterDesc(JokerClause clause)
 
 [JamlDiscriminator("commonJoker", "commonJokers",
     ValueEnum = typeof(MotelyJokerCommon), SourceConfigType = typeof(JokerSourceConfig))]
-public sealed class CommonJokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyJokerCommon[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
 }
 
 [JamlDiscriminator("uncommonJoker", "uncommonJokers",
     ValueEnum = typeof(MotelyJokerUncommon), SourceConfigType = typeof(JokerSourceConfig))]
-public sealed class UncommonJokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyJokerUncommon[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new UncommonJokerFilterDesc(this);
 }
 
 [JamlDiscriminator("rareJoker", "rareJokers",
     ValueEnum = typeof(MotelyJokerRare), SourceConfigType = typeof(JokerSourceConfig))]
-public sealed class RareJokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyJokerRare[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     public MotelyJokerSticker[] Stickers { get; set; } = [];
     public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new RareJokerFilterDesc(this);
 }
 
 /// <summary>
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
 /// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
-public sealed record JokerSourceConfig
+[YamlObject]
+public sealed partial record JokerSourceConfig
 {
     /// <summary>
     /// This class's settable properties, camelCased — the single list JamlConfigLoader

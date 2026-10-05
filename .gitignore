@@ -82,24 +82,9 @@ nuget.config.local
 .mcp.local.json
 /.seeds
 /.playwright-mcp
-/Motely.Wasm/dist-workers
-/Motely.JsonRender/sample-out/
-/Motely.JsonRender/demo-jamlui/node_modules/
-/Motely.JsonRender/demo-jamlui/dist/
 
-# local A/B bench outputs
-scripts/token_ab/results/
 .playwright-mcp/
 
-# Seed lake catalog (DuckLake, SQLite) — lives beside Seeds/
-/ducklake.sqlite
-/ducklake.sqlite-journal
-/ducklake.sqlite-wal
-/ducklake.sqlite-shm
-
-# Claude Code plugin payload. `bin/` above ignores build output everywhere, and git will not
-# descend into an excluded directory — so the repo-root bin/ is re-included first, its contents
-# re-excluded, and only the shipped language-server binary allowed back through.
-!/bin/
-/bin/*
-!/bin/motely-lsp*
+# MotelyHome's queue
+*.duckdb
+*.duckdb.wal

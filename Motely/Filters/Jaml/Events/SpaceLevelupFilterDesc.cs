@@ -5,7 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("spaceLevelup", RollsAreInlineValue = true)]
-public sealed class SpaceLevelupClause : IRollScopedClause, IWithScopedClause
+[YamlObject]
+public sealed partial class SpaceLevelupClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -13,11 +14,12 @@ public sealed class SpaceLevelupClause : IRollScopedClause, IWithScopedClause
     public int Score { get; set; }
     public int[] Rolls { get; set; } = [];
     public JamlWith With { get; set; } = new();
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new SpaceLevelupFilterDesc(this);
 }
 
 public struct SpaceLevelupFilterDesc(SpaceLevelupClause clause)
-    : IMotelySeedFilterDesc<SpaceLevelupFilterDesc.SpaceLevelupFilter>,
-      IJamlClauseDesc<SpaceLevelupClause>
+    : IMotelySeedFilterDesc<SpaceLevelupFilterDesc.SpaceLevelupFilter>
 {
     private readonly SpaceLevelupClause _clause = clause;
 
@@ -26,16 +28,6 @@ public struct SpaceLevelupFilterDesc(SpaceLevelupClause clause)
 
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
-    /// <inheritdoc/>
-    public static bool Set(SpaceLevelupClause clause, string key, IJamlValueReader value) => false;
-
-    /// <inheritdoc/>
-    public static double EstimateRarity(SpaceLevelupClause clause, in JamlRarityContext ctx) =>
-        JamlRollRarity.Window(
-            clause,
-            JamlRollRarity.Rate(MotelyGlobals.JokerSpaceChance, (double)clause.With.Luck)
-        );
 
     public SpaceLevelupFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

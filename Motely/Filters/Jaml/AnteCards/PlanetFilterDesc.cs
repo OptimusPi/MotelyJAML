@@ -6,23 +6,25 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("planetCard", "planetCards",
     ValueEnum = typeof(MotelyPlanetCard), SourceConfigType = typeof(PlanetSourceConfig))]
-public sealed class PlanetCardClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class PlanetCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPlanetCard[] Planets { get; set; } = [];
 
     // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     // applies. Any explicit block (even partial) is used verbatim — defaults never merge in.
     public PlanetSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new PlanetCardFilterDesc(this);
 }
 
 public struct PlanetCardFilterDesc(PlanetCardClause clause)
-    : IMotelySeedFilterDesc<PlanetCardFilterDesc.PlanetCardFilter>,
-      IJamlClauseDesc<PlanetCardClause>
+    : IMotelySeedFilterDesc<PlanetCardFilterDesc.PlanetCardFilter>
 {
     private readonly PlanetCardClause _clause = clause;
 
@@ -32,23 +34,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
     /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
-    /// <inheritdoc/>
-    public static bool Set(PlanetCardClause clause, string key, IJamlValueReader value)
-    {
-        return false;
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(PlanetCardClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyPlanetCard>(out var planets)) return false;
-        clause.Planets = planets;
-        return true;
-    }
-
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs need explicit sources:.
     /// </summary>
@@ -56,55 +41,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
     {
         ShopItems = [0, 1, 2, 3, 4, 5, 6, 7],
     };
-
-    /// <summary>
-    /// A shop slot is a planet with the deck's planet weight of the shop total, then 1 of 12; a
-    /// celestial pack slot is a weighted pack roll then that many draws, each <c>0.997 × 1/12</c>
-    /// because Black Hole takes the card first 0.3% of the time.
-    /// </summary>
-    public static double EstimateRarity(PlanetCardClause clause, in JamlRarityContext ctx)
-    {
-        var sources = clause.Sources ?? DefaultSources;
-
-        var planets = JamlDisc.OrEmpty(clause.Planets);
-        double share = JamlPoolRarity.PoolShare(
-            JamlPoolRarity.Distinct(planets),
-            MotelyEnum<MotelyPlanetCard>.ValueCount,
-            JamlDisc.IsCategoryAny(planets)
-        );
-
-        const double BlackHolePerCard = 0.003; // GetNextPlanet on a black-holeable stream: poll > 0.997
-        double shopShare = ctx.ShopPlanetRate / ctx.ShopTotalRate * share;
-        double packCardShare = (1.0 - BlackHolePerCard) * share;
-
-        double[] pmf = JamlCountDistribution.Zero;
-        foreach (int ante in clause.Antes)
-        {
-            pmf = JamlCountDistribution.Convolve(
-                pmf,
-                JamlCountDistribution.Binomial(JamlPoolRarity.Distinct(sources.ShopItems), shopShare)
-            );
-
-            HashSet<int> slots = [];
-            foreach (int slot in sources.BoosterPacks)
-            {
-                if (!slots.Add(slot) || !JamlPoolRarity.SlotIsReachable(ante, slot))
-                    continue;
-                if (JamlPoolRarity.SlotIsFixedBuffoon(ante, slot))
-                    continue; // ante 1's first offer is a Buffoon, never a celestial pack
-                pmf = JamlCountDistribution.Convolve(
-                    pmf,
-                    JamlPoolRarity.PackSlotCards(
-                        MotelyBoosterPackType.Celestial,
-                        packCardShare,
-                        sources.RequireMegaPack
-                    )
-                );
-            }
-        }
-
-        return JamlCountDistribution.Window(pmf, clause.Min, clause.Max);
-    }
 
     public PlanetCardFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -265,10 +201,14 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
                         VectorMask extraLanes = isCelestial & ~isNormal;
                         var baseMask = JamlSimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = JamlSimdPackSupport.ToPrngMask(extraLanes);
+                        // Deduplicated against this pack, as the scalar pack contents are: a raw
+                        // draw keeps the repeat the scalar engine resamples (often into a target).
+                        MotelyVectorItemSet packItems = new();
 
                         for (int c = 0; c < 3; c++)
                         {
-                            var card = ctx.GetNextPlanet(ref planetStream, baseMask);
+                            var card = ctx.GetNextPlanet(ref planetStream, in packItems, baseMask);
+                            packItems.Append(card);
                             if (countLanes.IsPartiallyTrue())
                                 JamlSimdPackSupport.AddMatchCounts(
                                     MatchPlanets(card, clause) & countLanes & baseLanes,
@@ -280,7 +220,8 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
                         {
                             for (int c = 0; c < 2; c++)
                             {
-                                var card = ctx.GetNextPlanet(ref planetStream, extraMask);
+                                var card = ctx.GetNextPlanet(ref planetStream, in packItems, extraMask);
+                                packItems.Append(card);
                                 if (countLanes.IsPartiallyTrue())
                                     JamlSimdPackSupport.AddMatchCounts(
                                         MatchPlanets(card, clause) & countLanes & extraLanes,
@@ -319,7 +260,8 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>planetCard:</c>. Colocated with <see cref="PlanetCardFilterDesc"/> (T5).
 /// </summary>
-public sealed record PlanetSourceConfig
+[YamlObject]
+public sealed partial record PlanetSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
     public static readonly string[] SourceKeys =

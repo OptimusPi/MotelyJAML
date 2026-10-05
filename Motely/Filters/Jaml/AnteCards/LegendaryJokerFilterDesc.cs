@@ -6,13 +6,14 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("legendaryJoker", "legendaryJokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(LegendaryJokerSourceConfig))]
-public sealed class LegendaryJokerClause : IJamlClause, IAnteScopedClause
+[YamlObject]
+public sealed partial class LegendaryJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; }
-    public int[] Antes { get; set; } = [];
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyJoker[] Jokers { get; set; } = [];
     public MotelyItemEdition? Edition { get; set; }
     /// <summary>Null = apply <see cref="LegendaryJokerFilterDesc.DefaultSources"/>; an explicit block
@@ -31,11 +32,12 @@ public sealed class LegendaryJokerClause : IJamlClause, IAnteScopedClause
     /// could otherwise false-negative the prefilter.
     /// </summary>
     public int SoulEditionRolls { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new LegendaryJokerFilterDesc(this);
 }
 
 public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
-    : IMotelySeedFilterDesc<LegendaryJokerFilterDesc.LegendaryJokerFilter>,
-      IJamlClauseDesc<LegendaryJokerClause>
+    : IMotelySeedFilterDesc<LegendaryJokerFilterDesc.LegendaryJokerFilter>
 {
     private readonly LegendaryJokerClause _clause = clause;
 
@@ -45,45 +47,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
     /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "joker", "jokers", "soulCardOnly", "soulEditionRolls"];
-
-    /// <inheritdoc/>
-    public static bool Set(LegendaryJokerClause clause, string key, IJamlValueReader value)
-    {
-        switch (key.ToLowerInvariant())
-        {
-            case "joker":
-            case "jokers":
-                if (!value.TryEnumArray<MotelyJoker>(out var jokers)) return false;
-                clause.Jokers = jokers;
-                return true;
-            case "edition":
-                if (!value.TryEnum<MotelyItemEdition>(out var edition)) return false;
-                clause.Edition = edition;
-                return true;
-            case "soulcardonly":
-                if (!value.TryBool(out var soulOnly)) return false;
-                clause.SoulCardOnly = soulOnly;
-                return true;
-            case "souleditionrolls":
-                if (!value.TryInt(out var rolls)) return false;
-                clause.SoulEditionRolls = rolls;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public static bool SetDiscriminatorValue(LegendaryJokerClause clause, IJamlValueReader value)
-    {
-        // Empty disc (null / "" / []) = category match. No "Any" token.
-        if (string.IsNullOrWhiteSpace(value.Text))
-            return true;
-        if (!value.TryEnumArray<MotelyJoker>(out var jokers))
-            return false;
-        clause.Jokers = jokers;
-        return true;
-    }
 
     /// <summary>Source of truth for legendary/Soul defaults when a clause gives no <c>sources:</c> block:
     /// the SIMD/vector path walks all 6 booster-pack slots (legacy type-agnostic mode — both arcana and
@@ -98,17 +61,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
     {
         BoosterPacks = [0, 1, 2, 3, 4, 5],
     };
-
-    /// <summary>
-    /// The Soul at 0.003 per arcana or spectral card behind a weighted pack roll, then one of five
-    /// legendaries with an edition off the soul stream — <see cref="JamlJokerRarity.LegendaryDistribution"/>.
-    /// </summary>
-    public static double EstimateRarity(LegendaryJokerClause clause, in JamlRarityContext ctx) =>
-        JamlCountDistribution.Window(
-            JamlJokerRarity.LegendaryDistribution(clause, in ctx),
-            clause.Min,
-            clause.Max
-        );
 
     public LegendaryJokerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -187,7 +139,8 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 /// <c>sources:</c> block for <c>legendaryJoker:</c>. Colocated with
 /// <see cref="LegendaryJokerFilterDesc"/> (T5).
 /// </summary>
-public sealed record LegendaryJokerSourceConfig
+[YamlObject]
+public sealed partial record LegendaryJokerSourceConfig
 {
     /// <summary>
     /// requireMega/requireMegaPack are both real aliases the loader accepts for the one

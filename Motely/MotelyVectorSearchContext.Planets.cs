@@ -123,15 +123,29 @@ ref partial struct MotelyVectorSearchContext
     public MotelyItemVector GetNextPlanet(
         ref MotelyVectorPlanetStream planetStream,
         in MotelyVectorItemSet itemSet
+    ) => GetNextPlanet(ref planetStream, in itemSet, Vector512<double>.AllBitsSet);
+
+    /// <summary>
+    /// Pack draw (deduplicated against <paramref name="itemSet"/>, Black Hole at most once) for
+    /// the lanes in <paramref name="mask"/> only: lanes outside it pull nothing from any stream, so
+    /// a walk over packs whose type or size differs per lane stays on the scalar engine's draws.
+    /// </summary>
+    public MotelyItemVector GetNextPlanet(
+        ref MotelyVectorPlanetStream planetStream,
+        in MotelyVectorItemSet itemSet,
+        in Vector512<double> mask
     )
     {
         Vector512<double> blackHoleMask;
         Vector256<int> blackHoleMaskInt;
+        Vector256<int> laneMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(mask);
         if (planetStream.IsBlackHoleable)
         {
-            Vector512<double> validMask = MotelyVectorUtils.ExtendIntMaskToDouble(
-                ~itemSet.Contains(MotelyItemType.BlackHole)
-            );
+            Vector512<double> validMask =
+                mask
+                & MotelyVectorUtils.ExtendIntMaskToDouble(
+                    ~itemSet.Contains(MotelyItemType.BlackHole)
+                );
             blackHoleMask =
                 validMask
                 & Vector512.GreaterThan(
@@ -157,7 +171,7 @@ ref partial struct MotelyVectorSearchContext
                 ref planetStream.ResampleStream.InitialPrngStream,
                 0,
                 MotelyEnum<MotelyPlanetCard>.ValueCount,
-                ~blackHoleMask
+                mask & ~blackHoleMask
             );
             planets = Vector256.Create((int)MotelyItemTypeCategory.PlanetCard) | planets;
 
@@ -165,7 +179,7 @@ ref partial struct MotelyVectorSearchContext
             while (resampleCount < MotelyVectorResampleLimit)
             {
                 Vector256<int> resampleMaskInt = itemSet.Contains(new MotelyItemVector(planets));
-                resampleMaskInt &= ~blackHoleMaskInt;
+                resampleMaskInt &= ~blackHoleMaskInt & laneMaskInt;
                 if (Vector256.EqualsAll(resampleMaskInt, Vector256<int>.Zero))
                     break;
                 Vector256<int> nextPlanets = GetNextRandomInt(

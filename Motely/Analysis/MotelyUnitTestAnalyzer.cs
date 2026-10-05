@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -164,12 +163,17 @@ public static partial class MotelyUnitTestAnalyzer
             search.Start();
             search.AwaitCompletion();
 
-            Debug.Assert(filterDesc.LastAnalysis != null);
-
             // Don't write to Console here - the caller should handle output
             // Console.Write(filterDesc.LastAnalysis);
 
-            return filterDesc.LastAnalysis;
+            // The engine drops a seed it cannot search (empty, longer than 8, or holding '0')
+            // without handing it to the filter. That left LastAnalysis null and every caller
+            // reading .Error off it threw NullReferenceException.
+            return filterDesc.LastAnalysis
+                ?? new MotelyUnitTestAnalysis(
+                    $"'{cfg.Seed}' is not a searchable seed (1-{MotelyGlobals.MaxSeedLength} characters, no '0').",
+                    []
+                );
         }
         catch (Exception ex)
         {

@@ -7,25 +7,45 @@ namespace Motely.Analysis;
 /// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream. One value, shared by
 /// the standalone filter and the analyze provider, so both walk exactly the same ground.
 /// </summary>
-internal readonly struct MotelyJamlyzerWindow(
-    int[] antesToAnalyze,
-    int eventRolls,
-    int shopSlots = 0
-)
+internal readonly struct MotelyJamlyzerWindow
 {
+    public MotelyJamlyzerWindow(int[] antesToAnalyze, int eventRolls, int shopSlots = 0)
+    {
+        ThrowIfOutOfRange(eventRolls, shopSlots);
+        StartAnte = antesToAnalyze.Length > 0 && antesToAnalyze[0] == 0 ? 0 : 1;
+        MaxAnte = antesToAnalyze.Length > 0 ? antesToAnalyze[^1] : 8;
+        EventRolls = eventRolls;
+        ShopSlots = shopSlots;
+    }
+
     // Ante 0 (the pre-run shop a JAML clause can target with `antes: [0]`) is real data
     // the search already matches on — emit it when scoped instead of silently dropping it.
-    public readonly int StartAnte =
-        antesToAnalyze.Length > 0 && antesToAnalyze[0] == 0 ? 0 : 1;
-    public readonly int MaxAnte = antesToAnalyze.Length > 0 ? antesToAnalyze[^1] : 8;
-    public readonly int EventRolls = eventRolls;
+    public readonly int StartAnte;
+    public readonly int MaxAnte;
+    public readonly int EventRolls;
 
     // How deep to walk each ante's shop queue, independent of EventRolls. 0 keeps the historical
     // defaults (15 for the pre-run shop and ante 1, 50 beyond). The shop stream never runs dry --
     // GetNextShopItem yields forever -- so this bound is the only thing that ends the walk.
     // It is its own dial because EventRolls sizes eighteen other arrays; hanging shop depth on it
     // makes a 5000-slot shop allocate 5000 entries per pull and shop-source stream as well.
-    public readonly int ShopSlots = shopSlots;
+    public readonly int ShopSlots;
+
+    /// <summary>The per-ante shop depth a <c>shopSlots: 0</c> window walks.</summary>
+    public static int DefaultShopSlots(int ante) => ante <= 1 ? 15 : 50;
+
+    /// <summary>
+    /// Both dials arrive from JS unchecked. A negative count used to surface as an
+    /// OverflowException from an array allocation, and a huge one allocated gigabytes or walked
+    /// for minutes on the browser's only thread. Name the argument and the limit instead.
+    /// </summary>
+    public static void ThrowIfOutOfRange(int eventRolls, int shopSlots)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(eventRolls);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(eventRolls, MotelyJamlyzer.MaxEventRolls);
+        ArgumentOutOfRangeException.ThrowIfNegative(shopSlots);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(shopSlots, MotelyJamlyzer.MaxShopSlots);
+    }
 }
 
 /// <summary>
@@ -107,13 +127,23 @@ internal static class MotelyJamlyzerSeedWalk
         // The shop walks ShopSlots per window while the pull/shop-source queues walk EventRolls,
         // so the two consume their streams at different rates and cannot share one cursor.
         int shopOffset = resumeFrom?.ShopOffset ?? 0;
+        // Default-depth windows walked each ante's own default (15 or 50), which one item count
+        // cannot express, so they are counted separately and scaled per ante below.
+        int shopDefaultWindows = resumeFrom?.ShopDefaultWindows ?? 0;
 
         MotelyRunState voucherState = new();
         MotelySingleBossStream bossStream = ctx.CreateBossStream();
 
-        var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - window.StartAnte + 1];
+        // Ante 0 is walked when the window names it, or when this seed's ante-1 voucher is
+        // Hieroglyph/Petroglyph — buying it eases the run back to ante 0, so that round is real.
+        int startAnte = window.StartAnte;
+        if (startAnte == 1
+            && ctx.GetAnteFirstVoucher(1, new MotelyRunState()) is MotelyVoucher.Hieroglyph or MotelyVoucher.Petroglyph)
+            startAnte = 0;
 
-        for (int ante = window.StartAnte; ante <= window.MaxAnte; ante++)
+        var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - startAnte + 1];
+
+        for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
             // Ante 0 is the pre-run shop, reached by ante reduction (Hieroglyph / Petroglyph):
             // its shop, packs and tags are exactly what a JAML `antes: [0]` clause searches.
@@ -149,13 +179,15 @@ internal static class MotelyJamlyzerSeedWalk
 
             // Shop
             MotelySingleShopItemStream shopStream = ctx.CreateShopItemStream(ante);
-            int maxSlots = window.ShopSlots > 0 ? window.ShopSlots : (ante <= 1 ? 15 : 50);
+            int defaultSlots = MotelyJamlyzerWindow.DefaultShopSlots(ante);
+            int maxSlots = window.ShopSlots > 0 ? window.ShopSlots : defaultSlots;
+            int shopSkip = shopOffset + shopDefaultWindows * defaultSlots;
             MotelyItem[] shopItems = new MotelyItem[maxSlots];
-            for (int i = 0; i < shopOffset + maxSlots; i++)
+            for (int i = 0; i < shopSkip + maxSlots; i++)
             {
                 var item = ctx.GetNextShopItem(ref shopStream);
-                if (i >= shopOffset)
-                    shopItems[i - shopOffset] = item;
+                if (i >= shopSkip)
+                    shopItems[i - shopSkip] = item;
             }
 
             // Packs
@@ -184,7 +216,7 @@ internal static class MotelyJamlyzerSeedWalk
             if (!isPreRunShop)
                 voucherState.ActivateVoucher(voucher);
 
-            antes[ante - window.StartAnte] = new(
+            antes[ante - startAnte] = new(
                 ante,
                 boss,
                 voucher,
@@ -199,11 +231,10 @@ internal static class MotelyJamlyzerSeedWalk
 
         // The shop advances by the depth actually walked this window, which is ShopSlots when the
         // caller set one and otherwise the per-ante default -- ante 1 walks 15, ante 2+ walks 50.
-        int shopSlotsWalked = window.ShopSlots > 0 ? window.ShopSlots : 0;
         var (events, streamStates) = CollectEvents(
             ref ctx,
             n,
-            shopSlotsWalked,
+            window.ShopSlots,
             resumeFrom
         );
 
@@ -227,10 +258,10 @@ internal static class MotelyJamlyzerSeedWalk
         int offset
     )
     {
-        // Nothing to walk and nothing to replay: building the streams would hash a dozen
-        // PRNG keys per ante to then read none of them. `eventRolls: 0` is sold as the
-        // cheap shape, so make it cheap.
-        if (n == 0 && offset == 0)
+        // Nothing to keep: building the streams would hash a dozen PRNG keys per ante, and a
+        // resumed window would replay `offset` rolls of each, to then read none of them.
+        // `eventRolls: 0` is sold as the cheap shape, so make it cheap.
+        if (n == 0)
             return new([], [], [], [], [], [], [], [], [], [], []);
 
         // Joker streams
@@ -323,9 +354,9 @@ internal static class MotelyJamlyzerSeedWalk
         int offset
     )
     {
-        // Same short-circuit as CollectPulls: no rolls and nothing to replay means the
-        // seven streams below would be built only to be thrown away.
-        if (n == 0 && offset == 0)
+        // Same short-circuit as CollectPulls: no rolls to keep means the seven streams
+        // below would be built (and replayed) only to be thrown away.
+        if (n == 0)
             return new([], [], [], [], [], [], []);
 
         // Shop-source streams share the keys the shop item queue consumes, but each raw
@@ -385,7 +416,7 @@ internal static class MotelyJamlyzerSeedWalk
     private static (MotelyJamlyzerEvents, MotelyJamlyzerStreamStates) CollectEvents(
         ref MotelySingleSearchContext ctx,
         int N,
-        int shopSlotsWalked,
+        int shopSlots,
         MotelyJamlyzerStreamStates? resume
     )
     {
@@ -487,10 +518,11 @@ internal static class MotelyJamlyzerSeedWalk
 
         // End-of-window state bag — hand straight back as resumeFrom. RollOffset advances by this
         // window's N so composite (pulls/shop) replay lands on the next window; the doubles let
-        // the event streams resume exactly without re-rolling.
+        // the event streams resume exactly without re-rolling. The shop advances by ShopSlots, or
+        // by one default-depth window when the caller left shopSlots at 0.
         var states = new MotelyJamlyzerStreamStates(
             (resume?.RollOffset ?? 0) + N,
-            (resume?.ShopOffset ?? 0) + shopSlotsWalked,
+            (resume?.ShopOffset ?? 0) + shopSlots,
             luckyMoney.State,
             luckyMult.State,
             wheel.State,
@@ -504,7 +536,8 @@ internal static class MotelyJamlyzerSeedWalk
             glass.State,
             omenGlobe.State,
             theWheel.State,
-            misprint.State
+            misprint.State,
+            (resume?.ShopDefaultWindows ?? 0) + (shopSlots > 0 ? 0 : 1)
         );
 
         return (events, states);

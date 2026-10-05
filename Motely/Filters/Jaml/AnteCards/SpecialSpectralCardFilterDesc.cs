@@ -23,7 +23,7 @@ namespace Motely.Filters.Jaml;
 ///
 /// <b>KEEP — real SIMD, not dead code.</b> Reuses <see cref="SpectralCardClause"/> (no separate
 /// JAML keyword). Live route: <c>spectralCard:</c> → <see cref="Handles"/> true →
-/// <see cref="JamlSearchBuilder.ClauseToFilterDesc"/> installs this filter instead of
+/// <see cref="SpectralCardClause.CreateFilterDesc"/> installs this filter instead of
 /// <see cref="SpectralCardFilterDesc"/>. Gate is <see cref="Handles"/> /
 /// <see cref="JamlScoring.TargetsSpecialSpectral"/> — leave this type on the tree.
 /// </summary>
@@ -52,15 +52,33 @@ public struct SpecialSpectralCardFilterDesc(SpectralCardClause clause)
         {
             var clause = _clause;
 
+            // The narrow below only sees packs. A clause that also reads the shop, Sixth Sense or
+            // Séance can match on a seed with no Arcana/Spectral/Celestial pack at all (a
+            // `spectralCard: [TheSoul, Incantation]` hit from a Séance roll), so it goes straight
+            // to the exact per-seed count.
+            var sources = SpectralCardFilterDesc.ResolveSources(clause);
+            if (sources.ShopItems.Length > 0 || sources.SixthSense.Length > 0 || sources.Seance.Length > 0)
+            {
+                return ctx.SearchIndividualSeeds(
+                    (MotelySingleSearchContext single) =>
+                        JamlScoring.ClauseMeetsMinForFilter(ref single, clause) ? 1 : 0
+                );
+            }
+
             // Cheap SIMD narrow: keep only lanes that have at least one pack a special card can spawn
             // in (Arcana / Spectral / Celestial) somewhere in the requested antes. Deliberately
-            // over-permissive — iterate the full pack range and ignore the per-ante reachability clamp
-            // here, because a too-tight narrow would drop real matches before the exact scalar count runs.
+            // over-permissive — iterate the full pack range (ante 1 up to its Hieroglyph-extended
+            // slots) and ignore the per-lane reachability clamp here, because a too-tight narrow
+            // would drop real matches before the exact scalar count runs.
             VectorMask relevant = VectorMask.NoBitsSet;
             foreach (var ante in clause.Antes)
             {
                 var packStream = ctx.CreateBoosterPackStream(ante);
-                for (int p = 0; p <= MotelyGlobals.LateAntesMaxPackSlot; p++)
+                int maxPackSlot =
+                    ante == 1
+                        ? JamlSimdPackSupport.Ante1ExtendedMaxPackSlot
+                        : MotelyGlobals.LateAntesMaxPackSlot;
+                for (int p = 0; p <= maxPackSlot; p++)
                 {
                     var packType = ctx.GetNextBoosterPack(ref packStream).GetPackType();
                     relevant |=

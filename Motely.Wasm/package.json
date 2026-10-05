@@ -1,40 +1,28 @@
 {
-    "name": "motely-wasm",
-    "version": "26.0.2",
-    "description": "Balatro seed search + per-seed analysis via JAML. Same Motely engine as native, compiled to WebAssembly (Bootsharp).",
-    "author": "Nathanial P. Howard",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/OptimusPi/MotelyJAML.git"
-    },
-    "type": "module",
-    "files": [
-        "bin/motely-wasm"
-    ],
-    "main": "./bin/motely-wasm/index.mjs",
-    "types": "./bin/motely-wasm/index.d.mts",
-    "exports": {
-        ".": {
-            "types": "./bin/motely-wasm/index.d.mts",
-            "default": "./bin/motely-wasm/index.mjs"
-        },
-        "./*": {
-            "types": "./bin/motely-wasm/generated/modules/*.g.d.mts",
-            "default": "./bin/motely-wasm/generated/modules/*.g.mjs"
-        },
-        "./package.json": "./package.json"
-    },
-    "browser": {
-        "node:fs": false,
-        "node:url": false,
-        "node:path": false,
-        "node:module": false,
-        "node:crypto": false,
-        "node:process": false
-    },
-    "scripts": {
-        "build": "dotnet publish Motely.Wasm.csproj -c Release && node scripts/patch-dist-base64-polyfill.mjs",
-        "prepublishOnly": "npm run build"
-    }
+  "name": "motely-wasm",
+  "version": "27.0.0",
+  "description": "Motely, the Balatro seed engine, as a single-threaded WebAssembly module (NativeAOT-LLVM via Bootsharp).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./bin/motely-wasm/index.mjs",
+  "types": "./bin/motely-wasm/index.d.mts",
+  "exports": {
+    ".": "./bin/motely-wasm/index.mjs",
+    "./*": "./bin/motely-wasm/generated/modules/*.g.mjs"
+  },
+  "browser": {
+    "node:fs": false,
+    "node:url": false,
+    "node:path": false,
+    "node:module": false,
+    "node:crypto": false,
+    "node:process": false
+  },
+  "files": ["bin/motely-wasm"],
+  "scripts": {
+    "prepack": "npm run build",
+    "build": "dotnet publish -c Release",
+    "build:fs": "dotnet publish -c Release -p:MotelyFileSystem=true",
+    "test": "node tests/smoke.mjs"
+  }
 }

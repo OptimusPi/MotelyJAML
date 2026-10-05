@@ -97,6 +97,11 @@ public partial class MotelySingleSearchContext
                 }
             }
 
+            // Every voucher is redeemed: the pool falls back to Blank (see
+            // MotelyRunState.AreAllVouchersActive); resampling would never find an open one.
+            if (voucherState.AreAllVouchersActive)
+                return MotelyVoucher.Blank;
+
             prngStream = CreateResamplePrngStream(
                 MotelyPrngKeys.Voucher + ante,
                 resampleCount,
@@ -148,6 +153,11 @@ public partial class MotelySingleSearchContext
                     break;
                 }
             }
+
+            // Every voucher is redeemed: the pool falls back to Blank (see
+            // MotelyRunState.AreAllVouchersActive); resampling would never find an open one.
+            if (voucherState.AreAllVouchersActive)
+                return MotelyVoucher.Blank;
 
             voucher = (MotelyVoucher)GetNextRandomInt(
                 ref GetResamplePrngStream(

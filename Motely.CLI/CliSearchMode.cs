@@ -1,6 +1,5 @@
 #nullable enable
 using System.Diagnostics.CodeAnalysis;
-using Motely.DataLake;
 using Motely.Filters;
 using Motely.SeedProviders;
 
@@ -12,12 +11,9 @@ namespace Motely.CLI;
 internal static class CliSearchMode
 {
     public readonly record struct Input(
-        string? SourcePath,
         string? SeedsArgument,
-        bool Drown,
         bool Replay,
         string? JamlPath,
-        string? ResultsRootPath,
         string? FilterId,
         IReadOnlyList<string>? JamlSeeds,
         IReadOnlyList<string> KeywordInputs,
@@ -35,29 +31,40 @@ internal static class CliSearchMode
     /// <summary>Default batch character count when the caller didn't pass one explicitly.</summary>
     private const int DefaultBatchCharacterCount = 4;
 
+    /// <summary>What <see cref="TryNormalizeSeed"/> accepts, for error messages.</summary>
+    public const string SeedRule = "1-8 characters of 1-9, A-Z";
+
+    /// <summary>
+    /// Normalizes a typed seed (trim, upper-case, 0 to O) and checks it is 1-8 characters of
+    /// 1-9/A-Z, the only seeds the engine searches. Anything else used to slip through: '!' or a
+    /// space was hashed as if it were a seed, and an over-long one was silently dropped (0 seeds
+    /// searched, exit 0).
+    /// </summary>
+    public static bool TryNormalizeSeed(string input, [NotNullWhen(true)] out string? seed)
+    {
+        seed = MotelyGlobals.NormalizeSeed(input);
+        if (
+            seed.Length is >= 1 and <= MotelyGlobals.MaxSeedLength
+            && seed.All(static c => Array.IndexOf(MotelyGlobals.SeedDigits, c) >= 0)
+        )
+            return true;
+        seed = null;
+        return false;
+    }
+
     public static bool TryApplySearchMode(
         IMotelySearchSettings settings,
         in Input input,
         Action<string>? writeWarning,
         [NotNullWhen(false)] out string? error,
-        out IMotelySearchSettings updated,
-        out IDisposable? sourceLifetime
+        out IMotelySearchSettings updated
     )
     {
         updated = settings;
         error = null;
-        sourceLifetime = null;
 
-        bool hasSource = !string.IsNullOrWhiteSpace(input.SourcePath);
         bool hasSeedsArg = !string.IsNullOrWhiteSpace(input.SeedsArgument);
-        bool hasDrownMode = input.Drown;
         bool hasReplayMode = input.Replay;
-
-        if (hasSource && hasSeedsArg)
-        {
-            error = "Error: choose only one explicit seed input: --source or --seeds.";
-            return false;
-        }
 
         JamlAesthetic? explicitAesthetic = null;
         bool aestheticAll = false;
@@ -87,9 +94,7 @@ internal static class CliSearchMode
         if (hasSeedIndexOptions)
         {
             if (
-                hasSource
-                || hasSeedsArg
-                || hasDrownMode
+                hasSeedsArg
                 || hasReplayMode
                 || input.KeywordInputs.Count > 0
                 || input.RandomCount.HasValue
@@ -101,13 +106,41 @@ internal static class CliSearchMode
             }
         }
 
-        bool hasSeedListMode = hasSource || hasSeedsArg;
         bool hasKeywordMode = input.KeywordInputs.Count > 0;
 
+        // --padding with no seed character in it reached the engine as an empty alphabet, and a
+        // short keyword without one tripped the engine's own guard: both died with a stack trace.
+        char[]? paddingChars = null;
+        if (input.PaddingCharsOption is not null)
+        {
+            paddingChars = MotelyGlobals.ParsePaddingChars(input.PaddingCharsOption);
+            if (paddingChars is null)
+            {
+                error =
+                    $"Error: --padding '{input.PaddingCharsOption}' has no seed characters (1-9, A-Z).";
+                return false;
+            }
+        }
+
+        var keywords = new List<string>(input.KeywordInputs.Count);
+        foreach (var raw in input.KeywordInputs)
+        {
+            if (!TryNormalizeSeed(raw, out var keyword))
+            {
+                error = $"Error: keyword '{raw}' is not part of a seed ({SeedRule}).";
+                return false;
+            }
+            if (keyword.Length <= 2 && paddingChars is null)
+            {
+                error =
+                    $"Error: keyword '{keyword}' is {keyword.Length} character(s); keywords that short need --padding (e.g. --padding 123456789).";
+                return false;
+            }
+            keywords.Add(keyword);
+        }
+
         int explicitSearchModeCount = 0;
-        if (hasSeedListMode)
-            explicitSearchModeCount++;
-        if (hasDrownMode)
+        if (hasSeedsArg)
             explicitSearchModeCount++;
         if (hasReplayMode)
             explicitSearchModeCount++;
@@ -121,161 +154,51 @@ internal static class CliSearchMode
         if (explicitSearchModeCount > 1)
         {
             error =
-                "Error: choose only one search input mode: --source, --seeds, --drown, --replay, --keyword, --keywords, --random, or --aesthetic.";
+                "Error: choose only one search input mode: --seeds, --replay, --keyword, --keywords, --random, or --aesthetic.";
             return false;
         }
 
         string[]? explicitSeeds = null;
-        SeedSourceProvider? streamingProvider = null;
-
-        bool drownFellBackToSequential = false;
-        if (hasDrownMode)
-        {
-            // Cannonball: every seed ever saved — the lake root (every filter, deduped) plus
-            // this JAML's own seeds: block, which is saved output the lake may predate.
-            string lakeRoot = SeedLakeSink.LakeRoot(input.ResultsRootPath);
-            bool hasJamlSeeds = input.JamlSeeds is { Count: > 0 };
-            if (!Directory.Exists(lakeRoot) && !hasJamlSeeds)
-            {
-                drownFellBackToSequential = true;
-            }
-            else
-            {
-                try
-                {
-                    var drownProvider = SeedSourceProvider.FromLakeRoot(
-                        lakeRoot,
-                        hasJamlSeeds ? input.JamlSeeds : null
-                    );
-                    if (drownProvider.SeedCount == 0)
-                    {
-                        drownProvider.Dispose();
-                        drownFellBackToSequential = true;
-                    }
-                    else
-                    {
-                        updated = updated.WithProviderSearch(drownProvider);
-                        sourceLifetime = drownProvider;
-                        return true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    error = $"Error: could not read seed lake '{lakeRoot}': {ex.Message}";
-                    return false;
-                }
-            }
-
-            // Nothing saved anywhere yet — there is no haystack to drown in. That is not a
-            // reason to refuse the run: the sequential sweep below is exactly what fills the
-            // lake, so --drown degrades to it and says so, instead of telling the operator
-            // to "run a search first" while they are running one.
-            writeWarning?.Invoke(
-                $"Note: nothing to drown in yet — the seed lake at '{lakeRoot}' holds no seeds"
-                    + (input.JamlPath is not null ? " and the JAML has no seeds: block" : "")
-                    + ". Running the default sequential sweep instead; every find lands in the lake for the next --drown."
-            );
-        }
 
         if (hasReplayMode)
         {
-            // Replay / verify: only the seeds: block of this JAML file, nothing else.
             if (string.IsNullOrWhiteSpace(input.JamlPath))
             {
                 error = "Error: --replay requires --jaml (it replays that file's seeds: block).";
                 return false;
             }
-
-            try
+            if (input.JamlSeeds is not { Count: > 0 })
             {
-                var replayProvider = new SeedSourceProvider(input.JamlPath!);
-                if (replayProvider.SeedCount == 0)
-                {
-                    replayProvider.Dispose();
-                    error = $"Error: '{input.JamlPath}' has no seeds: block to replay.";
-                    return false;
-                }
-                updated = updated.WithProviderSearch(replayProvider);
-                sourceLifetime = replayProvider;
-            }
-            catch (Exception ex)
-            {
-                error = $"Error: could not read seeds from '{input.JamlPath}': {ex.Message}";
+                error = $"Error: '{input.JamlPath}' has no seeds: block to replay.";
                 return false;
             }
-            return true;
-        }
-
-        if (hasSource)
-        {
-            try
-            {
-                streamingProvider = new SeedSourceProvider(input.SourcePath!);
-                if (streamingProvider.SeedCount == 0)
-                {
-                    streamingProvider.Dispose();
-                    streamingProvider = null;
-                    error = "Error: resolved source contained no seeds.";
-                    return false;
-                }
-                sourceLifetime = streamingProvider;
-            }
-            catch (Exception ex)
-            {
-                error = $"Error: {ex.Message}";
-                return false;
-            }
+            explicitSeeds = [.. input.JamlSeeds.Select(static s => MotelyGlobals.NormalizeSeed(s))];
         }
         else if (hasSeedsArg)
         {
             var seedsValue = input.SeedsArgument!;
-            bool looksLikeSourcePath =
+            if (
                 seedsValue.Contains(Path.DirectorySeparatorChar)
                 || seedsValue.Contains(Path.AltDirectorySeparatorChar)
-                || Path.HasExtension(seedsValue);
-
-            if (looksLikeSourcePath)
+                || Path.HasExtension(seedsValue)
+            )
             {
-                try
-                {
-                    streamingProvider = new SeedSourceProvider(seedsValue);
-                    if (streamingProvider.SeedCount == 0)
-                    {
-                        streamingProvider.Dispose();
-                        streamingProvider = null;
-                        error = "Error: resolved seed source contained no seeds.";
-                        return false;
-                    }
-
-                    writeWarning?.Invoke(
-                        "Warning: --seeds <path> is deprecated; use --source <path>."
-                    );
-                    sourceLifetime = streamingProvider;
-                }
-                catch (Exception ex)
-                {
-                    error = $"Error: {ex.Message}";
-                    return false;
-                }
+                error = $"Error: --seeds takes inline seeds (A1B2C3D4,E5F6G7H8), not a file: '{seedsValue}'.";
+                return false;
             }
-            else
+
+            if (!TryParseInlineSeeds(seedsValue, out var inlineSeeds, out error))
+                return false;
+            if (inlineSeeds.Count == 0)
             {
-                var inlineSeeds = ParseInlineSeeds(seedsValue);
-                if (inlineSeeds.Count == 0)
-                {
-                    error = "Error: --seeds requires at least one inline seed.";
-                    return false;
-                }
-
-                explicitSeeds = inlineSeeds.ToArray();
+                error = "Error: --seeds requires at least one inline seed.";
+                return false;
             }
+
+            explicitSeeds = inlineSeeds.ToArray();
         }
 
-        if (streamingProvider != null)
-        {
-            updated = updated.WithProviderSearch(streamingProvider);
-        }
-        else if (explicitSeeds != null)
+        if (explicitSeeds != null)
         {
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.SeedList,
@@ -286,7 +209,7 @@ internal static class CliSearchMode
         {
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.Keyword,
-                Keywords: [.. input.KeywordInputs],
+                Keywords: [.. keywords],
                 PaddingAlphabet: input.PaddingCharsOption
             ).ApplyTo(updated);
         }
@@ -321,19 +244,22 @@ internal static class CliSearchMode
         }
         // The JAML seeds: replay and the sequential sweep are the *default* modes — they apply
         // only when the caller picked no explicit search input above. An explicit mode
-        // (--keyword, --random, --aesthetic, --source, --seeds) already installed its provider;
+        // (--keyword, --random, --aesthetic, --seeds, --replay) already installed its provider;
         // reaching the block below would silently stomp it back to sequential.
-        // --drown with nothing saved anywhere is the one explicit mode that degrades here.
-        if (explicitSearchModeCount > 0 && !drownFellBackToSequential)
+        if (explicitSearchModeCount > 0)
             return true;
 
         // Sequential is the default, always. A JAML `seeds:` block is saved *output* — the engine
         // writes it back after a run — so treating its presence as an instruction meant a filter
         // silently stopped sweeping the moment it had ever found anything. Replaying that list is
-        // an explicit request with an existing door: `--source <file>.jaml`, which SeedSourceProvider
-        // already reads (it regex-extracts the seeds: block). Nothing is lost by not guessing.
+        // the explicit `--replay`. Nothing is lost by not guessing.
         {
             int batchCharacterCount = input.BatchCharacterCount ?? DefaultBatchCharacterCount;
+            if (batchCharacterCount is < 1 or >= MotelyGlobals.MaxSeedLength)
+            {
+                error = $"Error: --batchCharCount must be 1-{MotelyGlobals.MaxSeedLength - 1}.";
+                return false;
+            }
             updated = new MotelySearchIntent(
                 SequentialBatchCharacterCount: batchCharacterCount
             ).ApplyTo(updated);
@@ -371,20 +297,33 @@ internal static class CliSearchMode
             }
             else
             {
+                long maxBatch = MotelyGlobals.SequentialBatchCount(batchCharacterCount);
+                long startBatch = 0;
+
                 if (input.StartBatch.HasValue)
-                    updated = updated.WithStartBatchIndex(input.StartBatch.Value);
+                {
+                    // A negative index crashed a worker (IndexOutOfRange, stack trace); one past
+                    // the end searched nothing and exited 0 as if it had finished.
+                    startBatch = input.StartBatch.Value;
+                    if (startBatch < 0 || startBatch >= maxBatch)
+                    {
+                        error =
+                            $"Error: --startBatch must be 0..{maxBatch - 1} (batchCharCount {batchCharacterCount}).";
+                        return false;
+                    }
+                    updated = updated.WithStartBatchIndex(startBatch);
+                }
                 else if (input.StartPercent.HasValue)
                 {
                     double pct = input.StartPercent.Value;
-                    if (pct < 0 || pct > 100)
+                    // Negated so NaN fails too; NaN used to slip past and sweep from batch 0.
+                    if (!(pct >= 0 && pct <= 100))
                     {
                         error = "Error: --startPercent must be between 0 and 100.";
                         return false;
                     }
 
-                    int nonBatchChars = MotelyGlobals.MaxSeedLength - batchCharacterCount;
-                    long maxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, nonBatchChars);
-                    long startBatch = (long)(maxBatch * (pct / 100.0));
+                    startBatch = (long)(maxBatch * (pct / 100.0));
                     if (startBatch < 0)
                         startBatch = 0;
                     if (maxBatch > 0 && startBatch >= maxBatch)
@@ -393,16 +332,30 @@ internal static class CliSearchMode
                 }
 
                 if (input.EndBatch.HasValue)
+                {
+                    // An end at or before the start searched nothing and still exited 0.
+                    if (input.EndBatch.Value <= startBatch)
+                    {
+                        error =
+                            $"Error: --endBatch {input.EndBatch.Value} must be greater than the start batch {startBatch}.";
+                        return false;
+                    }
                     updated = updated.WithEndBatchIndex(input.EndBatch.Value);
+                }
             }
         }
 
         return true;
     }
 
-    private static List<string> ParseInlineSeeds(string value)
+    private static bool TryParseInlineSeeds(
+        string value,
+        out List<string> seeds,
+        [NotNullWhen(false)] out string? error
+    )
     {
-        var seeds = new List<string>();
+        seeds = [];
+        error = null;
         foreach (
             var part in value.Split(
                 ',',
@@ -410,9 +363,15 @@ internal static class CliSearchMode
             )
         )
         {
-            if (!string.IsNullOrWhiteSpace(part))
-                seeds.Add(MotelyGlobals.NormalizeSeed(part));
+            if (string.IsNullOrWhiteSpace(part))
+                continue;
+            if (!TryNormalizeSeed(part, out var seed))
+            {
+                error = $"Error: --seeds: '{part}' is not a seed ({SeedRule}).";
+                return false;
+            }
+            seeds.Add(seed);
         }
-        return seeds;
+        return true;
     }
 }
