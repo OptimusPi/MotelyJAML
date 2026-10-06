@@ -26,7 +26,7 @@ cd Motely.Wasm && dotnet publish -c Release && node tests/smoke.mjs   # the npm 
 | Project | What it is |
 |---------|------------|
 | `Motely` | The engine and the JAML grammar. Everything else depends inward on it. |
-| `Motely.CLI` | Command-line search. |
+| `Motely.CLI` | Command-line search, and `--party` for seedfinder.app Search Parties. |
 | `Motely.TUI` | Terminal UI: filter library, JAML editor, search with live results. |
 | `Motely.MCP` | MCP server (stdio). `party_start` splits one sweep across local Motely.CLI processes; `party_status`, `party_list`, `party_stop`, `party_save`. |
 | `Motely.Wasm` | `motely-wasm` on npm: the engine in the browser via Bootsharp. |

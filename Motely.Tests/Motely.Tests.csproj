@@ -35,6 +35,18 @@
     <Compile Remove="JimmolateScoringOrderTests.cs" />
   </ItemGroup>
 
+  <!-- Motely.AppHost was removed in 7411172; AppHostModelTests.cs outlived it and still binds
+       Projects.Motely_AppHost plus the Aspire.Hosting.* namespaces, which nothing references any
+       more. It cannot compile until an AppHost comes back, so exclude rather than delete. -->
+  <ItemGroup>
+    <Compile Remove="AppHostModelTests.cs" />
+  </ItemGroup>
+
+  <!-- The CLI's Search Party transport, compiled in directly: referencing the CLI exe would clash
+       with this project's own top-level Program. The file depends on nothing else in the CLI. -->
+  <ItemGroup>
+    <Compile Include="../Motely.CLI/HttpPartyCoordinator.cs" Link="Linked/HttpPartyCoordinator.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Update="seeds/*.txt">
