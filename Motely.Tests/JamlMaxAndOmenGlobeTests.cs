@@ -31,14 +31,14 @@ public sealed class JamlMaxAndOmenGlobeTests
             Min = min,
             Max = max,
         };
-        Assert.Equal(expected, JamlScoring.MeetsOccurrenceBounds(raw, clause));
+        Assert.Equal(expected, ClauseScoring.MeetsOccurrenceBounds(raw, clause));
     }
 
     [Fact]
     public void OmenGlobe_IsExactFilterConfirm()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new SpectralCardClause
                 {
                     Spectrals = [MotelySpectralCard.Immolate],

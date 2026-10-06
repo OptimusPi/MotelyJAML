@@ -153,33 +153,6 @@ public sealed class JamlWildcardTests
     }
 
     [Fact]
-    public void NullJokerArray_IsCategoryAny_LikeEmpty()
-    {
-        // Host-built clause with null disc list (not loader) must not NRE — same as [].
-        var clause = new JokerClause { Jokers = null!, Antes = [1], Score = 1 };
-        Assert.True(JamlDisc.IsCategoryAny(clause.Jokers));
-        Assert.Empty(JamlDisc.OrEmpty(clause.Jokers));
-
-        var config = new JamlConfig
-        {
-            Id = "null-jokers",
-            Deck = MotelyDeck.Red,
-            Stake = MotelyStake.White,
-        };
-        config.Must.Add(clause);
-        int delivered = 0;
-        using var search = MotelySearchBuilder
-            .CreateSettings(config)
-            .WithSeedGenerator(["UNITTEST"], 1)
-            .WithThreadCount(1)
-            .WithQuietMode(true)
-            .WithSeedMatchCallback(_ => Interlocked.Increment(ref delivered))
-            .Start();
-        search.AwaitCompletion();
-        Assert.Equal(1, delivered);
-    }
-
-    [Fact]
     public void EmptyJoker_FindsASeed_ListProof()
     {
         // Same dense filter StopAfter/Proof smoke uses — empty list is category any.

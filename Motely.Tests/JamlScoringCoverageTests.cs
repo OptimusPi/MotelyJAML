@@ -1,7 +1,7 @@
 namespace Motely.Tests;
 
 /// <summary>
-/// Smoke: scalar JamlScoring paths golden tests skip. Asserts list batch ran and scored callback
+/// Smoke: scalar ClauseScoring paths golden tests skip. Asserts list batch ran and scored callback
 /// fired. Exact scores/seeds live in golden/behavior tests.
 /// </summary>
 public sealed class JamlScoringCoverageTests
@@ -183,7 +183,7 @@ public sealed class JamlScoringCoverageTests
     public void Events_SpreadRollsWithMax_ExerciseFullLoops()
     {
         // Rolls beyond index 0 force the skip loops; Max forces the counter to keep scanning
-        // instead of returning at min. Every event counter in JamlScoring takes both branches.
+        // instead of returning at min. Every event counter in ClauseScoring takes both branches.
         IMotelyClause[] clauses =
         [
             new LuckyMoneyClause { Rolls = [0, 2, 5], Min = 1, Max = 3 },

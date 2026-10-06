@@ -13,7 +13,7 @@ namespace Motely.Tests;
 /// </summary>
 public class VoucherOrFilterTests
 {
-    // First forty entries of Motelyfilters/Zerkeo.jaml's seeds block.
+    // First forty entries of YamlFilters/Zerkeo.jaml's seeds block.
     private static readonly string[] Seeds =
     [
         "F2U88X11", "JX8C8X11", "L8FJ8X11", "A68EBX11", "M2TCJX11", "BC36RX11", "4E1MRX11",
@@ -47,7 +47,7 @@ public class VoucherOrFilterTests
         return matched;
     }
 
-    /// <summary>Scalar path: the raw JamlScoring occurrence count of the clause per seed.</summary>
+    /// <summary>Scalar path: the raw ClauseScoring occurrence count of the clause per seed.</summary>
     private static Dictionary<string, int> ScalarCounts(VoucherClause clause)
     {
         clause.Score = 1;

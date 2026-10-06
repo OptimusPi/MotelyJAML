@@ -4,7 +4,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-public sealed partial class TagClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
+public partial class TagClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -19,13 +19,19 @@ public sealed partial class TagClause : IMotelyClause, IAnteScopedClause, IRollS
     /// </summary>
     public int[] Rolls { get; set; } = [0, 1];
 
-    /// <summary>The small blind's tag offer only.</summary>
-    public static TagClause SmallBlind() => new() { Rolls = [0] };
-
-    /// <summary>The big blind's tag offer only.</summary>
-    public static TagClause BigBlind() => new() { Rolls = [1] };
-
     public IMotelySeedFilterDesc CreateFilterDesc() => new TagFilterDesc(this);
+}
+
+/// <summary>The small blind's tag offer only.</summary>
+public sealed class SmallBlindTagClause : TagClause
+{
+    public SmallBlindTagClause() => Rolls = [0];
+}
+
+/// <summary>The big blind's tag offer only.</summary>
+public sealed class BigBlindTagClause : TagClause
+{
+    public BigBlindTagClause() => Rolls = [1];
 }
 
 public struct TagFilterDesc(TagClause clause)

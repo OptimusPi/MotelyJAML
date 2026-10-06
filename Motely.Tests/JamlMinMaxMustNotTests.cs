@@ -16,7 +16,7 @@ public class JamlMinMaxMustNotTests
 {
     private const string Seed = "MOTELY77";
 
-    /// <summary>First twelve seeds of Motelyfilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
+    /// <summary>First twelve seeds of YamlFilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
     /// ante 1, Negative Perkeo in an ante-0 pack.</summary>
     private static readonly string[] ZerkeoSeeds =
     [
@@ -289,12 +289,12 @@ public class JamlMinMaxMustNotTests
     public void Builder_SplitsMustNotByExactConfirm()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new VoucherClause { Vouchers = [MotelyVoucher.Hieroglyph], Antes = [1] }
             )
         );
         Assert.False(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new LegendaryJokerClause { Jokers = [MotelyJoker.Perkeo], Antes = [0] }
             )
         );

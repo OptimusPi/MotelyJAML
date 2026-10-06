@@ -69,7 +69,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
     public void ExactConfirm_IncludesVoucherTagErratic()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new VoucherClause
                 {
                     Vouchers = [MotelyVoucher.Overstock],
@@ -79,7 +79,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
             )
         );
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new TagClause
                 {
                     Tags = [MotelyTag.RareTag],
@@ -89,11 +89,11 @@ public sealed class JamlLegendaryEditionPrefilterTests
             )
         );
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new ErraticRankClause { Rank = MotelyStandardcardRank.Ace, Antes = [1] }
             )
         );
-        Assert.True(JamlScoring.CanSkipMustReeval(
+        Assert.True(ClauseScoring.CanSkipMustReeval(
             [
                 new VoucherClause
                 {

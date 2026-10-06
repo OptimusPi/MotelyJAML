@@ -4,7 +4,7 @@ namespace Motely.Tests;
 
 /// <summary>
 /// The four joker SIMD descs, run raw (no scalar must re-eval behind them), must accept exactly
-/// the seeds <see cref="JamlScoring.ClauseMeetsMinForFilter"/> accepts: a sticker list is ALL-of,
+/// the seeds <see cref="ClauseScoring.ClauseMeetsMinForFilter"/> accepts: a sticker list is ALL-of,
 /// <c>None</c> is not a gate, and a clause naming a source the desc does not walk in SIMD is
 /// confirmed per seed instead of silently counting zero.
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class JokerDescScalarAgreementTests
                 var c = _clause;
                 return ctx.SearchIndividualSeeds(
                     (MotelySingleSearchContext single) =>
-                        JamlScoring.ClauseMeetsMinForFilter(ref single, c) ? 1 : 0
+                        ClauseScoring.ClauseMeetsMinForFilter(ref single, c) ? 1 : 0
                 );
             }
         }

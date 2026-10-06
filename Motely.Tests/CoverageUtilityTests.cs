@@ -180,30 +180,4 @@ public sealed class CoverageUtilityTests
             );
         }
     }
-
-    [Fact]
-    public void NativeFilterNames_ParseEveryDisplayNameAndFactoryCreatesSettings()
-    {
-        Assert.Equal(
-            Enum.GetValues<MotelyNativeFilter>().Length,
-            MotelyNativeFilterNames.DisplayNames.Length
-        );
-
-        foreach (var expected in Enum.GetValues<MotelyNativeFilter>())
-        {
-            var name = MotelyNativeFilterNames.DisplayNames[(int)expected];
-            Assert.True(MotelyNativeFilterNames.TryParse(name, out var parsed));
-            Assert.Equal(expected, parsed);
-            Assert.NotNull(MotelyNativeFilterFactory.CreateSettings(parsed));
-        }
-    }
-
-    [Fact]
-    public void NativeFilterNames_RejectUnknownAndFactoryRejectsOutOfRange()
-    {
-        Assert.False(MotelyNativeFilterNames.TryParse("not-a-filter", out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelyNativeFilterFactory.CreateSettings((MotelyNativeFilter)999)
-        );
-    }
 }

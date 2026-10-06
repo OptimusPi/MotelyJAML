@@ -200,47 +200,39 @@ internal static class CliSearchMode
 
         if (explicitSeeds != null)
         {
-            updated = new MotelySearchIntent(
-                Mode: MotelySearchInputMode.SeedList,
-                Seeds: explicitSeeds
-            ).ApplyTo(updated);
+            updated = updated.WithSeedList(explicitSeeds);
         }
         else if (hasKeywordMode)
         {
-            updated = new MotelySearchIntent(
-                Mode: MotelySearchInputMode.Keyword,
-                Keywords: [.. keywords],
-                PaddingAlphabet: input.PaddingCharsOption
-            ).ApplyTo(updated);
+            // An unparseable --padding still means "keyword only, no pad", not "full alphabet".
+            var pad = Padding(input.PaddingCharsOption);
+            if (pad is null && !string.IsNullOrWhiteSpace(input.PaddingCharsOption))
+                pad = [];
+            updated = updated.WithKeywordSearch([.. keywords], pad);
         }
         else if (input.RandomCount.HasValue)
         {
-            updated = new MotelySearchIntent(
-                Mode: MotelySearchInputMode.Random,
-                RandomSeedCount: input.RandomCount.Value
-            ).ApplyTo(updated);
+            updated = updated.WithRandomSearch(input.RandomCount.Value);
         }
         else if (aestheticAll)
         {
             // --aesthetic all: concat every family (palindrome → … → nsfw). Same pad law as
             // single --aesthetic: full alphabet unless --padding. (Default --collect without
             // --aesthetic still uses digit pad + sequential fallback in Program.)
-            updated = new MotelySearchIntent(
-                Mode: MotelySearchInputMode.Aesthetic,
-                Aesthetics: [.. MotelyAestheticParser.AllAesthetics()],
-                PaddingAlphabet: input.PaddingCharsOption
-            ).ApplyTo(updated);
+            updated = updated.WithAllAesthetics(
+                MotelyAestheticParser.AllAesthetics(),
+                Padding(input.PaddingCharsOption)
+            );
         }
         else if (explicitAesthetic.HasValue)
         {
             // --padding mixes with --aesthetic: free slots / keyword pads use that charset.
             // Default when omitted: full alphabet (explicit single-family hunt). Collect's
             // multi-family prepass defaults to digit pad separately in Program.
-            updated = new MotelySearchIntent(
-                Mode: MotelySearchInputMode.Aesthetic,
-                Aesthetic: explicitAesthetic.Value,
-                PaddingAlphabet: input.PaddingCharsOption
-            ).ApplyTo(updated);
+            updated = updated.WithAestheticSearch(
+                explicitAesthetic.Value,
+                Padding(input.PaddingCharsOption)
+            );
         }
         // The JAML seeds: replay and the sequential sweep are the *default* modes — they apply
         // only when the caller picked no explicit search input above. An explicit mode
@@ -260,9 +252,7 @@ internal static class CliSearchMode
                 error = $"Error: --batchCharCount must be 1-{MotelyGlobals.MaxSeedLength - 1}.";
                 return false;
             }
-            updated = new MotelySearchIntent(
-                SequentialBatchCharacterCount: batchCharacterCount
-            ).ApplyTo(updated);
+            updated = updated.WithBatchCharacterCount(batchCharacterCount).WithSequentialSearch();
 
             bool hasSeedRange =
                 input.StartSeed is not null || input.StopSeed is not null;
@@ -374,4 +364,21 @@ internal static class CliSearchMode
         }
         return true;
     }
+
+    /// <summary>The --padding charset, or null for the full alphabet.</summary>
+    public static char[]? Padding(string? option) =>
+        string.IsNullOrWhiteSpace(option) ? null : MotelyGlobals.ParsePaddingChars(option);
+
+    /// <summary>Every listed aesthetic family, one after another, as one seed provider.</summary>
+    public static IMotelySearchSettings WithAllAesthetics(
+        this IMotelySearchSettings settings,
+        IReadOnlyList<MotelyAesthetic> aesthetics,
+        char[]? padding
+    ) =>
+        settings.WithProviderSearch(
+            new MotelySeedListProvider(
+                aesthetics.SelectMany(a => MotelyAesthetics.EnumerateSeeds(a, padding)),
+                aesthetics.Sum(a => MotelyAesthetics.GetSeedCount(a, padding))
+            )
+        );
 }

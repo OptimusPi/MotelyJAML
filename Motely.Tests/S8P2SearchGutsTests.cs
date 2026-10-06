@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.Intrinsics;
 using Motely.Filters;
-using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
@@ -441,16 +440,13 @@ public sealed class S8P2SearchGutsTests
     }
 
     [Fact]
-    public void SearchIntent_AppliesBoundedAestheticSearchThroughSettings()
+    public void FluentChain_AppliesBoundedAestheticSearchThroughSettings()
     {
-        var intent = new MotelySearchIntent(
-            Mode: MotelySearchInputMode.Aesthetic,
-            Aesthetic: MotelyAesthetic.Palindrome,
-            ThreadCount: 1,
-            StopAfterMatches: 1
-        );
-
-        using var search = intent.ApplyTo(MotelySearchBuilder.CreateSettings(Permissive()))
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithAestheticSearch(MotelyAesthetic.Palindrome)
+            .WithThreadCount(1)
+            .StopAfter(1)
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();
@@ -460,17 +456,13 @@ public sealed class S8P2SearchGutsTests
     }
 
     [Fact]
-    public void SearchIntent_AppliesBoundedKeywordSearchThroughSettings()
+    public void FluentChain_AppliesBoundedKeywordSearchThroughSettings()
     {
-        var intent = new MotelySearchIntent(
-            Mode: MotelySearchInputMode.Keyword,
-            Keywords: ["ALEEB"],
-            PaddingAlphabet: "1",
-            ThreadCount: 1,
-            StopAfterMatches: 1
-        );
-
-        using var search = intent.ApplyTo(MotelySearchBuilder.CreateSettings(Permissive()))
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithKeywordSearch(["ALEEB"], ['1'])
+            .WithThreadCount(1)
+            .StopAfter(1)
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();

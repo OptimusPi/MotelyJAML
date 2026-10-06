@@ -2,7 +2,7 @@ namespace Motely.Tests;
 
 /// <summary>
 /// Pins P0 single-match-core: FilterDesc scalar confirm arms and should-scoring share
-/// <see cref="JamlScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
+/// <see cref="ClauseScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
 /// </summary>
 public sealed class JamlMatchCoreParityTests
 {

@@ -356,7 +356,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
     private static IMotelyClause RandomEvent(Random r)
     {
         int[] rolls = Subset(r, 0, 12, 1, 5);
-        var luck = new JamlWith { Luck = Pick(r, Enum.GetValues<MotelyLuck>()) };
+        var luck = new MotelyWith { Luck = Pick(r, Enum.GetValues<MotelyLuck>()) };
         return r.Next(12) switch
         {
             0 => new LuckyMoneyClause { Rolls = rolls, With = luck },
@@ -387,7 +387,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
             logic.Min = logic is OrClause && r.Next(4) == 0 ? r.Next(1, arms + 1) : 1;
             logic.Max = null;
             logic.Score = r.Next(4) == 0 ? 0 : r.Next(1, 4);
-            logic.Mode = r.Next(3) == 0 ? JamlLogicScoreMode.Max : JamlLogicScoreMode.Sum;
+            logic.Mode = r.Next(3) == 0 ? LogicScoreMode.Max : LogicScoreMode.Sum;
             return logic;
         }
         return RandomLeaf(r);
@@ -478,7 +478,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
         Array a => "[" + string.Join(",", a.Cast<object>().Select(Fmt)) + "]",
         JokerSourceConfig or TarotCardSourceConfig or SpectralCardSourceConfig or PlanetSourceConfig or StandardCardSourceConfig or LegendaryJokerSourceConfig =>
             "{" + string.Join(",", v.GetType().GetProperties().Select(p => (p.Name, Val: p.GetValue(v))).Where(t => t.Val is not (Array { Length: 0 } or false)).Select(t => $"{t.Name}={Fmt(t.Val)}")) + "}",
-        JamlWith w => $"luck={w.Luck}",
+        MotelyWith w => $"luck={w.Luck}",
         _ => v.ToString() ?? "",
     };
 
@@ -524,7 +524,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
                 problems.Add($"MISSED {missed.Count} (e.g. {string.Join(",", missed.Take(3))})");
             if (extra.Count > 0)
                 problems.Add($"FALSE-MATCH {extra.Count} (e.g. {string.Join(",", extra.Take(3))})");
-            bool hasScore = config.Should.Count + config.MustNot.Count > 0 || !JamlScoring.CanSkipMustReeval([.. config.Must]);
+            bool hasScore = config.Should.Count + config.MustNot.Count > 0 || !ClauseScoring.CanSkipMustReeval([.. config.Must]);
             foreach (var key in engine.Keys.Intersect(oracle.Keys))
             {
                 if (!hasScore)

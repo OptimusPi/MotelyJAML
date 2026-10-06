@@ -119,6 +119,29 @@ public static class MotelyTopSeedSink
     }
 
     /// <summary>
+    /// Rewrite the <c>seeds:</c> block, then confirm the result still loads. Returns false with
+    /// <paramref name="error"/> set if the rewritten document does not load, so a bad write is
+    /// caught before it ever touches disk.
+    /// </summary>
+    public static bool TryRewriteAndValidate(
+        string jamlText,
+        IReadOnlyList<string> seeds,
+        out string newText,
+        out string? error
+    )
+    {
+        newText = RewriteSeedsBlock(jamlText, seeds);
+        if (!Motely.Filters.JamlConfigLoader.TryLoad(newText, out _, out var loadError))
+        {
+            error = loadError ?? "The updated filter did not load.";
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    /// <summary>
     /// Pull the seeds already present in a <c>seeds:</c> region, in document order. Handles both
     /// the block form (<c>- SEED</c> items) and the inline form (<c>seeds: [A, B]</c>), tolerating
     /// quotes and trailing <c>#</c> comments (a '#' can never be part of a seed — the seed

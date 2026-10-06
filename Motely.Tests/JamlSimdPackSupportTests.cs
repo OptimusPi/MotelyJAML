@@ -13,7 +13,7 @@ public sealed class JamlSimdPackSupportTests
     {
         var none = VectorMask.NoBitsSet;
         for (int p = 0; p <= MotelyGlobals.EarlyAnteMaxPackSlot; p++)
-            Assert.True(JamlSimdPackSupport.SlotReachableMask(1, p, none).IsAllTrue());
+            Assert.True(SimdPackSupport.SlotReachableMask(1, p, none).IsAllTrue());
     }
 
     [Fact]
@@ -22,8 +22,8 @@ public sealed class JamlSimdPackSupportTests
         var none = VectorMask.NoBitsSet;
         var all = VectorMask.AllBitsSet;
         int late = MotelyGlobals.EarlyAnteMaxPackSlot + 1;
-        Assert.True(JamlSimdPackSupport.SlotReachableMask(1, late, none).IsAllFalse());
-        Assert.True(JamlSimdPackSupport.SlotReachableMask(1, late, all).IsAllTrue());
+        Assert.True(SimdPackSupport.SlotReachableMask(1, late, none).IsAllFalse());
+        Assert.True(SimdPackSupport.SlotReachableMask(1, late, all).IsAllTrue());
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class JamlSimdPackSupportTests
     {
         var none = VectorMask.NoBitsSet;
         Assert.True(
-            JamlSimdPackSupport
+            SimdPackSupport
                 .SlotReachableMask(2, MotelyGlobals.LateAntesMaxPackSlot, none)
                 .IsAllTrue()
         );
@@ -40,9 +40,9 @@ public sealed class JamlSimdPackSupportTests
     [Fact]
     public void NeedsAnte1Extension_OnlyPastEarlyCap()
     {
-        Assert.False(JamlSimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot));
+        Assert.False(SimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot));
         Assert.True(
-            JamlSimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot + 1)
+            SimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot + 1)
         );
     }
 

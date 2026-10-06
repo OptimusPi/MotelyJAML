@@ -59,7 +59,7 @@ public class JamlOrModeScoringTests
             error
         );
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Sum, or.Mode);
+        Assert.Equal(LogicScoreMode.Sum, or.Mode);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class JamlOrModeScoringTests
             error
         );
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class JamlOrModeScoringTests
         );
 
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
     }
 
     /// <summary>
@@ -223,7 +223,7 @@ public class JamlOrModeScoringTests
         );
 
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
         Assert.Equal(2, or.Clauses.Length);
 
         var tag = Assert.IsAssignableFrom<IAnteScopedClause>(or.Clauses[0]);

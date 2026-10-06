@@ -7,11 +7,11 @@ public sealed class JamlFileLoadTests
     [Fact]
     public void TestJamlFiles_AllLoadAndPlan()
     {
-        var dir = Path.Join(AppContext.BaseDirectory, "Motelyfilters");
+        var dir = Path.Join(AppContext.BaseDirectory, "YamlFilters");
         Assert.True(Directory.Exists(dir), $"Test JAML files not in output: {dir}");
 
         var files = Directory
-            .GetFiles(dir, "*.jaml", SearchOption.AllDirectories)
+            .GetFiles(dir, "*.yaml", SearchOption.AllDirectories)
             .OrderBy(static f => f, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
