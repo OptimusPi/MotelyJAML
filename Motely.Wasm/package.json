@@ -1,6 +1,6 @@
 {
   "name": "motely-wasm",
-  "version": "27.0.1",
+  "version": "27.0.2",
   "description": "Motely, the Balatro seed engine, as a single-threaded WebAssembly module (NativeAOT-LLVM via Bootsharp).",
   "license": "MIT",
   "type": "module",
@@ -22,6 +22,7 @@
   "scripts": {
     "prepack": "npm run build",
     "build": "dotnet publish -c Release",
+    "build:nofs": "dotnet publish -c Release -p:MotelyFileSystem=false",
     "test": "node tests/smoke.mjs"
   }
 }

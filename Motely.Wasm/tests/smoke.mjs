@@ -6,6 +6,10 @@ import bootsharp, {
   JamlSearchBuilder,
   MotelyJamlyzer,
   MotelyDeck,
+  MotelyItemType,
+  MotelyJokerRarity,
+  MotelyJokers,
+  JamlFiles,
   CancellationToken,
   Errors,
 } from "../bin/motely-wasm/index.mjs";
@@ -98,6 +102,23 @@ assert.equal(first[0].seed, "ALEEB");
 const next = MotelyJamlyzer.analyzeWithResumeFrom(seeded, first[0].streamStates, 20);
 assert.equal(next.length, 1);
 assert.ok(next[0].streamStates.rollOffset > first[0].streamStates.rollOffset, "resume advances");
+
+// Joker rarity: the export, and the same test as a mask with no call.
+assert.equal(MotelyJokers.rarity(MotelyItemType.Joker), MotelyJokerRarity.Common);
+assert.equal(MotelyJokers.rarity(MotelyItemType.Blueprint), MotelyJokerRarity.Rare);
+assert.equal(MotelyJokers.rarity(MotelyItemType.Perkeo), MotelyJokerRarity.Legendary);
+assert.equal(MotelyItemType.Perkeo & MotelyJokerRarity.Legendary, MotelyJokerRarity.Legendary);
+assert.equal(MotelyItemType.Blueprint & MotelyJokerRarity.Legendary, MotelyJokerRarity.Rare);
+
+// JamlFiles: nothing mounted under Node in either build; without Bootsharp.FileSystem the file
+// calls reject and say why on Errors.last().
+assert.equal(JamlFiles.isMounted(), false);
+assert.deepEqual([...JamlFiles.list()], []);
+if (!JamlFiles.isSupported()) {
+  Errors.last();
+  await assert.rejects(JamlFiles.pickFolder());
+  assert.match(Errors.last() ?? "", /no folder access/);
+}
 
 console.log(
   `smoke ok: ${finds.length} list finds, ${sliceFinds.length} slice finds analyzed in-pass, ` +
