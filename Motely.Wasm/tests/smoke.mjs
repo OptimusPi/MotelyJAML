@@ -7,6 +7,7 @@ import bootsharp, {
   MotelyJamlyzer,
   MotelyDeck,
   CancellationToken,
+  Errors,
 } from "../bin/motely-wasm/index.mjs";
 
 await bootsharp.boot();
@@ -19,10 +20,11 @@ assert.equal(config.name, "smoke");
 assert.equal(config.deck, MotelyDeck.Red);
 assert.equal(config.must.length, 1);
 
-// A bad filter: fromJaml throws (NativeAOT drops the message at the boundary); check gives the
-// loader's line-numbered reason as a string.
+// A bad filter: fromJaml throws, and NativeAOT drops the message at the boundary, so the reason
+// is on Errors.last(); check gives it without throwing.
 const bad = "name: x\nmust:\n  - joker: Blueprint\n    antes: [1\n";
 assert.throws(() => JamlConfigLoader.fromJaml(bad));
+assert.match(Errors.last(), /line \d+/i, "the thrown reason is kept on Errors.last()");
 assert.match(JamlConfigLoader.check(bad), /line \d+/i);
 assert.equal(JamlConfigLoader.check(text), null);
 
@@ -36,7 +38,8 @@ const list = JamlSearchBuilder.createSettings(config)
   .start();
 await list.waitForCompletionAsync();
 assert.equal(list.totalSeedsSearched, 3n);
-assert.equal(BigInt(new Set(finds).size), list.matchingSeeds);
+assert.equal(BigInt(finds.length), list.matchingSeeds, "one callback per find");
+assert.equal(new Set(finds).size, finds.length, "a find must arrive once");
 
 // A sequential slice with the Jamlyzer riding along: every find is analyzed in the same pass.
 const analyzed = [];
@@ -67,7 +70,21 @@ const long = JamlSearchBuilder.createSettings(config)
 const done = long.waitForCompletionAsync();
 token.cancel();
 await done;
-assert.ok(!long.isCompleted || long.totalSeedsSearched < 35n ** 8n, "cancel stops the sweep");
+assert.ok(long.totalSeedsSearched < 35n ** 8n, "cancel stops the sweep");
+
+// A rejected setting and a rejected range: the reason is on Errors.last().
+assert.throws(() => JamlSearchBuilder.createSettings(config).withSequentialSearch().withBatchCharacterCount(99));
+assert.match(Errors.last() ?? "", /\S/);
+assert.throws(() =>
+  JamlSearchBuilder.createSettings(config).withThreadCount(1).withSequentialSearch()
+    .withBatchCharacterCount(3).withStartBatchIndex(5n).withEndBatchIndex(2n).start());
+assert.match(Errors.last() ?? "", /\S/);
+
+// createSettings leaves the config alone: the Jamlyzer reads the same antes before and after.
+const unscoped = JamlConfigLoader.fromJaml("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");
+const antesBefore = MotelyJamlyzer.analyze(unscoped)[0].antes.map((a) => a.ante).join();
+JamlSearchBuilder.createSettings(unscoped);
+assert.equal(MotelyJamlyzer.analyze(unscoped)[0].antes.map((a) => a.ante).join(), antesBefore);
 
 // The Jamlyzer on the config's seeds, then a resumed window from the returned stream states.
 const seeded = JamlConfigLoader.fromJaml(text + "seeds: [ALEEB]\n");

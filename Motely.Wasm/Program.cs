@@ -14,8 +14,23 @@ using Motely.Filters.Jaml;
 /// <summary>Entry point; the exports below are live once <c>bootsharp.boot()</c> resolves.</summary>
 public static class Program
 {
-    /// <summary>Nothing to start: JS drives the engine through the exports.</summary>
-    public static void Main() { }
+    /// <summary>JS drives the engine through the exports; Main only starts recording errors.</summary>
+    public static void Main() =>
+        AppDomain.CurrentDomain.FirstChanceException += (_, e) => Errors.LastMessage = e.Exception.Message;
+}
+
+/// <summary>Why the last call threw. The NativeAOT runtime hands a thrown C# exception to JS as
+/// "C# exception from NativeAOT" without its message, so the message is kept here instead: after
+/// any export throws (a rejected with* value, a start that fails, a filter that does not load),
+/// <c>Errors.last()</c> is its reason.</summary>
+public static class Errors
+{
+    internal static string? LastMessage;
+
+    /// <summary>The message of the most recent C# exception, or null before any.</summary>
+    /// <returns>The message.</returns>
+    [Export]
+    public static string? Last() => LastMessage;
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.Jaml.JamlConfigLoader"/>.</summary>

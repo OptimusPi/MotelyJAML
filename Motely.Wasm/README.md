@@ -37,7 +37,16 @@ MotelyJamlyzer.analyze(config);                     // one result per seed in th
   a per-seed predicate would cross once per seed, and a lazy sequence has no value to serialize
   (`withSeedList` is the crossing form).
 - The NativeAOT runtime gives a thrown C# exception to JS as "C# exception from NativeAOT",
-  without its message. `JamlConfigLoader.check` returns the loader's reason as a string.
+  without its message. After any call throws (a filter that does not load, a rejected `with*`
+  value, a `start` that fails), `Errors.last()` returns its message. `JamlConfigLoader.check`
+  returns the loader's reason without throwing.
+
+## Hosts
+
+The package decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 24+, Chrome 140+,
+Safari 18.2+, Firefox 133+. An older host needs that function shimmed before `boot()`, for
+example `Uint8Array.fromBase64 ??= (s) => new Uint8Array(Buffer.from(s, "base64"))` on Node.
+No COOP/COEP headers and no SharedArrayBuffer are needed.
 
 ## Build
 

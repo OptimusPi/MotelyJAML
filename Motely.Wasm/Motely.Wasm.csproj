@@ -7,6 +7,9 @@
     <AssemblyName>Motely.Wasm</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BootsharpName>motely-wasm</BootsharpName>
+    <!-- Bootsharp rewrites package.json from its template on every publish; keep that copy in obj
+         so the hand-written package.json (version, files, scripts) stays. -->
+    <BootsharpPackageDirectory>$(MSBuildProjectDirectory)/obj/pkg</BootsharpPackageDirectory>
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
   </PropertyGroup>
 
