@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("glassDestroy", RollsAreInlineValue = true)]
-[YamlObject]
 public sealed partial class GlassDestroyClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }

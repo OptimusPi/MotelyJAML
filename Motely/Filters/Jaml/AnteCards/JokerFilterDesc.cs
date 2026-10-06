@@ -9,7 +9,6 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("joker", "jokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
 public sealed partial class JokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -345,7 +344,6 @@ public struct JokerFilterDesc(JokerClause clause)
 
 [JamlDiscriminator("commonJoker", "commonJokers",
     ValueEnum = typeof(MotelyJokerCommon), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
 public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -363,7 +361,6 @@ public sealed partial class CommonJokerClause : IJamlClause, IAnteScopedClause
 
 [JamlDiscriminator("uncommonJoker", "uncommonJokers",
     ValueEnum = typeof(MotelyJokerUncommon), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
 public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -381,7 +378,6 @@ public sealed partial class UncommonJokerClause : IJamlClause, IAnteScopedClause
 
 [JamlDiscriminator("rareJoker", "rareJokers",
     ValueEnum = typeof(MotelyJokerRare), SourceConfigType = typeof(JokerSourceConfig))]
-[YamlObject]
 public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -401,7 +397,6 @@ public sealed partial class RareJokerClause : IJamlClause, IAnteScopedClause
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
 /// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
-[YamlObject]
 public sealed partial record JokerSourceConfig
 {
     /// <summary>

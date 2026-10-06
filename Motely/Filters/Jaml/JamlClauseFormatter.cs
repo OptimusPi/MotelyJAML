@@ -1,8 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using VYaml.Emitter;
 using VYaml.Parser;
-using VYaml.Serialization;
 
 namespace Motely.Filters.Jaml;
 
@@ -20,7 +18,7 @@ namespace Motely.Filters.Jaml;
 [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 [UnconditionalSuppressMessage("Trimming", "IL2077", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
 [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Motely is preserved by ILLink.Descriptors.xml.")]
-public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
+public static class JamlClauseFormatter
 {
     // ── wire name → clause type + attribute ──
     private static readonly Dictionary<string, (Type Type, JamlDiscriminatorAttribute Attr)> Wires = BuildWires();
@@ -39,9 +37,6 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     internal static int[]? RollsDefaultFor(string wire) =>
         Wires.TryGetValue(wire, out var w) ? w.Attr.RollsDefault : null;
 
-    public void Serialize(ref Utf8YamlEmitter emitter, IJamlClause value, YamlSerializationContext context) =>
-        throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
-
     /// <summary>
     /// Scalar lines for the document being loaded, read off the source (see
     /// <see cref="JamlScalarLines"/>). Set by <see cref="JamlConfigLoader.FromJaml"/> around the
@@ -49,19 +44,12 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
     /// </summary>
     [ThreadStatic] internal static JamlScalarLines? Source;
 
-    public IJamlClause Deserialize(ref YamlParser parser, YamlDeserializationContext context)
-    {
-        // Entered on the clause's own event, so there is no earlier mark to go on. A clause is a
-        // mapping, and a mapping's start mark is right (see ReadNode). JamlClauseListFormatter
-        // reads must:/should:/mustNot: items through ReadClause instead, with the earlier mark.
-        var prevLine = parser.CurrentMark.Line;
-        return ReadClause(ReadNode(ref parser, ref prevLine));
-    }
-
     /// <summary>A must:/should:/mustNot: list. Same result as VYaml's ListFormatter, but it tells
     /// <see cref="Source"/> a list is starting, and without Source each item is read with the mark
-    /// from before it, so a scalar item (`- Blueprint`) still reports its own line.</summary>
-    internal static List<IJamlClause>? ReadClauseList(ref YamlParser parser, YamlDeserializationContext context, IYamlFormatter<IJamlClause> itemFormatter)
+    /// from before it, so a scalar item (`- Blueprint`) still reports its own line. An anchored
+    /// item is filed in <paramref name="anchors"/> and an alias returns that same instance, as
+    /// VYaml's DeserializeWithAlias did.</summary>
+    internal static List<IJamlClause>? ReadClauseList(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
     {
         Source?.BeginList();
         if (parser.IsNullScalar())
@@ -78,9 +66,19 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
         var list = new List<IJamlClause>();
         while (parser.CurrentEventType != ParseEventType.SequenceEnd)
         {
-            if (parser.CurrentEventType == ParseEventType.Alias || parser.TryGetCurrentAnchor(out _))
+            if (parser.CurrentEventType == ParseEventType.Alias)
             {
-                list.Add(context.DeserializeWithAlias(itemFormatter, ref parser)); // anchors: VYaml's bookkeeping
+                list.Add(JamlConfigLoader.ResolveAlias<IJamlClause>(ref parser, anchors));
+                prevLine = parser.CurrentMark.Line;
+                continue;
+            }
+            if (parser.TryGetCurrentAnchor(out var anchor))
+            {
+                // Entered on the clause's own event: a mapping's start mark is right (see ReadNode).
+                prevLine = parser.CurrentMark.Line;
+                var anchored = ReadClause(ReadNode(ref parser, ref prevLine));
+                anchors[anchor] = anchored;
+                list.Add(anchored);
                 prevLine = parser.CurrentMark.Line;
                 continue;
             }
@@ -390,16 +388,4 @@ public sealed class JamlClauseFormatter : IYamlFormatter<IJamlClause>
 
     private static InvalidOperationException Error(int line, string message) =>
         new($"JAML line {line}: {message}");
-}
-
-/// <summary>Registered in place of <c>ListFormatter&lt;IJamlClause&gt;</c>; see <see cref="JamlClauseFormatter.ReadClauseList"/>.</summary>
-public sealed class JamlClauseListFormatter : IYamlFormatter<List<IJamlClause>?>
-{
-    private static readonly JamlClauseFormatter Item = new();
-
-    public void Serialize(ref Utf8YamlEmitter emitter, List<IJamlClause>? value, YamlSerializationContext context) =>
-        throw new NotSupportedException("Use JamlConfigLoader.ToJaml to write JAML.");
-
-    public List<IJamlClause>? Deserialize(ref YamlParser parser, YamlDeserializationContext context) =>
-        JamlClauseFormatter.ReadClauseList(ref parser, context, Item);
 }

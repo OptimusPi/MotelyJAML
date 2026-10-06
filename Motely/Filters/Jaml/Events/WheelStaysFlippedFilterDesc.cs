@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("wheelStaysFlipped", RollsAreInlineValue = true)]
-[YamlObject]
 public sealed partial class WheelStaysFlippedClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }

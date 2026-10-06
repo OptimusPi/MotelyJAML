@@ -6,7 +6,6 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("legendaryJoker", "legendaryJokers",
     ValueEnum = typeof(MotelyJoker), SourceConfigType = typeof(LegendaryJokerSourceConfig))]
-[YamlObject]
 public sealed partial class LegendaryJokerClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -139,7 +138,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 /// <c>sources:</c> block for <c>legendaryJoker:</c>. Colocated with
 /// <see cref="LegendaryJokerFilterDesc"/> (T5).
 /// </summary>
-[YamlObject]
 public sealed partial record LegendaryJokerSourceConfig
 {
     /// <summary>

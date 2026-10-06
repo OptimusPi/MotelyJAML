@@ -14,7 +14,6 @@ namespace Motely.Filters.Jaml;
     ValueEnum = typeof(MotelyPokerHand),
     RollsDefault = new[] { 0 }
 )]
-[YamlObject]
 public sealed partial class PokerHandClause : IJamlClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }

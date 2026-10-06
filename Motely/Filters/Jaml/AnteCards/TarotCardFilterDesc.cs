@@ -6,7 +6,6 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("tarotCard", "tarotCards",
     ValueEnum = typeof(MotelyTarotCard), SourceConfigType = typeof(TarotCardSourceConfig))]
-[YamlObject]
 public sealed partial class TarotCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -379,7 +378,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>tarotCard:</c>. Colocated with <see cref="TarotCardFilterDesc"/> (T5).
 /// </summary>
-[YamlObject]
 public sealed partial record TarotCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>

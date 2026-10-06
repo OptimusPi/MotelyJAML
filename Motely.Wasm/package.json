@@ -1,0 +1,16 @@
+{
+    "name": "motely-wasm",
+    "type": "module",
+    "exports": {
+        ".": "./bin/motely-wasm/index.mjs",
+        "./*": "./bin/motely-wasm/generated/modules/*.g.mjs"
+    },
+    "browser": {
+        "node:fs": false,
+        "node:url": false,
+        "node:path": false,
+        "node:module": false,
+        "node:crypto": false,
+        "node:process": false
+    }
+}

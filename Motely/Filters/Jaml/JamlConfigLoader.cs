@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
-using VYaml.Emitter;
 
 
 using VYaml.Parser;
@@ -12,24 +11,6 @@ namespace Motely.Filters.Jaml;
 /// <summary>YAML text → <see cref="JamlConfig"/>. VYaml does the document; <see cref="JamlClauseFormatter"/> does the clauses.</summary>
 public static partial class JamlConfigLoader
 {
-    private static readonly YamlSerializerOptions Options = new()
-    {
-        Resolver = CompositeResolver.Create(
-            // Every generic formatter JamlConfig needs, spelled out. VYaml's built-in resolver
-            // makes these with MakeGenericType at runtime, which NativeAOT / WASM cannot do
-            // ("EnumAsStringFormatter<MotelyDeck> is missing native code"). Naming them here
-            // makes the compiler emit them.
-            new IYamlFormatter[]
-            {
-                new JamlClauseFormatter(),
-                new EnumAsStringFormatter<MotelyDeck>(),
-                new EnumAsStringFormatter<MotelyStake>(),
-                new JamlClauseListFormatter(),
-                new ListFormatter<string>(),
-            },
-            new IYamlFormatterResolver[] { StandardResolver.Instance }),
-    };
-
     /// <summary>One entry point for every filter file. JSON is a subset of YAML, so .json,
     /// .yaml, .yml and .jaml all go through the same parser.</summary>
     public static JamlConfig FromJaml(string yaml)
@@ -42,7 +23,7 @@ public static partial class JamlConfigLoader
         try
         {
             RejectUnknownRootKeys(bytes, lines);
-            config = YamlSerializer.Deserialize<JamlConfig>(bytes, Options);
+            config = ReadDocument(bytes);
         }
         catch (InvalidOperationException)
         {
@@ -70,6 +51,157 @@ public static partial class JamlConfigLoader
         config.Should ??= [];
         config.MustNot ??= [];
         return config;
+    }
+
+    // ── The document, read with VYaml's parser only ──
+    // VYaml's serializer layer cannot ship to NativeAOT / WASM: every YamlSerializerOptions starts
+    // out with Resolver = StandardResolver.Instance, which finds formatters by reflection
+    // (GetNestedType, MakeGenericType): the trimmer's IL2104 / IL3053. The parser has none of
+    // that, so the loader reads JamlConfig with it directly, with the semantics VYaml's
+    // YamlSerializer.Deserialize and JamlConfig's generated formatter had: the same keys (exact,
+    // lowerCamelCase, others skipped), the same null and alias handling, the same enum names.
+
+    private delegate T Reader<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors);
+
+    private static JamlConfig? ReadDocument(byte[] bytes)
+    {
+        var parser = new YamlParser(new System.Buffers.ReadOnlySequence<byte>(bytes));
+        parser.SkipHeader();
+        if (parser.End)
+            return null;
+        return ReadWithAlias(ref parser, [], ReadConfig);
+    }
+
+    private static JamlConfig? ReadConfig(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
+    {
+        if (parser.IsNullScalar())
+        {
+            parser.Read();
+            return null;
+        }
+        parser.ReadWithVerify(ParseEventType.MappingStart);
+        var config = new JamlConfig
+        {
+            // As the generated formatter did: a key the document leaves out is default(T).
+            Id = null!,
+            Seeds = null!,
+            Must = null!,
+            Should = null!,
+            MustNot = null!,
+        };
+        while (!parser.End && parser.CurrentEventType != ParseEventType.MappingEnd)
+        {
+            if (parser.CurrentEventType != ParseEventType.Scalar || !parser.TryGetScalarAsString(out var key) || key is null)
+                throw new YamlSerializerException(parser.CurrentMark, "Custom type deserialization supports only string key");
+            parser.Read(); // the key
+            switch (key)
+            {
+                case "id": config.Id = ReadWithAlias(ref parser, anchors, ReadString)!; break;
+                case "name": config.Name = ReadWithAlias(ref parser, anchors, ReadString); break;
+                case "description": config.Description = ReadWithAlias(ref parser, anchors, ReadString); break;
+                case "author": config.Author = ReadWithAlias(ref parser, anchors, ReadString); break;
+                case "filter": config.Filter = ReadWithAlias(ref parser, anchors, ReadString); break;
+                case "deck": config.Deck = ReadWithAlias(ref parser, anchors, ReadEnum<MotelyDeck>); break;
+                case "stake": config.Stake = ReadWithAlias(ref parser, anchors, ReadEnum<MotelyStake>); break;
+                case "seeds": config.Seeds = ReadWithAlias(ref parser, anchors, ReadStringList)!; break;
+                case "must": config.Must = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
+                case "should": config.Should = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
+                case "mustNot": config.MustNot = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
+                default: parser.SkipCurrentNode(); break;
+            }
+        }
+        parser.ReadWithVerify(ParseEventType.MappingEnd);
+        return config;
+    }
+
+    /// <summary>VYaml's DeserializeWithAlias: an alias returns the anchored value, an anchor files it.</summary>
+    private static T ReadWithAlias<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors, Reader<T> read)
+    {
+        if (parser.CurrentEventType == ParseEventType.Alias)
+            return ResolveAlias<T>(ref parser, anchors);
+        var anchored = parser.TryGetCurrentAnchor(out var anchor);
+        var value = read(ref parser, anchors);
+        if (anchored)
+            anchors[anchor] = value;
+        return value;
+    }
+
+    /// <summary>The value an alias names, as VYaml's YamlDeserializationContext resolved it.</summary>
+    internal static T ResolveAlias<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
+    {
+        if (!parser.TryGetCurrentAnchor(out var anchor))
+            throw new YamlSerializerException(parser.CurrentMark, "An alias with no anchor.");
+        parser.Read();
+        if (!anchors.TryGetValue(anchor, out var value))
+            throw new YamlSerializerException($"Could not found an alias value of anchor: {anchor}");
+        return value switch
+        {
+            null => default!,
+            T t => t,
+            _ => throw new YamlSerializerException("The alias value is not a type of " + typeof(T).Name),
+        };
+    }
+
+    /// <summary>VYaml's NullableStringFormatter.</summary>
+    private static string? ReadString(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
+    {
+        if (parser.IsNullScalar())
+        {
+            parser.Read();
+            return null;
+        }
+        return parser.ReadScalarAsString();
+    }
+
+    /// <summary>VYaml's ListFormatter of string.</summary>
+    private static List<string>? ReadStringList(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
+    {
+        if (parser.IsNullScalar())
+        {
+            parser.Read();
+            return null;
+        }
+        parser.ReadWithVerify(ParseEventType.SequenceStart);
+        var list = new List<string>();
+        while (!parser.End && parser.CurrentEventType != ParseEventType.SequenceEnd)
+            list.Add(ReadWithAlias(ref parser, anchors, ReadString)!);
+        parser.ReadWithVerify(ParseEventType.SequenceEnd);
+        return list;
+    }
+
+    /// <summary>VYaml's EnumAsStringFormatter, without its reflection: the scalar as written or
+    /// lowerCamelCased, against the lowerCamelCased member names (so `Red` and `red` both load).</summary>
+    private static T ReadEnum<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors)
+        where T : struct, Enum
+    {
+        var text = parser.ReadScalarAsString();
+        if (text is null)
+        {
+            YamlSerializerException.ThrowInvalidType<T>("null");
+            return default;
+        }
+        if (EnumNames<T>.Values.TryGetValue(text, out var value)
+            || EnumNames<T>.Values.TryGetValue(LowerCamel(text), out value))
+            return value;
+        YamlSerializerException.ThrowInvalidType<T>(text);
+        return default;
+    }
+
+    private static class EnumNames<T>
+        where T : struct, Enum
+    {
+        public static readonly Dictionary<string, T> Values = Enum.GetValues<T>()
+            .ToDictionary(v => LowerCamel(Enum.GetName(v)!));
+    }
+
+    private static string LowerCamel(string name)
+    {
+        var mutator = NamingConventionMutator.Of(VYaml.Annotations.NamingConvention.LowerCamelCase);
+        var buffer = new char[name.Length * 2 + 8];
+        int written;
+        while (!mutator.TryMutate(name.AsSpan(), buffer, out written))
+            buffer = new char[buffer.Length * 2];
+        return new string(buffer, 0, written);
     }
 
     /// <summary>
