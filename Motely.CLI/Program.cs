@@ -645,6 +645,19 @@ partial class Program
                 bool cancelled = false;
                 IMotelySearch search;
 
+                async Task<bool> RunPass(IMotelySearch pass)
+                {
+                    try
+                    {
+                        await pass.WaitForCompletionAsync(_cts.Token);
+                        return false;
+                    }
+                    catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
+                    {
+                        return true;
+                    }
+                }
+
                 using var consoleSink = new ConsoleResultSink(plan.TallyLabels);
                 var saveSeedsCollector = new MotelyTopSeedSink.Collector(int.MaxValue);
 

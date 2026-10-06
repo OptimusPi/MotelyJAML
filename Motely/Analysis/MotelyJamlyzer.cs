@@ -200,26 +200,6 @@ public static class MotelyJamlyzer
     /// <summary>Every ante the Jamlyzer can walk: the pre-run shop (0) and antes 1..8.</summary>
     public static readonly int[] AllAntes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-    /// <summary>
-    /// The Jamlyzer as a rider on a search. Attach the returned desc with
-    /// <see cref="IMotelySearchSettings.WithSeedAnalyzeProvider"/> and every seed the search reports
-    /// arrives at <paramref name="onAnalyzed"/> as a full <see cref="MotelyJamlyzerSeedResult"/>,
-    /// walked on the same context that just filtered and scored it and carrying the search's own
-    /// Score and Tally. One pass — a host on the far side of a boundary gets the find and what it
-    /// contains together, with no second call to <see cref="Analyze(JamlConfig, int)"/>.
-    /// <para>
-    /// <paramref name="eventRolls"/> 0 gives the per-ante summary alone — boss, voucher, tags, shop,
-    /// packs — with every roll queue empty, the cheap shape for a results table. The callback fires
-    /// on the search's worker thread(s).
-    /// </para>
-    /// </summary>
-    public static MotelyJamlyzerRiderDesc CreateRiderDesc(
-        JamlConfig config,
-        Action<MotelyJamlyzerSeedResult> onAnalyzed,
-        int eventRolls = 20,
-        int shopSlots = 0
-    ) => new(ComputeAntes(config), onAnalyzed, eventRolls, shopSlots);
-
     private static IReadOnlyList<MotelyJamlyzerSeedResult> AnalyzeCore(
         JamlConfig config,
         IReadOnlyDictionary<string, MotelyJamlyzerStreamStates>? resumeStates,
