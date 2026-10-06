@@ -7,16 +7,43 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Bootsharp;
+using Bootsharp.Inject;
+using Microsoft.Extensions.DependencyInjection;
 using Motely;
 using Motely.Analysis;
+using Motely.Enums;
 using Motely.Filters.Jaml;
+
+[assembly: Export(typeof(IJamlFiles))]
 
 /// <summary>Entry point; the exports below are live once <c>bootsharp.boot()</c> resolves.</summary>
 public static class Program
 {
-    /// <summary>JS drives the engine through the exports; Main only starts recording errors.</summary>
-    public static void Main() =>
+    /// <summary>Starts recording errors, then hands JamlFiles its injected Bootsharp.FileSystem
+    /// mounter (guide: dependency-injection).</summary>
+    public static void Main()
+    {
         AppDomain.CurrentDomain.FirstChanceException += (_, e) => Errors.LastMessage = e.Exception.Message;
+        new ServiceCollection()
+            .AddBootsharp()
+            .AddSingleton<IJamlFiles, JamlFilesModule>()
+            .BuildServiceProvider()
+            .RunBootsharp();
+    }
+}
+
+/// <summary>Engine joker facts. A joker's <see cref="MotelyItemType"/> value is
+/// <c>category | rarity | index</c>; the rarity bits are <see cref="MotelyJokerRarity"/>'s values.</summary>
+public static class MotelyJokers
+{
+    /// <summary>A joker's rarity, read off its item value the way the engine's filters read it
+    /// (JokerFilterDesc). In JS the same test needs no call:
+    /// <c>item &amp; MotelyJokerRarity.Legendary</c>, since Legendary's bits are the whole mask.</summary>
+    /// <param name="joker">A joker item.</param>
+    /// <returns>Its rarity.</returns>
+    [Export]
+    public static MotelyJokerRarity Rarity(MotelyItemType joker) =>
+        (MotelyJokerRarity)((int)joker & MotelyGlobals.JokerRarityMask);
 }
 
 /// <summary>Why the last call threw. The NativeAOT runtime hands a thrown C# exception to JS as
@@ -141,6 +168,8 @@ public static class Names
         // Bootsharp names System.Action and System.Action<T> both "Action" in the system module,
         // and TypeScript has no arity overloads: the zero-argument one carries its arity.
         : type == typeof(Action) ? "Action0"
+        // An exported interface module is named after the interface minus its I; JS knows it as JamlFiles.
+        : type == typeof(IJamlFiles) ? "JamlFiles"
         : @default;
 
     /// <summary>Erases members whose signature holds a type that cannot cross: the SIMD plumbing

@@ -56,5 +56,19 @@ dotnet publish -c Release        # bin/motely-wasm, warnings are errors, nothing
 node tests/smoke.mjs
 ```
 
+The default build includes `JamlFiles` (folder access through Bootsharp.FileSystem). That package
+is not on nuget.org: add the rewaffle sponsor feed as a `rewaffle` source in your user-level
+NuGet.Config (the repo's nuget.config already maps `Bootsharp.FileSystem` to it). JS then calls
+`fs.init(Bootsharp.FileSystem.FileMounter)` from `@rewaffle/bootsharp-file-system` before `boot()`.
+
+Without the feed, build with the flag off:
+
+```
+dotnet publish -c Release -p:MotelyFileSystem=false
+```
+
+`JamlFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
+file calls reject.
+
 The engine's JAML loader reads with VYaml's parser only. VYaml's serializer layer finds
 formatters by reflection, which NativeAOT cannot compile (the old IL2104 / IL3053).
