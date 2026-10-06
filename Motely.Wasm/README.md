@@ -43,7 +43,7 @@ MotelyJamlyzer.analyze(config);                     // one result per seed in th
 
 ## Hosts
 
-The package decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 24+, Chrome 140+,
+The package decodes its embedded assemblies with `Uint8Array.fromBase64`: Node 25+, Chrome 140+,
 Safari 18.2+, Firefox 133+. An older host needs that function shimmed before `boot()`, for
 example `Uint8Array.fromBase64 ??= (s) => new Uint8Array(Buffer.from(s, "base64"))` on Node.
 No COOP/COEP headers and no SharedArrayBuffer are needed.
