@@ -53,14 +53,6 @@ public static partial class JamlConfigLoader
         return config;
     }
 
-    // ── The document, read with VYaml's parser only ──
-    // VYaml's serializer layer cannot ship to NativeAOT / WASM: every YamlSerializerOptions starts
-    // out with Resolver = StandardResolver.Instance, which finds formatters by reflection
-    // (GetNestedType, MakeGenericType): the trimmer's IL2104 / IL3053. The parser has none of
-    // that, so the loader reads JamlConfig with it directly, with the semantics VYaml's
-    // YamlSerializer.Deserialize and JamlConfig's generated formatter had: the same null and alias
-    // handling and the same enum names. Root keys match in any case, as the validator accepts them.
-
     private delegate T Reader<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors);
 
     private static JamlConfig? ReadDocument(byte[] bytes)

@@ -36,5 +36,10 @@ jobs:
         with:
           node-version: 26
       - run: dotnet workload install wasm-tools
+      # Bootsharp.FileSystem (sponsor package) comes from the rewaffle feed; nuget.config maps it there.
+      - run: >
+          dotnet nuget add source https://nuget.pkg.github.com/rewaffle/index.json -n rewaffle
+          -u "${{ secrets.REWAFFLE_USERNAME }}" -p "${{ secrets.REWAFFLE_TOKEN }}"
+          --store-password-in-clear-text
       - run: dotnet publish Motely.Wasm -c Release
       - run: node Motely.Wasm/tests/smoke.mjs
