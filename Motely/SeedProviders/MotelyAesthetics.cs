@@ -1,10 +1,10 @@
 namespace Motely.SeedProviders;
 
 /// <summary>
-/// Seed-space constraints declared under top-level <c>aesthetics</c> in a JAML document.
-/// Enumeration and classification: <see cref="JamlAesthetics"/>.
+/// Seed-space shapes Motely can enumerate instead of a full sweep.
+/// Enumeration and classification: <see cref="MotelyAesthetics"/>.
 /// </summary>
-public enum JamlAesthetic
+public enum MotelyAesthetic
 {
     Palindrome,
     /// <summary>ABAxBxxx letter skeleton (A,B free pad).</summary>
@@ -21,10 +21,10 @@ public enum JamlAesthetic
 }
 
 /// <summary>
-/// Generation and counting of JAML <see cref="JamlAesthetic"/> seed spaces over Motely's alphabet
+/// Generation and counting of <see cref="MotelyAesthetic"/> seed spaces over Motely's alphabet
 /// and length rules. Palindrome/Psychosis/Mirror/Repeater/Runs/Step live here; keyword-backed aesthetics
-/// (<see cref="JamlAesthetic.Gross"/>, <see cref="JamlAesthetic.Funny"/>,
-/// <see cref="JamlAesthetic.Balatro"/>, <see cref="JamlAesthetic.Nsfw"/>) delegate to
+/// (<see cref="MotelyAesthetic.Gross"/>, <see cref="MotelyAesthetic.Funny"/>,
+/// <see cref="MotelyAesthetic.Balatro"/>, <see cref="MotelyAesthetic.Nsfw"/>) delegate to
 /// <see cref="MotelySeedKeywordSequences"/>.
 /// <para>
 /// <b>Padding alphabet:</b> free / generated positions use <paramref name="paddingAlphabet"/> when
@@ -33,7 +33,7 @@ public enum JamlAesthetic
 /// <see cref="QuickPaddingChars"/> so words stay visible and the stream is searchable.
 /// </para>
 /// </summary>
-public static class JamlAesthetics
+public static class MotelyAesthetics
 {
     /// <summary>
     /// Digit-only pad: free slots stay numeric so letter patterns (psychosis ABA…, keyword words)
@@ -45,20 +45,20 @@ public static class JamlAesthetics
     /// <param name="paddingAlphabet">
     /// Optional charset for free/generated positions. Null = full seed alphabet.
     /// </param>
-    public static long GetSeedCount(JamlAesthetic aesthetic, char[]? paddingAlphabet = null) =>
+    public static long GetSeedCount(MotelyAesthetic aesthetic, char[]? paddingAlphabet = null) =>
         aesthetic switch
         {
-            JamlAesthetic.Palindrome => PalindromeAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Psychosis => PsychosisAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Mirror => MirrorAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Repeater => RepeaterAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Runs => RunsAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Step => StepAestheticSeeds.GetSeedCount(paddingAlphabet),
-            JamlAesthetic.Gross
-                or JamlAesthetic.Funny
-                or JamlAesthetic.Balatro
-                or JamlAesthetic.Leet
-                or JamlAesthetic.Nsfw => MotelySeedKeywordSequences.GetAestheticSeedCount(
+            MotelyAesthetic.Palindrome => PalindromeAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Psychosis => PsychosisAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Mirror => MirrorAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Repeater => RepeaterAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Runs => RunsAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Step => StepAestheticSeeds.GetSeedCount(paddingAlphabet),
+            MotelyAesthetic.Gross
+                or MotelyAesthetic.Funny
+                or MotelyAesthetic.Balatro
+                or MotelyAesthetic.Leet
+                or MotelyAesthetic.Nsfw => MotelySeedKeywordSequences.GetAestheticSeedCount(
                 aesthetic,
                 paddingAlphabet
             ),
@@ -67,22 +67,22 @@ public static class JamlAesthetics
 
     /// <summary>Deterministic enumeration; order matches historical full-alphabet providers when pad is null.</summary>
     public static IEnumerable<string> EnumerateSeeds(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet = null
     ) =>
         aesthetic switch
         {
-            JamlAesthetic.Palindrome => PalindromeAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Psychosis => PsychosisAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Mirror => MirrorAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Repeater => RepeaterAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Runs => RunsAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Step => StepAestheticSeeds.Enumerate(paddingAlphabet),
-            JamlAesthetic.Gross
-                or JamlAesthetic.Funny
-                or JamlAesthetic.Balatro
-                or JamlAesthetic.Leet
-                or JamlAesthetic.Nsfw => MotelySeedKeywordSequences.EnumerateAestheticSeeds(
+            MotelyAesthetic.Palindrome => PalindromeAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Psychosis => PsychosisAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Mirror => MirrorAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Repeater => RepeaterAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Runs => RunsAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Step => StepAestheticSeeds.Enumerate(paddingAlphabet),
+            MotelyAesthetic.Gross
+                or MotelyAesthetic.Funny
+                or MotelyAesthetic.Balatro
+                or MotelyAesthetic.Leet
+                or MotelyAesthetic.Nsfw => MotelySeedKeywordSequences.EnumerateAestheticSeeds(
                 aesthetic,
                 paddingAlphabet
             ),
@@ -117,7 +117,7 @@ file static class PalindromeAestheticSeeds
 {
     public static long GetSeedCount(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         checked
         {
             long total = 0;
@@ -140,7 +140,7 @@ file static class PalindromeAestheticSeeds
 
     public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         for (int len = 1; len <= MotelyGlobals.MaxSeedLength; len++)
         {
             foreach (var palindrome in OfLength(len, alphabet))
@@ -197,7 +197,7 @@ file static class PsychosisAestheticSeeds
 
     public static long GetSeedCount(char[]? paddingAlphabet)
     {
-        char[] free = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] free = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         checked
         {
             long freePow = 1;
@@ -209,7 +209,7 @@ file static class PsychosisAestheticSeeds
 
     public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         // Reuse one 8-char buffer instead of interpolating a fresh string per seed.
         // Pattern ABAxBxxx: positions 0,2 = a; positions 1,4 = b; positions 3,5,6,7 = free.
         char[] buffer = new char[8];
@@ -327,7 +327,7 @@ file static class RepeaterAestheticSeeds
 
     public static long GetSeedCount(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         checked
         {
             int c = alphabet.Length;
@@ -347,7 +347,7 @@ file static class RepeaterAestheticSeeds
 
     public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         char[] buf = new char[MotelyGlobals.MaxSeedLength];
 
         foreach (int patternLen in PatternLengths)
@@ -390,13 +390,13 @@ file static class StepAestheticSeeds
 {
     public static long GetSeedCount(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         return checked((long)alphabet.Length * alphabet.Length);
     }
 
     public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
     {
-        char[] alphabet = JamlAesthetics.AlphabetOrFull(paddingAlphabet);
+        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
         int n = alphabet.Length;
         char[] buf = new char[MotelyGlobals.MaxSeedLength];
 

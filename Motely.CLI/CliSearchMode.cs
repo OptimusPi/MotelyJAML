@@ -66,19 +66,19 @@ internal static class CliSearchMode
         bool hasSeedsArg = !string.IsNullOrWhiteSpace(input.SeedsArgument);
         bool hasReplayMode = input.Replay;
 
-        JamlAesthetic? explicitAesthetic = null;
+        MotelyAesthetic? explicitAesthetic = null;
         bool aestheticAll = false;
         if (!string.IsNullOrWhiteSpace(input.AestheticName))
         {
             var trimmed = input.AestheticName.Trim();
-            if (JamlAestheticParser.IsAllToken(trimmed))
+            if (MotelyAestheticParser.IsAllToken(trimmed))
             {
                 aestheticAll = true;
             }
-            else if (!JamlAestheticParser.TryParse(trimmed, out var aesthetic))
+            else if (!MotelyAestheticParser.TryParse(trimmed, out var aesthetic))
             {
                 error =
-                    $"Error: unknown --aesthetic value '{trimmed}'. Known: {JamlAestheticParser.KnownJamlStringsDescription()}.";
+                    $"Error: unknown --aesthetic value '{trimmed}'. Known: {MotelyAestheticParser.KnownJamlStringsDescription()}.";
                 return false;
             }
             else
@@ -227,7 +227,7 @@ internal static class CliSearchMode
             // --aesthetic still uses digit pad + sequential fallback in Program.)
             updated = new MotelySearchIntent(
                 Mode: MotelySearchInputMode.Aesthetic,
-                Aesthetics: [.. JamlAestheticParser.AllAesthetics()],
+                Aesthetics: [.. MotelyAestheticParser.AllAesthetics()],
                 PaddingAlphabet: input.PaddingCharsOption
             ).ApplyTo(updated);
         }

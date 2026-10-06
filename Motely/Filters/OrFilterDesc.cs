@@ -1,36 +1,8 @@
-using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using Motely.Filters.Jaml;
 using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
-
-[JamlDiscriminator("or")]
-public sealed partial class OrClause : LogicClause
-{
-    public override IMotelySeedFilterDesc CreateFilterDesc() =>
-        new OrFilterDesc([.. Clauses.Select(c => c.CreateFilterDesc())], Min);
-}
-
-public static class MotelySeedFilterDescExtensions
-{
-    public static IMotelySeedFilterDesc Or(
-        this IMotelySeedFilterDesc first,
-        IMotelySeedFilterDesc second
-    )
-    {
-        return new OrFilterDesc([first, second]);
-    }
-
-    public static IMotelySeedFilterDesc And(
-        this IMotelySeedFilterDesc first,
-        IMotelySeedFilterDesc second
-    )
-    {
-        return new AndFilterDesc([first, second]);
-    }
-}
 
 public struct OrFilterDesc(IMotelySeedFilterDesc[] filters, int min = 1)
     : IMotelySeedFilterDesc<OrFilterDesc.OrFilter>

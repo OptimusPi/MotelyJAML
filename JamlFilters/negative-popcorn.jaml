@@ -1,9 +1,0 @@
-name: negative-popcorn
-deck: Red
-stake: White
-must:
-  - joker: Popcorn
-    edition: Negative
-    antes: [1]
-    sources:
-      boosterPacks: [0, 1]

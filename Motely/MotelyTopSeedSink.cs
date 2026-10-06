@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Motely.Filters.Jaml;
 
 namespace Motely;
 
@@ -117,29 +116,6 @@ public static class MotelyTopSeedSink
             updated += normalizedNewline;
 
         return updated;
-    }
-
-    /// <summary>
-    /// Rewrite the <c>seeds:</c> block then confirm the result still loads as valid JAML. Returns
-    /// false with <paramref name="error"/> set if the rewritten document does not parse — so a bad
-    /// write is caught before it ever touches disk.
-    /// </summary>
-    public static bool TryRewriteAndValidate(
-        string jamlText,
-        IReadOnlyList<string> seeds,
-        out string newText,
-        out string? error
-    )
-    {
-        newText = RewriteSeedsBlock(jamlText, seeds);
-        if (!JamlConfigLoader.TryLoad(newText, out _, out var loadError))
-        {
-            error = loadError ?? "Updated JAML did not validate.";
-            return false;
-        }
-
-        error = null;
-        return true;
     }
 
     /// <summary>

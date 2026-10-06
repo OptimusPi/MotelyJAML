@@ -1,6 +1,0 @@
-name: LuckyMoney
-author: pifreak
-description: Find a seed where the first 2 rolls of LuckyMoney give $20
-must:
-  - luckyMoney: [0,1]
-    min: 2

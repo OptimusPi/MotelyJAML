@@ -216,12 +216,12 @@ partial class Program
         );
         var aestheticOption = app.Option<string>(
             "--aesthetic <NAME>",
-            $"Search seeds from an aesthetic provider ({JamlAestheticParser.KnownJamlStringsDescription()}). 'all' concatenates every family in order",
+            $"Search seeds from an aesthetic provider ({MotelyAestheticParser.KnownJamlStringsDescription()}). 'all' concatenates every family in order",
             CommandOptionType.SingleValue
         );
         var collectOption = app.Option<long>(
             "--collect <N>",
-            $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({JamlAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
+            $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({MotelyAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
             CommandOptionType.SingleValue
         );
         var replayOption = app.Option(
@@ -712,16 +712,16 @@ partial class Program
                         // Full-alphabet free slots are not a "tiny corner". Override pad with --padding.
                         var aesthetics =
                             aestheticOption.HasValue()
-                            && JamlAestheticParser.TryParse(
+                            && MotelyAestheticParser.TryParse(
                                 aestheticOption.ParsedValue.Trim(),
                                 out var onlyOne
                             )
                                 ? new[] { onlyOne }
-                                : Enum.GetValues<JamlAesthetic>();
+                                : Enum.GetValues<MotelyAesthetic>();
                         char[] collectPad = paddingOption.HasValue()
                             ? MotelyGlobals.ParsePaddingChars(paddingOption.ParsedValue)
-                                ?? JamlAesthetics.QuickPaddingChars
-                            : JamlAesthetics.QuickPaddingChars;
+                                ?? MotelyAesthetics.QuickPaddingChars
+                            : MotelyAesthetics.QuickPaddingChars;
                         settings = new MotelySearchIntent(
                             Mode: MotelySearchInputMode.Aesthetic,
                             Aesthetics: aesthetics,

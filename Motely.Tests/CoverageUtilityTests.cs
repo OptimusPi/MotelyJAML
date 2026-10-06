@@ -153,7 +153,7 @@ public sealed class CoverageUtilityTests
         );
         Assert.Equal(baked, live);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelySeedKeywordSequences.GetAestheticSeedCount(JamlAesthetic.Palindrome)
+            MotelySeedKeywordSequences.GetAestheticSeedCount(MotelyAesthetic.Palindrome)
         );
 
         foreach (

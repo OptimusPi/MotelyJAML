@@ -1,15 +1,6 @@
-using System;
 using System.Runtime.CompilerServices;
-using Motely.Filters.Jaml;
 
 namespace Motely.Filters;
-
-[JamlDiscriminator("and")]
-public sealed partial class AndClause : LogicClause
-{
-    public override IMotelySeedFilterDesc CreateFilterDesc() =>
-        new AndFilterDesc([.. Clauses.Select(c => c.CreateFilterDesc())]);
-}
 
 public struct AndFilterDesc(IMotelySeedFilterDesc[] filters)
     : IMotelySeedFilterDesc<AndFilterDesc.AndFilter>

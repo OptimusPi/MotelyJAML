@@ -431,7 +431,7 @@ public sealed class S8P2SearchGutsTests
     {
         using var search = JamlSearchBuilder
             .CreateSettings(Permissive())
-            .WithAestheticSearch(JamlAesthetic.Palindrome)
+            .WithAestheticSearch(MotelyAesthetic.Palindrome)
             .WithThreadCount(1)
             .WithQuietMode(true)
             .StopAfter(1)
@@ -446,7 +446,7 @@ public sealed class S8P2SearchGutsTests
     {
         var intent = new MotelySearchIntent(
             Mode: MotelySearchInputMode.Aesthetic,
-            Aesthetic: JamlAesthetic.Palindrome,
+            Aesthetic: MotelyAesthetic.Palindrome,
             ThreadCount: 1,
             StopAfterMatches: 1
         );
