@@ -15,6 +15,5 @@
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="VYaml" />
-    <PackageReference Include="VYaml.Annotations" />
   </ItemGroup>
 </Project>
