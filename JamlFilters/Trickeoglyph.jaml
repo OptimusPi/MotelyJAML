@@ -2,15 +2,8 @@
 #
 # WHERE IT LIVES
 #   JAML:   JamlFilters/Trickeoglyph.jaml  (this file)
-#   Native: Motely/Filters/Native/Trickeoglyph.cs
-#   CLI:    --native Trickeoglyph
 #           MotelyNativeFilter.Trickeoglyph
 #
-# Native notes (C# is the original “trick”):
-#   - Ante 1 Perkeo: pack slots 0..3 only (normal ante-1 reach; no deep Hieroglyph slots)
-#   - Ante 8 Canio:  pack slots 0..5
-#   - C# also sniffs Hieroglyph/MagicTrick in vouchers 2..4 but currently does not gate on them
-#   - C# comment says “Perkeo Negative” but does not pass edition: Negative
 #
 # Deep ante-1 slot 5 Negative Perkeo = hieroglyph-deep-perkeo.jaml (different filter)
 
