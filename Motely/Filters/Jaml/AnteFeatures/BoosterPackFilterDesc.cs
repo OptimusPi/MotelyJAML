@@ -15,7 +15,6 @@ namespace Motely.Filters.Jaml;
     ValueEnum = typeof(MotelyBoosterPack),
     RollsDefault = new[] { 0, 1 }
 )]
-[YamlObject]
 public sealed partial class BoosterPackClause : IJamlClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }

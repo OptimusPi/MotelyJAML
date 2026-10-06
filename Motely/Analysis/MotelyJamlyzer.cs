@@ -208,8 +208,6 @@ public static class MotelyJamlyzer
     /// Score and Tally. One pass — a host on the far side of a boundary gets the find and what it
     /// contains together, with no second call to <see cref="Analyze(JamlConfig, int)"/>.
     /// <para>
-    /// Build it from the config as loaded, before
-    /// <see cref="Motely.Filters.JamlSearchBuilder.CreateSettings"/> (see <see cref="ComputeAntes"/>).
     /// <paramref name="eventRolls"/> 0 gives the per-ante summary alone — boss, voucher, tags, shop,
     /// packs — with every roll queue empty, the cheap shape for a results table. The callback fires
     /// on the search's worker thread(s).
@@ -351,9 +349,7 @@ public static class MotelyJamlyzer
 
     /// <summary>
     /// The antes the JAML's clauses scope to (sorted, deduplicated), or <see cref="AllAntes"/> when
-    /// no clause names one. Read it from the config as loaded:
-    /// <see cref="Motely.Filters.JamlSearchBuilder.CreateSettings"/> fills unscoped clauses with
-    /// 1..8 in place, which would hide the pre-run shop (ante 0) from a call made afterwards.
+    /// no clause names one.
     /// </summary>
     public static int[] ComputeAntes(JamlConfig config)
     {

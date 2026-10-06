@@ -470,4 +470,23 @@ public sealed class JamlLoaderLineNumberTests
         Assert.Equal(2, config.Should.Count);
         Assert.Same(config.Must[0], config.Should[0]);
     }
+
+    [Fact]
+    public void RootKeys_AnyCase_Load()
+    {
+        // The validator accepts root keys in any case; the reader must too, or `Must:` passes
+        // validation and loads as no clauses at all.
+        var config = JamlConfigLoader.FromJaml("""
+            Name: cased
+            Deck: Blue
+            Must:
+              - joker: Blueprint
+            MustNot:
+              - joker: Baron
+            """);
+        Assert.Equal("cased", config.Name);
+        Assert.Equal(MotelyDeck.Blue, config.Deck);
+        Assert.Single(config.Must);
+        Assert.Single(config.MustNot);
+    }
 }

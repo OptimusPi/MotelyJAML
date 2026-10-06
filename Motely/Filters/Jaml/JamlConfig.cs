@@ -4,7 +4,6 @@ namespace Motely.Filters.Jaml;
 /// JAML document bag: id/deck/stake/must/should/mustNot. Grammar lives on FilterDescs and
 /// source-config shapes colocated with those descs — not here.
 /// </summary>
-[YamlObject]
 public sealed partial record JamlConfig
 {
     /// <summary>The document root's own keys. "dateCreated" has no backing property here — it's
@@ -33,7 +32,6 @@ public sealed partial record JamlConfig
 /// Globe) is spelled per source instead (<c>sources: {omenGlobe: true}</c>), so nothing here is
 /// parsed without being read.
 /// </summary>
-[YamlObject]
 public sealed partial record JamlWith
 {
     /// <summary>Oops! All 6s multiplier — each Oops doubles the odds (X2, X4, X8…). X1 = base odds.</summary>

@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("luckyMoney", RollsAreInlineValue = true)]
-[YamlObject]
 public sealed partial class LuckyMoneyClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }

@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("cavendishExtinct", RollsAreInlineValue = true)]
-[YamlObject]
 public sealed partial class CavendishExtinctClause : IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }

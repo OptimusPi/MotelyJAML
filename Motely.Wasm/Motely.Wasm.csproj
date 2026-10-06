@@ -1,46 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The browser build of the engine, written against the Bootsharp 0.9 docs.
-       Single threaded, NativeAOT-LLVM on Release publish, assemblies embedded in the JS package
-       (no sideloading), nothing patched after the build. -->
+  <!-- The browser build of the engine: Bootsharp exports the engine's own types, no wrappers. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
     <OutputType>Exe</OutputType>
     <AssemblyName>Motely.Wasm</AssemblyName>
-    <RootNamespace>Motely.Wasm</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- VYaml ships trim/AOT analysis warnings we cannot fix; TreatWarningsAsErrors would fail ilc. -->
-    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
     <BootsharpName>motely-wasm</BootsharpName>
-    <!-- Bootsharp writes package.json from PackageTemplate.json on every build; keep it out of
-         this folder so the hand-written package.json stays. -->
+    <!-- Bootsharp rewrites package.json from its template on every publish; keep that copy in obj
+         so the hand-written package.json (version, files, scripts) stays. -->
     <BootsharpPackageDirectory>$(MSBuildProjectDirectory)/obj/pkg</BootsharpPackageDirectory>
-    <!-- Bootsharp trims exception text down to resource keys. Keep the real messages: search.error
-         and Jaml.check hand them to JS. Costs about 55 KB on a 15 MB package. -->
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
-  </PropertyGroup>
-
-  <!-- Bootsharp.FileSystem (folder access for JamlFiles) is served only from the sponsor feed, so it
-       is opt-in. Either -p:MotelyFileSystem=true or MOTELY_FILESYSTEM=true in the environment.
-       Off, JamlFiles keeps the same exports and isSupported() is false. -->
-  <PropertyGroup>
-    <MotelyFileSystemEnabled>$(MotelyFileSystem)</MotelyFileSystemEnabled>
-    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' == ''">$(MOTELY_FILESYSTEM)</MotelyFileSystemEnabled>
-    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' == '1'">true</MotelyFileSystemEnabled>
-    <MotelyFileSystemEnabled Condition="'$(MotelyFileSystemEnabled)' != 'true'">false</MotelyFileSystemEnabled>
-    <DefineConstants Condition="'$(MotelyFileSystemEnabled)' == 'true'">$(DefineConstants);MOTELY_FILESYSTEM</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Bootsharp" />
-    <PackageReference Include="Bootsharp.Inject" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="VYaml" />
-    <PackageReference Include="VYaml.Annotations" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(MotelyFileSystemEnabled)' == 'true'">
-    <PackageReference Include="Bootsharp.FileSystem" />
   </ItemGroup>
 
   <ItemGroup>

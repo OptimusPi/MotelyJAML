@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("misprintMult", RollsAreInlineValue = true)]
-[YamlObject]
 public sealed partial class MisprintMultClause : IRollScopedClause
 {
     public string? Label { get; set; }

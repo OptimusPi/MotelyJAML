@@ -4,7 +4,6 @@ namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("standardCard", "standardCards",
     SourceConfigType = typeof(StandardCardSourceConfig))]
-[YamlObject]
 public sealed partial class StandardCardClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
@@ -82,7 +81,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>standardCard:</c>. Colocated with <see cref="StandardCardFilterDesc"/> (T5).
 /// </summary>
-[YamlObject]
 public sealed partial record StandardCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>

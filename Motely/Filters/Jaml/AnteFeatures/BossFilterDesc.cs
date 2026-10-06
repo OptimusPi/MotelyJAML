@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 namespace Motely.Filters.Jaml;
 
 [JamlDiscriminator("boss", "bosses", ValueEnum = typeof(MotelyBossBlind))]
-[YamlObject]
 public sealed partial class BossClause : IJamlClause, IAnteScopedClause
 {
     public string? Label { get; set; }
