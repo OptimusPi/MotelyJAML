@@ -21,7 +21,7 @@ public class LuckyEventLuckTests
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([DifferentialSeed], 1)
             .WithThreadCount(1)
@@ -183,7 +183,7 @@ public class LuckyEventLuckTests
         );
 
         var matches = new HashSet<string>(StringComparer.Ordinal);
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)

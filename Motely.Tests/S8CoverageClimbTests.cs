@@ -1,5 +1,4 @@
 using System.Runtime.Intrinsics;
-using Motely.Filters.Jaml;
 using Motely.SeedProviders;
 
 namespace Motely.Tests;
@@ -93,7 +92,7 @@ public sealed class S8CoverageClimbTests
     // ── Filter path execution via list (coverage without sequential) ──
 
     private static void RunClause(
-        IJamlClause clause,
+        IMotelyClause clause,
         string[] seeds,
         MotelyDeck deck = MotelyDeck.Red
     )
@@ -105,7 +104,7 @@ public sealed class S8CoverageClimbTests
             Stake = MotelyStake.White,
         };
         config.Must.Add(clause);
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -474,7 +473,7 @@ public sealed class S8CoverageClimbTests
     /// R3 parity lock for the raw-stream fix pair: the vector fixed-rarity streams carry the
     /// Joker category bits, and the scalar must re-eval (JamlShouldScoreDesc) counts raw-stream
     /// sources. The uncommon raw stream always yields an uncommon, so the wildcard matches all
-    /// eight seeds on every route: raw desc, JamlSearchBuilder, and JAML text agree.
+    /// eight seeds on every route: raw desc, MotelySearchBuilder, and JAML text agree.
     /// commonShopJokers stays zero — a common-rarity stream can never satisfy an uncommon clause.
     /// </summary>
     [Fact]

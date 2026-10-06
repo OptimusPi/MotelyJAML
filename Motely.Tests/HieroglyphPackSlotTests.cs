@@ -29,7 +29,7 @@ public class HieroglyphPackSlotTests
             $"JAML parse failed: {error}\n{jaml}"
         );
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
             .WithThreadCount(1)

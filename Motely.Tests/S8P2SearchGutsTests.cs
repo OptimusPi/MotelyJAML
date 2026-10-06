@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.Intrinsics;
 using Motely.Filters;
-using Motely.Filters.Jaml;
 using Motely.Filters.Native;
 
 namespace Motely.Tests;
@@ -92,7 +91,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void SearchCannotBeStartedTwice()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
             .WithThreadCount(1)
@@ -113,7 +112,7 @@ public sealed class S8P2SearchGutsTests
     public void Start_IsNonBlocking_IsCompletedFalseUntilWorkersFinish()
     {
         using var gate = new ManualResetEventSlim(false);
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(2)
@@ -155,7 +154,7 @@ public sealed class S8P2SearchGutsTests
     public async Task SequentialSlice_EtaCountsOnlyTheBatchesTheRunAskedFor()
     {
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3) // 35³ = 42,875 batches exist; this run wants two of them
@@ -196,7 +195,7 @@ public sealed class S8P2SearchGutsTests
     public async Task SequentialSlice_ProgressCountersAndAsyncCompletion()
     {
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -242,7 +241,7 @@ public sealed class S8P2SearchGutsTests
             "Z", "88", "AAAAAAAA", "MOTELY", "474", "3X3", "GHG", "4C4",
         ];
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -270,7 +269,7 @@ public sealed class S8P2SearchGutsTests
             "Z", "88", "AAAAAAAA", "MOTELY", "474", "3X3", "GHG", "4C4",
         ];
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(seeds, seeds.Length)
             .WithProviderBatchSeedCount(MotelyGlobals.MaxVectorWidth)
@@ -416,7 +415,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void RandomSearch_SearchesExactlyTheRequestedCount()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithRandomSearch(40)
             .WithThreadCount(1)
@@ -429,7 +428,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void AestheticSearch_StopsOnFirstMatch()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithAestheticSearch(MotelyAesthetic.Palindrome)
             .WithThreadCount(1)
@@ -451,7 +450,7 @@ public sealed class S8P2SearchGutsTests
             StopAfterMatches: 1
         );
 
-        using var search = intent.ApplyTo(JamlSearchBuilder.CreateSettings(Permissive()))
+        using var search = intent.ApplyTo(MotelySearchBuilder.CreateSettings(Permissive()))
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();
@@ -471,7 +470,7 @@ public sealed class S8P2SearchGutsTests
             StopAfterMatches: 1
         );
 
-        using var search = intent.ApplyTo(JamlSearchBuilder.CreateSettings(Permissive()))
+        using var search = intent.ApplyTo(MotelySearchBuilder.CreateSettings(Permissive()))
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();
@@ -497,7 +496,7 @@ public sealed class S8P2SearchGutsTests
                 antes: [1]
             """;
         var scored = new List<MotelyScoredSeedResult>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(ProofSearch.LoadOrThrow(jaml))
             .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
             .WithThreadCount(1)

@@ -80,7 +80,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                 config.Should.Add(clause);
 
             var hits = new HashSet<string>();
-            var settings = JamlSearchBuilder
+            var settings = MotelySearchBuilder
                 .CreateSettings(config)
                 .WithSeedGenerator(seeds, seeds.Length)
                 .WithThreadCount(1)

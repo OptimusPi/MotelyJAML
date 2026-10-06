@@ -1,0 +1,19 @@
+name: Blackboard Checkered Deck
+author: jammy
+description: >
+  Blackboard uncommon with Checkered Deck for X3 Mult if all held cards
+  are Spades or Clubs
+deck: Checkered
+stake: White
+must:
+  - uncommonJoker: Blackboard
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: SmearedJoker
+    score: 50
+  - commonJoker: WrathfulJoker
+    score: 35

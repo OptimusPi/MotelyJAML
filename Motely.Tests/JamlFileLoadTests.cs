@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -8,7 +7,7 @@ public sealed class JamlFileLoadTests
     [Fact]
     public void TestJamlFiles_AllLoadAndPlan()
     {
-        var dir = Path.Join(AppContext.BaseDirectory, "JamlFilters");
+        var dir = Path.Join(AppContext.BaseDirectory, "Motelyfilters");
         Assert.True(Directory.Exists(dir), $"Test JAML files not in output: {dir}");
 
         var files = Directory
@@ -32,7 +31,7 @@ public sealed class JamlFileLoadTests
             try
             {
                 if (config.HasAnyClauses())
-                    _ = JamlSearchBuilder.CreatePlan(config);
+                    _ = MotelySearchBuilder.CreatePlan(config);
             }
             catch (Exception ex)
             {

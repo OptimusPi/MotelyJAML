@@ -64,7 +64,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
     private static MotelyItemEdition? RandomEdition(Random r) =>
         r.Next(4) == 0 ? Pick(r, Enum.GetValues<MotelyItemEdition>()) : null;
 
-    private static void RandomBounds(Random r, IJamlClause c)
+    private static void RandomBounds(Random r, IMotelyClause c)
     {
         c.Min = r.Next(6) == 0 ? r.Next(2, 4) : 1;
         c.Max = r.Next(5) == 0 ? c.Min + r.Next(0, 2) : null;
@@ -113,9 +113,9 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
         MotelyJoker.Perkeo, MotelyJoker.Triboulet, MotelyJoker.Yorick, MotelyJoker.Chicot, MotelyJoker.Canio,
     ];
 
-    private static IJamlClause RandomLeaf(Random r)
+    private static IMotelyClause RandomLeaf(Random r)
     {
-        IJamlClause c;
+        IMotelyClause c;
         switch (r.Next(22))
         {
             case 0:
@@ -353,7 +353,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
         return c;
     }
 
-    private static IJamlClause RandomEvent(Random r)
+    private static IMotelyClause RandomEvent(Random r)
     {
         int[] rolls = Subset(r, 0, 12, 1, 5);
         var luck = new JamlWith { Luck = Pick(r, Enum.GetValues<MotelyLuck>()) };
@@ -374,12 +374,12 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
         };
     }
 
-    private static IJamlClause RandomClause(Random r, int depth)
+    private static IMotelyClause RandomClause(Random r, int depth)
     {
         if (depth < 2 && r.Next(6) == 0)
         {
             int arms = r.Next(1, 4);
-            var children = new IJamlClause[arms];
+            var children = new IMotelyClause[arms];
             for (int i = 0; i < arms; i++)
                 children[i] = RandomClause(r, depth + 1);
             LogicClause logic = r.Next(2) == 0 ? new AndClause() : new OrClause();
@@ -423,7 +423,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
     {
         var rows = new ConcurrentDictionary<string, Row>();
         var matched = new ConcurrentBag<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedList(seeds)
             .WithThreadCount(threads)
@@ -465,7 +465,7 @@ public sealed class JamlPropertySweepTests(ITestOutputHelper output)
         return new Dictionary<string, Row>(rows);
     }
 
-    internal static string Describe(IJamlClause c) => c switch
+    internal static string Describe(IMotelyClause c) => c switch
     {
         LogicClause l => $"{l.GetType().Name}(min={l.Min},max={l.Max},score={l.Score},mode={l.Mode})[{string.Join("; ", l.Clauses.Select(Describe))}]",
         _ => $"{c.GetType().Name}{{{string.Join(",", c.GetType().GetProperties().Where(p => p.Name != "Label").Select(p => $"{p.Name}={Fmt(p.GetValue(c))}"))}}}",

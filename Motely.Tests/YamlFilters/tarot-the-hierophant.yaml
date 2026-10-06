@@ -1,0 +1,17 @@
+name: TheHierophant Bonus Build
+author: jammy
+description: TheHierophant tarotCard for Bonus enhancement chip scaling
+deck: Red
+stake: White
+must:
+  - tarotCard: TheHierophant
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: StoneJoker
+    score: 30
+  - commonJoker: BlueJoker
+    score: 25

@@ -1,0 +1,19 @@
+name: Glass Ace Early
+author: jammy
+description: Standard card with Glass enhancement on Ace in early antes
+deck: Red
+stake: White
+must:
+  - standardCard: Ace
+    rank: Ace
+    enhancement: Glass
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: GlassJoker
+    score: 50
+  - uncommonJoker: Seltzer
+    score: 45

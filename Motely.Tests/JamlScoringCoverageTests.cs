@@ -8,7 +8,7 @@ public sealed class JamlScoringCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77"];
 
-    private static int RunShould(IJamlClause clause, MotelyDeck deck = MotelyDeck.Red)
+    private static int RunShould(IMotelyClause clause, MotelyDeck deck = MotelyDeck.Red)
     {
         if (clause.Score == 0)
             clause.Score = 1;
@@ -21,7 +21,7 @@ public sealed class JamlScoringCoverageTests
         config.Should.Add(clause);
 
         int score = -1;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -184,7 +184,7 @@ public sealed class JamlScoringCoverageTests
     {
         // Rolls beyond index 0 force the skip loops; Max forces the counter to keep scanning
         // instead of returning at min. Every event counter in JamlScoring takes both branches.
-        IJamlClause[] clauses =
+        IMotelyClause[] clauses =
         [
             new LuckyMoneyClause { Rolls = [0, 2, 5], Min = 1, Max = 3 },
             new LuckyMultClause { Rolls = [0, 2, 5], Min = 1, Max = 3 },

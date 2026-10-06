@@ -16,7 +16,7 @@ public class JamlMinMaxMustNotTests
 {
     private const string Seed = "MOTELY77";
 
-    /// <summary>First twelve seeds of JamlFilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
+    /// <summary>First twelve seeds of Motelyfilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
     /// ante 1, Negative Perkeo in an ante-0 pack.</summary>
     private static readonly string[] ZerkeoSeeds =
     [
@@ -33,7 +33,7 @@ public class JamlMinMaxMustNotTests
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)
@@ -57,7 +57,7 @@ public class JamlMinMaxMustNotTests
         );
 
         var hits = new HashSet<string>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedList(seeds)
             .WithThreadCount(1)

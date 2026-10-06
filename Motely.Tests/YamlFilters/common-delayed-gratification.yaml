@@ -1,0 +1,15 @@
+name: Delayed Gratification Blue Deck
+author: jammy
+description: Delayed Gratification common with Blue Deck for +2 per unused discard
+deck: Blue
+stake: White
+must:
+  - commonJoker: DelayedGratification
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: Banner
+    score: 50

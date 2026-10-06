@@ -1,4 +1,3 @@
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -24,7 +23,7 @@ public static class ProofSearch
     {
         var config = LoadOrThrow(jaml);
         var matched = new List<string>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config, cutoff)
             .WithAutoScoreCutoff(false)
             .WithSeedGenerator(seeds, seeds.Length)

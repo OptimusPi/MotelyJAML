@@ -1,14 +1,13 @@
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
 /// <summary>
 /// ADR-001 item 9: every filter in the repo loads through the one loader. Reads the source
-/// folders in place (repo JamlFilters/ and Motely.Tests/JamlFilters/), not the copies in bin/,
+/// folders in place (repo Motelyfilters/ and Motely.Tests/Motelyfilters/), not the copies in bin/,
 /// so a file that isn't copied to output still gets checked. All four extensions the loader
 /// accepts: .jaml .yaml .yml .json.
 /// </summary>
-public sealed class JamlFilterCorpusLoadTests
+public sealed class MotelyfilterCorpusLoadTests
 {
     private static readonly string[] Extensions = [".jaml", ".yaml", ".yml", ".json"];
 
@@ -18,7 +17,7 @@ public sealed class JamlFilterCorpusLoadTests
     private static string RepoDir => Path.GetFullPath(Path.Join(TestsDir, ".."));
 
     public static TheoryData<string> Folders =>
-        new() { Path.Join("JamlFilters"), Path.Join("Motely.Tests", "JamlFilters") };
+        new() { Path.Join("Motelyfilters"), Path.Join("Motely.Tests", "Motelyfilters") };
 
     [Theory]
     [MemberData(nameof(Folders))]

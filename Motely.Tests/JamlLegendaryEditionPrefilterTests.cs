@@ -25,7 +25,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
                   boosterPacks: [6]
             """;
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
             .WithThreadCount(1)
@@ -55,7 +55,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
         };
         config.Must.Add(clause);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"], 4)
             .WithThreadCount(1)

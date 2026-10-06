@@ -286,7 +286,7 @@ public class JamlEditorWindow : Window
                 if (string.IsNullOrWhiteSpace(requestedName))
                     return;
 
-                _filePath = FilterLibrary.SaveJamlFilter(requestedName, content);
+                _filePath = FilterLibrary.SaveMotelyfilter(requestedName, content);
             }
             else
             {

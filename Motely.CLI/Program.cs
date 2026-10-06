@@ -7,7 +7,6 @@ using Motely.Analysis;
 using Motely.CLI;
 using Motely.Enums;
 using Motely.Filters;
-using Motely.Filters.Jaml;
 using Motely.Filters.Native;
 using Motely.SeedProviders;
 
@@ -521,7 +520,7 @@ partial class Program
                     // Push fixed --cutoff into the engine so low-scoring seeds are dropped at
                     // the scorer (no callback spam, no per-seed string concat). Auto still needs
                     // the caller-side running-max below since the engine threshold is static.
-                    plan = JamlSearchBuilder.CreatePlan(config, engineCutoff);
+                    plan = MotelySearchBuilder.CreatePlan(config, engineCutoff);
                 }
                 catch (InvalidOperationException ex)
                 {

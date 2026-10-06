@@ -1,5 +1,4 @@
 using Motely.Analysis;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 

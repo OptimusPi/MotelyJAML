@@ -1,0 +1,17 @@
+name: Justice Glass Build
+author: jammy
+description: Justice tarotCard with Glass Joker for Glass enhancement synergy
+deck: Red
+stake: White
+must:
+  - tarotCard: Justice
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: GlassJoker
+    score: 50
+  - uncommonJoker: Seltzer
+    score: 40

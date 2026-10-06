@@ -124,7 +124,7 @@ public sealed class JamlExactMustReevalTests
 
         var hits = new HashSet<string>();
         var seeds = new[] { "ALEEB", "MOTELY77", "AAAAAAAA", "11111111" };
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)

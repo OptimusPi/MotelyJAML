@@ -1,0 +1,15 @@
+name: Raised Fist Temporary Mult
+author: jammy
+description: Raised Fist common for doubled Mult from lowest rank card
+deck: Red
+stake: White
+must:
+  - commonJoker: RaisedFist
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Fibonacci
+    score: 40

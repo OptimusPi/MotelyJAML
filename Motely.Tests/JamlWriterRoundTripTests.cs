@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 using Xunit.Abstractions;
 
 namespace Motely.Tests;
@@ -8,14 +7,14 @@ namespace Motely.Tests;
 /// ToJaml is what every host saves with (Balatro Seed Oracle writes each filter through it).
 /// For every real filter that loads, FromJaml(ToJaml(config)) must load again with the same
 /// clause shape. Text may differ; meaning may not. Set MOTELY_FILTERS_DIR to run the same check
-/// over another folder (a product's JamlFilters/).
+/// over another folder (a product's Motelyfilters/).
 /// </summary>
 public sealed class JamlWriterRoundTripTests(ITestOutputHelper output)
 {
     private static string FiltersDir() =>
         Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is { Length: > 0 } dir
             ? dir
-            : Path.Join(AppContext.BaseDirectory, "JamlFilters");
+            : Path.Join(AppContext.BaseDirectory, "Motelyfilters");
 
     [Fact]
     public void EveryLoadableFilter_SurvivesToJamlAndBack()
@@ -78,7 +77,7 @@ public sealed class JamlWriterRoundTripTests(ITestOutputHelper output)
         $"should[{string.Join(",", c.Should.Select(Shape))}] " +
         $"mustNot[{string.Join(",", c.MustNot.Select(Shape))}]";
 
-    private static string Shape(IJamlClause k)
+    private static string Shape(IMotelyClause k)
     {
         var s = $"{k.GetType().Name}(min={k.Min},max={k.Max},score={k.Score}";
         if (k is IAnteScopedClause a) s += $",antes={string.Join("|", a.Antes)}";

@@ -1,0 +1,18 @@
+name: Purple Seal tarotCard Generation
+author: jammy
+description: Standard card with Purple Seal for tarotCard card generation on discard
+deck: Blue
+stake: White
+must:
+  - standardCard: PurpleSeal
+    seal: Purple
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: FortuneTeller
+    score: 60
+  - uncommonJoker: MerryAndy
+    score: 50

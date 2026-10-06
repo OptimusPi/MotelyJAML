@@ -1,0 +1,17 @@
+name: Green Deck Active Economy
+author: jammy
+description: Green Deck with Burglar and Merry Andy for active play income
+deck: Green
+stake: White
+must:
+  - uncommonJoker: Burglar
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: MerryAndy
+    score: 40
+  - commonJoker: GreenJoker
+    score: 30

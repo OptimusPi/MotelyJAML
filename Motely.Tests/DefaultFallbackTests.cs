@@ -1,10 +1,9 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
 /// <summary>
-/// Pins the FilterDesc-side fallback defaults that <see cref="JamlSearchBuilder"/> fills in for
+/// Pins the FilterDesc-side fallback defaults that <see cref="MotelySearchBuilder"/> fills in for
 /// clauses that named no ante / no source. The loader injects nothing (JAML is typed — a clause
 /// arrives as a real <see cref="JokerClause"/> with empty <c>Antes</c>/<c>Sources</c>, not a blob
 /// of text), so without these defaults every <c>foreach (ante in clause.Antes)</c> and
@@ -30,7 +29,7 @@ public class DefaultFallbackTests
 
         int score = 0;
         long matching = 0;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)
@@ -98,7 +97,7 @@ public class DefaultFallbackTests
     // unlabeled clause gets its one-line JAML spelling as the column name; scoreN is the
     // last resort for clauses that spelling cannot render as a single line.
 
-    private static JamlConfig LabelConfig(params IJamlClause[] should)
+    private static JamlConfig LabelConfig(params IMotelyClause[] should)
     {
         var config = new JamlConfig
         {
@@ -115,7 +114,7 @@ public class DefaultFallbackTests
     public void TallyLabels_ExplicitLabelWins()
     {
         var clause = new JokerClause { Jokers = [MotelyJoker.Blueprint], Label = "bp" };
-        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(clause));
+        var plan = MotelySearchBuilder.CreatePlan(LabelConfig(clause));
         Assert.Equal(["bp"], plan.TallyLabels);
     }
 
@@ -125,7 +124,7 @@ public class DefaultFallbackTests
         var labeled = new JokerClause { Jokers = [MotelyJoker.Blueprint], Label = "bp" };
         var unlabeled = new JokerClause { Jokers = [MotelyJoker.Blueprint], Antes = [1, 2] };
 
-        var plan = JamlSearchBuilder.CreatePlan(LabelConfig(labeled, unlabeled));
+        var plan = MotelySearchBuilder.CreatePlan(LabelConfig(labeled, unlabeled));
 
         Assert.Equal(["bp", "score1"], plan.TallyLabels);
     }

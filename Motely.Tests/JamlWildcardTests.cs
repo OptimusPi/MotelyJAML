@@ -1,4 +1,3 @@
-using Motely.Filters.Jaml;
 using Xunit;
 
 namespace Motely.Tests;
@@ -169,7 +168,7 @@ public sealed class JamlWildcardTests
         };
         config.Must.Add(clause);
         int delivered = 0;
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(["UNITTEST"], 1)
             .WithThreadCount(1)
@@ -231,7 +230,7 @@ public sealed class JamlWildcardTests
             """;
         int delivered = 0;
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)

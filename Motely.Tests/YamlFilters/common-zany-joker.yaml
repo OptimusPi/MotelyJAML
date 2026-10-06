@@ -1,0 +1,15 @@
+name: Zany Joker Three of a Kind
+author: jammy
+description: Zany Joker common for +12 Mult if played hand contains Three of a Kind
+deck: Red
+stake: White
+must:
+  - commonJoker: ZanyJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: TheTrio
+    score: 40

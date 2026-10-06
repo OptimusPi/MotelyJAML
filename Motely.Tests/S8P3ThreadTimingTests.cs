@@ -1,4 +1,3 @@
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -28,7 +27,7 @@ public sealed class S8P3ThreadTimingTests
     {
         const long start = 0,
             end = 40;
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -57,7 +56,7 @@ public sealed class S8P3ThreadTimingTests
     public async Task StaticStride_SliceNarrowerThanThreadCount_ResumeIsFirstUnclaimedBatch()
     {
         // start 10, end 12, four plans: plan0 → 10, plan1 → 11, plans 2/3 have nothing.
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -86,7 +85,7 @@ public sealed class S8P3ThreadTimingTests
             "99", "CC", "F", "Q", "R", "VV", "H", "I",
             "Z", "88", "AAAAAAAA", "MOTELY", "474", "3X3", "GHG", "4C4",
         ];
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(2)

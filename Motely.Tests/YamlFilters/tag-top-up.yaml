@@ -1,0 +1,15 @@
+name: Top-up Tag Jokers
+author: jammy
+description: Top-up Tag creates up to 2 common jokers
+deck: Red
+stake: White
+must:
+  - tag: TopupTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 40

@@ -22,8 +22,8 @@ public sealed class WhamFromGrokTests
     [Fact]
     public void GoldenRarityPrefixes_MatchEngineRarity()
     {
-        var golden = Path.Join(TestsDir, "JamlFilters");
-        Assert.True(Directory.Exists(golden), $"JamlFilters missing at {golden}");
+        var golden = Path.Join(TestsDir, "Motelyfilters");
+        Assert.True(Directory.Exists(golden), $"Motelyfilters missing at {golden}");
 
         var bySlug = new Dictionary<string, (string Rarity, string EnumName)>(
             StringComparer.Ordinal

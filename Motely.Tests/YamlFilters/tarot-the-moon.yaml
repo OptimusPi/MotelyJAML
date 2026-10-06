@@ -1,0 +1,17 @@
+name: TheMoon Club Flush
+author: jammy
+description: TheMoon tarotCard with Blackboard for Club suit conversion
+deck: Red
+stake: White
+must:
+  - tarotCard: TheMoon
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Blackboard
+    score: 50
+  - commonJoker: GluttonousJoker
+    score: 35

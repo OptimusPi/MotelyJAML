@@ -46,7 +46,7 @@ public sealed class JamlSimdPackSupportTests
         );
     }
 
-    private static HashSet<string> RunMust(IJamlClause clause)
+    private static HashSet<string> RunMust(IMotelyClause clause)
     {
         var config = new JamlConfig
         {
@@ -56,7 +56,7 @@ public sealed class JamlSimdPackSupportTests
         };
         config.Must.Add(clause);
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -67,7 +67,7 @@ public sealed class JamlSimdPackSupportTests
         return hits;
     }
 
-    private static HashSet<string> RunShould(IJamlClause clause)
+    private static HashSet<string> RunShould(IMotelyClause clause)
     {
         clause.Score = 1;
         var config = new JamlConfig
@@ -78,7 +78,7 @@ public sealed class JamlSimdPackSupportTests
         };
         config.Should.Add(clause);
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -168,7 +168,7 @@ public sealed class JamlSimdPackSupportTests
                   boosterPacks: [6]
             """;
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
             .WithThreadCount(1)
