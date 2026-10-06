@@ -23,8 +23,9 @@ assert.equal(config.must.length, 1);
 // A bad filter: fromJaml throws, and NativeAOT drops the message at the boundary, so the reason
 // is on Errors.last(); check gives it without throwing.
 const bad = "name: x\nmust:\n  - joker: Blueprint\n    antes: [1\n";
+Errors.last();
 assert.throws(() => JamlConfigLoader.fromJaml(bad));
-assert.match(Errors.last(), /line \d+/i, "the thrown reason is kept on Errors.last()");
+assert.match(Errors.last() ?? "", /line \d+/i, "the thrown reason is kept on Errors.last()");
 assert.match(JamlConfigLoader.check(bad), /line \d+/i);
 assert.equal(JamlConfigLoader.check(text), null);
 
@@ -73,12 +74,15 @@ await done;
 assert.ok(long.totalSeedsSearched < 35n ** 8n, "cancel stops the sweep");
 
 // A rejected setting and a rejected range: the reason is on Errors.last().
-assert.throws(() => JamlSearchBuilder.createSettings(config).withSequentialSearch().withBatchCharacterCount(99));
-assert.match(Errors.last() ?? "", /\S/);
-assert.throws(() =>
-  JamlSearchBuilder.createSettings(config).withThreadCount(1).withSequentialSearch()
-    .withBatchCharacterCount(3).withStartBatchIndex(5n).withEndBatchIndex(2n).start());
-assert.match(Errors.last() ?? "", /\S/);
+const sequential = JamlSearchBuilder.createSettings(config).withThreadCount(1).withSequentialSearch();
+Errors.last();
+assert.throws(() => sequential.withBatchCharacterCount(99));
+assert.match(Errors.last() ?? "", /Batch character count must be 1-/);
+const backwards = JamlSearchBuilder.createSettings(config).withThreadCount(1).withSequentialSearch()
+  .withBatchCharacterCount(3).withStartBatchIndex(5n).withEndBatchIndex(2n);
+Errors.last();
+assert.throws(() => backwards.start());
+assert.match(Errors.last() ?? "", /End batch \(exclusive\) is before start batch/);
 
 // createSettings leaves the config alone: the Jamlyzer reads the same antes before and after.
 const unscoped = JamlConfigLoader.fromJaml("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");

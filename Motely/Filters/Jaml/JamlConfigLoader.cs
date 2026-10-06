@@ -58,8 +58,8 @@ public static partial class JamlConfigLoader
     // out with Resolver = StandardResolver.Instance, which finds formatters by reflection
     // (GetNestedType, MakeGenericType): the trimmer's IL2104 / IL3053. The parser has none of
     // that, so the loader reads JamlConfig with it directly, with the semantics VYaml's
-    // YamlSerializer.Deserialize and JamlConfig's generated formatter had: the same keys (exact,
-    // lowerCamelCase, others skipped), the same null and alias handling, the same enum names.
+    // YamlSerializer.Deserialize and JamlConfig's generated formatter had: the same null and alias
+    // handling and the same enum names. Root keys match in any case, as the validator accepts them.
 
     private delegate T Reader<T>(ref YamlParser parser, Dictionary<Anchor, object?> anchors);
 
@@ -94,7 +94,9 @@ public static partial class JamlConfigLoader
             if (parser.CurrentEventType != ParseEventType.Scalar || !parser.TryGetScalarAsString(out var key) || key is null)
                 throw new YamlSerializerException(parser.CurrentMark, "Custom type deserialization supports only string key");
             parser.Read(); // the key
-            switch (key)
+            // Any case, as RejectUnknownRootKeys accepts it: `Must:` is must, not a skipped key
+            // that leaves the filter matching every seed.
+            switch (key.ToLowerInvariant())
             {
                 case "id": config.Id = ReadWithAlias(ref parser, anchors, ReadString)!; break;
                 case "name": config.Name = ReadWithAlias(ref parser, anchors, ReadString); break;
@@ -106,7 +108,7 @@ public static partial class JamlConfigLoader
                 case "seeds": config.Seeds = ReadWithAlias(ref parser, anchors, ReadStringList)!; break;
                 case "must": config.Must = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
                 case "should": config.Should = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
-                case "mustNot": config.MustNot = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
+                case "mustnot": config.MustNot = ReadWithAlias(ref parser, anchors, JamlClauseFormatter.ReadClauseList)!; break;
                 default: parser.SkipCurrentNode(); break;
             }
         }

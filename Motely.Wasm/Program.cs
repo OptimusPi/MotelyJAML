@@ -27,10 +27,17 @@ public static class Errors
 {
     internal static string? LastMessage;
 
-    /// <summary>The message of the most recent C# exception, or null before any.</summary>
-    /// <returns>The message.</returns>
+    /// <summary>The message of the most recent C# exception, then cleared: null when nothing has
+    /// thrown since the last call. Read it right after the call that threw; exceptions the engine
+    /// catches itself land here too.</summary>
+    /// <returns>The message, or null.</returns>
     [Export]
-    public static string? Last() => LastMessage;
+    public static string? Last()
+    {
+        var message = LastMessage;
+        LastMessage = null;
+        return message;
+    }
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.Jaml.JamlConfigLoader"/>.</summary>
