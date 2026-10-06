@@ -46,8 +46,6 @@
        with this project's own top-level Program. The file depends on nothing else in the CLI. -->
   <ItemGroup>
     <Compile Include="../Motely.CLI/HttpPartyCoordinator.cs" Link="Linked/HttpPartyCoordinator.cs" />
-    <!-- Same for MotelyWorker's loop; it depends only on Motely. -->
-    <Compile Include="../Motely.DistributedWorker/HomeWorker.cs" Link="Linked/HomeWorker.cs" />
   </ItemGroup>
 
   <ItemGroup>
