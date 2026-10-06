@@ -22,6 +22,9 @@
     <PackageVersion Include="DuckDB.NET.Data.Full" Version="1.5.6" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageVersion Include="Terminal.Gui" Version="2.0.0" />
+    <!-- Terminal.Gui 2.0.0 ships SourceLink 8.0.0 as a dependency; this lifts its
+         Microsoft.Build.Tasks.Git past GHSA-23fw-v26w-5fgq. -->
+    <PackageVersion Include="Microsoft.Build.Tasks.Git" Version="10.0.401" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.5" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
