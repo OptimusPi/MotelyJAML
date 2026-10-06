@@ -1,0 +1,10 @@
+Seed,Score,CopyJokers,NegativeLegendaryJokers,LateNegativeCopyJokers,TotalSoulCards
+RJYXKYD1,206, 2, 0, 0, 2
+7ZPSFS21,209, 2, 0, 0, 3
+Z2LYJ141,209, 2, 0, 0, 3
+91M66RP1,209, 2, 0, 0, 3
+6S5827R1,209, 2, 0, 0, 3
+7P4YT3V1,206, 2, 0, 0, 2
+S3QMNMH1,209, 2, 0, 0, 3
+FL5HECN1,209, 2, 0, 0, 3
+1Y66FBU1,209, 2, 0, 0, 3

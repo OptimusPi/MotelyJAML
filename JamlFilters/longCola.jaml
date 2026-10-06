@@ -5,19 +5,20 @@ deck: Ghost
 stake: White
 
 must:
+  - tag: NegativeTag
+    antes: [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
   - legendaryJoker: Any
-    edition: Negative
-    antes: [9,10,11,12,13,14,15]
+    antes: [12,13,14,15,16,17]
     sources:
       boosterPacks: [0,1,2,3,4,5]
   - legendaryJoker: Perkeo
-    antes: [1,2]
+    antes: [1]
     sources:
-      boosterPacks: [0,1,2,3]
+      boosterPacks: [0,1]
   - spectralCard: Ankh
-    antes: [1,2]
+    antes: [1]
     sources:
-      shopItems: [0,1,2,3]
+      shopItems: [0,1]
 should:
   - jokers: [Blueprint, Brainstorm, InvisibleJoker]
     antes: [1,2,3]
