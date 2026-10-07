@@ -675,11 +675,6 @@ partial class Program
                 PrintSummary(search, batchCharCount, cancelled);
                 return cancelled ? 1 : 0;
 
-                async Task<bool> RunPass(IMotelySearch pass)
-                {
-                    await pass.WaitForCompletionAsync(_cts.Token);
-                    return _cts.Token.IsCancellationRequested;
-                }
             }
         });
 

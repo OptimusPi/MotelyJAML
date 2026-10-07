@@ -25,7 +25,7 @@ partial class Program
                     .WithProgressCallback(quiet ? CaptureProgress : WriteProgressLineToStderr);
             },
             CreateSink = config =>
-                new ConsoleResultSink([.. config.Should.Select(JamlSearchBuilder.DefaultTallyLabel)]),
+                new ConsoleResultSink([.. config.Should.Select(MotelySearchBuilder.DefaultTallyLabel)]),
             Log = quiet ? null : PartyLog,
         };
 
