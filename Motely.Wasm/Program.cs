@@ -19,16 +19,38 @@ using Motely.Filters;
 /// <summary>Entry point; the exports below are live once <c>bootsharp.boot()</c> resolves.</summary>
 public static class Program
 {
-    /// <summary>Starts recording errors, then hands JamlFiles its injected Bootsharp.FileSystem
-    /// mounter (guide: dependency-injection).</summary>
+    /// <summary>Hands JamlFiles its injected Bootsharp.FileSystem mounter (guide: dependency-injection).
+    /// Error messages are recorded by <see cref="Guard"/>'s explicit catch at each export boundary —
+    /// NOT by AppDomain.FirstChanceException: on browser-wasm NativeAOT raising that event is
+    /// itself the fatal "attempted to call a UnmanagedCallersOnly method from managed code".
+    /// Every exception in any export — a bad enum name, an unknown key — killed the whole process
+    /// before its own catch could run. FirstChance is a landmine here; it must not be attached.</summary>
     public static void Main()
     {
-        AppDomain.CurrentDomain.FirstChanceException += (_, e) => Errors.LastMessage = e.Exception.Message;
         new ServiceCollection()
             .AddBootsharp()
             .AddSingleton<IJamlFiles, JamlFilesModule>()
             .BuildServiceProvider()
             .RunBootsharp();
+    }
+}
+
+/// <summary>The FirstChanceException recorder's safe replacement: record the message, rethrow.
+/// NativeAOT hands a thrown C# exception to JS without its message, so each export that can
+/// throw runs through here; JS reads <c>Errors.last()</c> right after the rejection.</summary>
+internal static class Guard
+{
+    public static T Run<T>(Func<T> fn)
+    {
+        try
+        {
+            return fn();
+        }
+        catch (Exception e)
+        {
+            Errors.Record(e);
+            throw;
+        }
     }
 }
 
@@ -65,6 +87,10 @@ public static class Errors
         LastMessage = null;
         return message;
     }
+
+    /// <summary><see cref="Guard"/>'s catch site: keeps the message for <see cref="Last"/>. Replaces
+    /// the FirstChanceException hook, which is fatal on browser-wasm NativeAOT.</summary>
+    internal static void Record(Exception e) => LastMessage = e.Message;
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.YamlConfigLoader"/>.</summary>
@@ -74,7 +100,8 @@ public static class YamlConfigLoader
     /// <param name="yaml">JAML filter text.</param>
     /// <returns>The engine's config.</returns>
     [Export]
-    public static JamlConfig FromYaml(string yaml) => Motely.Filters.YamlConfigLoader.FromYaml(yaml);
+    public static JamlConfig FromYaml(string yaml) =>
+        Guard.Run(() => Motely.Filters.YamlConfigLoader.FromYaml(yaml));
 
     /// <summary>The engine's TryLoad, error half: null when the filter loads, otherwise the
     /// loader's line-numbered reason. The NativeAOT runtime hands a thrown C# exception to JS as
@@ -95,7 +122,7 @@ public static class JamlSearchBuilder
     /// <returns>The engine's settings; configure, then start.</returns>
     [Export]
     public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = 0) =>
-        Motely.Filters.MotelySearchBuilder.CreateSettings(config, engineCutoff);
+        Guard.Run(() => Motely.Filters.MotelySearchBuilder.CreateSettings(config, engineCutoff));
 }
 
 /// <summary>Engine's <see cref="Motely.Analysis.MotelyJamlyzer"/>.</summary>
@@ -108,7 +135,7 @@ public static class MotelyJamlyzer
     /// <returns>The Jamlyzer results.</returns>
     [Export]
     public static IReadOnlyList<MotelyJamlyzerSeedResult> Analyze(JamlConfig config, int eventRolls = 20, int shopSlots = 0) =>
-        Motely.Analysis.MotelyJamlyzer.Analyze(config, eventRolls, shopSlots);
+        Guard.Run(() => Motely.Analysis.MotelyJamlyzer.Analyze(config, eventRolls, shopSlots));
 
     /// <summary>Continues a scroll from a previous result's stream states. One seed only.</summary>
     /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
@@ -122,7 +149,7 @@ public static class MotelyJamlyzer
         MotelyJamlyzerStreamStates resumeFrom,
         int eventRolls = 20,
         int shopSlots = 0
-    ) => Motely.Analysis.MotelyJamlyzer.Analyze(config, resumeFrom, eventRolls, shopSlots);
+    ) => Guard.Run(() => Motely.Analysis.MotelyJamlyzer.Analyze(config, resumeFrom, eventRolls, shopSlots));
 
     /// <summary>The Jamlyzer riding a search: each find arrives with its full breakdown.</summary>
     /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
@@ -136,7 +163,7 @@ public static class MotelyJamlyzer
         Action<MotelyJamlyzerSeedResult> onAnalyzed,
         int eventRolls = 20,
         int shopSlots = 0
-    ) => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots);
+    ) => Guard.Run(() => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots));
 }
 
 /// <summary>Renaming (guide: renaming).</summary>
