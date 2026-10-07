@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Party;
 
@@ -57,7 +56,7 @@ public interface IPartyCoordinator
 
 /// <summary>
 /// Grinds a Search Party: lease, search the leased batches with the same
-/// <see cref="JamlSearchBuilder"/> settings every other host uses, heartbeat while it runs,
+/// <see cref="MotelySearchBuilder"/> settings every other host uses, heartbeat while it runs,
 /// report the finds, repeat until the party is settled or the token fires.
 /// </summary>
 public sealed class MotelyPartyWorker(IPartyCoordinator coordinator)
@@ -200,7 +199,7 @@ public sealed class MotelyPartyWorker(IPartyCoordinator coordinator)
             }
         }
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSequentialSearch()
             .WithBatchCharacterCount(lease.BatchChars)

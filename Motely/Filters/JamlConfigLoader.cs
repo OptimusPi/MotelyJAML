@@ -317,8 +317,13 @@ public sealed class JamlClauseConverter : JsonConverter<IMotelyClause>
         }
         catch (JsonException ex) when (ex is not JamlValueException)
         {
-            // The path restarts inside this clause, so say which clause it is.
-            throw new JsonException($"in `{wire}` clause at {ex.Path ?? "$"}: {ex.Message.Split(" Path:")[0]}", ex);
+            // The path restarts inside this clause, so say which clause it is —
+            // and name the offending value so the fix is visible without opening the file.
+            var raw = value is JsonValue v && v.TryGetValue(out string? text)
+                ? text.Trim()
+                : value?.ToJsonString();
+            throw new JamlValueException(wire,
+                $"in `{wire}` clause at {ex.Path ?? "$"}: {ex.Message.Split(" Path:")[0]} (value `{raw}`)");
         }
     }
 
