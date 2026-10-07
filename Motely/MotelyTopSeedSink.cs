@@ -131,7 +131,7 @@ public static class MotelyTopSeedSink
     )
     {
         newText = RewriteSeedsBlock(jamlText, seeds);
-        if (!Motely.Filters.JamlConfigLoader.TryLoad(newText, out _, out var loadError))
+        if (!Motely.Filters.YamlConfigLoader.TryLoad(newText, out _, out var loadError))
         {
             error = loadError ?? "The updated filter did not load.";
             return false;

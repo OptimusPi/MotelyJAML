@@ -19,7 +19,7 @@ public class JamlEditorWindow : Window
 
         Title = string.IsNullOrWhiteSpace(filePath)
             ? "JAML Editor"
-            : $"JAML Editor: {Path.GetFileName(filePath)}";
+            : $"YAML Editor: {Path.GetFileName(filePath)}";
         X = 0;
         Y = 0;
         Width = Dim.Fill();
@@ -225,7 +225,7 @@ public class JamlEditorWindow : Window
             _editor.Text = File.ReadAllText(selected.FullPath);
             _modeLabel.Text = "MODE: JAML";
             _editorFrame.Title = EditorFrameTitle();
-            Title = $"JAML Editor: {Path.GetFileName(_filePath)}";
+            Title = $"YAML Editor: {Path.GetFileName(_filePath)}";
             _statusLabel.Text = _filePath;
             _editor.SetFocus();
             SetNeedsDraw();
@@ -249,7 +249,7 @@ public class JamlEditorWindow : Window
         jaml = source;
         error = null;
 
-        if (!JamlConfigLoader.TryLoad(jaml, out _, out var loadError))
+        if (!YamlConfigLoader.TryLoad(jaml, out _, out var loadError))
         {
             error = loadError ?? "Failed to parse JAML.";
             return false;
@@ -294,7 +294,7 @@ public class JamlEditorWindow : Window
                 File.WriteAllText(_filePath, content);
             }
 
-            Title = $"JAML Editor: {Path.GetFileName(_filePath)}";
+            Title = $"YAML Editor: {Path.GetFileName(_filePath)}";
             _statusLabel.Text = _filePath;
             ShowMessage($"Saved {_filePath}");
             ReloadFilters();

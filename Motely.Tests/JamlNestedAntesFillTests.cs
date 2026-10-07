@@ -17,7 +17,7 @@ public class JamlNegFreeOopsAndTests
 
     private static (long Matching, int? Score) Run(string jaml)
     {
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         int? score = null;
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
@@ -36,7 +36,7 @@ public class JamlNegFreeOopsAndTests
     public void AntesOnTheGroup_IsALoadError(string group)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - {group}:
@@ -55,7 +55,7 @@ public class JamlNegFreeOopsAndTests
     public void EachArm_KeepsItsOwnAntes_AndUnscopedArmsDefaultTo1Through8()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 must:
                   - and:

@@ -25,8 +25,8 @@ public class HieroglyphPackSlotTests
     )
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         var settings = MotelySearchBuilder
@@ -132,7 +132,7 @@ public class HieroglyphPackSlotTests
                   earlyAntesMaxPack: 6
             """;
 
-        Assert.False(JamlConfigLoader.TryLoad(jaml, out _, out var error));
+        Assert.False(YamlConfigLoader.TryLoad(jaml, out _, out var error));
         Assert.Contains("earlyAntesMaxPack", error);
     }
 

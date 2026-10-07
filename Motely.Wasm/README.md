@@ -5,12 +5,12 @@ The Motely engine in one JS package, compiled by NativeAOT-LLVM through
 types the CLI uses, with no wrapper layer in between.
 
 ```js
-import bootsharp, { JamlConfigLoader, JamlSearchBuilder, MotelyJamlyzer, CancellationToken } from "motely-wasm";
+import bootsharp, { YamlConfigLoader, JamlSearchBuilder, MotelyJamlyzer, CancellationToken } from "motely-wasm";
 
 await bootsharp.boot();
 
-JamlConfigLoader.check(text);                       // null, or "JAML line 3: ..."
-const config = JamlConfigLoader.fromJaml(text);     // the engine's JamlConfig, as a plain object
+YamlConfigLoader.check(text);                       // null, or "YAML line 3: ..."
+const config = YamlConfigLoader.fromYaml(text);     // the engine's JamlConfig, as a plain object
 
 const token = new CancellationToken();
 const search = JamlSearchBuilder.createSettings(config)
@@ -38,7 +38,7 @@ MotelyJamlyzer.analyze(config);                     // one result per seed in th
   (`withSeedList` is the crossing form).
 - The NativeAOT runtime gives a thrown C# exception to JS as "C# exception from NativeAOT",
   without its message. After any call throws (a filter that does not load, a rejected `with*`
-  value, a `start` that fails), `Errors.last()` returns its message. `JamlConfigLoader.check`
+  value, a `start` that fails), `Errors.last()` returns its message. `YamlConfigLoader.check`
   returns the loader's reason without throwing.
 
 ## Hosts
@@ -70,5 +70,5 @@ dotnet publish -c Release -p:MotelyFileSystem=false
 `JamlFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
 file calls reject.
 
-The engine's JAML loader reads with VYaml's parser only. VYaml's serializer layer finds
+The engine's YAML loader reads with VYaml's parser only. VYaml's serializer layer finds
 formatters by reflection, which NativeAOT cannot compile (the old IL2104 / IL3053).

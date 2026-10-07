@@ -67,30 +67,30 @@ public static class Errors
     }
 }
 
-/// <summary>Engine's <see cref="Motely.Filters.JamlConfigLoader"/>.</summary>
-public static class JamlConfigLoader
+/// <summary>Engine's <see cref="Motely.Filters.YamlConfigLoader"/>.</summary>
+public static class YamlConfigLoader
 {
     /// <summary>Loads a JAML filter. Throws with the loader's line-numbered message when it does not load.</summary>
     /// <param name="yaml">JAML filter text.</param>
     /// <returns>The engine's config.</returns>
     [Export]
-    public static JamlConfig FromJaml(string yaml) => Motely.Filters.JamlConfigLoader.FromJaml(yaml);
+    public static JamlConfig FromYaml(string yaml) => Motely.Filters.YamlConfigLoader.FromYaml(yaml);
 
     /// <summary>The engine's TryLoad, error half: null when the filter loads, otherwise the
     /// loader's line-numbered reason. The NativeAOT runtime hands a thrown C# exception to JS as
-    /// "C# exception from NativeAOT" without its message, so fromJaml's throw cannot carry it.</summary>
+    /// "C# exception from NativeAOT" without its message, so fromYaml's throw cannot carry it.</summary>
     /// <param name="yaml">JAML filter text.</param>
     /// <returns>Null, or why the filter does not load.</returns>
     [Export]
     public static string? Check(string yaml) =>
-        Motely.Filters.JamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
+        Motely.Filters.YamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.MotelySearchBuilder"/>.</summary>
 public static class JamlSearchBuilder
 {
     /// <summary>The engine's search settings for a config, held by reference.</summary>
-    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
+    /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
     /// <param name="engineCutoff">Score cutoff; 0 keeps the config's own.</param>
     /// <returns>The engine's settings; configure, then start.</returns>
     [Export]
@@ -102,7 +102,7 @@ public static class JamlSearchBuilder
 public static class MotelyJamlyzer
 {
     /// <summary>One result per seed in the config's seeds.</summary>
-    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
+    /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
     /// <param name="eventRolls">Size of each roll queue.</param>
     /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
     /// <returns>The Jamlyzer results.</returns>
@@ -111,7 +111,7 @@ public static class MotelyJamlyzer
         Motely.Analysis.MotelyJamlyzer.Analyze(config, eventRolls, shopSlots);
 
     /// <summary>Continues a scroll from a previous result's stream states. One seed only.</summary>
-    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
+    /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
     /// <param name="resumeFrom">A previous result's stream states.</param>
     /// <param name="eventRolls">Size of each roll queue.</param>
     /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
@@ -123,6 +123,20 @@ public static class MotelyJamlyzer
         int eventRolls = 20,
         int shopSlots = 0
     ) => Motely.Analysis.MotelyJamlyzer.Analyze(config, resumeFrom, eventRolls, shopSlots);
+
+    /// <summary>The Jamlyzer riding a search: each find arrives with its full breakdown.</summary>
+    /// <param name="config">Config from <see cref="YamlConfigLoader.FromYaml"/>.</param>
+    /// <param name="onAnalyzed">Receives each find's result.</param>
+    /// <param name="eventRolls">Size of each roll queue.</param>
+    /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
+    /// <returns>The engine's rider desc.</returns>
+    [Export]
+    public static MotelyJamlyzerRiderDesc CreateRiderDesc(
+        JamlConfig config,
+        Action<MotelyJamlyzerSeedResult> onAnalyzed,
+        int eventRolls = 20,
+        int shopSlots = 0
+    ) => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots);
 }
 
 /// <summary>Renaming (guide: renaming).</summary>

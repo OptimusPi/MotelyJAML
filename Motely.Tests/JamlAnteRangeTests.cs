@@ -15,7 +15,7 @@ public sealed class JamlAnteRangeTests
     private static IAnteScopedClause LoadSingleMust(string clauseLines)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint
@@ -69,7 +69,7 @@ public sealed class JamlAnteRangeTests
     public void DescendingRange_IsALoadErrorNamingTheKey(string antes)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint
@@ -81,7 +81,7 @@ public sealed class JamlAnteRangeTests
         );
         Assert.Contains("descending range", error);
         Assert.Contains("`antes`", error);
-        Assert.Contains("JAML line", error);
+        Assert.Contains("YAML line", error);
     }
 
     [Theory]
@@ -90,7 +90,7 @@ public sealed class JamlAnteRangeTests
     public void OversizedRange_IsALoadErrorNotAnAllocation(string antes)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint
@@ -111,7 +111,7 @@ public sealed class JamlAnteRangeTests
     public void RangesPastTheCapTogether_AreALoadErrorNotAnAllocation(string antes)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint
@@ -123,13 +123,13 @@ public sealed class JamlAnteRangeTests
         );
         Assert.Contains("at most 1024 values per key", error);
         Assert.Contains("`antes`", error);
-        Assert.Contains("JAML line 3", error);
+        Assert.Contains("YAML line 3", error);
     }
 
     private static string LoadError(string antes)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint
@@ -173,7 +173,7 @@ public sealed class JamlAnteRangeTests
     {
         var error = LoadError(antes);
         Assert.Contains("antes run 0-39", error);
-        Assert.Contains("JAML line 3", error);
+        Assert.Contains("YAML line 3", error);
     }
 
     [Theory]
@@ -182,7 +182,7 @@ public sealed class JamlAnteRangeTests
     public void MalformedRange_IsStillNotAnInteger(string antes)
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - joker: Blueprint

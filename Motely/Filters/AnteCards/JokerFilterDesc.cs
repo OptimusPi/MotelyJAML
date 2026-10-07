@@ -385,7 +385,7 @@ public sealed partial class RareJokerClause : IMotelyClause, IAnteScopedClause
 public sealed partial record JokerSourceConfig
 {
     /// <summary>
-    /// This class's settable properties, camelCased — the single list JamlConfigLoader
+    /// This class's settable properties, camelCased — the single list YamlConfigLoader
     /// ValidateKeys and Motely.Schema both read. <c>emperor</c> lives on
     /// <see cref="TarotCardSourceConfig"/>, not here.
     /// </summary>

@@ -1,6 +1,6 @@
 # Motely (engine)
 
-SIMD + scalar Balatro seed search. JAML loads into typed `JamlConfig`; filters are FilterDescs.
+SIMD + scalar Balatro seed search. YAML loads into typed `JamlConfig`; filters are FilterDescs.
 
 | Concern | Where |
 |---------|--------|

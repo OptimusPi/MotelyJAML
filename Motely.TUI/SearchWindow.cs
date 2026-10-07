@@ -243,7 +243,7 @@ public class SearchWindow : Window
             _searchRunning = true;
 
             if (
-                !JamlConfigLoader.TryLoad(File.ReadAllText(_configPath), out var config, out var configError)
+                !YamlConfigLoader.TryLoad(File.ReadAllText(_configPath), out var config, out var configError)
             )
                 throw new InvalidOperationException(configError ?? "Failed to load search config.");
 

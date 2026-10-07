@@ -2,7 +2,7 @@
 // Usage: node tests/smoke.mjs   (after `dotnet publish -c Release` in Motely.Wasm)
 import assert from "node:assert/strict";
 import bootsharp, {
-  JamlConfigLoader,
+  YamlConfigLoader,
   JamlSearchBuilder,
   MotelyJamlyzer,
   MotelyDeck,
@@ -19,19 +19,19 @@ await bootsharp.boot();
 const text = "name: smoke\ndeck: Red\nstake: White\nmust:\n  - voucher: Telescope\n    antes: [1]\n";
 
 // The loader: JAML text in, the engine's JamlConfig out (a record, so a plain JS object).
-const config = JamlConfigLoader.fromJaml(text);
+const config = YamlConfigLoader.fromYaml(text);
 assert.equal(config.name, "smoke");
 assert.equal(config.deck, MotelyDeck.Red);
 assert.equal(config.must.length, 1);
 
-// A bad filter: fromJaml throws, and NativeAOT drops the message at the boundary, so the reason
+// A bad filter: fromYaml throws, and NativeAOT drops the message at the boundary, so the reason
 // is on Errors.last(); check gives it without throwing.
 const bad = "name: x\nmust:\n  - joker: Blueprint\n    antes: [1\n";
 Errors.last();
-assert.throws(() => JamlConfigLoader.fromJaml(bad));
+assert.throws(() => YamlConfigLoader.fromYaml(bad));
 assert.match(Errors.last() ?? "", /line \d+/i, "the thrown reason is kept on Errors.last()");
-assert.match(JamlConfigLoader.check(bad), /line \d+/i);
-assert.equal(JamlConfigLoader.check(text), null);
+assert.match(YamlConfigLoader.check(bad), /line \d+/i);
+assert.equal(YamlConfigLoader.check(text), null);
 
 // The engine's search settings, configured with its own fluent API. A seed list is bounded.
 const finds = [];
@@ -85,13 +85,13 @@ assert.throws(() => backwards.start());
 assert.match(Errors.last() ?? "", /End batch \(exclusive\) is before start batch/);
 
 // createSettings leaves the config alone: the Jamlyzer reads the same antes before and after.
-const unscoped = JamlConfigLoader.fromJaml("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");
+const unscoped = YamlConfigLoader.fromYaml("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");
 const antesBefore = MotelyJamlyzer.analyze(unscoped)[0].antes.map((a) => a.ante).join();
 JamlSearchBuilder.createSettings(unscoped);
 assert.equal(MotelyJamlyzer.analyze(unscoped)[0].antes.map((a) => a.ante).join(), antesBefore);
 
 // The Jamlyzer on the config's seeds, then a resumed window from the returned stream states.
-const seeded = JamlConfigLoader.fromJaml(text + "seeds: [ALEEB]\n");
+const seeded = YamlConfigLoader.fromYaml(text + "seeds: [ALEEB]\n");
 const first = MotelyJamlyzer.analyze(seeded);
 assert.equal(first.length, 1);
 assert.equal(first[0].seed, "ALEEB");

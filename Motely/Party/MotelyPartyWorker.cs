@@ -131,7 +131,7 @@ public sealed class MotelyPartyWorker(IPartyCoordinator coordinator)
             // A lease or JAML this build cannot run would fail the same way on every retry.
             if (LeaseError(lease) is { } leaseError)
                 return Stop("bad lease", leaseError);
-            if (!JamlConfigLoader.TryLoad(lease.Jaml, out var config, out var jamlError) || config is null)
+            if (!YamlConfigLoader.TryLoad(lease.Jaml, out var config, out var jamlError) || config is null)
                 return Stop("bad JAML", jamlError);
 
             Log?.Invoke(

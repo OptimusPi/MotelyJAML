@@ -26,8 +26,8 @@ public class StopAfterTests(ITestOutputHelper output)
     private static (long Matching, int Delivered) RunSlice(long? stopAfter)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error),
-            $"JAML parse failed: {error}"
+            YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error),
+            $"YAML parse failed: {error}"
         );
 
         int delivered = 0;
@@ -79,7 +79,7 @@ public class StopAfterTests(ITestOutputHelper output)
     [Fact]
     public void StopAfterReportsTheSearchAsCompletedNotAborted()
     {
-        Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
@@ -107,7 +107,7 @@ public class StopAfterTests(ITestOutputHelper output)
     [InlineData(6)]
     public void StopAfterDoesNotBookTheBatchItAbandoned(int batchCharCount)
     {
-        Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
         var settings = MotelySearchBuilder
             .CreateSettings(config!)

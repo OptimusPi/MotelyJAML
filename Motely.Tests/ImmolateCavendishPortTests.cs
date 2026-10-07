@@ -59,7 +59,7 @@ public class ImmolateCavendishPortTests(ITestOutputHelper output)
     [Fact]
     public void PortedCavendishFilter_RunsBehindItsGate_AndEveryHitClearsIt()
     {
-        Assert.True(JamlConfigLoader.TryLoad(GateJaml, out var gate, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(GateJaml, out var gate, out var error), error);
 
         var hits = new List<string>();
         var settings = MotelySearchBuilder

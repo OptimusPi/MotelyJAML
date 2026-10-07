@@ -17,8 +17,8 @@ public class JamlNestedBossScoringTests
     private static (long Matching, int? Score) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;

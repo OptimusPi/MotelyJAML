@@ -15,7 +15,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromJson_HappyPath_ParsesDeckStakeAndClauses()
     {
-        var config = JamlConfigLoader.FromJaml("""
+        var config = YamlConfigLoader.FromYaml("""
             {
               "name": "json happy",
               "deck": "Erratic",
@@ -36,7 +36,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void TryLoadFromJson_UnknownRootKey_IsRejected()
     {
-        var ok = JamlConfigLoader.TryLoad("""{ "must": [{ "joker": "Blueprint" }], "boses": [] }""",
+        var ok = YamlConfigLoader.TryLoad("""{ "must": [{ "joker": "Blueprint" }], "boses": [] }""",
 
             out _,
             out var error
@@ -50,7 +50,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void TryLoadFromYaml_UnknownRootKey_IsRejected()
     {
-        var ok = JamlConfigLoader.TryLoad("""
+        var ok = YamlConfigLoader.TryLoad("""
             name: test
             deck: Red
             stake: White
@@ -64,13 +64,13 @@ public class JamlJsonLoaderTests
 
         Assert.False(ok);
         Assert.Contains("unknownKey", error);
-        Assert.Contains("JAML line", error);
+        Assert.Contains("YAML line", error);
     }
 
     [Fact]
     public void TryLoadFromYaml_UnknownRootKey_IsRejectedWithLine()
     {
-        var ok = JamlConfigLoader.TryLoad("""
+        var ok = YamlConfigLoader.TryLoad("""
             name: typo
             deck: Red
             must:
@@ -79,7 +79,7 @@ public class JamlJsonLoaderTests
               - voucher: Telescope
             """, out _, out var error);
         Assert.False(ok);
-        Assert.Contains("JAML line 5", error);
+        Assert.Contains("YAML line 5", error);
         Assert.Contains("'shuold'", error);
 
     }
@@ -87,7 +87,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void TryLoadFromYaml_SyntaxError_NamesLineColumnAndText()
     {
-        var ok = JamlConfigLoader.TryLoad("""
+        var ok = YamlConfigLoader.TryLoad("""
             name: colon
             deck: Red
             description: keep one: Diet Cola
@@ -95,7 +95,7 @@ public class JamlJsonLoaderTests
               - joker: Blueprint
             """, out _, out var error);
         Assert.False(ok);
-        Assert.Contains("JAML line 3:", error);
+        Assert.Contains("YAML line 3:", error);
         Assert.Contains("column 22", error);
         Assert.Contains("`description: keep one: Diet Cola`", error);
     }
@@ -103,14 +103,14 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromJson_NullJoker_IsCategoryAny()
     {
-        var config = JamlConfigLoader.FromJaml("""{ "must": [{ "joker": null }] }""");
+        var config = YamlConfigLoader.FromYaml("""{ "must": [{ "joker": null }] }""");
         AssertSingleMustIsAnyJoker(config);
     }
 
     [Fact]
     public void FromYaml_BareJoker_IsCategoryAny()
     {
-        var config = JamlConfigLoader.FromJaml("""
+        var config = YamlConfigLoader.FromYaml("""
             must:
               - joker:
             """);
@@ -120,7 +120,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromYaml_FoldedParagraph_LandsOnDescription()
     {
-        var config = JamlConfigLoader.FromJaml("""
+        var config = YamlConfigLoader.FromYaml("""
             name: folded
             description: >
               hello
@@ -135,7 +135,7 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromYaml_AnyKeyword_IsCategoryAny()
     {
-        var config = JamlConfigLoader.FromJaml("""
+        var config = YamlConfigLoader.FromYaml("""
             must:
               - joker: Any
             """);
@@ -145,14 +145,14 @@ public class JamlJsonLoaderTests
     [Fact]
     public void FromYaml_HappyPath_MatchesJson()
     {
-        var fromYaml = JamlConfigLoader.FromJaml("""
+        var fromYaml = YamlConfigLoader.FromYaml("""
             name: yaml happy
             deck: red
             stake: white
             must:
               - joker: Blueprint
             """);
-        var fromJson = JamlConfigLoader.FromJaml("""{ "name": "yaml happy", "deck": "red", "stake": "white", "must": [{ "joker": "Blueprint" }] }""");
+        var fromJson = YamlConfigLoader.FromYaml("""{ "name": "yaml happy", "deck": "red", "stake": "white", "must": [{ "joker": "Blueprint" }] }""");
 
         Assert.Equal(fromJson.Deck, fromYaml.Deck);
         Assert.Equal(fromJson.Stake, fromYaml.Stake);   
@@ -164,7 +164,7 @@ public class JamlJsonLoaderTests
     public void FromJson_InvalidJson_ThrowsWithMessage()
     {
         var ex = Assert.ThrowsAny<InvalidOperationException>(() =>
-            JamlConfigLoader.FromJaml("{ not json")
+            YamlConfigLoader.FromYaml("{ not json")
         );
         Assert.NotEmpty(ex.Message);
     }
@@ -173,7 +173,7 @@ public class JamlJsonLoaderTests
     public void FromYaml_InvalidYaml_ThrowsWithMessage()
     {
         var ex = Assert.ThrowsAny<InvalidOperationException>(() =>
-            JamlConfigLoader.FromJaml("must: [")
+            YamlConfigLoader.FromYaml("must: [")
         );
         Assert.NotEmpty(ex.Message);
     }

@@ -50,7 +50,7 @@ public static class JamlFileLoader
             return false;
         }
 
-        if (JamlConfigLoader.TryLoad(text, out config, out error))
+        if (YamlConfigLoader.TryLoad(text, out config, out error))
             return true;
         error = $"{resolved}: {error}";
         return false;

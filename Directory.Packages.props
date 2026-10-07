@@ -34,7 +34,7 @@
     <PackageVersion Include="Verify.Xunit" Version="28.6.0" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.1.2" />
     <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
-    <!-- JAML loading: VYaml's event parser only (JamlConfigLoader streams it into JSON for the
+    <!-- YAML loading: VYaml's event parser only (YamlConfigLoader streams it into JSON for the
          System.Text.Json source generator). Confirm the version with `dotnet package search VYaml`. -->
     <PackageVersion Include="VYaml" Version="1.4.0" />
     <!-- Motely.Generators. Referenced at the floor, not the SDK's Roslyn: this DLL loads into

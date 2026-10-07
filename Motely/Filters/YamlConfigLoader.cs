@@ -18,15 +18,15 @@ namespace Motely.Filters;
 /// initializer; a key written as null is null.
 /// </para>
 /// </summary>
-public static class JamlConfigLoader
+public static class YamlConfigLoader
 {
-    public static JamlConfig FromJaml(string text)
+    public static JamlConfig FromYaml(string text)
     {
         byte[] json = YamlToJson(text);
         try
         {
             return JsonSerializer.Deserialize(json, JamlJsonContext.Default.JamlConfig)
-                ?? throw new InvalidOperationException("JAML: the document is empty.");
+                ?? throw new InvalidOperationException("YAML: the document is empty.");
         }
         catch (JsonException ex)
         {
@@ -36,14 +36,14 @@ public static class JamlConfigLoader
                 if (e is JamlValueException value)
                     throw new InvalidOperationException(
                         KeyLine(text, value.Key) is int keyLine
-                            ? $"JAML line {keyLine}: {value.Message}"
-                            : $"JAML: {value.Message}",
+                            ? $"YAML line {keyLine}: {value.Message}"
+                            : $"YAML: {value.Message}",
                         ex
                     );
             string where = RootKey(ex.Path) is { } key && RootKeyLine(text, key) is int line
                 ? $"line {line}"
                 : ex.Path ?? "$";
-            throw new InvalidOperationException($"JAML {where}: {FirstSentence(ex.Message)}", ex);
+            throw new InvalidOperationException($"YAML {where}: {FirstSentence(ex.Message)}", ex);
         }
     }
 
@@ -80,13 +80,13 @@ public static class JamlConfigLoader
         return end < 0 ? path[2..] : path[2..end];
     }
 
-    public static JamlConfig FromFile(string path) => FromJaml(File.ReadAllText(path));
+    public static JamlConfig FromFile(string path) => FromYaml(File.ReadAllText(path));
 
     public static bool TryLoad(string text, [NotNullWhen(true)] out JamlConfig? config, out string? error)
     {
         try
         {
-            config = FromJaml(text);
+            config = FromYaml(text);
             error = null;
             return true;
         }
@@ -121,7 +121,7 @@ public static class JamlConfigLoader
             {
                 parser.SkipHeader();
                 if (parser.End || parser.CurrentEventType is ParseEventType.DocumentEnd or ParseEventType.StreamEnd)
-                    throw new InvalidOperationException("JAML: the document is empty.");
+                    throw new InvalidOperationException("YAML: the document is empty.");
                 WriteNode(ref parser, writer);
             }
             catch (Exception ex) when (ex is not InvalidOperationException)
@@ -135,24 +135,24 @@ public static class JamlConfigLoader
 
     /// <summary>
     /// VYaml ends its messages with "at Line: N, Col: C, Idx: I" (line 1-based, column 0-based)
-    /// and never shows the text. Say "JAML line N:" and quote the line instead.
+    /// and never shows the text. Say "YAML line N:" and quote the line instead.
     /// </summary>
     private static string DescribeYamlError(string yaml, string message)
     {
         const string marker = " at Line: ";
         int at = message.LastIndexOf(marker, StringComparison.Ordinal);
         if (at < 0)
-            return $"JAML: {message}";
+            return $"YAML: {message}";
         var parts = message[(at + marker.Length)..].Split(", ");
         if (parts.Length < 2 || !int.TryParse(parts[0], out int line) || !int.TryParse(parts[1].Replace("Col: ", ""), out int col))
-            return $"JAML: {message}";
+            return $"YAML: {message}";
 
         string what = message[..at];
         var lines = yaml.Split('\n');
         string text = line >= 1 && line <= lines.Length ? lines[line - 1].Trim() : "";
         return text.Length == 0
-            ? $"JAML line {line}: {what} (column {col + 1})"
-            : $"JAML line {line}: {what} (column {col + 1}): `{text}`";
+            ? $"YAML line {line}: {what} (column {col + 1})"
+            : $"YAML line {line}: {what} (column {col + 1}): `{text}`";
     }
 
     private static void WriteNode(ref YamlParser parser, Utf8JsonWriter writer)
@@ -197,10 +197,10 @@ public static class JamlConfigLoader
                 break;
 
             case ParseEventType.Alias:
-                throw new InvalidOperationException("JAML: anchors and aliases (&name / *name) are not supported.");
+                throw new InvalidOperationException("YAML: anchors and aliases (&name / *name) are not supported.");
 
             default:
-                throw new InvalidOperationException($"JAML: unexpected YAML event {parser.CurrentEventType}.");
+                throw new InvalidOperationException($"YAML: unexpected YAML event {parser.CurrentEventType}.");
         }
     }
 }
@@ -421,7 +421,7 @@ public sealed class JamlClauseConverter : JsonConverter<IMotelyClause>
     }
 
     public override void Write(Utf8JsonWriter writer, IMotelyClause value, JsonSerializerOptions options) =>
-        throw new NotSupportedException("JAML clauses are read, not written.");
+        throw new NotSupportedException("YAML clauses are read, not written.");
 }
 
 /// <summary>A bad value under a known key; the loader finds that key's line for the message.</summary>

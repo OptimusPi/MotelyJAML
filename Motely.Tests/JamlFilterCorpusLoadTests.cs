@@ -38,7 +38,7 @@ public sealed class MotelyfilterCorpusLoadTests
         {
             try
             {
-                _ = JamlConfigLoader.FromFile(file);
+                _ = YamlConfigLoader.FromFile(file);
             }
             catch (Exception ex)
             {

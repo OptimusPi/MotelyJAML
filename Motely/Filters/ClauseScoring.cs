@@ -247,7 +247,7 @@ public static class ClauseScoring
     /// Match bounds contract: <see cref="IMotelyClause.Min"/> is the lower gate;
     /// <see cref="IMotelyClause.Max"/> when set is the upper gate for must / filter confirm, at
     /// every value — null is the only "no ceiling". The loader guarantees <c>1 ≤ min ≤ max</c>
-    /// (<c>JamlConfigLoader.ValidateBounds</c>), so a zero ceiling never reaches here today.
+    /// (<c>YamlConfigLoader.ValidateBounds</c>), so a zero ceiling never reaches here today.
     /// Score tallies still use <see cref="CapScoreCount"/> so should columns cap contribution.
     /// SIMD prefilters may stay over-permissive on Max; scoring / exact confirm enforce it.
     /// </summary>
@@ -296,7 +296,7 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "AndClause should not be empty after JAML load (validator / loader bug)."
+            "AndClause should not be empty after YAML load (validator / loader bug)."
         );
 
         // An AND counts COMPLETE conjunctions: min over children, not their sum.
@@ -323,11 +323,11 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "OrClause should not be empty after JAML load (validator / loader bug)."
+            "OrClause should not be empty after YAML load (validator / loader bug)."
         );
         Debug.Assert(
             clause.Min >= 1,
-            "OrClause.Min must be >= 1 after JAML load (validator / loader bug)."
+            "OrClause.Min must be >= 1 after YAML load (validator / loader bug)."
         );
 
         int matched = 0;
@@ -380,7 +380,7 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "AndClause should not be empty after JAML load (validator / loader bug)."
+            "AndClause should not be empty after YAML load (validator / loader bug)."
         );
 
         // Same min-of-children semantics as CountAndOccurrences: complete conjunctions only.
@@ -405,11 +405,11 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "OrClause should not be empty after JAML load (validator / loader bug)."
+            "OrClause should not be empty after YAML load (validator / loader bug)."
         );
         Debug.Assert(
             clause.Min >= 1,
-            "OrClause.Min must be >= 1 after JAML load (validator / loader bug)."
+            "OrClause.Min must be >= 1 after YAML load (validator / loader bug)."
         );
 
         int matched = 0;
@@ -446,11 +446,11 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Bosses.Length > 0,
-            "BossClause.Bosses must be non-empty after JAML load (validator / loader bug)."
+            "BossClause.Bosses must be non-empty after YAML load (validator / loader bug)."
         );
         Debug.Assert(
             clause.Antes.Length > 0,
-            "BossClause.Antes must be non-empty after JAML load (validator / loader bug)."
+            "BossClause.Antes must be non-empty after YAML load (validator / loader bug)."
         );
 
         // Not Debug.Assert: ApplyPrepareRunState allocates CachedBosses only when some clause

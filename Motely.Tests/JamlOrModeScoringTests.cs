@@ -15,8 +15,8 @@ public class JamlOrModeScoringTests
     private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;
@@ -41,7 +41,7 @@ public class JamlOrModeScoringTests
     public void OrMode_Omitted_DefaultsToSum()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: or-mode-default
                 deck: Red
@@ -66,7 +66,7 @@ public class JamlOrModeScoringTests
     public void OrMode_Max_Parses()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: or-mode-max-parse
                 deck: Red
@@ -93,7 +93,7 @@ public class JamlOrModeScoringTests
     public void OrMode_Unknown_HardError()
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: or-mode-bad
                 deck: Red
@@ -171,7 +171,7 @@ public class JamlOrModeScoringTests
     public void OrMode_Max_Loads()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: or-mode-roundtrip
                 deck: Red
@@ -218,7 +218,7 @@ public class JamlOrModeScoringTests
             """;
 
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
             error
         );
 
