@@ -26,9 +26,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 {
     private readonly StandardCardClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources", "rank", "suit", "enhancement", "seal", "edition"];
-
     /// <summary>
     /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.
     /// The shop is left out because its playing-card weight is the Magic Trick weight and no deck

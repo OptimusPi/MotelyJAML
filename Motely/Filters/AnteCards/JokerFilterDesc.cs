@@ -31,10 +31,6 @@ public struct JokerFilterDesc(JokerClause clause)
 {
     private readonly JokerClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys =>
-        ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
-
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
     /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and

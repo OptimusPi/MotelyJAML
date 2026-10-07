@@ -21,9 +21,6 @@ public struct GlassDestroyFilterDesc(GlassDestroyClause clause)
 {
     private readonly GlassDestroyClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
     public GlassDestroyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

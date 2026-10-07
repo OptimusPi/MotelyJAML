@@ -25,9 +25,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 {
     private readonly PlanetCardClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs need explicit sources:.
     /// </summary>

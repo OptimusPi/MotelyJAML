@@ -39,9 +39,6 @@ public struct TagFilterDesc(TagClause clause)
 {
     private readonly TagClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
-
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)

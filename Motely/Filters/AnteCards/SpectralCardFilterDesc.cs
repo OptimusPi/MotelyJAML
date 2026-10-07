@@ -27,9 +27,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 {
     private readonly SpectralCardClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
     /// <summary>
     /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
     /// every booster-pack slot (Spectral packs). The shop half only ever pays on the Ghost deck —

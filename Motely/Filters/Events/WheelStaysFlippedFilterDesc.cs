@@ -21,9 +21,6 @@ public struct WheelStaysFlippedFilterDesc(WheelStaysFlippedClause clause)
 {
     private readonly WheelStaysFlippedClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
     public WheelStaysFlippedFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

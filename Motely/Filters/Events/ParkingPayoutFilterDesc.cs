@@ -23,9 +23,6 @@ public struct ParkingPayoutFilterDesc(ParkingPayoutClause clause)
 {
     private readonly ParkingPayoutClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
     public ParkingPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

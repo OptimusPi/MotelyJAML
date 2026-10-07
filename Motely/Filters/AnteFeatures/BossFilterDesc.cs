@@ -23,9 +23,6 @@ public readonly struct BossFilterDesc(BossClause clause)
 {
     private readonly BossClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
-
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 
     /// <summary>How many normal bosses may appear at <paramref name="ante"/> at all.</summary>

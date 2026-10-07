@@ -21,9 +21,6 @@ public struct LuckyMoneyFilterDesc(LuckyMoneyClause clause)
 {
     private readonly LuckyMoneyClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
     public LuckyMoneyFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

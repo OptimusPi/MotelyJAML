@@ -38,10 +38,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 {
     private readonly LegendaryJokerClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys =>
-        ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "joker", "jokers", "soulCardOnly", "soulEditionRolls"];
-
     /// <summary>Source of truth for legendary/Soul defaults when a clause gives no <c>sources:</c> block:
     /// the SIMD/vector path walks all 6 booster-pack slots (legacy type-agnostic mode — both arcana and
     /// Spectral packs gate The Soul). Shop stays empty (shops never offer legendaries). The single-seed

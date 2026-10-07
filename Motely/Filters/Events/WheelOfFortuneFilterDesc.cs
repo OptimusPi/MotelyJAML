@@ -21,9 +21,6 @@ public struct WheelOfFortuneFilterDesc(WheelOfFortuneClause clause)
 {
     private readonly WheelOfFortuneClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
     public WheelOfFortuneFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

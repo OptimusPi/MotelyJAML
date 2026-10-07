@@ -21,9 +21,6 @@ public struct GrosMichelExtinctFilterDesc(GrosMichelExtinctClause clause)
 {
     private readonly GrosMichelExtinctClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
-
     public GrosMichelExtinctFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         Debug.Assert(

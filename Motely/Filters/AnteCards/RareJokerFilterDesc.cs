@@ -10,9 +10,6 @@ public struct RareJokerFilterDesc(RareJokerClause clause)
 {
     private readonly RareJokerClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
-
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
     /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
     /// <inheritdoc cref="JokerFilterDesc.DefaultSources"/>

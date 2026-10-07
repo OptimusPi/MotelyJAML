@@ -24,9 +24,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 {
     private readonly TarotCardClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
-
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.
     /// </summary>

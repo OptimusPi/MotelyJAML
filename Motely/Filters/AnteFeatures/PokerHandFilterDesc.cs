@@ -35,10 +35,6 @@ public struct PokerHandFilterDesc(PokerHandClause clause)
 {
     private readonly PokerHandClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys =>
-        ["min", "max", "score", "label", "ante", "antes", "rolls"];
-
     /// <summary>Small, Big, Boss — blinds in one pass through an ante.</summary>
     public const int BlindsPerAntePass = 3;
 

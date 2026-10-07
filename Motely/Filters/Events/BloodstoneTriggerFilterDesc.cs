@@ -23,9 +23,6 @@ public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
 {
     private readonly BloodstoneTriggerClause _clause = clause;
 
-    /// <inheritdoc/>
-    public static string[] ClauseKeys => ["min", "max", "score", "label"];
-
     public BloodstoneTriggerFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         // Sort the requested roll indices ONCE here, never in the SIMD hot path below.
