@@ -270,49 +270,49 @@ public static class MotelyJamlyzer
     /// for minutes, and a state outside the PRNG's [0, 1] range rolled nonsense. Refuse them.
     /// </summary>
     private static void ThrowIfNotResumable(
-        MotelyJamlyzerStreamStates bag,
+        MotelyJamlyzerStreamStates resumeFrom,
         int eventRolls,
         int shopSlots
     )
     {
         const string Hint = " Pass back the streamStates of a previous result unchanged.";
-        if (bag.RollOffset < 0 || (long)bag.RollOffset + eventRolls > MaxEventRolls)
+        if (resumeFrom.RollOffset < 0 || (long)resumeFrom.RollOffset + eventRolls > MaxEventRolls)
             throw new ArgumentOutOfRangeException(
                 "resumeFrom",
-                $"RollOffset {bag.RollOffset} + eventRolls {eventRolls} must be 0..{MaxEventRolls}."
+                $"RollOffset {resumeFrom.RollOffset} + eventRolls {eventRolls} must be 0..{MaxEventRolls}."
                     + Hint
             );
 
         // The deepest shop this window walks is an ante past 1, whose default depth is 50.
         int maxDefault = MotelyJamlyzerWindow.DefaultShopSlots(2);
         long shopDepth =
-            (long)bag.ShopOffset
-            + ((long)bag.ShopDefaultWindows + (shopSlots > 0 ? 0 : 1)) * maxDefault
+            (long)resumeFrom.ShopOffset
+            + ((long)resumeFrom.ShopDefaultWindows + (shopSlots > 0 ? 0 : 1)) * maxDefault
             + shopSlots;
-        if (bag.ShopOffset < 0 || bag.ShopDefaultWindows < 0 || shopDepth > MaxShopSlots)
+        if (resumeFrom.ShopOffset < 0 || resumeFrom.ShopDefaultWindows < 0 || shopDepth > MaxShopSlots)
             throw new ArgumentOutOfRangeException(
                 "resumeFrom",
-                $"ShopOffset {bag.ShopOffset} and ShopDefaultWindows {bag.ShopDefaultWindows} "
+                $"ShopOffset {resumeFrom.ShopOffset} and ShopDefaultWindows {resumeFrom.ShopDefaultWindows} "
                     + $"walk the shop to depth {shopDepth}; it must be 0..{MaxShopSlots}."
                     + Hint
             );
 
         ReadOnlySpan<(string Name, double State)> states =
         [
-            (nameof(bag.LuckyMoney), bag.LuckyMoney),
-            (nameof(bag.LuckyMult), bag.LuckyMult),
-            (nameof(bag.WheelOfFortune), bag.WheelOfFortune),
-            (nameof(bag.Cavendish), bag.Cavendish),
-            (nameof(bag.GrosMichel), bag.GrosMichel),
-            (nameof(bag.Space), bag.Space),
-            (nameof(bag.Business), bag.Business),
-            (nameof(bag.Bloodstone), bag.Bloodstone),
-            (nameof(bag.Parking), bag.Parking),
-            (nameof(bag.EightBall), bag.EightBall),
-            (nameof(bag.Glass), bag.Glass),
-            (nameof(bag.OmenGlobe), bag.OmenGlobe),
-            (nameof(bag.TheWheel), bag.TheWheel),
-            (nameof(bag.Misprint), bag.Misprint),
+            (nameof(resumeFrom.LuckyMoney), resumeFrom.LuckyMoney),
+            (nameof(resumeFrom.LuckyMult), resumeFrom.LuckyMult),
+            (nameof(resumeFrom.WheelOfFortune), resumeFrom.WheelOfFortune),
+            (nameof(resumeFrom.Cavendish), resumeFrom.Cavendish),
+            (nameof(resumeFrom.GrosMichel), resumeFrom.GrosMichel),
+            (nameof(resumeFrom.Space), resumeFrom.Space),
+            (nameof(resumeFrom.Business), resumeFrom.Business),
+            (nameof(resumeFrom.Bloodstone), resumeFrom.Bloodstone),
+            (nameof(resumeFrom.Parking), resumeFrom.Parking),
+            (nameof(resumeFrom.EightBall), resumeFrom.EightBall),
+            (nameof(resumeFrom.Glass), resumeFrom.Glass),
+            (nameof(resumeFrom.OmenGlobe), resumeFrom.OmenGlobe),
+            (nameof(resumeFrom.TheWheel), resumeFrom.TheWheel),
+            (nameof(resumeFrom.Misprint), resumeFrom.Misprint),
         ];
         foreach (var (name, state) in states)
         {
