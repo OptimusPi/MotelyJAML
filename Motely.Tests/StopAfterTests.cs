@@ -31,7 +31,7 @@ public class StopAfterTests(ITestOutputHelper output)
         );
 
         int delivered = 0;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -81,7 +81,7 @@ public class StopAfterTests(ITestOutputHelper output)
     {
         Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -109,7 +109,7 @@ public class StopAfterTests(ITestOutputHelper output)
     {
         Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(batchCharCount)

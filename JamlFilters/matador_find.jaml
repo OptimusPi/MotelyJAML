@@ -1,6 +1,0 @@
-name: Matador
-deck: Red
-stake: White
-must:
-  - uncommonJoker: Matador
-    antes: [1, 2]

@@ -2,13 +2,13 @@ namespace Motely.Tests;
 
 /// <summary>
 /// Pins P0 single-match-core: FilterDesc scalar confirm arms and should-scoring share
-/// <see cref="JamlScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
+/// <see cref="ClauseScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
 /// </summary>
 public sealed class JamlMatchCoreParityTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"];
 
-    private static HashSet<string> RunMustHits(IJamlClause clause)
+    private static HashSet<string> RunMustHits(IMotelyClause clause)
     {
         var config = new JamlConfig
         {
@@ -19,7 +19,7 @@ public sealed class JamlMatchCoreParityTests
         config.Must.Add(clause);
 
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -31,7 +31,7 @@ public sealed class JamlMatchCoreParityTests
         return hits;
     }
 
-    private static HashSet<string> RunShouldHits(IJamlClause clause)
+    private static HashSet<string> RunShouldHits(IMotelyClause clause)
     {
         clause.Score = 1;
         var config = new JamlConfig
@@ -43,7 +43,7 @@ public sealed class JamlMatchCoreParityTests
         config.Should.Add(clause);
 
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)

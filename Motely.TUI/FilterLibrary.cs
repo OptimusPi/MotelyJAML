@@ -9,7 +9,7 @@ public static class FilterLibrary
 {
     public static string WorkingDirectory => Directory.GetCurrentDirectory();
 
-    public static string JamlDirectory => Path.Combine(WorkingDirectory, "JamlFilters");
+    public static string JamlDirectory => Path.Combine(WorkingDirectory, "Motelyfilters");
 
     public static IReadOnlyList<FilterLibraryEntry> DiscoverLocalFilters()
     {
@@ -29,7 +29,7 @@ public static class FilterLibrary
             .ToArray();
     }
 
-    public static string SaveJamlFilter(string fileNameWithoutExtension, string content) =>
+    public static string SaveMotelyfilter(string fileNameWithoutExtension, string content) =>
         SaveFilterInternal(fileNameWithoutExtension, content, JamlDirectory, "jaml");
 
     private static string SaveFilterInternal(

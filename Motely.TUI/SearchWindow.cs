@@ -256,8 +256,8 @@ public class SearchWindow : Window
                     ? MotelyScoreCutoff.Fixed(_cutoff.EngineCutoff)
                     : MotelyScoreCutoff.Off();
             int engineCutoff = cutoff.EngineCutoff;
-            var plan = JamlSearchBuilder.CreatePlan(config, engineCutoff);
-            var settings = JamlSearchBuilder
+            var plan = MotelySearchBuilder.CreatePlan(config, engineCutoff);
+            var settings = MotelySearchBuilder
                 .CreateSettings(config, engineCutoff)
                 .WithDeck(config.Deck)
                 .WithStake(config.Stake)

@@ -1,5 +1,4 @@
 using Motely.Analysis;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -445,10 +444,6 @@ public sealed class JAMLyzerUnitTests
         // Checked up front, so a seedless config is no way around it.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
-        );
-        // Search.withAnalysis(eventRolls) builds the rider straight from the JS argument.
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
         );
     }
 

@@ -1,0 +1,17 @@
+name: Splash All Cards Score
+author: jammy
+description: Splash common with Painted Deck for all played cards scoring
+deck: Painted
+stake: White
+must:
+  - commonJoker: Splash
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: StoneJoker
+    score: 40
+  - uncommonJoker: FlowerPot
+    score: 35

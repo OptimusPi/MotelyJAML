@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -14,7 +13,7 @@ namespace Motely.Tests;
 /// </summary>
 public class VoucherOrFilterTests
 {
-    // First forty entries of JamlFilters/Zerkeo.jaml's seeds block.
+    // First forty entries of YamlFilters/Zerkeo.jaml's seeds block.
     private static readonly string[] Seeds =
     [
         "F2U88X11", "JX8C8X11", "L8FJ8X11", "A68EBX11", "M2TCJX11", "BC36RX11", "4E1MRX11",
@@ -37,7 +36,7 @@ public class VoucherOrFilterTests
         var config = Config("voucher-or-must");
         config.Must.Add(clause);
         var matched = new HashSet<string>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -48,14 +47,14 @@ public class VoucherOrFilterTests
         return matched;
     }
 
-    /// <summary>Scalar path: the raw JamlScoring occurrence count of the clause per seed.</summary>
+    /// <summary>Scalar path: the raw ClauseScoring occurrence count of the clause per seed.</summary>
     private static Dictionary<string, int> ScalarCounts(VoucherClause clause)
     {
         clause.Score = 1;
         var config = Config("voucher-or-should");
         config.Should.Add(clause);
         var counts = new Dictionary<string, int>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)

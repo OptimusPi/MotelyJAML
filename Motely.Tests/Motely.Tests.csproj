@@ -53,8 +53,8 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- Test JAML files travel to the output so data-driven tests can load them by name.
-         Include (not Update): new files in JamlFilters must enter the item list to copy. -->
-    <None Include="JamlFilters/**/*.jaml">
+         Include (not Update): new files in YamlFilters must enter the item list to copy. -->
+    <None Include="YamlFilters/**/*.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

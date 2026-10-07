@@ -4,8 +4,7 @@ namespace Motely.Analysis;
 
 /// <summary>
 /// The window the Jamlyzer reads for one seed: which antes (the JAML's ante scope, see
-/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream. One value, shared by
-/// the standalone filter and the analyze provider, so both walk exactly the same ground.
+/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream.
 /// </summary>
 internal readonly struct MotelyJamlyzerWindow
 {
@@ -53,8 +52,7 @@ internal readonly struct MotelyJamlyzerWindow
 /// stream for one seed, answering "what does this seed actually contain?". The walk itself is
 /// <see cref="MotelyJamlyzerSeedWalk"/>; this desc is how
 /// <see cref="MotelyJamlyzer.Analyze(Motely.Filters.Jaml.JamlConfig, int)"/> runs it standalone,
-/// one seed per search, with a resume bag. To run the same walk on a search's own finds instead,
-/// see <see cref="MotelyJamlyzerRiderDesc"/>. Unrelated to the CLI's legacy <c>--analyze</c>
+/// one seed per search, with a resume bag. Unrelated to the CLI's legacy <c>--analyze</c>
 /// flag (<see cref="MotelyUnitTestAnalyzer"/>).
 /// </summary>
 public sealed class MotelyJamlyzerFilterDesc(

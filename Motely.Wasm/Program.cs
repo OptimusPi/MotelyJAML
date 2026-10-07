@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Motely;
 using Motely.Analysis;
 using Motely.Enums;
-using Motely.Filters.Jaml;
+using Motely.Filters;
 
 [assembly: Export(typeof(IJamlFiles))]
 
@@ -67,14 +67,14 @@ public static class Errors
     }
 }
 
-/// <summary>Engine's <see cref="Motely.Filters.Jaml.JamlConfigLoader"/>.</summary>
+/// <summary>Engine's <see cref="Motely.Filters.JamlConfigLoader"/>.</summary>
 public static class JamlConfigLoader
 {
     /// <summary>Loads a JAML filter. Throws with the loader's line-numbered message when it does not load.</summary>
     /// <param name="yaml">JAML filter text.</param>
     /// <returns>The engine's config.</returns>
     [Export]
-    public static JamlConfig FromJaml(string yaml) => Motely.Filters.Jaml.JamlConfigLoader.FromJaml(yaml);
+    public static JamlConfig FromJaml(string yaml) => Motely.Filters.JamlConfigLoader.FromJaml(yaml);
 
     /// <summary>The engine's TryLoad, error half: null when the filter loads, otherwise the
     /// loader's line-numbered reason. The NativeAOT runtime hands a thrown C# exception to JS as
@@ -83,10 +83,10 @@ public static class JamlConfigLoader
     /// <returns>Null, or why the filter does not load.</returns>
     [Export]
     public static string? Check(string yaml) =>
-        Motely.Filters.Jaml.JamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
+        Motely.Filters.JamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
 }
 
-/// <summary>Engine's <see cref="Motely.Filters.JamlSearchBuilder"/>.</summary>
+/// <summary>Engine's <see cref="Motely.Filters.MotelySearchBuilder"/>.</summary>
 public static class JamlSearchBuilder
 {
     /// <summary>The engine's search settings for a config, held by reference.</summary>
@@ -95,7 +95,7 @@ public static class JamlSearchBuilder
     /// <returns>The engine's settings; configure, then start.</returns>
     [Export]
     public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = 0) =>
-        Motely.Filters.JamlSearchBuilder.CreateSettings(config, engineCutoff);
+        Motely.Filters.MotelySearchBuilder.CreateSettings(config, engineCutoff);
 }
 
 /// <summary>Engine's <see cref="Motely.Analysis.MotelyJamlyzer"/>.</summary>
@@ -123,20 +123,6 @@ public static class MotelyJamlyzer
         int eventRolls = 20,
         int shopSlots = 0
     ) => Motely.Analysis.MotelyJamlyzer.Analyze(config, resumeFrom, eventRolls, shopSlots);
-
-    /// <summary>The analyze provider a search runs on every find, for its settings' analyze provider.</summary>
-    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
-    /// <param name="onAnalyzed">Receives each find's result.</param>
-    /// <param name="eventRolls">Size of each roll queue.</param>
-    /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
-    /// <returns>The engine's rider desc.</returns>
-    [Export]
-    public static MotelyJamlyzerRiderDesc CreateRiderDesc(
-        JamlConfig config,
-        Action<MotelyJamlyzerSeedResult> onAnalyzed,
-        int eventRolls = 20,
-        int shopSlots = 0
-    ) => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots);
 }
 
 /// <summary>Renaming (guide: renaming).</summary>
@@ -174,7 +160,7 @@ public static class Names
 
     /// <summary>Erases members whose signature holds a type that cannot cross: the SIMD plumbing
     /// (filter creation contexts, vector masks) has no JS form. Their declaring types still cross
-    /// by reference, so a filter desc or a Jamlyzer rider moves between engine calls as a handle.</summary>
+    /// by reference, so a filter desc moves between engine calls as a handle.</summary>
     /// <param name="info">The projected member.</param>
     /// <param name="default">Bootsharp's name.</param>
     /// <returns>The name, or null to erase.</returns>

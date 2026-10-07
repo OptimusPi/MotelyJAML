@@ -7,8 +7,6 @@ using Motely.Analysis;
 using Motely.CLI;
 using Motely.Enums;
 using Motely.Filters;
-using Motely.Filters.Jaml;
-using Motely.Filters.Native;
 using Motely.SeedProviders;
 
 partial class Program
@@ -216,12 +214,12 @@ partial class Program
         );
         var aestheticOption = app.Option<string>(
             "--aesthetic <NAME>",
-            $"Search seeds from an aesthetic provider ({JamlAestheticParser.KnownJamlStringsDescription()}). 'all' concatenates every family in order",
+            $"Search seeds from an aesthetic provider ({MotelyAestheticParser.KnownJamlStringsDescription()}). 'all' concatenates every family in order",
             CommandOptionType.SingleValue
         );
         var collectOption = app.Option<long>(
             "--collect <N>",
-            $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({JamlAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
+            $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({MotelyAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
             CommandOptionType.SingleValue
         );
         var replayOption = app.Option(
@@ -272,16 +270,6 @@ partial class Program
         var paddingOption = app.Option<string>(
             "--padding <CHARS>",
             "Restrict free-slot / pad chars for --keyword/--keywords and --aesthetic (e.g. \"123456789\" digits-only — words stay visible). Collect's aesthetic prepass defaults to 123456789 when this flag is omitted.",
-            CommandOptionType.SingleValue
-        );
-        var nativeOption = app.Option<string>(
-            "--native <NAME>",
-            "Run a native C# filter by name (e.g. PerkeoObservatory, Observatory, Trickeoglyph, NaturalNegatives, ...). Seed-input flags match JAML: --seeds, --keyword(s), --random, --aesthetic, or default sequential (--startBatch/--endBatch/--startPercent or --startSeed/--stopSeed).",
-            CommandOptionType.SingleValue
-        );
-        var nativeRandomCountOption = app.Option<int>(
-            "--native-random <N>",
-            "Random seed count for --native mode",
             CommandOptionType.SingleValue
         );
         var quietOption = app.Option(
@@ -344,130 +332,11 @@ partial class Program
                 return ExecuteAnalyzeBatch(seedTokens, analyzeDeck, analyzeStake);
             }
 
-            // --native mode — run a hardcoded C# filter by name
-            if (nativeOption.HasValue())
-                return await RunNativeMode();
-
             return await RunJamlMode();
 
             // A local function, not a method: it captures the CommandOption objects themselves, so
             // HasValue() keeps meaning "the user typed this" (see the DefaultValue note above).
             // Reading values into a parameter list would quietly destroy that distinction.
-            async Task<int> RunNativeMode()
-            {
-                // --replay replays a JAML's seeds: block; there is no such block in native mode.
-                if (replayOption.HasValue() || verifySeedsOption.HasValue())
-                {
-                    Console.Error.WriteLine(
-                        "Error: --replay/--verify-seeds requires --jaml, --json, or --yaml."
-                    );
-                    return 1;
-                }
-
-                var nDeck = deckOption.HasValue()
-                    ? Enum.Parse<MotelyDeck>(deckOption.ParsedValue, true)
-                    : MotelyDeck.Red;
-                var nStake = stakeOption.HasValue()
-                    ? Enum.Parse<MotelyStake>(stakeOption.ParsedValue, true)
-                    : MotelyStake.White;
-                int nThreads = threadsOption.HasValue()
-                    ? threadsOption.ParsedValue
-                    : Environment.ProcessorCount;
-                int nBatch = batchCharCountOption.HasValue()
-                    ? batchCharCountOption.ParsedValue
-                    : DefaultBatchCharCount;
-
-                if (
-                    !MotelyNativeFilterNames.TryParse(
-                        nativeOption.ParsedValue,
-                        out var nativeFilter
-                    )
-                )
-                {
-                    Console.Error.WriteLine(
-                        $"Error: unknown native filter '{nativeOption.ParsedValue}'. Known: {string.Join(", ", MotelyNativeFilterNames.DisplayNames)}"
-                    );
-                    return 1;
-                }
-
-                IMotelySearchSettings nSettings = MotelyNativeFilterFactory.CreateSettings(
-                    nativeFilter
-                );
-
-                nSettings = nSettings.WithDeck(nDeck).WithStake(nStake).WithThreadCount(nThreads);
-
-                if (
-                    !TryParseSeedOptions(
-                        startSeedOption,
-                        stopSeedOption,
-                        out var nStartSeed,
-                        out var nStopSeed,
-                        out var seedOptError
-                    )
-                )
-                {
-                    Console.Error.WriteLine(seedOptError);
-                    return 1;
-                }
-
-                if (
-                    !CliSearchMode.TryApplySearchMode(
-                        nSettings,
-                        new CliSearchMode.Input(
-                            SeedsArgument: seedsOption.HasValue() ? seedsOption.ParsedValue : null,
-                            Replay: false,
-                            JamlPath: null,
-                            FilterId: null,
-                            JamlSeeds: null,
-                            KeywordInputs: BuildKeywordInputs(keywordOption, keywordsOption),
-                            PaddingCharsOption: paddingOption.HasValue()
-                                ? paddingOption.ParsedValue
-                                : null,
-                            RandomCount: nativeRandomCountOption.HasValue()
-                                ? nativeRandomCountOption.ParsedValue
-                                : null,
-                            AestheticName: aestheticOption.HasValue()
-                                ? aestheticOption.ParsedValue
-                                : null,
-                            StartBatch: startBatchOption.HasValue()
-                                ? startBatchOption.ParsedValue
-                                : null,
-                            EndBatch: endBatchOption.HasValue() ? endBatchOption.ParsedValue : null,
-                            StartPercent: startPercentOption.HasValue()
-                                ? startPercentOption.ParsedValue
-                                : null,
-                            StartSeed: nStartSeed,
-                            StopSeed: nStopSeed,
-                            BatchCharacterCount: nBatch
-                        ),
-                        msg => Console.Error.WriteLine(msg),
-                        out var nSearchModeError,
-                        out nSettings
-                    )
-                )
-                {
-                    Console.Error.WriteLine(nSearchModeError);
-                    return 1;
-                }
-
-                // Always attach a progress callback so 'p' hotkey has fresh data;
-                // quiet mode just swaps in the silent capture variant.
-                nSettings = nSettings
-                    .WithSeedMatchCallback(StickyProgress.WriteResultLine)
-                    .WithProgressCallback(
-                        quietOption.HasValue() ? CaptureProgress : WriteProgressLineToStderr
-                    );
-
-                if (!quietOption.HasValue())
-                    Console.Error.WriteLine(
-                        $"Motely native: {nativeOption.ParsedValue} | {nDeck} {nStake} | threads={nThreads} | batchCharCount={nBatch} (sequential only)"
-                    );
-                using var nSearch = nSettings.Start(_cts.Token);
-                await nSearch.WaitForCompletionAsync(_cts.Token);
-                PrintSummary(nSearch, nBatch, _cts.Token.IsCancellationRequested);
-                return _cts.Token.IsCancellationRequested ? 1 : 0;
-            }
-
             // --jaml mode — the main path: load the filter, build the search, run the passes.
             async Task<int> RunJamlMode()
             {
@@ -478,7 +347,7 @@ partial class Program
                 if (formatFlags == 0)
                 {
                     Console.Error.WriteLine(
-                        "Error: --jaml <path>, --json <path>, --yaml <path>, or --native <name> required."
+                        "Error: --jaml <path>, --json <path>, or --yaml <path> required."
                     );
                     return 1;
                 }
@@ -539,7 +408,7 @@ partial class Program
                     // Push fixed --cutoff into the engine so low-scoring seeds are dropped at
                     // the scorer (no callback spam, no per-seed string concat). Auto still needs
                     // the caller-side running-max below since the engine threshold is static.
-                    plan = JamlSearchBuilder.CreatePlan(config, engineCutoff);
+                    plan = MotelySearchBuilder.CreatePlan(config, engineCutoff);
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -663,6 +532,19 @@ partial class Program
                 bool cancelled = false;
                 IMotelySearch search;
 
+                async Task<bool> RunPass(IMotelySearch pass)
+                {
+                    try
+                    {
+                        await pass.WaitForCompletionAsync(_cts.Token);
+                        return false;
+                    }
+                    catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
+                    {
+                        return true;
+                    }
+                }
+
                 using var consoleSink = new ConsoleResultSink(plan.TallyLabels);
                 var saveSeedsCollector = new MotelyTopSeedSink.Collector(int.MaxValue);
 
@@ -691,10 +573,10 @@ partial class Program
 
                 if (collectLimit > 0 && collectSequentialOnly)
                 {
-                    settings = new MotelySearchIntent(
-                        SequentialBatchCharacterCount: batchCharCount,
-                        StopAfterMatches: collectLimit
-                    ).ApplyTo(settings);
+                    settings = settings
+                        .WithBatchCharacterCount(batchCharCount)
+                        .WithSequentialSearch()
+                        .StopAfter(collectLimit);
                     search = settings.Start(_cts.Token);
                     cancelled = await RunPass(search);
                 }
@@ -717,22 +599,19 @@ partial class Program
                         // Full-alphabet free slots are not a "tiny corner". Override pad with --padding.
                         var aesthetics =
                             aestheticOption.HasValue()
-                            && JamlAestheticParser.TryParse(
+                            && MotelyAestheticParser.TryParse(
                                 aestheticOption.ParsedValue.Trim(),
                                 out var onlyOne
                             )
                                 ? new[] { onlyOne }
-                                : Enum.GetValues<JamlAesthetic>();
+                                : Enum.GetValues<MotelyAesthetic>();
                         char[] collectPad = paddingOption.HasValue()
                             ? MotelyGlobals.ParsePaddingChars(paddingOption.ParsedValue)
-                                ?? JamlAesthetics.QuickPaddingChars
-                            : JamlAesthetics.QuickPaddingChars;
-                        settings = new MotelySearchIntent(
-                            Mode: MotelySearchInputMode.Aesthetic,
-                            Aesthetics: aesthetics,
-                            PaddingAlphabet: new string(collectPad),
-                            StopAfterMatches: collectLimit
-                        ).ApplyTo(settings);
+                                ?? MotelyAesthetics.QuickPaddingChars
+                            : MotelyAesthetics.QuickPaddingChars;
+                        settings = settings
+                            .WithAllAesthetics(aesthetics, collectPad)
+                            .StopAfter(collectLimit);
 
                         var aestheticPass = settings.Start(_cts.Token);
                         cancelled = await RunPass(aestheticPass);
@@ -753,10 +632,10 @@ partial class Program
                                     );
                             }
 
-                            settings = new MotelySearchIntent(
-                                SequentialBatchCharacterCount: batchCharCount,
-                                StopAfterMatches: remaining
-                            ).ApplyTo(settings);
+                            settings = settings
+                                .WithBatchCharacterCount(batchCharCount)
+                                .WithSequentialSearch()
+                                .StopAfter(remaining);
                             aestheticPass = settings.Start(_cts.Token);
                             cancelled = await RunPass(aestheticPass);
                         }

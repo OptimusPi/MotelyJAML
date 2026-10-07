@@ -62,7 +62,7 @@ public class ImmolateCavendishPortTests(ITestOutputHelper output)
         Assert.True(JamlConfigLoader.TryLoad(GateJaml, out var gate, out var error), error);
 
         var hits = new List<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(gate!)
             .WithJimmolate(ctx =>
             {

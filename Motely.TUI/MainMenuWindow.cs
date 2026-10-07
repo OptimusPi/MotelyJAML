@@ -176,7 +176,7 @@ public class MainMenuWindow : View
         {
             ShowErrorDialog(
                 "No Filters Found",
-                "No filter files found in JamlFilters/"
+                "No filter files found in Motelyfilters/"
             );
             return;
         }

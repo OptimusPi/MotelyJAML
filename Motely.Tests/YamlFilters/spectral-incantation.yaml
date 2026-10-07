@@ -1,0 +1,17 @@
+name: Incantation Number Cards
+author: jammy
+description: Incantation spectralCard with Hack for enhanced number card synergy
+deck: Red
+stake: White
+must:
+  - spectralCard: Incantation
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Hack
+    score: 45
+  - uncommonJoker: Hologram
+    score: 35

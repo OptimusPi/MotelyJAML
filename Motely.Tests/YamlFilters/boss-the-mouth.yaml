@@ -1,0 +1,15 @@
+name: TheMouth Boss Blind
+author: jammy
+description: TheMouth boss blind only allows one hand type per round
+deck: Red
+stake: White
+must:
+  - boss: TheMouth
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: SmearedJoker
+    score: 40

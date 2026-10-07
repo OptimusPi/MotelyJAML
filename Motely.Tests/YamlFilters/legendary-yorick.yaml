@@ -1,0 +1,17 @@
+name: Yorick Discard Scaling
+author: jammy
+description: Yorick legendary joker with Merry Andy for discard scaling
+deck: Red
+stake: White
+must:
+  - legendaryJoker: Yorick
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: MerryAndy
+    score: 50
+  - rareJoker: HitTheRoad
+    score: 40

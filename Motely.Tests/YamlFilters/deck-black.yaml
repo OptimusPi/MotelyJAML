@@ -1,0 +1,17 @@
+name: Black Deck Six Joker Stencil
+author: jammy
+description: Black Deck with Joker Stencil to maximize the 6th joker slot advantage
+deck: Black
+stake: White
+must:
+  - uncommonJoker: JokerStencil
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: AbstractJoker
+    score: 35
+  - voucher: Antimatter
+    score: 25

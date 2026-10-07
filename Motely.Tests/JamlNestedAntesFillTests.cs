@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 using Xunit;
 
 namespace Motely.Tests;
@@ -20,7 +19,7 @@ public class JamlNegFreeOopsAndTests
     {
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         int? score = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)

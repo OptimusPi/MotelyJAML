@@ -1,0 +1,17 @@
+name: Economy Tag Money
+author: jammy
+description: Economy Tag doubles your money up to $40
+deck: Yellow
+stake: White
+must:
+  - tag: EconomyTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: ToTheMoon
+    score: 50
+  - uncommonJoker: Bull
+    score: 40

@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -9,7 +8,7 @@ public sealed class CardDefaultSourcesTests
     {
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var found = new List<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -68,7 +67,7 @@ public sealed class CardDefaultSourcesTests
 
         Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         long hits = 0;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)

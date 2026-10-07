@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -12,7 +11,7 @@ public class JamlSimdCoverageTests
     private static readonly string[] Seeds = ["MOTELY77"];
 
     /// <summary>SIMD Must path: batch must run (no MatchingSeeds pin).</summary>
-    private static void RunMust(IJamlClause clause)
+    private static void RunMust(IMotelyClause clause)
     {
         var config = new JamlConfig
         {
@@ -22,7 +21,7 @@ public class JamlSimdCoverageTests
         };
         config.Must.Add(clause);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -34,7 +33,7 @@ public class JamlSimdCoverageTests
     }
 
     /// <summary>Scalar Should path: scoring callback must fire for this seed list.</summary>
-    private static void RunShould(IJamlClause clause)
+    private static void RunShould(IMotelyClause clause)
     {
         clause.Score = 1;
         var config = new JamlConfig
@@ -46,7 +45,7 @@ public class JamlSimdCoverageTests
         config.Should.Add(clause);
 
         int score = -1;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -59,7 +58,7 @@ public class JamlSimdCoverageTests
         Assert.True(score >= 0, "scoring callback must fire (seed pin lives in golden tests)");
     }
 
-    private static void ExerciseBoth(IJamlClause must, IJamlClause should)
+    private static void ExerciseBoth(IMotelyClause must, IMotelyClause should)
     {
         RunMust(must);
         RunShould(should);
@@ -241,7 +240,7 @@ public class JamlSimdCoverageTests
     [Fact]
     public void Events_FilterAndScore()
     {
-        IJamlClause[] Make() =>
+        IMotelyClause[] Make() =>
             [
                 new LuckyMoneyClause { Rolls = [0, 1] },
                 new LuckyMultClause { Rolls = [0, 1] },

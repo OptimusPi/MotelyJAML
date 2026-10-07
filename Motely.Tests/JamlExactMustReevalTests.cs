@@ -9,15 +9,15 @@ public sealed class JamlExactMustReevalTests
     [Fact]
     public void ExactFamilies_CanSkipMustReeval()
     {
-        Assert.True(JamlScoring.CanSkipMustReeval([]));
+        Assert.True(ClauseScoring.CanSkipMustReeval([]));
         Assert.True(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [new BossClause { Bosses = [MotelyBossBlind.TheClub], Antes = [1] }]
             )
         );
         // Legendary SIMD is edition/passthrough only — pack/Soul confirm is scoring must re-eval.
         Assert.False(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [
                     new LegendaryJokerClause
                     {
@@ -28,7 +28,7 @@ public sealed class JamlExactMustReevalTests
             )
         );
         Assert.True(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [
                     new TarotCardClause
                     {
@@ -40,7 +40,7 @@ public sealed class JamlExactMustReevalTests
             )
         );
         Assert.True(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [new LuckyMoneyClause { Rolls = [0], Min = 1 }]
             )
         );
@@ -51,18 +51,18 @@ public sealed class JamlExactMustReevalTests
     {
         // Named non-legendary joker uses vector shop/buffoon prefilter (not SearchIndividualSeeds).
         Assert.False(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [new JokerClause { Jokers = [MotelyJoker.Blueprint], Antes = [1] }]
             )
         );
         // Empty joker list still routes through JokerFilterDesc exact confirm today — may skip.
         Assert.True(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [new JokerClause { Antes = [1] }]
             )
         );
         Assert.False(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [
                     new LegendaryJokerClause
                     {
@@ -74,7 +74,7 @@ public sealed class JamlExactMustReevalTests
             )
         );
         Assert.False(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [
                     new TarotCardClause
                     {
@@ -87,7 +87,7 @@ public sealed class JamlExactMustReevalTests
         );
         // Mixed exact + coarse → re-eval.
         Assert.False(
-            JamlScoring.CanSkipMustReeval(
+            ClauseScoring.CanSkipMustReeval(
                 [
                     new BossClause { Bosses = [MotelyBossBlind.TheClub], Antes = [1] },
                     new JokerClause { Jokers = [MotelyJoker.Blueprint], Antes = [1] },
@@ -124,7 +124,7 @@ public sealed class JamlExactMustReevalTests
 
         var hits = new HashSet<string>();
         var seeds = new[] { "ALEEB", "MOTELY77", "AAAAAAAA", "11111111" };
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)

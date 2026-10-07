@@ -46,9 +46,7 @@ assert.equal(list.totalSeedsSearched, 3n);
 assert.equal(BigInt(finds.length), list.matchingSeeds, "one callback per find");
 assert.equal(new Set(finds).size, finds.length, "a find must arrive once");
 
-// A sequential slice with the Jamlyzer riding along: every find is analyzed in the same pass.
-const analyzed = [];
-const rider = MotelyJamlyzer.createRiderDesc(config, (r) => analyzed.push(r), 0);
+// A sequential slice: a bounded sweep over the first batches.
 const sliceFinds = [];
 const slice = JamlSearchBuilder.createSettings(config)
   .withThreadCount(1)
@@ -57,12 +55,10 @@ const slice = JamlSearchBuilder.createSettings(config)
   .withBatchCharacterCount(3)
   .withEndBatchIndex(2n)
   .withSeedMatchCallback((seed) => sliceFinds.push(seed))
-  .withSeedAnalyzeProvider(rider)
   .start();
 await slice.waitForCompletionAsync();
 assert.ok(slice.isCompleted && slice.totalSeedsSearched > 0n);
 assert.ok(sliceFinds.length > 0, "a Telescope ante-1 slice must find seeds");
-assert.deepEqual(new Set(analyzed.map((r) => r.seed)), new Set(sliceFinds), "one analysis per find");
 
 // Cancellation through Bootsharp's CancellationToken: the open-ended sweep stops and resolves.
 const token = new CancellationToken();
@@ -121,6 +117,6 @@ if (!JamlFiles.isSupported()) {
 }
 
 console.log(
-  `smoke ok: ${finds.length} list finds, ${sliceFinds.length} slice finds analyzed in-pass, ` +
+  `smoke ok: ${finds.length} list finds, ${sliceFinds.length} slice finds, ` +
     `cancelled after ${long.totalSeedsSearched} seeds`,
 );

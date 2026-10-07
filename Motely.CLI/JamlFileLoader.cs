@@ -1,17 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
 using Motely;
-using Motely.Filters.Jaml;
 
 namespace Motely.CLI;
 
 public static class JamlFileLoader
 {
-    private const string FiltersDirectory = "JamlFilters";
+    private const string FiltersDirectory = "Motelyfilters";
     private static readonly string[] Extensions = [".jaml", ".yaml", ".yml", ".json"];
 
     /// <summary>
     /// A typed name resolves to the first file that exists: as typed, with an extension, then the
-    /// same two under JamlFilters/. A bare name that matches nothing means JamlFilters/name.jaml.
+    /// same two under Motelyfilters/. A bare name that matches nothing means Motelyfilters/name.jaml.
     /// </summary>
     public static string ResolvePath(string path)
     {

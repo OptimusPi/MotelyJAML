@@ -1,0 +1,15 @@
+name: Wily Joker Three of a Kind
+author: jammy
+description: Wily Joker common for +100 Chips if played hand contains Three of a Kind
+deck: Red
+stake: White
+must:
+  - commonJoker: WilyJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: TheTrio
+    score: 40

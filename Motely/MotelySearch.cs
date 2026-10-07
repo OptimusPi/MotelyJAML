@@ -169,7 +169,7 @@ public interface IMotelySearchSettings
         char[]? paddingAlphabet = null
     );
     IMotelySearchSettings WithAestheticSearch(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet = null
     );
     IMotelySearchSettings WithProviderSearch(IMotelySeedProvider provider);
@@ -435,11 +435,11 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     }
 
     public MotelySearchSettings<TBaseFilter> WithAestheticSearch(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet = null
     )
     {
-        if (aesthetic == JamlAesthetic.Repeater)
+        if (aesthetic == MotelyAesthetic.Repeater)
             return WithProviderSearch(new MotelyRepeaterSeedProvider(paddingAlphabet));
         return WithProviderSearch(new MotelyAestheticSeedProvider(aesthetic, paddingAlphabet));
     }
@@ -537,7 +537,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     ) => WithKeywordSearch(keywords, paddingAlphabet);
 
     IMotelySearchSettings IMotelySearchSettings.WithAestheticSearch(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet
     ) => WithAestheticSearch(aesthetic, paddingAlphabet);
 
@@ -665,7 +665,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     public MotelySearchSettings<TBaseFilter> WithJimmolate(
         MotelyIndividualSeedSearcher searcher,
         int scoreCutoff = 1
-    ) => WithAdditionalFilter(new Motely.Filters.Native.JimmolateFilterDesc(searcher, scoreCutoff));
+    ) => WithAdditionalFilter(new JimmolateFilterDesc(searcher, scoreCutoff));
 
     public IMotelySearch Start(CancellationToken cancellationToken = default)
     {

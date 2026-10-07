@@ -35,7 +35,7 @@ public sealed record MotelyRunState
     public int ExtendedPackAnteBitfield { get; private set; }
 
     // MotelyLuck, not int — the enum exists specifically so an invalid multiplier (a stray "3")
-    // can't be represented at all, the same reason JamlWith.Luck is typed this way.
+    // can't be represented at all, the same reason MotelyWith.Luck is typed this way.
     public MotelyLuck Luck { get; set; } = MotelyLuck.X1;
 
     // Boss caching for scoring - generated once per seed to maintain state

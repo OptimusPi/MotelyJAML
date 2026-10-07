@@ -1,11 +1,10 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
 /// <summary>
 /// The four joker SIMD descs, run raw (no scalar must re-eval behind them), must accept exactly
-/// the seeds <see cref="JamlScoring.ClauseMeetsMinForFilter"/> accepts: a sticker list is ALL-of,
+/// the seeds <see cref="ClauseScoring.ClauseMeetsMinForFilter"/> accepts: a sticker list is ALL-of,
 /// <c>None</c> is not a gate, and a clause naming a source the desc does not walk in SIMD is
 /// confirmed per seed instead of silently counting zero.
 /// </summary>
@@ -30,21 +29,21 @@ public sealed class JokerDescScalarAgreementTests
     ];
 
     /// <summary>Scalar law for the same clause, one seed at a time.</summary>
-    private sealed class ScalarProbeDesc(IJamlClause clause)
+    private sealed class ScalarProbeDesc(IMotelyClause clause)
         : IMotelySeedFilterDesc<ScalarProbeDesc.ScalarProbeFilter>
     {
         public ScalarProbeFilter CreateFilter(ref MotelyFilterCreationContext ctx) => new(clause);
 
-        public readonly struct ScalarProbeFilter(IJamlClause clause) : IMotelySeedFilter
+        public readonly struct ScalarProbeFilter(IMotelyClause clause) : IMotelySeedFilter
         {
-            private readonly IJamlClause _clause = clause;
+            private readonly IMotelyClause _clause = clause;
 
             public VectorMask Filter(ref MotelyVectorSearchContext ctx)
             {
                 var c = _clause;
                 return ctx.SearchIndividualSeeds(
                     (MotelySingleSearchContext single) =>
-                        JamlScoring.ClauseMeetsMinForFilter(ref single, c) ? 1 : 0
+                        ClauseScoring.ClauseMeetsMinForFilter(ref single, c) ? 1 : 0
                 );
             }
         }
@@ -66,7 +65,7 @@ public sealed class JokerDescScalarAgreementTests
         return [.. matched.OrderBy(s => s, StringComparer.Ordinal)];
     }
 
-    private static string[] Scalar(IJamlClause clause, MotelyStake stake) =>
+    private static string[] Scalar(IMotelyClause clause, MotelyStake stake) =>
         Run(new ScalarProbeDesc(clause), stake);
 
     private static string[] Simd(JokerClause c, MotelyStake stake) =>

@@ -84,7 +84,7 @@ public sealed class S8P2SpecialtyJokerSourceTests
     {
         var config = ProofSearch.LoadOrThrow(SpecialtyJaml);
         var scores = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(WideSeeds, WideSeeds.Length)
             .WithThreadCount(1)
