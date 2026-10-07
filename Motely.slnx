@@ -3,5 +3,4 @@
   <Project Path="Motely.TUI/Motely.TUI.csproj" />
   <Project Path="Motely/Motely.csproj" />
   <Project Path="Motely.Tests/Motely.Tests.csproj" />
-  <Project Path="Motely.Wasm/Motely.Wasm.csproj" />
 </Solution>
