@@ -27,9 +27,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     private readonly StandardCardClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["standardCard", "standardCards"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources", "rank", "suit", "enhancement", "seal", "edition"];
 
     /// <summary>

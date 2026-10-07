@@ -29,9 +29,6 @@ public struct VoucherFilterDesc(VoucherClause clause)
     private readonly VoucherClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["voucher", "vouchers"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public readonly VoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)

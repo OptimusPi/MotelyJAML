@@ -25,9 +25,6 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
     private readonly TarotCardClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["tarotCard", "tarotCards"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
     /// <summary>

@@ -22,9 +22,6 @@ public struct LuckyMultFilterDesc(LuckyMultClause clause)
     private readonly LuckyMultClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["luckyMult"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "with"];
 
     public LuckyMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)

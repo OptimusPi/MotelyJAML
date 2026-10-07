@@ -40,9 +40,6 @@ public struct TagFilterDesc(TagClause clause)
     private readonly TagClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["tag", "tags", "smallBlindTag", "bigBlindTag"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)

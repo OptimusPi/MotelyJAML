@@ -23,9 +23,6 @@ public struct ErraticSuitFilterDesc(ErraticSuitClause clause)
     private readonly ErraticSuitClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["erraticSuit", "erraticSuits"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
 
     public ErraticSuitFilter CreateFilter(ref MotelyFilterCreationContext ctx)

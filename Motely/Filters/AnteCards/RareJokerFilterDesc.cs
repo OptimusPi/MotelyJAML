@@ -11,9 +11,6 @@ public struct RareJokerFilterDesc(RareJokerClause clause)
     private readonly RareJokerClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["rareJoker", "rareJokers"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.

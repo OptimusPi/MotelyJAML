@@ -26,9 +26,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
     private readonly PlanetCardClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["planetCard", "planetCards"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
     /// <summary>

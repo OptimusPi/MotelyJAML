@@ -26,9 +26,6 @@ public struct MisprintMultFilterDesc(MisprintMultClause clause)
     private readonly MisprintMultClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["misprintMult"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "mult", "value"];
 
     public MisprintMultFilter CreateFilter(ref MotelyFilterCreationContext ctx)

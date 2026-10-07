@@ -24,9 +24,6 @@ public struct BloodstoneTriggerFilterDesc(BloodstoneTriggerClause clause)
     private readonly BloodstoneTriggerClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["bloodstoneTrigger"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
 
     public BloodstoneTriggerFilter CreateFilter(ref MotelyFilterCreationContext ctx)

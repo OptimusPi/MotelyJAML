@@ -32,9 +32,6 @@ public struct JokerFilterDesc(JokerClause clause)
     private readonly JokerClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["joker", "jokers"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 

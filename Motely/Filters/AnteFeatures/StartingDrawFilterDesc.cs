@@ -21,9 +21,6 @@ public struct StartingDrawFilterDesc(StartingDrawClause clause)
     private readonly StartingDrawClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["startingDraw"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rank", "suit"];
 
     public StartingDrawFilter CreateFilter(ref MotelyFilterCreationContext ctx)

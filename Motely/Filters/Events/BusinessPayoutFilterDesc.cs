@@ -24,9 +24,6 @@ public struct BusinessPayoutFilterDesc(BusinessPayoutClause clause)
     private readonly BusinessPayoutClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["businessPayout"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => ["min", "max", "score", "label"];
 
     public BusinessPayoutFilter CreateFilter(ref MotelyFilterCreationContext ctx)

@@ -39,9 +39,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
     private readonly LegendaryJokerClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["legendaryJoker", "legendaryJokers"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "joker", "jokers", "soulCardOnly", "soulEditionRolls"];
 

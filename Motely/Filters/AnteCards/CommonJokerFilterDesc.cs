@@ -11,9 +11,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
     private readonly CommonJokerClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["commonJoker", "commonJokers"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.

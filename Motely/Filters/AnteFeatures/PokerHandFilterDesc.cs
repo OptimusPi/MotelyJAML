@@ -36,9 +36,6 @@ public struct PokerHandFilterDesc(PokerHandClause clause)
     private readonly PokerHandClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["pokerHand", "pokerHands"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "rolls"];
 

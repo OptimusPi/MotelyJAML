@@ -37,9 +37,6 @@ public struct BoosterPackFilterDesc(BoosterPackClause clause)
     private readonly BoosterPackClause _clause = clause;
 
     /// <inheritdoc/>
-    public static string[] Discriminators => ["boosterPack", "boosterPacks"];
-
-    /// <inheritdoc/>
     public static string[] ClauseKeys =>
         ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
