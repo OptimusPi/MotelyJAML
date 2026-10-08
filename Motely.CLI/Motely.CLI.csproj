@@ -28,15 +28,16 @@
       Condition="'$(IlcInstructionSet)' == '' and ($(RuntimeIdentifier.EndsWith('-x64')) or ('$(RuntimeIdentifier)' == '' and $(NETCoreSdkRuntimeIdentifier.EndsWith('-x64'))))"
       >x86-64-v3</IlcInstructionSet
     >
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <PropertyGroup>
-    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
+    <!-- The NativeAOT publish is the gate: every trim/AOT warning shows per call site (not one
+         collapsed IL2104 per package) and fails the build under TreatWarningsAsErrors. -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" />
+    <PackageReference Include="System.CommandLine" />
   </ItemGroup>
 
   <ItemGroup>

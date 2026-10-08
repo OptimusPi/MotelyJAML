@@ -14,8 +14,8 @@ SIMD + scalar Balatro seed search. YAML loads into typed `JamlConfig`; filters a
 ```sh
 dotnet build
 dotnet test
-dotnet run --project Motely.CLI -- --jaml <file>
-dotnet run --project Motely.CLI -- --jaml <file> --collect 1
+dotnet run -c Release --project Motely.CLI -- --yaml <file>
+dotnet run -c Release --project Motely.CLI -- --yaml <file> --collect 1
 dotnet publish Motely.Wasm -c Release   # motely-wasm: Bootsharp ES module, NativeAOT-LLVM
 ```
 
