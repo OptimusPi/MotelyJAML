@@ -4,7 +4,7 @@ namespace Motely;
 
 /// <summary>
 /// The single, shared "should this scored seed be emitted / persisted?" gate. Every caller
-/// (Motely.CLI, Motely.TUI, and any future GUI) routes scored results through one of these so the
+/// (Motely.CLI, Motely.Wasm, and any future GUI) routes scored results through one of these so the
 /// three cutoff modes behave identically everywhere:
 ///
 ///   • Auto (running maximum): emit every seed at-or-above the best score seen so far. The bar
