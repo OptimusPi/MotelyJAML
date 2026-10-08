@@ -37,6 +37,7 @@ public interface IWithScopedClause : IMotelyClause
     MotelyWith With { get; set; }
 }
 
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record MotelyWith
 {
     /// <summary>Oops! All 6s multiplier — each Oops doubles the odds (X2, X4, X8…). X1 = base odds.</summary>

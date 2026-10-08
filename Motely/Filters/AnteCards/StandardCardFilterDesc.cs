@@ -2,7 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-public sealed partial class StandardCardClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class StandardCardClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -73,6 +74,7 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>standardCard:</c>. Colocated with <see cref="StandardCardFilterDesc"/> (T5).
 /// </summary>
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record StandardCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>

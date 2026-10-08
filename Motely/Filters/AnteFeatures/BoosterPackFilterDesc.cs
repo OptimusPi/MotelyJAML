@@ -9,7 +9,8 @@ namespace Motely.Filters;
 /// Does not open pack contents — that is tarot/joker/planet/standard sources.
 /// Value enum is <see cref="MotelyBoosterPack"/> (already in Motely.Enums; no new enum).
 /// </summary>
-public sealed partial class BoosterPackClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class BoosterPackClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

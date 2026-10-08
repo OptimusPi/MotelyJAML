@@ -4,7 +4,8 @@ using Motely;
 
 namespace Motely.Filters;
 
-public sealed partial class LegendaryJokerClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -129,6 +130,7 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 /// <c>sources:</c> block for <c>legendaryJoker:</c>. Colocated with
 /// <see cref="LegendaryJokerFilterDesc"/> (T5).
 /// </summary>
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record LegendaryJokerSourceConfig
 {
     /// <summary>

@@ -4,6 +4,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial class BloodstoneTriggerClause : IRollScopedClause
 {
     public string? Label { get; set; }

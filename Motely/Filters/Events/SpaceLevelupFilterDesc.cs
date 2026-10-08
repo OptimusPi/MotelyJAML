@@ -4,7 +4,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-public sealed partial class SpaceLevelupClause : IRollScopedClause, IWithScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class SpaceLevelupClause: IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
