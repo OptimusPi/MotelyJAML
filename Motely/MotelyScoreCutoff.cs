@@ -84,9 +84,10 @@ public sealed class MotelyScoreCutoff
     /// <summary>
     /// The engine-side pre-filter threshold this cutoff implies. The scorer drops seeds below this
     /// value before any callback fires, so a fixed floor can be pushed all the way into the engine;
-    /// auto and off cannot (auto's bar is not known until seeds arrive), so they use 0.
+    /// auto and off cannot (auto's bar is not known until seeds arrive), so they use no floor at
+    /// all: a negative score is a real score, not a reject.
     /// </summary>
-    public int EngineCutoff => (!_auto && _fixedFloor > int.MinValue) ? _fixedFloor : 0;
+    public int EngineCutoff => !_auto ? _fixedFloor : int.MinValue;
 
     /// <summary>
     /// Thread-safe: does a seed with this score pass the gate? In auto mode this also ratchets the

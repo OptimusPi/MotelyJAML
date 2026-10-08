@@ -12,7 +12,7 @@ public sealed class JamlSearchPlan
 
 public static class MotelySearchBuilder
 {
-    public static JamlSearchPlan CreatePlan(JamlConfig config, int engineCutoff = 0)
+    public static JamlSearchPlan CreatePlan(JamlConfig config, int engineCutoff = int.MinValue)
     {
         var settings = CreateSettings(config, engineCutoff);
         return new JamlSearchPlan
@@ -30,7 +30,7 @@ public static class MotelySearchBuilder
     public static string DefaultTallyLabel(IMotelyClause clause, int index) =>
         clause.Label ?? $"score{index}";
 
-    public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = 0)
+    public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = int.MinValue)
     {
         // A JAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
         // and nothing else, with the host's own predicate free to drive the whole decision.

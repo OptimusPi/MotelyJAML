@@ -258,11 +258,7 @@ public static class MotelyJamlyzer
             {
                 settings = settings
                     .WithSeedScoreProvider(
-                        new JamlShouldScoreDesc(
-                            [.. config.Must],
-                            [.. config.Should],
-                            minimumTotalScore: 0
-                        )
+                        new JamlShouldScoreDesc([.. config.Must], [.. config.Should])
                     )
                     .WithScoredResultCallback(row =>
                     {

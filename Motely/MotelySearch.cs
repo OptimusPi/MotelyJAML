@@ -63,7 +63,7 @@ public interface IMotelySeedScoreProvider
         ref MotelyVectorSearchContext searchContext,
         MotelyScoredSeedResult[] buffer,
         VectorMask baseFilterMask,
-        int scoreThreshold = 0
+        int scoreThreshold = int.MinValue
     );
 }
 

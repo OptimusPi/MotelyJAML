@@ -24,7 +24,7 @@ public struct JamlShouldScoreDesc
         IMotelyClause[] mustClauses,
         IMotelyClause[] shouldClauses,
         Action<string>? seedMatchCallback = null,
-        int minimumTotalScore = 0,
+        int minimumTotalScore = int.MinValue,
         IMotelyClause[]? mustNotClauses = null
     )
     {
@@ -60,7 +60,7 @@ public struct JamlShouldScoreDesc
             IMotelyClause[] mustClauses,
             IMotelyClause[] shouldClauses,
             Action<string>? seedMatchCallback,
-            int minimumTotalScore = 0,
+            int minimumTotalScore = int.MinValue,
             bool skipMustReeval = false,
             IMotelyClause[]? mustNotClauses = null
         )
@@ -93,7 +93,7 @@ public struct JamlShouldScoreDesc
             ref MotelyVectorSearchContext searchContext,
             MotelyScoredSeedResult[] buffer,
             VectorMask baseFilterMask,
-            int scoreThreshold = 0
+            int scoreThreshold = int.MinValue
         )
         {
             if (baseFilterMask.IsAllFalse())
