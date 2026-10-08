@@ -34,8 +34,9 @@
     <PackageVersion Include="Verify.Xunit" Version="28.6.0" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.1.2" />
     <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
-    <!-- YAML loading: VYaml's event parser only (YamlConfigLoader streams it into JSON for the
-         System.Text.Json source generator). Confirm the version with `dotnet package search VYaml`. -->
+    <!-- YAML loading: VYaml's event parser only (YamlConfigLoader reads it into a node tree that
+         JamlBinder binds by hand; VYaml's generated formatters wipe initializers and skip unknown
+         keys). Confirm the version with `dotnet package search VYaml`. -->
     <PackageVersion Include="VYaml" Version="1.4.0" />
     <!-- Motely.Generators. Referenced at the floor, not the SDK's Roslyn: this DLL loads into
          whatever Roslyn the host carries, and Rider/VS ship their own on their own schedule. -->

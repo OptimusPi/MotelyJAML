@@ -1,5 +1,3 @@
-using VYaml.Annotations;
-
 namespace Motely.Filters;
 
 /// <summary>
@@ -7,7 +5,6 @@ namespace Motely.Filters;
 /// must/should/mustNot clauses. Every default lives here in an initializer; the loader only
 /// assigns keys the document actually wrote.
 /// </summary>
-[YamlObject]
 public sealed partial record JamlConfig
 {
     public string Id { get; set; } = "";
