@@ -108,7 +108,7 @@ public class JamlOrModeScoringTests
                 out var error
             )
         );
-        Assert.Contains("mode", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("average", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

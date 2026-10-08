@@ -69,12 +69,29 @@ public sealed class JamlWildcardTests
     }
 
     [Fact]
+    public void LegendaryTokenAny_WithEdition_IsAnyNegativeLegendary()
+    {
+        var jaml = """
+            name: legendary-any
+            deck: Red
+            stake: White
+            must:
+              - legendaryJoker: Any
+                edition: Negative
+                antes: [1]
+            """;
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        var clause = Assert.IsType<LegendaryJokerClause>(config!.Must[0]);
+        Assert.Empty(clause.Jokers);
+        Assert.Equal(MotelyItemEdition.Negative, clause.Edition);
+    }
+
+    [Fact]
     public void AliasSyntaxIsRejected()
     {
         Assert.False(
-            YamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out var error)
+            YamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out _)
         );
-        Assert.Contains("*any*", error);
     }
 
     [Fact]

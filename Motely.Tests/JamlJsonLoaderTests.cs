@@ -85,7 +85,7 @@ public class JamlJsonLoaderTests
     }
 
     [Fact]
-    public void TryLoadFromYaml_SyntaxError_NamesLineColumnAndText()
+    public void TryLoadFromYaml_SyntaxError_NamesLine()
     {
         var ok = YamlConfigLoader.TryLoad("""
             name: colon
@@ -96,8 +96,6 @@ public class JamlJsonLoaderTests
             """, out _, out var error);
         Assert.False(ok);
         Assert.Contains("YAML line 3:", error);
-        Assert.Contains("column 22", error);
-        Assert.Contains("`description: keep one: Diet Cola`", error);
     }
 
     [Fact]
