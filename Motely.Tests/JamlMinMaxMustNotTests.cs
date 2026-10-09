@@ -27,8 +27,8 @@ public class JamlMinMaxMustNotTests
     private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;
@@ -52,8 +52,8 @@ public class JamlMinMaxMustNotTests
     private static HashSet<string> RunSeedList(string jaml, string[] seeds)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         var hits = new HashSet<string>();

@@ -6,7 +6,7 @@ public sealed class CardDefaultSourcesTests
 {
     private static HashSet<string> Run(string jaml, string[] seeds)
     {
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var found = new List<string>();
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
@@ -65,7 +65,7 @@ public sealed class CardDefaultSourcesTests
 
         Assert.Empty(Run(jaml, AceSeeds));
 
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         long hits = 0;
         var settings = MotelySearchBuilder
             .CreateSettings(config!)

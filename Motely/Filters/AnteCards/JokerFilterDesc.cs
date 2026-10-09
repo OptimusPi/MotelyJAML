@@ -7,7 +7,8 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
-public sealed partial class JokerClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class JokerClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -333,59 +334,15 @@ public struct JokerFilterDesc(JokerClause clause)
 
 // ── Rarity-specific joker clauses ──
 
-public sealed partial class CommonJokerClause : IMotelyClause, IAnteScopedClause
-{
-    public string? Label { get; set; }
-    public int Min { get; set; } = 1;
-    public int? Max { get; set; }
-    public int Score { get; set; } = 1;
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-    public MotelyJokerCommon[] Jokers { get; set; } = [];
-    public MotelyItemEdition? Edition { get; set; }
-    public MotelyJokerSticker[] Stickers { get; set; } = [];
-    public JokerSourceConfig? Sources { get; set; }
-
-    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
-}
-
-public sealed partial class UncommonJokerClause : IMotelyClause, IAnteScopedClause
-{
-    public string? Label { get; set; }
-    public int Min { get; set; } = 1;
-    public int? Max { get; set; }
-    public int Score { get; set; } = 1;
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-    public MotelyJokerUncommon[] Jokers { get; set; } = [];
-    public MotelyItemEdition? Edition { get; set; }
-    public MotelyJokerSticker[] Stickers { get; set; } = [];
-    public JokerSourceConfig? Sources { get; set; }
-
-    public IMotelySeedFilterDesc CreateFilterDesc() => new UncommonJokerFilterDesc(this);
-}
-
-public sealed partial class RareJokerClause : IMotelyClause, IAnteScopedClause
-{
-    public string? Label { get; set; }
-    public int Min { get; set; } = 1;
-    public int? Max { get; set; }
-    public int Score { get; set; } = 1;
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-    public MotelyJokerRare[] Jokers { get; set; } = [];
-    public MotelyItemEdition? Edition { get; set; }
-    public MotelyJokerSticker[] Stickers { get; set; } = [];
-    public JokerSourceConfig? Sources { get; set; }
-
-    public IMotelySeedFilterDesc CreateFilterDesc() => new RareJokerFilterDesc(this);
-}
-
 /// <summary>
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
 /// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record JokerSourceConfig
 {
     /// <summary>
-    /// This class's settable properties, camelCased — the single list JamlConfigLoader
+    /// This class's settable properties, camelCased — the single list YamlConfigLoader
     /// ValidateKeys and Motely.Schema both read. <c>emperor</c> lives on
     /// <see cref="TarotCardSourceConfig"/>, not here.
     /// </summary>

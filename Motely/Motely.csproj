@@ -9,11 +9,16 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
-    <InvariantGlobalization>true</InvariantGlobalization>  </PropertyGroup>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- YDNG001: the static generator can't register an interface. IMotelyClause is read by
+         ClauseNodeDeserializer (YamlConfigLoader.cs) before the generated code is asked. -->
+    <NoWarn>$(NoWarn);YDNG001</NoWarn>
+  </PropertyGroup>
 
   <!-- Packages (versions from Directory.Packages.props) -->
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
-    <PackageReference Include="VYaml" />
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" />
   </ItemGroup>
 </Project>

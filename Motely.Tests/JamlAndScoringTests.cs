@@ -16,8 +16,8 @@ public class JamlAndScoringTests
     private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;
@@ -45,7 +45,7 @@ public class JamlAndScoringTests
     public void ShouldClause_WithNoExplicitScore_DefaultsToOne()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: default-score-is-one
                 deck: Red

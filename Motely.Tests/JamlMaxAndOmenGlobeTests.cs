@@ -115,7 +115,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                   omenGlobe: true
                   boosterPacks: [0, 1, 2, 3]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         var sc = Assert.IsType<SpectralCardClause>(config!.Must[0]);
         Assert.NotNull(sc.Sources);
         Assert.True(sc.Sources!.OmenGlobe);
@@ -136,7 +136,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                 min: 1
                 max: 1
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         Assert.Equal(1, config!.Must[0].Min);
         Assert.Equal(1, config.Must[0].Max);
     }

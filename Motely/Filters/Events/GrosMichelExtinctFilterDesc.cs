@@ -4,7 +4,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-public sealed partial class GrosMichelExtinctClause : IRollScopedClause, IWithScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class GrosMichelExtinctClause: IRollScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

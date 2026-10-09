@@ -5,6 +5,22 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class CommonJokerClause : IMotelyClause, IAnteScopedClause
+{
+    public string? Label { get; set; }
+    public int Min { get; set; } = 1;
+    public int? Max { get; set; }
+    public int Score { get; set; } = 1;
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public MotelyJokerCommon[] Jokers { get; set; } = [];
+    public MotelyItemEdition? Edition { get; set; }
+    public MotelyJokerSticker[] Stickers { get; set; } = [];
+    public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
+}
+
 public struct CommonJokerFilterDesc(CommonJokerClause clause)
     : IMotelySeedFilterDesc<CommonJokerFilterDesc.CommonJokerFilter>
 {

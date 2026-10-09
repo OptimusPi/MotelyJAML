@@ -29,7 +29,7 @@ internal static class CliSearchMode
     );
 
     /// <summary>Default batch character count when the caller didn't pass one explicitly.</summary>
-    private const int DefaultBatchCharacterCount = 4;
+    internal const int DefaultBatchCharacterCount = 3;
 
     /// <summary>What <see cref="TryNormalizeSeed"/> accepts, for error messages.</summary>
     public const string SeedRule = "1-8 characters of 1-9, A-Z";

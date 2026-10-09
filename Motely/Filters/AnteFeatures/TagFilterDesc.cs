@@ -4,7 +4,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-public partial class TagClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public partial class TagClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -23,13 +24,15 @@ public partial class TagClause : IMotelyClause, IAnteScopedClause, IRollScopedCl
 }
 
 /// <summary>The small blind's tag offer only.</summary>
-public sealed class SmallBlindTagClause : TagClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed class SmallBlindTagClause: TagClause
 {
     public SmallBlindTagClause() => Rolls = [0];
 }
 
 /// <summary>The big blind's tag offer only.</summary>
-public sealed class BigBlindTagClause : TagClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed class BigBlindTagClause: TagClause
 {
     public BigBlindTagClause() => Rolls = [1];
 }

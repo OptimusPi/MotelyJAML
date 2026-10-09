@@ -13,7 +13,7 @@ public sealed class JamlBlockScalarTests
 
     private static string Description(string indicator)
     {
-        Assert.True(JamlConfigLoader.TryLoad(Doc(indicator), out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(Doc(indicator), out var config, out var error), error);
         return config!.Description!;
     }
 
@@ -29,7 +29,7 @@ public sealed class JamlBlockScalarTests
     public void BlockText_LineEndingInColon_IsKeptAsTyped()
     {
         const string doc = "name: probe\ndescription: |\n  Options:\n  more text\nstake: White\n";
-        Assert.True(JamlConfigLoader.TryLoad(doc, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(doc, out var config, out var error), error);
         Assert.Equal("Options:\nmore text\n", config!.Description);
     }
 }

@@ -25,12 +25,14 @@ public abstract class LogicClause : IMotelyClause
     public abstract IMotelySeedFilterDesc CreateFilterDesc();
 }
 
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed class AndClause : LogicClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() =>
         new AndFilterDesc([.. Clauses.Select(c => c.CreateFilterDesc())]);
 }
 
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed class OrClause : LogicClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() =>

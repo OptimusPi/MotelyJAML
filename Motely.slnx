@@ -2,4 +2,5 @@
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
   <Project Path="Motely/Motely.csproj" />
   <Project Path="Motely.Tests/Motely.Tests.csproj" />
+  <Project Path="Motely.Wasm/Motely.Wasm.csproj" />
 </Solution>

@@ -21,7 +21,7 @@ public sealed class JamlFileLoadTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(file);
-            if (!JamlConfigLoader.TryLoad(content, out var config, out var error))
+            if (!YamlConfigLoader.TryLoad(content, out var config, out var error))
             {
                 failures.Add($"{Path.GetRelativePath(dir, file)}: {error}");
                 continue;

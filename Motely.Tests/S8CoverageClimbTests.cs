@@ -453,7 +453,7 @@ public sealed class S8CoverageClimbTests
     public void Uncommon_BadJokerName_FailsLoad()
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(
+            YamlConfigLoader.TryLoad(
                 """
                 name: s8-uncommon-bad
                 deck: Red

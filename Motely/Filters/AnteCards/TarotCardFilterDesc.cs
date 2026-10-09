@@ -4,7 +4,8 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-public sealed partial class TarotCardClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class TarotCardClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -370,6 +371,7 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>tarotCard:</c>. Colocated with <see cref="TarotCardFilterDesc"/> (T5).
 /// </summary>
+[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record TarotCardSourceConfig
 {
     /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>

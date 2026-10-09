@@ -2,7 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-public sealed partial class StartingDrawClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class StartingDrawClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

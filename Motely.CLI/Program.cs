@@ -1,817 +1,372 @@
+using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Collections.Concurrent;
-using McMaster.Extensions.CommandLineUtils;
 using Motely;
 using Motely.Analysis;
 using Motely.CLI;
 using Motely.Enums;
-using Motely.Filters;
-using Motely.SeedProviders;
 
-partial class Program
+// motely: search a YAML filter, or analyze seeds.
+// stdout carries results only (CSV rows, or --analyze text); everything else goes to stderr.
+// Exit codes: 0 finished, 1 bad input, 130 interrupted.
+
+const int DefaultBatchCharCount = CliSearchMode.DefaultBatchCharacterCount;
+const int ExitInterrupted = 130;
+
+using var cts = new CancellationTokenSource();
+
+// The first signal stops the search cleanly (summary, resume line, --save); a second one is left
+// to the runtime and ends the process on the spot.
+void Interrupt(PosixSignalContext context)
 {
-    private static readonly CancellationTokenSource _cts = new();
-    private const int DefaultBatchCharCount = 4;
+    if (cts.IsCancellationRequested)
+        return;
+    context.Cancel = true;
+    cts.Cancel();
+}
 
-    private static List<string> BuildKeywordInputs(
-        CommandOption<string> keywordOption,
-        CommandOption<string> keywordsOption
-    )
+using var sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, Interrupt);
+using var sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, Interrupt);
+using var sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, Interrupt);
+
+Option<string> yamlOption = new("--yaml")
+{
+    Description = "Filter file: .yaml, .yml or .json. A bare name also looks in Motelyfilters/.",
+};
+Option<string> analyzeOption = new("--analyze")
+{
+    Description = "Print each comma-separated seed's antes: boss, voucher, tags, shop and packs.",
+};
+Option<MotelyDeck?> deckOption = new("--deck")
+{
+    Description = "Search: replaces the filter's deck. Analyze: the deck (default Red).",
+};
+Option<MotelyStake?> stakeOption = new("--stake")
+{
+    Description = "Search: replaces the filter's stake. Analyze: the stake (default White).",
+};
+Option<int?> threadsOption = new("--threads") { Description = "Worker threads (default: every core)." };
+Option<string> seedsOption = new("--seeds") { Description = "Search exactly these comma-separated seeds." };
+Option<bool> replayOption = new("--replay") { Description = "Search the filter file's own seeds: block." };
+Option<string> keywordOption = new("--keyword") { Description = "Search seeds containing this word." };
+Option<string> keywordsOption = new("--keywords")
+{
+    Description = "Search seeds containing any of these comma-separated words.",
+};
+Option<int?> randomOption = new("--random") { Description = "Search N random seeds." };
+Option<string> aestheticOption = new("--aesthetic")
+{
+    Description =
+        $"Search one aesthetic seed family: {MotelyAestheticParser.KnownJamlStringsDescription()} ('all' runs every family in turn).",
+};
+Option<string> paddingOption = new("--padding")
+{
+    Description = "Characters that fill the free slots of --keyword/--keywords/--aesthetic seeds (default: all of 1-9 and A-Z).",
+};
+Option<int?> batchCharCountOption = new("--batchCharCount")
+{
+    Description = $"Sequential: trailing characters swept per batch (default {DefaultBatchCharCount}).",
+};
+Option<long?> startBatchOption = new("--startBatch") { Description = "Sequential: first batch index." };
+Option<long?> endBatchOption = new("--endBatch") { Description = "Sequential: end batch index, exclusive." };
+Option<double?> startPercentOption = new("--startPercent")
+{
+    Description = "Sequential: start this far into the batch space.",
+};
+Option<string> startSeedOption = new("--startSeed")
+{
+    Description = "Sequential: start at the batch holding this seed.",
+};
+Option<string> stopSeedOption = new("--stopSeed")
+{
+    Description = "Sequential: end after the batch holding this seed.",
+};
+Option<int?> collectOption = new("--collect")
+{
+    Description = "Stop after N matches. Each thread finishes the batch it is in, so more than N can print.",
+};
+Option<string> cutoffOption = new("--cutoff")
+{
+    Description =
+        "A score: print only seeds scoring at least that. 'auto': print each seed that ties or beats the best score so far. 'off' (default): every match prints.",
+};
+Option<bool> saveOption = new("--save")
+{
+    Description = "Merge the printed seeds into the filter file's seeds: block (its existing seeds stay first).",
+};
+Option<bool> quietOption = new("--quiet", "-q") { Description = "No startup line and no progress line on stderr." };
+
+RootCommand rootCommand = new("Balatro seed search.")
+{
+    yamlOption,
+    analyzeOption,
+    deckOption,
+    stakeOption,
+    threadsOption,
+    seedsOption,
+    replayOption,
+    keywordOption,
+    keywordsOption,
+    randomOption,
+    aestheticOption,
+    paddingOption,
+    batchCharCountOption,
+    startBatchOption,
+    endBatchOption,
+    startPercentOption,
+    startSeedOption,
+    stopSeedOption,
+    collectOption,
+    cutoffOption,
+    saveOption,
+    quietOption,
+};
+
+rootCommand.SetAction(
+    async (parseResult, cancellationToken) =>
     {
-        var keywordInputs = new List<string>();
-        if (keywordOption.HasValue())
-            keywordInputs.Add(keywordOption.ParsedValue.Trim().ToUpperInvariant());
-
-        if (keywordsOption.HasValue())
+        if (parseResult.GetValue(analyzeOption) is { } seedList)
+            return Analyze(parseResult, seedList);
+        if (parseResult.GetValue(yamlOption) is { } filterPath)
+            return await SearchAsync(parseResult, filterPath, cancellationToken);
+        if (args.Length > 0)
         {
-            keywordInputs.AddRange(
-                keywordsOption
-                    .ParsedValue.Split(
-                        ',',
-                        StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries
-                    )
-                    .Select(static k => k.Trim().ToUpperInvariant())
-            );
+            Console.Error.WriteLine("Error: give --yaml <PATH> to search, or --analyze <SEEDS>.");
+            return 1;
         }
+        return await rootCommand.Parse(["--help"]).InvokeAsync(cancellationToken: cancellationToken);
+    }
+);
 
-        return keywordInputs;
+var parsed = rootCommand.Parse(args);
+if (parsed.Action is ParseErrorAction parseError)
+    parseError.ShowHelp = false;
+
+// The signal handlers above own Ctrl+C, so the library's own termination handling stays off.
+return await parsed.InvokeAsync(new InvocationConfiguration { ProcessTerminationTimeout = null }, cts.Token);
+
+int Analyze(ParseResult parseResult, string seedList)
+{
+    var deck = parseResult.GetValue(deckOption) ?? MotelyDeck.Red;
+    var stake = parseResult.GetValue(stakeOption) ?? MotelyStake.White;
+
+    int failed = 0;
+    foreach (var raw in seedList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        var seed = MotelyGlobals.NormalizeSeed(raw);
+        var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake));
+        if (!string.IsNullOrEmpty(analysis.Error))
+        {
+            Console.Error.WriteLine($"Error: {seed}: {analysis.Error}");
+            failed++;
+            continue;
+        }
+        Console.WriteLine($"=== {seed} | {deck} {stake} ===");
+        Console.Write(analysis);
+        Console.WriteLine();
+    }
+    return failed == 0 ? 0 : 1;
+}
+
+async Task<int> SearchAsync(ParseResult parseResult, string filterPath, CancellationToken cancellationToken)
+{
+    if (!YamlFileLoader.TryLoad(filterPath, out var config, out var path, out var loadError))
+    {
+        Console.Error.WriteLine($"Error: {loadError}");
+        return 1;
     }
 
-    static bool TryParseSeedOptions(
-        CommandOption<string> startSeedOption,
-        CommandOption<string> stopSeedOption,
-        out string? startSeed,
-        out string? stopSeed,
-        out string? error
-    )
+    string cutoffText = parseResult.GetValue(cutoffOption) ?? "off";
+    if (!MotelyScoreCutoff.TryParse(cutoffText, out var cutoff, out var cutoffError))
     {
-        startSeed = null;
-        stopSeed = null;
-        error = null;
-
-        if (startSeedOption.HasValue())
-        {
-            if (!TryParseSeedString(startSeedOption.ParsedValue, out startSeed, out var err))
-            {
-                error = $"Error: --startSeed: {err}";
-                return false;
-            }
-        }
-        if (stopSeedOption.HasValue())
-        {
-            if (!TryParseSeedString(stopSeedOption.ParsedValue, out stopSeed, out var err))
-            {
-                error = $"Error: --stopSeed: {err}";
-                return false;
-            }
-        }
-        return true;
+        Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
+        return 1;
     }
 
-    /// <summary>Validates an 8-character seed and returns it normalized (upper-case, 0→O).</summary>
-    static bool TryParseSeedString(string input, out string? seed, out string? error)
+    JamlSearchPlan plan;
+    try
     {
-        seed = null;
-        error = null;
-        var normalized = MotelyGlobals.NormalizeSeed(input);
-        // Motely's sequential search ranges over full 8-char seeds (11111111 → ZZZZZZZZ),
-        // so --startSeed/--stopSeed must be exactly 8 chars. No padding: a short seed
-        // would silently map to a different point than the user typed.
-        if (normalized.Length != MotelyGlobals.MaxSeedLength)
-        {
-            error =
-                $"'{input}' must be exactly {MotelyGlobals.MaxSeedLength} characters (1-9, A-Z).";
-            return false;
-        }
-        foreach (char c in normalized)
-        {
-            if (!MotelyGlobals.SeedDigits.Contains(c))
-            {
-                // '0' was already normalized to 'O' above, so it can never reach here —
-                // don't tell the user "no 0" for a char that can't be 0.
-                error = $"'{input}' contains invalid character '{c}'. Valid: 1-9, A-Z.";
-                return false;
-            }
-        }
-        seed = normalized;
-        return true;
+        // A fixed floor goes into the engine, so low scores are dropped before any callback.
+        plan = MotelySearchBuilder.CreatePlan(config, cutoff.EngineCutoff);
+    }
+    catch (InvalidOperationException ex)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
     }
 
-    static void RequestTermination()
-    {
-        _cts.Cancel();
-    }
+    var deck = parseResult.GetValue(deckOption) ?? config.Deck;
+    var stake = parseResult.GetValue(stakeOption) ?? config.Stake;
+    int threads = parseResult.GetValue(threadsOption) ?? Environment.ProcessorCount;
+    int? batchCharCountGiven = parseResult.GetValue(batchCharCountOption);
+    int batchCharCount = batchCharCountGiven ?? DefaultBatchCharCount;
+    int? collect = parseResult.GetValue(collectOption);
+    bool replay = parseResult.GetValue(replayOption);
+    string? seedsArgument = parseResult.GetValue(seedsOption);
+    int? randomCount = parseResult.GetValue(randomOption);
+    string? aestheticName = parseResult.GetValue(aestheticOption);
+    string? startSeed = parseResult.GetValue(startSeedOption);
+    string? stopSeed = parseResult.GetValue(stopSeedOption);
 
-    static void OnTermination(PosixSignalContext _)
-    {
-        RequestTermination();
-    }
+    List<string> keywords = [];
+    if (parseResult.GetValue(keywordOption) is { } keyword)
+        keywords.Add(keyword);
+    if (parseResult.GetValue(keywordsOption) is { } keywordList)
+        keywords.AddRange(keywordList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-    static int Main(string[] args)
-    {
-        // .NET 10: runtime no longer provides default SIGTERM/SIGINT handlers (see
-        // https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/sigterm-signal-handler).
-        // Register handlers so Ctrl+C and termination signals cancel the search gracefully.
-        using var _sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, OnTermination);
-        using var _sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, OnTermination);
-        using var _sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, OnTermination);
-
-        Console.CancelKeyPress += (ctx, e) =>
-        {
-            e.Cancel = true;
-            RequestTermination();
-        };
-
-        var escCts = new CancellationTokenSource();
-        var escThread = new Thread(() =>
-            ConsoleKeyMonitor.Run(RequestTermination, PrintLatestProgressOnDemand, escCts.Token)
+    if (
+        !CliSearchMode.TryApplySearchMode(
+            plan.Settings.WithDeck(deck).WithStake(stake).WithThreadCount(threads),
+            new CliSearchMode.Input(
+                SeedsArgument: seedsArgument,
+                Replay: replay,
+                JamlPath: path,
+                FilterId: config.Id,
+                JamlSeeds: config.Seeds,
+                KeywordInputs: keywords,
+                // Unset padding is spelled out as the whole alphabet: that is what a bare keyword
+                // means, short ones included, and the space aesthetics default to.
+                PaddingCharsOption: parseResult.GetValue(paddingOption) ?? new string(MotelyGlobals.SeedDigits),
+                RandomCount: randomCount,
+                AestheticName: aestheticName,
+                StartBatch: parseResult.GetValue(startBatchOption),
+                EndBatch: parseResult.GetValue(endBatchOption),
+                StartPercent: parseResult.GetValue(startPercentOption),
+                StartSeed: startSeed is null ? null : MotelyGlobals.NormalizeSeed(startSeed),
+                StopSeed: stopSeed is null ? null : MotelyGlobals.NormalizeSeed(stopSeed),
+                BatchCharacterCount: batchCharCountGiven
+            ),
+            static warning => Console.Error.WriteLine(warning),
+            out var modeError,
+            out var settings
         )
-        {
-            IsBackground = true,
-            Name = "Console Key Listener",
-        };
-        escThread.Start();
+    )
+    {
+        Console.Error.WriteLine(modeError);
+        return 1;
+    }
 
-        var app = new CommandLineApplication
-        {
-            Name = "Motely",
-            Description = "Motely - Balatro Seed Searcher",
-            OptionsComparison = StringComparison.OrdinalIgnoreCase,
-        };
-        app.HelpOption("-?|-h|--help");
+    bool quiet = parseResult.GetValue(quietOption);
+    using var sink = new ConsoleResultSink(plan.TallyLabels);
+    var saved = parseResult.GetValue(saveOption) ? new MotelyTopSeedSink.Collector(int.MaxValue) : null;
 
-        var jamlOption = app.Option<string>(
-            "--jaml <PATH>",
-            "JAML config file (terse one-liners allowed)",
-            CommandOptionType.SingleValue
-        );
-        var jsonOption = app.Option<string>(
-            "--json <PATH>",
-            "JSON config file (same filter bag as JAML)",
-            CommandOptionType.SingleValue
-        );
-        var yamlOption = app.Option<string>(
-            "--yaml <PATH>",
-            "YAML 1.2 config file (same filter bag; no JAML terse lines)",
-            CommandOptionType.SingleValue
-        );
-        var analyzeOption = app.Option<string>(
-            "--analyze <SEED[,SEED...]>",
-            "Analyze one or more seeds (comma-separated) as human-readable text, using the "
-                + "legacy text-block analyzer (NOT JAMLyzer).",
-            CommandOptionType.SingleValue
-        );
-        var deckOption = app.Option<string>(
-            "--deck <NAME>",
-            "Deck name (Red, Blue, Yellow, Green, Black, Magic, Nebula, Checkered, Zodiac, Painted, Anaglyph, Plasma, Erratic)",
-            CommandOptionType.SingleValue
-        );
-        var stakeOption = app.Option<string>(
-            "--stake <STAKE>",
-            "Stake name for analysis/search (default: White)",
-            CommandOptionType.SingleValue
-        );
-        var threadsOption = app.Option<int>(
-            "--threads <N>",
-            "Thread count",
-            CommandOptionType.SingleValue
-        );
-        var batchCharCountOption = app.Option<int>(
-            "--batchCharCount <N>",
-            "Sequential default search only (1–7, default 4). Ignored for --seeds/--replay/--keyword/--random/--aesthetic.",
-            CommandOptionType.SingleValue
-        );
-        var startBatchOption = app.Option<long>(
-            "--startBatch <N>",
-            "Starting batch index",
-            CommandOptionType.SingleValue
-        );
-        var endBatchOption = app.Option<long>(
-            "--endBatch <N>",
-            "Ending batch index",
-            CommandOptionType.SingleValue
-        );
-        var startPercentOption = app.Option<double>(
-            "--startPercent <PCT>",
-            "Sequential search: start at this percent of batch space (0–100). Ignored if --startBatch is set.",
-            CommandOptionType.SingleValue
-        );
-        var startSeedOption = app.Option<string>(
-            "--startSeed <SEED>",
-            "Sequential: first seed to search (e.g. 11111111 … ZZZZZZZZ). Mutually exclusive with --startBatch/--endBatch/--startPercent.",
-            CommandOptionType.SingleValue
-        );
-        var stopSeedOption = app.Option<string>(
-            "--stopSeed <SEED>",
-            "Sequential: last seed to search (inclusive, e.g. ZZZZZZZZ). Omit for full range after --startSeed.",
-            CommandOptionType.SingleValue
-        );
-        var randomOption = app.Option<int>(
-            "--random <N>",
-            "Random seed count",
-            CommandOptionType.SingleValue
-        );
-        var aestheticOption = app.Option<string>(
-            "--aesthetic <NAME>",
-            $"Search seeds from an aesthetic provider ({MotelyAestheticParser.KnownJamlStringsDescription()}). 'all' concatenates every family in order",
-            CommandOptionType.SingleValue
-        );
-        var collectOption = app.Option<long>(
-            "--collect <N>",
-            $"Collect up to N matching seeds and stop (SIMD batches may deliver a few over). Sweeps every aesthetic first ({MotelyAestheticParser.KnownJamlStringsDescription()}), then sequential if still short. Replaces --findone (use --collect 1).",
-            CommandOptionType.SingleValue
-        );
-        var replayOption = app.Option(
-            "--replay",
-            "Replay only the seeds: block of the given --jaml file — verify what's already saved, nothing more.",
-            CommandOptionType.NoValue
-        );
-        var verifySeedsOption = app.Option(
-            "--verify-seeds",
-            "Alias for --replay.",
-            CommandOptionType.NoValue
-        );
-        var seedsOption = app.Option<string>(
-            "--seeds <LIST>",
-            "Inline comma-separated seeds",
-            CommandOptionType.SingleValue
-        );
-        var cutoffOption = app.Option<string>(
-            "--cutoff <VALUE>",
-            "Minimum score to print, 'auto' to learn one from an initial sequential sample, or 'off' to print every scored match.",
-            CommandOptionType.SingleValue
-        );
-        var cutoffSampleOption = app.Option<double>(
-            "--cutoff-sample <PCT>",
-            "With --cutoff auto on a full sequential sweep: percent of batch space to sample before selecting and replaying a fixed score floor (default: 1).",
-            CommandOptionType.SingleValue
-        );
-        var cutoffSampleBatchesOption = app.Option<long>(
-            "--cutoff-sample-batches <N>",
-            "With --cutoff auto: sample exactly N sequential batches before selecting and replaying a fixed score floor. Overrides --cutoff-sample.",
-            CommandOptionType.SingleValue
-        );
-        var cutoffTargetOption = app.Option<long>(
-            "--cutoff-target <N>",
-            "With --cutoff auto: choose the lowest score projected to print at most N matches across the full sweep (default: 1000).",
-            CommandOptionType.SingleValue
-        );
-        var keywordOption = app.Option<string>(
-            "--keyword <WORD>",
-            "Search seeds containing this keyword (pads to 8 chars with all valid chars)",
-            CommandOptionType.SingleValue
-        );
-        var keywordsOption = app.Option<string>(
-            "--keywords <WORDS>",
-            "Comma-separated keywords, each padded to 8 chars (e.g. \"OW,OH,BOOB\")",
-            CommandOptionType.SingleValue
-        );
-        var paddingOption = app.Option<string>(
-            "--padding <CHARS>",
-            "Restrict free-slot / pad chars for --keyword/--keywords and --aesthetic (e.g. \"123456789\" digits-only — words stay visible). Collect's aesthetic prepass defaults to 123456789 when this flag is omitted.",
-            CommandOptionType.SingleValue
-        );
-        var quietOption = app.Option(
-            "-q|--quiet|--no-progress",
-            "Suppress per-batch progress lines and the startup preamble on stderr (stdout results unaffected).",
-            CommandOptionType.NoValue
-        );
-        var noSaveOption = app.Option(
-            "--no-save",
-            "Leave the --jaml file untouched: don't write matches back into its top-level seeds: block (benchmarks, read-only checkouts).",
-            CommandOptionType.NoValue
-        );
-        var partyOption = app.Option<string>(
-            "--party <ID>",
-            "Join a seedfinder.app Search Party: lease block ranges, search them, report finds, until the party is settled. Uses --threads and -q; the party's JAML and leases decide everything else.",
-            CommandOptionType.SingleValue
-        );
-        var serverOption = app.Option<string>(
-            "--server <URL>",
-            "Search Party coordinator for --party (default https://www.seedfinder.app).",
-            CommandOptionType.SingleValue
-        );
-        threadsOption.DefaultValue = Environment.ProcessorCount;
-        // No DefaultValue here (unlike threadsOption above): CommandOption.HasValue() reports
-        // true forever once a DefaultValue is set, so it could never again distinguish "user
-        // typed --batchCharCount" from "didn't" — which is exactly the signal this needs to
-        // decide whether to override a JAML's saved seeds: list. Default of 4 is applied at
-        // each read site instead (DefaultBatchCharCount below).
-
-        app.OnExecuteAsync(async _ =>
-        {
-            if (args.Length == 0)
+    // A filter with no clauses has no score provider, and then finds arrive only on the
+    // seed-match channel. With a provider they arrive on both, so listen to exactly one.
+    settings = settings.SeedScoreDesc is not null
+        ? settings
+            .WithAutoScoreCutoff(cutoff.IsAuto)
+            .WithScoredResultCallback(result =>
             {
-                app.ShowHelp();
-                return 0;
-            }
-
-            if (partyOption.HasValue())
-                return await RunPartyMode(
-                    partyOption.ParsedValue,
-                    serverOption.HasValue() ? serverOption.ParsedValue : "https://www.seedfinder.app",
-                    threadsOption.ParsedValue,
-                    quietOption.HasValue()
-                );
-
-            // --analyze mode — supports single seed or comma-separated batch.
-            if (analyzeOption.HasValue())
-            {
-                var seedTokens = analyzeOption.ParsedValue.Split(
-                    ',',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                );
-
-                var analyzeDeck = deckOption.HasValue() ? deckOption.ParsedValue : "Erratic";
-                var analyzeStake = stakeOption.HasValue() ? stakeOption.ParsedValue : "White";
-
-                if (seedTokens.Length == 1)
-                    return ExecuteAnalyze(seedTokens[0], analyzeDeck, analyzeStake);
-
-                return ExecuteAnalyzeBatch(seedTokens, analyzeDeck, analyzeStake);
-            }
-
-            return await RunJamlMode();
-
-            // A local function, not a method: it captures the CommandOption objects themselves, so
-            // HasValue() keeps meaning "the user typed this" (see the DefaultValue note above).
-            // Reading values into a parameter list would quietly destroy that distinction.
-            // --jaml mode — the main path: load the filter, build the search, run the passes.
-            async Task<int> RunJamlMode()
-            {
-                int formatFlags =
-                    (jamlOption.HasValue() ? 1 : 0)
-                    + (jsonOption.HasValue() ? 1 : 0)
-                    + (yamlOption.HasValue() ? 1 : 0);
-                if (formatFlags == 0)
-                {
-                    Console.Error.WriteLine(
-                        "Error: --jaml <path>, --json <path>, or --yaml <path> required."
-                    );
-                    return 1;
-                }
-                if (formatFlags > 1)
-                {
-                    Console.Error.WriteLine("Error: pick one of --jaml, --json, --yaml.");
-                    return 1;
-                }
-
-                // One YAML loader for all three flags; JSON is read as YAML.
-                string docPath =
-                    jsonOption.HasValue() ? jsonOption.ParsedValue
-                    : yamlOption.HasValue() ? yamlOption.ParsedValue
-                    : jamlOption.ParsedValue;
-
-                if (
-                    !JamlFileLoader.TryLoadFromPath(
-                        docPath,
-                        out var config,
-                        out var loadError
-                    )
-                )
-                {
-                    Console.Error.WriteLine($"Error: {loadError}");
-                    return 1;
-                }
-
-                var deck = config.Deck;
-                var stake = config.Stake;
-                bool replay = replayOption.HasValue() || verifySeedsOption.HasValue();
-                int threads = threadsOption.HasValue()
-                    ? threadsOption.ParsedValue
-                    : Environment.ProcessorCount;
-                int batchCharCount = batchCharCountOption.HasValue()
-                    ? batchCharCountOption.ParsedValue
-                    : DefaultBatchCharCount;
-                // Only non-null when the user actually typed --batchCharCount — an explicit request
-                // for the real sequential sweep, which should override a JAML's saved seeds: list.
-                int? explicitBatchCharCount = batchCharCountOption.HasValue() ? batchCharCount : null;
-
-                // Default is auto: without --cutoff we self-tune the score gate instead of
-                // emitting every seed. An explicit integer turns auto off and pins the gate.
-                // One shared gate implementation with the TUI (MotelyScoreCutoff).
-                MotelyScoreCutoff cutoff = MotelyScoreCutoff.Auto();
-                if (cutoffOption.HasValue())
-                {
-                    if (!MotelyScoreCutoff.TryParse(cutoffOption.ParsedValue, out cutoff, out var cutoffError))
-                    {
-                        Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
-                        return 1;
-                    }
-                }
-
-                int engineCutoff = cutoff.EngineCutoff;
-                JamlSearchPlan plan;
-                try
-                {
-                    // Push fixed --cutoff into the engine so low-scoring seeds are dropped at
-                    // the scorer (no callback spam, no per-seed string concat). Auto still needs
-                    // the caller-side running-max below since the engine threshold is static.
-                    plan = MotelySearchBuilder.CreatePlan(config, engineCutoff);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Console.Error.WriteLine($"Error: {ex.Message}");
-                    return 1;
-                }
-
-                IMotelySearchSettings settings = plan
-                    .Settings.WithDeck(deck)
-                    .WithStake(stake)
-                    .WithThreadCount(threads);
-
-                if (
-                    !TryParseSeedOptions(
-                        startSeedOption,
-                        stopSeedOption,
-                        out var jStartSeed,
-                        out var jStopSeed,
-                        out var jSeedOptError
-                    )
-                )
-                {
-                    Console.Error.WriteLine(jSeedOptError);
-                    return 1;
-                }
-
-                // --collect is parsed here rather than beside the branches that consume it: the
-                // block below has to know whether this run stops after N matches or sweeps, and by
-                // the time those branches run they have already rewritten the settings.
-                long collectLimit = 0;
-                if (collectOption.HasValue())
-                {
-                    collectLimit = collectOption.ParsedValue;
-                    if (collectLimit < 1)
-                    {
-                        Console.Error.WriteLine("--collect N requires N >= 1.");
-                        return 1;
-                    }
-                }
-
-                // Naming an explicit sequential range (--startBatch/--endBatch/--startPercent/
-                // --startSeed/--stopSeed) says you want the sweep itself, so --collect skips the
-                // aesthetic pass entirely rather than answering a different question than you asked.
-                bool collectSequentialOnly =
-                    startBatchOption.HasValue()
-                    || endBatchOption.HasValue()
-                    || startPercentOption.HasValue()
-                    || startSeedOption.HasValue()
-                    || stopSeedOption.HasValue();
-
-                bool namedExplicitSeedInput =
-                    keywordOption.HasValue()
-                    || keywordsOption.HasValue()
-                    || aestheticOption.HasValue()
-                    || seedsOption.HasValue()
-                    || randomOption.HasValue()
-                    || replay;
-
-                double cutoffSamplePercent = cutoffSampleOption.HasValue()
-                    ? cutoffSampleOption.ParsedValue
-                    : 1.0;
-                if (cutoffSamplePercent <= 0 || cutoffSamplePercent > 100)
-                {
-                    Console.Error.WriteLine("--cutoff-sample must be greater than 0 and at most 100.");
-                    return 1;
-                }
-
-                long cutoffTarget = cutoffTargetOption.HasValue()
-                    ? cutoffTargetOption.ParsedValue
-                    : 1000;
-                if (cutoffTarget < 1)
-                {
-                    Console.Error.WriteLine("--cutoff-target requires N >= 1.");
-                    return 1;
-                }
-
-                if (cutoffSampleBatchesOption.HasValue() && cutoffSampleBatchesOption.ParsedValue < 1)
-                {
-                    Console.Error.WriteLine("--cutoff-sample-batches requires N >= 1.");
-                    return 1;
-                }
-
-                if (
-                    !CliSearchMode.TryApplySearchMode(
-                        settings,
-                        new CliSearchMode.Input(
-                            SeedsArgument: seedsOption.HasValue() ? seedsOption.ParsedValue : null,
-                            Replay: replay,
-                            JamlPath: docPath,
-                            FilterId: config.Id,
-                            JamlSeeds: config.Seeds,
-                            KeywordInputs: BuildKeywordInputs(keywordOption, keywordsOption),
-                            PaddingCharsOption: paddingOption.HasValue()
-                                ? paddingOption.ParsedValue
-                                : null,
-                            RandomCount: randomOption.HasValue() ? randomOption.ParsedValue : null,
-                            AestheticName: aestheticOption.HasValue()
-                                ? aestheticOption.ParsedValue
-                                : null,
-                            StartBatch: startBatchOption.HasValue()
-                                ? startBatchOption.ParsedValue
-                                : null,
-                            EndBatch: endBatchOption.HasValue() ? endBatchOption.ParsedValue : null,
-                            StartPercent: startPercentOption.HasValue()
-                                ? startPercentOption.ParsedValue
-                                : null,
-                            StartSeed: jStartSeed,
-                            StopSeed: jStopSeed,
-                            BatchCharacterCount: explicitBatchCharCount
-                        ),
-                        msg => Console.Error.WriteLine(msg),
-                        out var jamlSearchModeError,
-                        out settings
-                    )
-                )
-                {
-                    Console.Error.WriteLine(jamlSearchModeError);
-                    return 1;
-                }
-
-                bool cancelled = false;
-                IMotelySearch search;
-
-                async Task<bool> RunPass(IMotelySearch pass)
-                {
-                    try
-                    {
-                        await pass.WaitForCompletionAsync(_cts.Token);
-                        return false;
-                    }
-                    catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
-                    {
-                        return true;
-                    }
-                }
-
-                using var consoleSink = new ConsoleResultSink(plan.TallyLabels);
-                var saveSeedsCollector = new MotelyTopSeedSink.Collector(int.MaxValue);
-
-                // Always attach a progress callback so 'p' hotkey stays current;
-                // quiet mode swaps in the silent capture variant.
-                settings = settings
-                    .WithProgressCallback(
-                        quietOption.HasValue() ? CaptureProgress : WriteProgressLineToStderr
-                    )
-                    .WithAutoScoreCutoff(cutoff.IsAuto)
-                    .WithScoredResultCallback(tally =>
-                    {
-                        if (!cutoff.ShouldEmit(tally.Score))
-                            return;
-
-                        consoleSink.OnScored(in tally);
-                        saveSeedsCollector.Consider(tally.Seed, tally.Score);
-                    });
-
-                if (!quietOption.HasValue())
-                {
-                    Console.Error.WriteLine(
-                        $"Motely: {config.Name ?? docPath} | {deck} {stake} | threads={threads} | batchCharCount={batchCharCount} {(replay ? "| replay=JAML seeds: block" : "(sequential only)")}"
-                    );
-                }
-
-                if (collectLimit > 0 && collectSequentialOnly)
-                {
-                    settings = settings
-                        .WithBatchCharacterCount(batchCharCount)
-                        .WithSequentialSearch()
-                        .StopAfter(collectLimit);
-                    search = settings.Start(_cts.Token);
-                    cancelled = await RunPass(search);
-                }
-                else if (collectLimit > 0)
-                {
-                    // CliSearchMode already installed keyword / aesthetic / random / replay /
-                    // inline-seeds providers onto settings. --collect must StopAfter that
-                    // intent — stomping it with the multi-aesthetic prepass is the pigeonhole
-                    // (CUM hunt silently became "pretty seeds" and wiped operator seed lists).
-                    // JAML seeds: alone still takes the default aesthetic collect path.
-                    if (namedExplicitSeedInput)
-                    {
-                        settings = settings.StopAfter(collectLimit);
-                        search = settings.Start(_cts.Token);
-                        cancelled = await RunPass(search);
-                    }
-                    else
-                    {
-                        // Default collect: every aesthetic first (digit-pad free slots), then sequential.
-                        // Full-alphabet free slots are not a "tiny corner". Override pad with --padding.
-                        var aesthetics =
-                            aestheticOption.HasValue()
-                            && MotelyAestheticParser.TryParse(
-                                aestheticOption.ParsedValue.Trim(),
-                                out var onlyOne
-                            )
-                                ? new[] { onlyOne }
-                                : Enum.GetValues<MotelyAesthetic>();
-                        char[] collectPad = paddingOption.HasValue()
-                            ? MotelyGlobals.ParsePaddingChars(paddingOption.ParsedValue)
-                                ?? MotelyAesthetics.QuickPaddingChars
-                            : MotelyAesthetics.QuickPaddingChars;
-                        settings = settings
-                            .WithAllAesthetics(aesthetics, collectPad)
-                            .StopAfter(collectLimit);
-
-                        var aestheticPass = settings.Start(_cts.Token);
-                        cancelled = await RunPass(aestheticPass);
-
-                        long remaining = collectLimit - aestheticPass.MatchingSeeds;
-                        if (!cancelled && remaining > 0)
-                        {
-                            aestheticPass.Dispose();
-                            if (!quietOption.HasValue())
-                            {
-                                if (aestheticPass.MatchingSeeds == 0)
-                                    Console.Error.WriteLine(
-                                        "No aesthetic seed matched — falling back to the sequential sweep."
-                                    );
-                                else
-                                    Console.Error.WriteLine(
-                                        $"Collected {aestheticPass.MatchingSeeds}/{collectLimit} from aesthetics — sequential for the rest."
-                                    );
-                            }
-
-                            settings = settings
-                                .WithBatchCharacterCount(batchCharCount)
-                                .WithSequentialSearch()
-                                .StopAfter(remaining);
-                            aestheticPass = settings.Start(_cts.Token);
-                            cancelled = await RunPass(aestheticPass);
-                        }
-                        else if (!cancelled && !quietOption.HasValue())
-                        {
-                            Console.Error.WriteLine(
-                                $"Collected {aestheticPass.MatchingSeeds} from aesthetics — no sequential sweep needed."
-                            );
-                        }
-
-                        search = aestheticPass;
-                    }
-                }
-                else
-                {
-                    search = settings.Start(_cts.Token);
-                    cancelled = await RunPass(search);
-                }
-
-                using var _search = search;
-
-                cancelled |= _cts.Token.IsCancellationRequested;
-                if (!noSaveOption.HasValue())
-                {
-                    var seedsToSave = saveSeedsCollector.GetSeeds();
-
-                    if (JamlFileLoader.TrySaveSeeds(docPath, seedsToSave, out var saveError))
-                        Console.Error.WriteLine(
-                            $"Saved {seedsToSave.Count:N0} seed(s) into top-level seeds: in {docPath}"
-                        );
-                    else
-                        Console.Error.WriteLine(
-                            $"Warning: could not save seeds back into JAML: {saveError}"
-                        );
-                }
-
-                PrintSummary(search, batchCharCount, cancelled);
-                return cancelled ? 1 : 0;
-
-            }
+                if (!cutoff.ShouldEmit(result.Score))
+                    return;
+                sink.OnScored(in result);
+                saved?.Consider(result.Seed, result.Score);
+            })
+        : settings.WithSeedMatchCallback(line =>
+        {
+            sink.OnSeed(line);
+            int comma = line.IndexOf(',');
+            saved?.Consider(comma < 0 ? line : line[..comma], 0);
         });
 
-        try
+    if (!quiet)
+    {
+        int lastPercent = -1;
+        settings = settings.WithProgressCallback(progress =>
         {
-            return app.Execute(args);
-        }
-        catch (CommandParsingException ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
-        finally
-        {
-            escCts.Cancel();
-        }
+            int percent = (int)progress.PercentComplete;
+            if (percent <= Volatile.Read(ref lastPercent))
+                return;
+            Volatile.Write(ref lastPercent, percent);
+            WriteProgress(progress);
+        });
     }
 
-    // ── Summary ──
+    if (collect is { } limit)
+        settings = settings.StopAfter(limit);
 
-    static void PrintSummary(IMotelySearch search, int batchCharCount, bool cancelled)
+    if (!quiet)
     {
-        StickyProgress.Clear();
-        Console.Out.Flush();
-        Console.WriteLine();
-        Console.WriteLine(cancelled ? "STOPPED" : "COMPLETED");
-        var elapsed = TimeSpan.FromMilliseconds(search.ElapsedMs);
-        long seeds = search.TotalSeedsSearched;
-        long matches = search.MatchingSeeds;
-
-        // Three separate numbers, never divided into each other: seeds looked at, wall-clock the
-        // run took, and throughput — the sum of each thread's own seeds ÷ its own running time,
-        // so idle/waiting threads don't dilute it. A StopAfter run quit on purpose mid-batch;
-        // its seeds and rate are still real, it just also gets a "found" line.
-        if (search.StoppedOnMatchLimit)
-            Console.WriteLine($"  Found: {matches:N0} seed(s) (StopAfter; SIMD/thread overshoot ok)");
-        Console.WriteLine($"  Seeds: {seeds:N0} searched, {matches:N0} matched");
-        Console.WriteLine($"  Time:  {elapsed:hh\\:mm\\:ss\\.fff}");
-        Console.WriteLine($"  Speed: {search.SeedsPerSecond:N0} seeds/s");
-        if (search.IsSequentialBatchSearch)
-        {
-            long max = search.TotalBatchCount;
-            double pct = max > 0 ? (double)search.CompletedBatchCount * 100.0 / max : 0;
-            Console.WriteLine($"  Batch: {search.CompletedBatchCount:N0} / {max:N0} ({pct:F4}%)");
-            if (cancelled)
-            {
-                long nextBatch = search.ResumeBatchIndex;
-                Console.WriteLine($"  Resume: --startBatch {nextBatch}");
-                if (nextBatch >= 0 && nextBatch < max)
-                {
-                    string minSeedInBatch = SeedMath.BatchIndexToFirstSeed(
-                        nextBatch,
-                        batchCharCount
-                    );
-                    Console.WriteLine($"  Resume: --startSeed {minSeedInBatch}");
-                }
-            }
-        }
-    }
-
-    // ── Analyze ──
-
-    static int ExecuteAnalyze(string seed, string deckName, string stakeName) =>
-        ExecuteAnalyzeBatch([seed], deckName, stakeName);
-
-    static int ExecuteAnalyzeBatch(string[] seeds, string deckName, string stakeName)
-    {
-        if (!Enum.TryParse<MotelyDeck>(deckName, true, out var d))
-        {
-            Console.Error.WriteLine($"Error: invalid deck '{deckName}'.");
-            return 1;
-        }
-        if (!Enum.TryParse<MotelyStake>(stakeName, true, out var s))
-        {
-            Console.Error.WriteLine($"Error: invalid stake '{stakeName}'.");
-            return 1;
-        }
-
-        foreach (var rawSeed in seeds)
-        {
-            var seed = MotelyGlobals.NormalizeSeed(rawSeed);
-
-            var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, d, s));
-            if (!string.IsNullOrEmpty(analysis.Error))
-            {
-                Console.Error.WriteLine($"[ERROR] {seed}: {analysis.Error}");
-                return 1;
-            }
-
-            Console.WriteLine($"=== {seed} | {d} {s} ===");
-            Console.Write(analysis);
-            Console.WriteLine();
-        }
-
-        return 0;
-    }
-
-    // Cached latest progress so 'p' key can print on demand even under --quiet.
-    static MotelyProgress? _latestProgress;
-    static int _lastProgressPercent = -1;
-
-    static void WriteProgressLineToStderr(MotelyProgress p)
-    {
-        _latestProgress = p;
-        int pct = (int)p.PercentComplete;
-        if (pct <= _lastProgressPercent)
-            return;
-        _lastProgressPercent = pct;
-        FormatProgressToStderr(p);
-    }
-
-    static void CaptureProgress(MotelyProgress p) => _latestProgress = p;
-
-    static void PrintLatestProgressOnDemand()
-    {
-        if (_latestProgress is { } p)
-            FormatProgressToStderr(p);
-    }
-
-    static void FormatProgressToStderr(MotelyProgress p)
-    {
-        string speed = $"{p.SeedsPerMillisecond * 1000.0:N0} seeds/s";
-        string eta =
-            p.EstimatedTimeRemainingMilliseconds is long etaMs && etaMs > 0
-                ? $" | ETA {FormatEtaMs(etaMs)}"
-                : "";
-        string elapsed = TimeSpan
-            .FromMilliseconds(p.ElapsedMilliseconds)
-            .ToString(@"hh\:mm\:ss\.f");
-        StickyProgress.Update(
-            $"Progress: {p.PercentComplete:F1}% | {p.SeedsSearched:N0} searched | {p.MatchingSeeds:N0} matches | {speed}{eta} | {elapsed}"
+        string input =
+            replay ? $"replay {config.Seeds?.Count ?? 0:N0} saved seeds"
+            : seedsArgument is not null ? "listed seeds"
+            : keywords.Count > 0 ? $"keywords {string.Join(",", keywords)}"
+            : randomCount is { } random ? $"{random:N0} random seeds"
+            : aestheticName is not null ? $"aesthetic {aestheticName.Trim().ToLowerInvariant()}"
+            : $"sequential, batchCharCount {batchCharCount}";
+        Console.Error.WriteLine(
+            $"motely: {config.Name ?? path} | {deck} {stake} | threads {threads} | {input} | cutoff {cutoffText}"
+                + (collect is { } n ? $" | stop after {n:N0}" : "")
         );
     }
 
-    static string FormatEtaMs(long milliseconds)
+    using var search = settings.Start(cancellationToken);
+    bool interrupted = false;
+    try
     {
-        var rem = TimeSpan.FromMilliseconds(milliseconds);
-        return rem.TotalHours >= 24 ? rem.ToString(@"d\.hh\:mm\:ss") : rem.ToString(@"hh\:mm\:ss");
+        await search.WaitForCompletionAsync(cancellationToken);
     }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+        interrupted = true;
+    }
+
+    if (saved is not null)
+    {
+        var seeds = saved.GetSeeds();
+        if (YamlFileLoader.TrySaveSeeds(path, seeds, out var saveError))
+            Console.Error.WriteLine($"Saved {seeds.Count:N0} seed(s) into {path}");
+        else
+            Console.Error.WriteLine($"Error: could not save seeds into {path}: {saveError}");
+    }
+
+    WriteSummary(search, batchCharCount, interrupted);
+    return interrupted ? ExitInterrupted : 0;
 }
+
+static void WriteProgress(MotelyProgress progress)
+{
+    string eta = progress.EstimatedTimeRemainingMilliseconds is > 0 and var etaMs
+        ? $" | ETA {FormatDuration(TimeSpan.FromMilliseconds(etaMs))}"
+        : "";
+    StickyProgress.Update(
+        $"{progress.PercentComplete:F1}% | {progress.SeedsSearched:N0} searched | {progress.MatchingSeeds:N0} matched"
+            + $" | {progress.SeedsPerMillisecond * 1000.0:N0} seeds/s{eta}"
+            + $" | {FormatDuration(TimeSpan.FromMilliseconds(progress.ElapsedMilliseconds))}"
+    );
+}
+
+static void WriteSummary(IMotelySearch search, int batchCharCount, bool interrupted)
+{
+    StickyProgress.Clear();
+    var log = Console.Error;
+    log.WriteLine();
+    log.WriteLine(
+        interrupted ? "Interrupted."
+        : search.StoppedOnMatchLimit ? "Stopped at --collect."
+        : "Finished."
+    );
+    // Seeds, wall-clock and throughput are three separate measurements; none is derived from
+    // another (throughput sums each thread's own rate, so idle threads don't dilute it).
+    log.WriteLine($"  Seeds: {search.TotalSeedsSearched:N0} searched, {search.MatchingSeeds:N0} matched");
+    log.WriteLine($"  Time:  {FormatDuration(TimeSpan.FromMilliseconds(search.ElapsedMs))}");
+    log.WriteLine($"  Speed: {search.SeedsPerSecond:N0} seeds/s");
+
+    if (!search.IsSequentialBatchSearch)
+        return;
+    long total = search.TotalBatchCount;
+    double percent = total > 0 ? search.CompletedBatchCount * 100.0 / total : 0;
+    log.WriteLine($"  Batch: {search.CompletedBatchCount:N0} / {total:N0} ({percent:F4}%)");
+
+    long resume = search.ResumeBatchIndex;
+    if (interrupted && resume >= 0 && resume < total)
+        log.WriteLine(
+            $"  Resume: --startBatch {resume}  (or --startSeed {SeedMath.BatchIndexToFirstSeed(resume, batchCharCount)})"
+        );
+}
+
+// Past a day, minutes and seconds are noise: "3 days 4 hours".
+static string FormatDuration(TimeSpan span) =>
+    span.TotalHours >= 24
+        ? $"{span.Days} {(span.Days == 1 ? "day" : "days")} {span.Hours} {(span.Hours == 1 ? "hour" : "hours")}"
+        : span.ToString(@"hh\:mm\:ss\.f");

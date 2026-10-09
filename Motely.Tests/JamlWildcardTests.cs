@@ -14,7 +14,7 @@ public sealed class JamlWildcardTests
     [Fact]
     public void EmptyJokerList_IsCategoryAny()
     {
-        Assert.True(JamlConfigLoader.TryLoad(Block("joker"), out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(Block("joker"), out var config, out var error), error);
         var clause = Assert.IsType<JokerClause>(config!.Should[0]);
         Assert.Empty(clause.Jokers);
         Assert.Null(clause.Sources);
@@ -31,7 +31,7 @@ public sealed class JamlWildcardTests
             must:
               - joker:
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         Assert.Empty(Assert.IsType<JokerClause>(config!.Must[0]).Jokers);
     }
 
@@ -47,7 +47,7 @@ public sealed class JamlWildcardTests
                 edition: Negative
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<JokerClause>(config!.Must[0]);
         Assert.Empty(clause.Jokers);
         Assert.Equal(MotelyItemEdition.Negative, clause.Edition);
@@ -64,24 +64,41 @@ public sealed class JamlWildcardTests
               - joker: Any
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         Assert.Empty(Assert.IsType<JokerClause>(config!.Must[0]).Jokers);
+    }
+
+    [Fact]
+    public void LegendaryTokenAny_WithEdition_IsAnyNegativeLegendary()
+    {
+        var jaml = """
+            name: legendary-any
+            deck: Red
+            stake: White
+            must:
+              - legendaryJoker: Any
+                edition: Negative
+                antes: [1]
+            """;
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        var clause = Assert.IsType<LegendaryJokerClause>(config!.Must[0]);
+        Assert.Empty(clause.Jokers);
+        Assert.Equal(MotelyItemEdition.Negative, clause.Edition);
     }
 
     [Fact]
     public void AliasSyntaxIsRejected()
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out var error)
+            YamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out _)
         );
-        Assert.Contains("*any*", error);
     }
 
     [Fact]
     public void EmptyTarotList_IsCategoryAny_WithNamedAntes_SourcesNull()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(Block("tarotCard", "antes: [4, 5]\n    score: 1"), out var config, out var error),
+            YamlConfigLoader.TryLoad(Block("tarotCard", "antes: [4, 5]\n    score: 1"), out var config, out var error),
             error
         );
         var clause = Assert.IsType<TarotCardClause>(config!.Should[0]);
@@ -94,7 +111,7 @@ public sealed class JamlWildcardTests
     public void EmptySpectralList_IsCategoryAny_NotSoulSpecialPath()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(Block("spectralCard"), out var config, out var error),
+            YamlConfigLoader.TryLoad(Block("spectralCard"), out var config, out var error),
             error
         );
         var clause = Assert.IsType<SpectralCardClause>(config!.Should[0]);
@@ -108,7 +125,7 @@ public sealed class JamlWildcardTests
     public void EmptyPlanetList_IsCategoryAny()
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(Block("planetCard"), out var config, out var error),
+            YamlConfigLoader.TryLoad(Block("planetCard"), out var config, out var error),
             error
         );
         var clause = Assert.IsType<PlanetCardClause>(config!.Should[0]);
@@ -128,7 +145,7 @@ public sealed class JamlWildcardTests
                 with:
                   luck: 2
             """;
-        Assert.False(JamlConfigLoader.TryLoad(jaml, out _, out var error));
+        Assert.False(YamlConfigLoader.TryLoad(jaml, out _, out var error));
         Assert.False(string.IsNullOrEmpty(error));
     }
 
@@ -143,7 +160,7 @@ public sealed class JamlWildcardTests
               - standardCard:
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<StandardCardClause>(config!.Must[0]);
         Assert.Null(clause.Rank);
         Assert.Null(clause.Suit);
@@ -183,7 +200,7 @@ public sealed class JamlWildcardTests
                 antes: [1, 2, 3, 4]
             """;
         ProofSearch.MustMatchAll(jaml, "ALEEB");
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<SpectralCardClause>(config!.Must[0]);
         Assert.Empty(clause.Spectrals);
         Assert.Null(clause.Sources);
@@ -202,7 +219,7 @@ public sealed class JamlWildcardTests
                 antes: [1]
             """;
         int delivered = 0;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()

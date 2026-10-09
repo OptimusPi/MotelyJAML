@@ -3,7 +3,8 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-public sealed partial class BossClause : IMotelyClause, IAnteScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class BossClause: IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;

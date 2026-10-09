@@ -9,8 +9,8 @@ public static class ProofSearch
 {
     public static JamlConfig LoadOrThrow(string jaml)
     {
-        if (!JamlConfigLoader.TryLoad(jaml, out var config, out var error) || config is null)
-            throw new InvalidOperationException($"JAML load failed: {error}");
+        if (!YamlConfigLoader.TryLoad(jaml, out var config, out var error) || config is null)
+            throw new InvalidOperationException($"YAML load failed: {error}");
         return config;
     }
 

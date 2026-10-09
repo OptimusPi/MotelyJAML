@@ -167,7 +167,7 @@ public sealed class JamlSimdPackSupportTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)

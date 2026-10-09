@@ -10,7 +10,7 @@ public sealed class JAMLyzerUnitTests
         MotelyStake stake = MotelyStake.White
     )
     {
-        var config = JamlConfigLoader.FromJaml("seeds: []");
+        var config = YamlConfigLoader.FromYaml("seeds: []");
         config.Seeds.Add(seed);
         config.Deck = deck;
         config.Stake = stake;
@@ -32,7 +32,7 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void Analyze_ScopedAnteZeroEmitsAnteZeroRow()
     {
-        var config = JamlConfigLoader.FromJaml(
+        var config = YamlConfigLoader.FromYaml(
             "must:\n  - legendaryJoker: Perkeo\n    antes: [0, 1]\nseeds: [UNITTEST]"
         );
         var results = MotelyJamlyzer.Analyze(config);
@@ -245,7 +245,7 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void Analyze_MultipleSeeds_ReturnsOneResultEach()
     {
-        var config = JamlConfigLoader.FromJaml("seeds: []");
+        var config = YamlConfigLoader.FromYaml("seeds: []");
         config.Seeds.Add("UNITTEST");
         config.Seeds.Add("ALEEB");
         config.Seeds.Add("1234567");
@@ -264,7 +264,7 @@ public sealed class JAMLyzerUnitTests
 
         static JamlConfig Config(string[] seeds)
         {
-            var c = JamlConfigLoader.FromJaml("seeds: []");
+            var c = YamlConfigLoader.FromYaml("seeds: []");
             foreach (var s in seeds)
                 c.Seeds.Add(s);
             return c;
@@ -299,7 +299,7 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void Analyze_MultiSeedResume_SeedAbsentFromMapStartsFresh()
     {
-        var config = JamlConfigLoader.FromJaml("seeds: []");
+        var config = YamlConfigLoader.FromYaml("seeds: []");
         config.Seeds.Add("UNITTEST");
         config.Seeds.Add("ALEEB");
 
@@ -334,7 +334,7 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public void ComputeAntes_NoAnteClause_ReturnsZeroThroughEight()
     {
-        var config = JamlConfigLoader.FromJaml("seeds: []");
+        var config = YamlConfigLoader.FromYaml("seeds: []");
         var antes = MotelyJamlyzer.ComputeAntes(config);
         Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8], antes);
     }
@@ -443,14 +443,17 @@ public sealed class JAMLyzerUnitTests
         );
         // Checked up front, so a seedless config is no way around it.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
+            MotelyJamlyzer.Analyze(YamlConfigLoader.FromYaml("seeds: []"), eventRolls, shopSlots)
+        );
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
         );
     }
 
     [Fact]
     public void Analyze_AtTheCaps_IsAccepted()
     {
-        var config = JamlConfigLoader.FromJaml(
+        var config = YamlConfigLoader.FromYaml(
             "must:\n  - voucher: Overstock\n    antes: [1]\nseeds: [UNITTEST]"
         );
         var r = MotelyJamlyzer.Analyze(
@@ -504,7 +507,7 @@ public sealed class JAMLyzerUnitTests
     {
         var bag = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
         // Was ArgumentOutOfRangeException "Index was out of range" from config.Seeds[0].
-        Assert.Empty(MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), bag, 10));
+        Assert.Empty(MotelyJamlyzer.Analyze(YamlConfigLoader.FromYaml("seeds: []"), bag, 10));
     }
 
     /// <summary>
@@ -515,7 +518,7 @@ public sealed class JAMLyzerUnitTests
     [Fact]
     public async Task Analyze_AntesPastTheVoucherPool_FinishesWithBlank()
     {
-        var config = JamlConfigLoader.FromJaml(
+        var config = YamlConfigLoader.FromYaml(
             "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
         );
         // Off the test thread with a deadline: a regression fails here instead of hanging the run.
@@ -559,7 +562,7 @@ public sealed class JAMLyzerUnitTests
             """;
         JamlConfig Config(params string[] s)
         {
-            var c = JamlConfigLoader.FromJaml(Jaml);
+            var c = YamlConfigLoader.FromYaml(Jaml);
             c.Seeds.AddRange(s);
             return c;
         }

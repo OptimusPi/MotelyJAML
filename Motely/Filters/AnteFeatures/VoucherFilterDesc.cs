@@ -5,7 +5,8 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
-public sealed partial class VoucherClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
+[YamlDotNet.Serialization.YamlSerializable]
+public sealed partial class VoucherClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
