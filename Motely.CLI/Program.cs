@@ -31,7 +31,7 @@ using var sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, Interrupt)
 
 Option<string> yamlOption = new("--yaml")
 {
-    Description = "Filter file: .yaml, .yml or .json. A bare name also looks in Motelyfilters/.",
+    Description = "Filter file (YAML or JSON).",
 };
 Option<string> analyzeOption = new("--analyze")
 {
@@ -170,11 +170,8 @@ int Analyze(ParseResult parseResult, string seedList)
 
 async Task<int> SearchAsync(ParseResult parseResult, string filterPath, CancellationToken cancellationToken)
 {
-    if (!YamlFileLoader.TryLoad(filterPath, out var config, out var path, out var loadError))
-    {
-        Console.Error.WriteLine($"Error: {loadError}");
-        return 1;
-    }
+    var path = filterPath;
+    var config = YamlConfigLoader.FromFile(path);
 
     string cutoffText = parseResult.GetValue(cutoffOption) ?? "off";
     if (!MotelyScoreCutoff.TryParse(cutoffText, out var cutoff, out var cutoffError))
@@ -314,8 +311,11 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     if (saved is not null)
     {
         var seeds = saved.GetSeeds();
-        if (YamlFileLoader.TrySaveSeeds(path, seeds, out var saveError))
+        if (MotelyTopSeedSink.TryRewriteAndValidate(File.ReadAllText(path), seeds, out var updated, out var saveError))
+        {
+            File.WriteAllText(path, updated);
             Console.Error.WriteLine($"Saved {seeds.Count:N0} seed(s) into {path}");
+        }
         else
             Console.Error.WriteLine($"Error: could not save seeds into {path}: {saveError}");
     }
