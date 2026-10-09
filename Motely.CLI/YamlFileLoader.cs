@@ -2,11 +2,11 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Motely.CLI;
 
-/// <summary>Filter files on disk: JAML and YAML (.jaml/.yaml/.yml), and JSON, which is YAML 1.2.</summary>
+/// <summary>Filter files on disk: YAML (.yaml/.yml), and JSON, which is YAML 1.2.</summary>
 public static class YamlFileLoader
 {
     private const string FiltersDirectory = "Motelyfilters";
-    private static readonly string[] Extensions = [".jaml", ".yaml", ".yml", ".json"];
+    private static readonly string[] Extensions = [".yaml", ".yml", ".json"];
 
     /// <summary>
     /// A typed name resolves to the first file that exists: as typed, with an extension, then the
@@ -40,7 +40,7 @@ public static class YamlFileLoader
         resolved = ResolvePath(path);
         if (!Extensions.Contains(Path.GetExtension(resolved), StringComparer.OrdinalIgnoreCase))
         {
-            error = $"'{resolved}' is not a filter file (.jaml, .yaml, .yml, .json).";
+            error = $"'{resolved}' is not a YAML file (.yaml, .yml, .json).";
             resolved = null;
             return false;
         }
