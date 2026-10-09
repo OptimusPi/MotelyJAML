@@ -31,7 +31,7 @@ using var sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, Interrupt)
 
 Option<string> yamlOption = new("--yaml")
 {
-    Description = "Filter file: .yaml, .yml or .json. A bare name also looks in Motelyfilters/.",
+    Description = "Filter file: .jaml, .yaml, .yml or .json. A bare name also looks in Motelyfilters/.",
 };
 Option<string> analyzeOption = new("--analyze")
 {
