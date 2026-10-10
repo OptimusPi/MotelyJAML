@@ -88,7 +88,7 @@ Option<int?> collectOption = new("--collect")
 Option<string> cutoffOption = new("--cutoff")
 {
     Description =
-        "A score: print only seeds scoring at least that. 'auto': print each seed that ties or beats the best score so far. 'off' (default): every match prints.",
+        "A score: print only seeds scoring at least that. 'auto' (default): print each seed that ties or beats the best score so far. 'off': every match prints.",
 };
 Option<bool> saveOption = new("--save")
 {
@@ -173,7 +173,7 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     var path = filterPath;
     var config = YamlConfigLoader.FromFile(path);
 
-    string cutoffText = parseResult.GetValue(cutoffOption) ?? "off";
+    string cutoffText = parseResult.GetValue(cutoffOption) ?? "auto";
     if (!MotelyScoreCutoff.TryParse(cutoffText, out var cutoff, out var cutoffError))
     {
         Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");

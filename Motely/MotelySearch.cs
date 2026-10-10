@@ -259,7 +259,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
 
     public bool CsvOutput { get; set; } = false;
     public bool QuietMode { get; set; } = false;
-    public bool AutoScoreCutoff { get; set; } = false;
+    public bool AutoScoreCutoff { get; set; } = true;
 
     /// <summary>
     /// Stop searching once AT LEAST this many seeds have matched; 0 (the default) searches the
