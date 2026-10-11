@@ -34,6 +34,9 @@ if (!args.Contains("--http"))
 }
 
 var builder = WebApplication.CreateSlimBuilder(args);
+// Telemetry, health checks and resilience for the Aspire dashboard; OTLP export only when Aspire
+// (or anyone) sets OTEL_EXPORTER_OTLP_ENDPOINT.
+builder.AddServiceDefaults();
 var config = builder.Configuration;
 string urls = config["urls"] ?? "http://127.0.0.1:3141";
 builder.WebHost.UseUrls(urls);
@@ -86,6 +89,7 @@ var httpTools = new MotelyTools(new Searches(), allowPaths: false);
 builder.Services.AddMcpServer(Configure).WithHttpTransport(o => o.Stateless = true).WithMotely(httpTools);
 
 var app = builder.Build();
+app.MapDefaultEndpoints();
 if (authServer is not null)
 {
     app.UseAuthentication();
