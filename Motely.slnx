@@ -1,8 +1,5 @@
 <Solution>
-  <Project Path="Motely.AppHost/Motely.AppHost.csproj" />
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
-  <Project Path="Motely.MCP/Motely.MCP.csproj" />
-  <Project Path="Motely.ServiceDefaults/Motely.ServiceDefaults.csproj" />
   <Project Path="Motely/Motely.csproj" />
   <Project Path="Motely.Tests/Motely.Tests.csproj" />
 </Solution>
