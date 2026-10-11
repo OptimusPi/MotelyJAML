@@ -120,9 +120,7 @@ static class Registration
     public static IMcpServerBuilder WithMotely(this IMcpServerBuilder builder, MotelyTools tools) =>
         builder
             .WithListToolsHandler((_, _) => ValueTask.FromResult(tools.ListTools()))
-            .WithCallToolHandler((ctx, _) => ValueTask.FromResult(tools.Call(ctx.Params!)))
-            .WithListResourcesHandler((_, _) => ValueTask.FromResult(MotelyTools.ListResources()))
-            .WithReadResourceHandler((ctx, _) => ValueTask.FromResult(MotelyTools.ReadResource(ctx.Params!.Uri)));
+            .WithCallToolHandler((ctx, _) => ValueTask.FromResult(tools.Call(ctx.Params!)));
 }
 
 /// <summary>

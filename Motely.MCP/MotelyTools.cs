@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using ModelContextProtocol.Protocol;
 using Motely.Analysis;
@@ -13,11 +12,6 @@ namespace Motely.MCP;
 /// </summary>
 public sealed class MotelyTools(Searches searches, bool allowPaths)
 {
-    public const string AppUri = "ui://motely/search";
-    public const string AppMimeType = "text/html;profile=mcp-app";
-
-    private static readonly JsonObject AppMeta = new() { ["ui"] = new JsonObject { ["resourceUri"] = AppUri } };
-
     public ListToolsResult ListTools() =>
         new()
         {
@@ -55,7 +49,6 @@ public sealed class MotelyTools(Searches searches, bool allowPaths)
                         """
                     ),
                     Annotations = new() { ReadOnlyHint = false, DestructiveHint = false, IdempotentHint = false, OpenWorldHint = false },
-                    Meta = (JsonObject)AppMeta.DeepClone(),
                 },
                 new()
                 {
@@ -74,7 +67,6 @@ public sealed class MotelyTools(Searches searches, bool allowPaths)
                         """
                     ),
                     Annotations = new() { ReadOnlyHint = true, OpenWorldHint = false },
-                    Meta = (JsonObject)AppMeta.DeepClone(),
                 },
                 new()
                 {
@@ -229,36 +221,6 @@ public sealed class MotelyTools(Searches searches, bool allowPaths)
         }
         return new() { Content = [new TextContentBlock { Text = text.ToString().TrimEnd() }] };
     }
-
-    public static ListResourcesResult ListResources() =>
-        new()
-        {
-            Resources =
-            [
-                new()
-                {
-                    Uri = AppUri,
-                    Name = "motely-search",
-                    Title = "Motely search view",
-                    Description = "Live progress and best seeds of a Motely search.",
-                    MimeType = AppMimeType,
-                },
-            ],
-        };
-
-    public static ReadResourceResult ReadResource(string uri) =>
-        uri == AppUri
-            ? new() { Contents = [new TextResourceContents { Uri = AppUri, MimeType = AppMimeType, Text = AppHtml.Value }] }
-            : throw new ModelContextProtocol.McpException($"No resource '{uri}'.");
-
-    private static readonly Lazy<string> AppHtml = new(static () =>
-    {
-        using var stream =
-            typeof(MotelyTools).Assembly.GetManifestResourceStream("Motely.MCP.app.html")
-            ?? throw new InvalidOperationException("app.html is missing from the build.");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    });
 
     private static SearchSnapshot Snapshot(SearchRun run, int top)
     {

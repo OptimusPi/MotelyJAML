@@ -27,8 +27,4 @@
     <ProjectReference Include="..\Motely.ServiceDefaults\Motely.ServiceDefaults.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- The MCP App view ships inside the binary: one file on disk, nothing to lose. -->
-    <EmbeddedResource Include="app.html" LogicalName="Motely.MCP.app.html" />
-  </ItemGroup>
 </Project>
