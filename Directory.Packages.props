@@ -54,5 +54,7 @@
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <!-- Same release as Motely.AppHost's Aspire.AppHost.Sdk: mixed Aspire releases fail at startup. -->
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.1" />
   </ItemGroup>
 </Project>

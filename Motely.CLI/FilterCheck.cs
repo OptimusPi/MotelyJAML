@@ -10,9 +10,25 @@ namespace Motely.CLI;
 /// </summary>
 internal static class FilterCheck
 {
-    /// <summary>A real path (full or relative) is used as given; a bare name is YamlFilters/&lt;name&gt;.yaml.</summary>
+    /// <summary>
+    /// A real path (full or relative) is used as given; a bare name is &lt;filters&gt;/&lt;name&gt;.yaml, where
+    /// &lt;filters&gt; is MOTELY_FILTERS_DIR when set and YamlFilters/ otherwise. Aspire sets it: its
+    /// resources run in their own project directory, not the repo root.
+    /// </summary>
     public static string ResolvePath(string filter) =>
-        File.Exists(filter) ? filter : Path.Combine("YamlFilters", filter + ".yaml");
+        File.Exists(filter) ? filter : Path.Combine(FiltersDirectory, filter + ".yaml");
+
+    private static string FiltersDirectory =>
+        Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is { Length: > 0 } directory ? directory : "YamlFilters";
+
+    /// <summary>A directory stands for every .yaml/.yml file in it; anything else goes through <see cref="ResolvePath"/>.</summary>
+    private static IEnumerable<string> Expand(string filter) =>
+        Directory.Exists(filter)
+            ? Directory
+                .EnumerateFiles(filter)
+                .Where(static f => f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                .Order(StringComparer.OrdinalIgnoreCase)
+            : [ResolvePath(filter)];
 
     public static bool TryCheck(
         string text,
@@ -40,24 +56,36 @@ internal static class FilterCheck
         }
     }
 
-    /// <summary><c>motely check</c>: 0 when every file loads, 1 when any doesn't.</summary>
+    /// <summary>
+    /// <c>motely check</c>: 0 when every file loads, 1 when any doesn't. A directory checks every
+    /// filter in it, and one with none in it fails rather than passing on nothing.
+    /// </summary>
     public static int Run(IReadOnlyList<string> filters)
     {
         int failed = 0;
         foreach (var filter in filters)
         {
-            var path = ResolvePath(filter);
-            if (!File.Exists(path))
+            int checkedHere = 0;
+            foreach (var path in Expand(filter))
             {
-                Console.Error.WriteLine($"{path}: no such file");
-                failed++;
-                continue;
+                checkedHere++;
+                if (!File.Exists(path))
+                {
+                    Console.Error.WriteLine($"{path}: no such file");
+                    failed++;
+                    continue;
+                }
+                if (TryCheck(File.ReadAllText(path), out var config, out _, out var error))
+                    Console.WriteLine($"{path}: ok ({config.Name ?? "unnamed"}, {config.Deck} {config.Stake})");
+                else
+                {
+                    Console.Error.WriteLine($"{path}: {error}");
+                    failed++;
+                }
             }
-            if (TryCheck(File.ReadAllText(path), out var config, out _, out var error))
-                Console.WriteLine($"{path}: ok ({config.Name ?? "unnamed"}, {config.Deck} {config.Stake})");
-            else
+            if (checkedHere == 0)
             {
-                Console.Error.WriteLine($"{path}: {error}");
+                Console.Error.WriteLine($"{filter}: no .yaml or .yml files");
                 failed++;
             }
         }

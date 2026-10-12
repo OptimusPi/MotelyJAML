@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../Motely/Motely.csproj" />
+    <!-- AppHostModelTests reads the Aspire composition; nothing here starts it. -->
+    <ProjectReference Include="../Motely.AppHost/Motely.AppHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +22,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Verify.Xunit" />
     <PackageReference Include="Verify.DiffPlex" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
   </ItemGroup>
 
   <ItemGroup>

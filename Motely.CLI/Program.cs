@@ -11,7 +11,7 @@ using Motely.Enums;
 // Exit codes: 0 finished, 1 bad input, 130 interrupted.
 //   motely check <filters>   does each filter load? 0 yes, 1 no.
 //   motely hook              coding-agent post-edit hook: exit 2 with the error when an edited filter breaks.
-//   motely mcp               MCP server on stdin/stdout.
+//   motely mcp [--port N]    MCP server on stdin/stdout, or Streamable HTTP on localhost:N.
 
 const int DefaultBatchCharCount = CliSearchMode.DefaultBatchCharacterCount;
 const int ExitInterrupted = 130;
@@ -113,8 +113,14 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
-Command mcpCommand = new("mcp", "Serve MCP on stdin/stdout: validate_filter, search_seeds, analyze_seeds, list_names.");
-mcpCommand.SetAction((_, cancellationToken) => MotelyMcp.RunAsync(cancellationToken));
+Option<int?> mcpPortOption = new("--port")
+{
+    Description = "Serve Streamable HTTP on http://localhost:<port>/mcp instead of stdin/stdout (loopback only, no auth).",
+};
+Command mcpCommand = new("mcp", "Serve MCP: validate_filter, search_seeds, analyze_seeds, list_names.") { mcpPortOption };
+mcpCommand.SetAction(
+    (parseResult, cancellationToken) => MotelyMcp.RunAsync(parseResult.GetValue(mcpPortOption), cancellationToken)
+);
 
 RootCommand rootCommand = new("Balatro seed search.")
 {
@@ -193,8 +199,7 @@ int Analyze(ParseResult parseResult, string seedList)
 
 async Task<int> SearchAsync(ParseResult parseResult, string filterPath, CancellationToken cancellationToken)
 {
-    // A real path (full or relative) is used as given; a bare name is YamlFilters/<name>.yaml.
-    var path = File.Exists(filterPath) ? filterPath : Path.Combine("YamlFilters", filterPath + ".yaml");
+    var path = FilterCheck.ResolvePath(filterPath);
     var config = YamlConfigLoader.FromFile(path);
 
     // --cutoff wins; else the filter's root `cutoff:` is a fixed floor; else auto.
@@ -302,10 +307,28 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             saved?.Consider(comma < 0 ? line : line[..comma], 0);
         });
 
+    // Under Aspire: traces and metrics to the dashboard. Without an OTLP endpoint, nothing.
+    using var exporters = Motely.ServiceDefaults.Extensions.AddServiceDefaults(SearchTelemetry.Sources, SearchTelemetry.Sources);
+    using var telemetry = SearchTelemetry.Start(
+        config.Name ?? Path.GetFileNameWithoutExtension(path),
+        deck,
+        stake,
+        replay ? "replay"
+        : seedsArgument is not null ? "seeds"
+        : keywords.Count > 0 ? "keywords"
+        : randomCount is not null ? "random"
+        : aestheticName is not null ? "aesthetic"
+        : "sequential"
+    );
+
     // Every engine report (each 800 ms), not each whole percent: a sequential sweep can sit
-    // inside one percent for hours.
-    if (!quiet)
-        settings = settings.WithProgressCallback(WriteProgress);
+    // inside one percent for hours. The telemetry takes them under --quiet too.
+    settings = settings.WithProgressCallback(progress =>
+    {
+        telemetry.Report(progress);
+        if (!quiet)
+            WriteProgress(progress);
+    });
 
     if (collect is { } limit)
         settings = settings.StopAfter(limit);
@@ -338,10 +361,16 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     {
         interrupted = true;
     }
+    catch (Exception ex)
+    {
+        telemetry.Fail(ex);
+        throw;
+    }
     finally
     {
         keysDone.Cancel();
     }
+    telemetry.Finish(search, interrupted ? "interrupted" : search.StoppedOnMatchLimit ? "stopped" : "finished");
 
     if (saved is not null)
     {

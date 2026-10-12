@@ -10,11 +10,12 @@ using Motely.Filters;
 namespace Motely.CLI;
 
 /// <summary>
-/// <c>motely mcp</c>: the engine as an MCP server on stdin/stdout, for a coding agent on this
-/// machine. Tools are declared by hand (schemas as JSON text, raw list/call handlers): nothing is
-/// built by reflection, so the NativeAOT publish stays clean. stdout is the protocol channel, so the
-/// process's own Console.Out points at stderr for the whole session; the engine's stray prints land
-/// there instead of corrupting the stream.
+/// <c>motely mcp</c>: the engine as an MCP server for a coding agent on this machine, on
+/// stdin/stdout or, with a port, over Streamable HTTP (<see cref="McpHttp"/>). Tools are declared
+/// by hand (schemas as JSON text, raw list/call handlers): nothing is built by reflection, so the
+/// NativeAOT publish stays clean. On stdio, stdout is the protocol channel, so the process's own
+/// Console.Out points at stderr for the whole session; the engine's stray prints land there instead
+/// of corrupting the stream.
 /// </summary>
 internal static class MotelyMcp
 {
@@ -26,12 +27,33 @@ internal static class MotelyMcp
     private const int DefaultMaxSeconds = 60;
     private const int DefaultTop = 20;
 
-    public static async Task<int> RunAsync(CancellationToken cancellationToken)
+    /// <param name="port">Serve Streamable HTTP on this loopback port; null for stdin/stdout.</param>
+    public static async Task<int> RunAsync(int? port, CancellationToken cancellationToken)
     {
+        // Traces and metrics to the Aspire dashboard when it set an OTLP endpoint; nothing otherwise.
+        using var telemetry = ServiceDefaults.Extensions.AddServiceDefaults(SearchTelemetry.Sources, SearchTelemetry.Sources);
+
+        if (port is { } httpPort)
+        {
+            await McpHttp.RunAsync(httpPort, CreateOptions, cancellationToken);
+            return 0;
+        }
+
         // The transport writes to the raw stdout handle, not Console.Out.
         Console.SetOut(Console.Error);
+        var options = CreateOptions();
+        await using var transport = new StdioServerTransport(options);
+        await using var server = McpServer.Create(transport, options);
+        try
+        {
+            await server.RunAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        return 0;
+    }
 
-        var options = new McpServerOptions
+    private static McpServerOptions CreateOptions() =>
+        new()
         {
             ServerInfo = new Implementation
             {
@@ -46,16 +68,6 @@ internal static class MotelyMcp
                 CallToolHandler = CallAsync,
             },
         };
-
-        await using var transport = new StdioServerTransport(options);
-        await using var server = McpServer.Create(transport, options);
-        try
-        {
-            await server.RunAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        return 0;
-    }
 
     // Before Tools: list_names' schema enumerates these keys, and static initializers run in order.
     private static readonly Dictionary<string, Func<IReadOnlyCollection<string>>> Vocabulary = new()
@@ -299,6 +311,17 @@ internal static class MotelyMcp
             return Error(modeError.StartsWith("Error: ", StringComparison.Ordinal) ? modeError["Error: ".Length..] : modeError);
 
         var run = new SearchRun(top);
+        using var telemetry = SearchTelemetry.Start(
+            config.Name ?? Path.GetFileNameWithoutExtension(source),
+            deck,
+            stake,
+            replay ? "replay"
+            : seeds is not null ? "seeds"
+            : keywords.Length > 0 ? "keywords"
+            : random is not null ? "random"
+            : aesthetic is not null ? "aesthetic"
+            : "sequential"
+        );
         // A filter with no clauses has no score provider; then finds arrive only on the seed-match
         // channel. With one they arrive on both, so listen to exactly one (as the CLI does).
         settings = settings.SeedScoreDesc is not null
@@ -310,7 +333,13 @@ internal static class MotelyMcp
                 int comma = line.IndexOf(',');
                 run.Add(comma < 0 ? line : line[..comma], 0, []);
             });
-        settings = settings.WithProgressReportIntervalMs(1000).WithProgressCallback(run.Report);
+        settings = settings
+            .WithProgressReportIntervalMs(1000)
+            .WithProgressCallback(progress =>
+            {
+                run.Report(progress);
+                telemetry.Report(progress);
+            });
         if (stopAfter is { } limit)
             settings = settings.StopAfter(limit);
 
@@ -338,6 +367,7 @@ internal static class MotelyMcp
             reporting.Cancel();
             await reporter;
         }
+        telemetry.Finish(search, timedOut || search.StoppedOnMatchLimit ? "stopped" : "finished");
 
         string input =
             replay ? $"replay {config.Seeds?.Count ?? 0:N0} saved seeds"
