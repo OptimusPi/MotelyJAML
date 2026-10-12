@@ -9,6 +9,9 @@ using Motely.Enums;
 // motely: search a YAML filter, or analyze seeds.
 // stdout carries results only (CSV rows, or --analyze text); everything else goes to stderr.
 // Exit codes: 0 finished, 1 bad input, 130 interrupted.
+//   motely check <filters>   does each filter load? 0 yes, 1 no.
+//   motely hook              coding-agent post-edit hook: exit 2 with the error when an edited filter breaks.
+//   motely mcp               MCP server on stdin/stdout.
 
 const int DefaultBatchCharCount = CliSearchMode.DefaultBatchCharacterCount;
 const int ExitInterrupted = 130;
@@ -88,7 +91,7 @@ Option<int?> collectOption = new("--collect")
 Option<string> cutoffOption = new("--cutoff")
 {
     Description =
-        "A score: print only seeds scoring at least that. 'auto' (default): print each seed that ties or beats the best score so far. 'off': every match prints.",
+        "A score: print only seeds scoring at least that. 'auto' (default): every match prints until finds flood in, then only seeds that tie or beat the best score so far. 'off': every match prints. Overrides the filter's own root 'cutoff:' key.",
 };
 Option<bool> saveOption = new("--save")
 {
@@ -96,8 +99,28 @@ Option<bool> saveOption = new("--save")
 };
 Option<bool> quietOption = new("--quiet", "-q") { Description = "No startup line and no progress line on stderr." };
 
+Argument<string[]> checkFiltersArgument = new("filters")
+{
+    Description = "Filter files, or bare names for YamlFilters/<name>.yaml.",
+    Arity = ArgumentArity.OneOrMore,
+};
+Command checkCommand = new("check", "Check that each filter loads and builds a search plan.") { checkFiltersArgument };
+checkCommand.SetAction(parseResult => FilterCheck.Run(parseResult.GetValue(checkFiltersArgument)!));
+
+Command hookCommand = new(
+    "hook",
+    "Post-edit hook for coding agents: reads the hook event on stdin; exit 2 with the error when the edited filter no longer loads."
+);
+hookCommand.SetAction(_ => AgentHook.Run());
+
+Command mcpCommand = new("mcp", "Serve MCP on stdin/stdout: validate_filter, search_seeds, analyze_seeds, list_names.");
+mcpCommand.SetAction((_, cancellationToken) => MotelyMcp.RunAsync(cancellationToken));
+
 RootCommand rootCommand = new("Balatro seed search.")
 {
+    checkCommand,
+    hookCommand,
+    mcpCommand,
     yamlOption,
     analyzeOption,
     deckOption,
@@ -170,15 +193,28 @@ int Analyze(ParseResult parseResult, string seedList)
 
 async Task<int> SearchAsync(ParseResult parseResult, string filterPath, CancellationToken cancellationToken)
 {
-    var path = filterPath;
+    // A real path (full or relative) is used as given; a bare name is YamlFilters/<name>.yaml.
+    var path = File.Exists(filterPath) ? filterPath : Path.Combine("YamlFilters", filterPath + ".yaml");
     var config = YamlConfigLoader.FromFile(path);
 
-    string cutoffText = parseResult.GetValue(cutoffOption) ?? "auto";
-    if (!MotelyScoreCutoff.TryParse(cutoffText, out var cutoff, out var cutoffError))
+    // --cutoff wins; else the filter's root `cutoff:` is a fixed floor; else auto.
+    if (
+        !MotelyScoreCutoff.TryResolve(
+            parseResult.GetValue(cutoffOption),
+            config.Cutoff,
+            out var cutoff,
+            out var cutoffText,
+            out var cutoffError
+        )
+    )
     {
         Console.Error.WriteLine($"Error: --cutoff: {cutoffError}");
         return 1;
     }
+    if (cutoff.EngineCutoff > 0 && config.Should.Count == 0)
+        Console.Error.WriteLine(
+            $"Warning: cutoff {cutoffText} with no should: clauses — every seed scores 0, so nothing will print."
+        );
 
     JamlSearchPlan plan;
     try
@@ -249,13 +285,13 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
 
     // A filter with no clauses has no score provider, and then finds arrive only on the
     // seed-match channel. With a provider they arrive on both, so listen to exactly one.
+    // The engine applies the cutoff: a fixed floor, or auto's rate limiter (clamps to the running
+    // max only while finds flood in). Nothing re-gates here.
     settings = settings.SeedScoreDesc is not null
         ? settings
             .WithAutoScoreCutoff(cutoff.IsAuto)
             .WithScoredResultCallback(result =>
             {
-                if (!cutoff.ShouldEmit(result.Score))
-                    return;
                 sink.OnScored(in result);
                 saved?.Consider(result.Seed, result.Score);
             })
@@ -266,18 +302,10 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             saved?.Consider(comma < 0 ? line : line[..comma], 0);
         });
 
+    // Every engine report (each 800 ms), not each whole percent: a sequential sweep can sit
+    // inside one percent for hours.
     if (!quiet)
-    {
-        int lastPercent = -1;
-        settings = settings.WithProgressCallback(progress =>
-        {
-            int percent = (int)progress.PercentComplete;
-            if (percent <= Volatile.Read(ref lastPercent))
-                return;
-            Volatile.Write(ref lastPercent, percent);
-            WriteProgress(progress);
-        });
-    }
+        settings = settings.WithProgressCallback(WriteProgress);
 
     if (collect is { } limit)
         settings = settings.StopAfter(limit);
@@ -298,6 +326,9 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     }
 
     using var search = settings.Start(cancellationToken);
+    using var keysDone = new CancellationTokenSource();
+    if (!quiet && !Console.IsInputRedirected)
+        _ = Task.Run(() => WatchKeys(keysDone.Token));
     bool interrupted = false;
     try
     {
@@ -306,6 +337,10 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
     {
         interrupted = true;
+    }
+    finally
+    {
+        keysDone.Cancel();
     }
 
     if (saved is not null)
@@ -322,6 +357,21 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
 
     WriteSummary(search, batchCharCount, interrupted);
     return interrupted ? ExitInterrupted : 0;
+}
+
+/// <summary>'p' pins the current progress line into the scrollback while the search runs.</summary>
+static void WatchKeys(CancellationToken stop)
+{
+    while (!stop.IsCancellationRequested)
+    {
+        if (!Console.KeyAvailable)
+        {
+            Thread.Sleep(50);
+            continue;
+        }
+        if (Console.ReadKey(intercept: true).Key == ConsoleKey.P)
+            StickyProgress.Pin();
+    }
 }
 
 static void WriteProgress(MotelyProgress progress)

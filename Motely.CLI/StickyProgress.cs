@@ -27,17 +27,32 @@ internal static class StickyProgress
     /// </summary>
     public static void Update(string line)
     {
-        if (!IsLive)
-        {
-            Console.Error.WriteLine(line);
-            return;
-        }
-
         lock (_gate)
         {
             _current = line;
+            if (!IsLive)
+            {
+                Console.Error.WriteLine(line);
+                return;
+            }
             // Overwrite the current line in place — no newline.
             LiveWriter.Write($"\r{EraseCurrentLine}{line}");
+        }
+    }
+
+    /// <summary>
+    /// Leaves the current progress line in the scrollback ('p' key) and keeps drawing below it.
+    /// </summary>
+    public static void Pin()
+    {
+        lock (_gate)
+        {
+            if (_current.Length == 0)
+                return;
+            if (IsLive)
+                LiveWriter.Write($"\r{EraseCurrentLine}{_current}\n{_current}");
+            else
+                Console.Error.WriteLine(_current);
         }
     }
 

@@ -78,4 +78,25 @@ public class JamlLoaderKeyTests
         Assert.Contains("YAML line 4", error);
         Assert.Contains("'shopItem'", error);
     }
+
+    [Fact]
+    public void RootCutoff_LoadsAsNullableInt()
+    {
+        Assert.Equal(12, YamlConfigLoader.FromYaml("name: x\ncutoff: 12").Cutoff);
+        Assert.Equal(0, YamlConfigLoader.FromYaml("name: x\ncutoff: 0").Cutoff);
+        Assert.Null(YamlConfigLoader.FromYaml("name: x").Cutoff);
+    }
+
+    [Fact]
+    public void RootCutoff_SurvivesSeedsRewrite()
+    {
+        const string text = """
+            name: x
+            cutoff: 5
+            should:
+              - joker: any
+            """;
+        Assert.True(MotelyTopSeedSink.TryRewriteAndValidate(text, ["MOTELY77"], out var updated, out var error), error);
+        Assert.Equal(5, YamlConfigLoader.FromYaml(updated).Cutoff);
+    }
 }

@@ -31,11 +31,11 @@ public static partial class MotelyGlobals
     private static int ValidBatchCharacterCount(int batchCharacterCount) =>
         batchCharacterCount is >= 1 and < MaxSeedLength
             ? batchCharacterCount
-            : throw new ArgumentOutOfRangeException(
+            : throw MotelyErrors.Report(new ArgumentOutOfRangeException(
                 nameof(batchCharacterCount),
                 batchCharacterCount,
                 $"Batch character count must be 1-{MaxSeedLength - 1}."
-            );
+            ));
 
     private static long Pow35(int exponent)
     {
@@ -214,11 +214,11 @@ public static partial class MotelyGlobals
         if (validChars != null || string.IsNullOrEmpty(keyword) || keyword.Length > 2)
             return;
 
-        throw new ArgumentException(
+        throw MotelyErrors.Report(new ArgumentException(
             $"Keyword \"{keyword}\" has length {keyword.Length}; keywords of length 2 or less require explicit padding characters. "
                 + "Pass a non-null validChars array (e.g. from ParsePaddingChars).",
             paramName
-        );
+        ));
     }
 
     /// <summary>

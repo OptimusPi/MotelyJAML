@@ -38,6 +38,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.CommandLine" />
+    <!-- `motely mcp`: Core only (no hosting); tools are declared by hand, so NativeAOT stays clean. -->
+    <PackageReference Include="ModelContextProtocol.Core" />
   </ItemGroup>
 
   <ItemGroup>

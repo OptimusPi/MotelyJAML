@@ -38,6 +38,9 @@ public static class YamlConfigLoader
 
     public static JamlConfig FromFile(string path) => FromYaml(File.ReadAllText(path));
 
+    /// <summary>Every key that starts a clause (<c>joker</c>, <c>legendaryJoker</c>, <c>or</c>, …).</summary>
+    public static IReadOnlyCollection<string> ClauseKeys => ClauseNodeDeserializer.KeyNames;
+
     public static bool TryLoad(string text, [NotNullWhen(true)] out JamlConfig? config, out string? error)
     {
         try
@@ -118,6 +121,8 @@ internal sealed class ClauseNodeDeserializer : INodeDeserializer
         ["and"] = new(typeof(AndClause), "clauses", true),
         ["or"] = new(typeof(OrClause), "clauses", true),
     };
+
+    internal static IReadOnlyCollection<string> KeyNames => Keys.Keys;
 
     public bool Deserialize(
         IParser reader,

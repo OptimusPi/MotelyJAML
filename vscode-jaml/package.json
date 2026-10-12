@@ -1,0 +1,14 @@
+{
+  "name": "jaml-language-support",
+  "publisher": "pifreak",
+  "version": "29.0.0",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OptimusPi/MotelyJAML"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  }
+}

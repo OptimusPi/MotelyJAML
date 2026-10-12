@@ -3,6 +3,7 @@ author: pifreak
 description: Diet Cola Ante 11 with mystery charmt asg legendary jokers
 deck: Ghost
 stake: White
+cutoff: 100
 
 must:
   - tag: NegativeTag

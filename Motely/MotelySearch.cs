@@ -393,10 +393,10 @@ public sealed class MotelySearchSettings<TBaseFilter>(
                 || upper.AsSpan().IndexOfAnyExcept(MotelyGlobals.SeedDigits) >= 0
             )
             {
-                throw new ArgumentException(
+                throw MotelyErrors.Report(new ArgumentException(
                     $"Keyword '{keyword}' is not a seed fragment: keywords are 1-{MotelyGlobals.MaxSeedLength} characters of 1-9 and A-Z (Balatro seeds have no 0).",
                     nameof(keywords)
-                );
+                ));
             }
 
             // "cats" and "CATS" fold to one keyword; searching both would report every seed twice.
@@ -405,7 +405,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         }
 
         if (normalized.Count == 0)
-            throw new ArgumentException("Keyword search needs at least one keyword.", nameof(keywords));
+            throw MotelyErrors.Report(new ArgumentException("Keyword search needs at least one keyword.", nameof(keywords)));
 
         return [.. normalized];
     }
@@ -421,10 +421,10 @@ public sealed class MotelySearchSettings<TBaseFilter>(
             char c = char.ToUpperInvariant(raw);
             if (Array.IndexOf(MotelyGlobals.SeedDigits, c) < 0)
             {
-                throw new ArgumentException(
+                throw MotelyErrors.Report(new ArgumentException(
                     $"Padding character '{raw}' is not a seed character (1-9, A-Z).",
                     nameof(paddingAlphabet)
-                );
+                ));
             }
 
             // A repeated pad character would emit every padded seed once per repeat.
@@ -953,11 +953,11 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     {
         if (batchCharacterCount is < 1 or >= MotelyGlobals.MaxSeedLength)
         {
-            throw new ArgumentOutOfRangeException(
+            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
                 nameof(batchCharacterCount),
                 batchCharacterCount,
                 $"Batch character count must be 1-{MotelyGlobals.MaxSeedLength - 1}."
-            );
+            ));
         }
     }
 
@@ -979,20 +979,20 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // start near long.MaxValue overflowed start + threadIndex into a negative batch.
         if (start < 0 || start > totalBatches)
         {
-            throw new ArgumentOutOfRangeException(
+            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
                 nameof(settings.StartBatchIndex),
                 start,
                 $"Start batch must be 0-{totalBatches:N0}: a {settings.SequentialBatchCharacterCount}-character batch splits the seed space into {totalBatches:N0} batches."
-            );
+            ));
         }
 
         if (end < start)
         {
-            throw new ArgumentOutOfRangeException(
+            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
                 nameof(settings.EndBatchIndex),
                 end,
                 $"End batch (exclusive) is before start batch {start:N0}."
-            );
+            ));
         }
     }
 
@@ -1148,7 +1148,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     private void BeginSearch(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _hasStarted, 1) != 0)
-            throw new InvalidOperationException("Search has already been started.");
+            throw MotelyErrors.Report(new InvalidOperationException("Search has already been started."));
 
         // Always linked, not only for StopAfter: a worker that throws stops the others through this
         // same source (see WorkerCoordinator). Without it the faulted thread exited alone and the
