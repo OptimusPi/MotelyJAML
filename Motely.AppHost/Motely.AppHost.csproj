@@ -10,7 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The local fallback for the seed database when no Neon connection string is configured. -->
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Motely.CLI\Motely.CLI.csproj" />
+    <ProjectReference Include="..\Motely.MCP\Motely.MCP.csproj" />
   </ItemGroup>
 
 </Project>

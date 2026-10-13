@@ -6,15 +6,16 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace Motely.CLI;
+namespace Motely.MCP;
 
 /// <summary>
-/// <c>motely mcp --port N</c>: the same server over Streamable HTTP at <c>http://localhost:N/mcp</c>,
-/// for hosts that can't spawn a stdio child. Aspire proxies it to coding agents. Built on the SDK's
-/// own <see cref="StreamableHttpServerTransport"/> and the BCL's <see cref="HttpListener"/>, so the CLI
-/// still carries no ASP.NET Core. Stateless: each POST gets a fresh server, nothing outlives a
+/// <c>--port N</c>: the same server over Streamable HTTP at <c>http://localhost:N/mcp</c>, for hosts
+/// that can't spawn a stdio child. Aspire proxies it to coding agents. Built on the SDK's own
+/// <see cref="StreamableHttpServerTransport"/> and the BCL's <see cref="HttpListener"/>, so the
+/// server carries no ASP.NET Core. Stateless: each POST gets a fresh server, nothing outlives a
 /// request, and GET (the server-initiated stream) is refused, which the spec allows. Loopback only
-/// and no auth, so nothing off this machine can connect. <c>/health</c> answers 200 for health checks.
+/// and no auth: a connection from any other address gets 401, and a browser page from elsewhere
+/// (DNS rebinding) gets 403 on its Origin. <c>/health</c> answers 200 for health checks.
 /// </summary>
 internal static class McpHttp
 {
@@ -56,8 +57,12 @@ internal static class McpHttp
         try
         {
             var path = context.Request.Url?.AbsolutePath;
-            if (!IsLoopbackOrigin(context.Request.Headers["Origin"]))
-                response.StatusCode = 403; // DNS rebinding: a page elsewhere aiming a browser at localhost.
+            // The prefixes name localhost, but http.sys routes on the Host header: a request from
+            // another machine carrying "Host: localhost" would still arrive here.
+            if (!IPAddress.IsLoopback(context.Request.RemoteEndPoint.Address))
+                response.StatusCode = 401;
+            else if (!IsLoopbackOrigin(context.Request.Headers["Origin"]))
+                response.StatusCode = 403;
             else if (path == "/health")
                 await WriteAsync(response, 200, "text/plain", "Healthy");
             else if (path != "/mcp")

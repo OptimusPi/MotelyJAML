@@ -58,6 +58,8 @@ public sealed class AppHostModelTests
 
         Assert.Equal(["check", "mcp", "search"], projects);
         Assert.Contains(appHost.Resources, static r => r is ParameterResource { Name: "filter" });
+        // No Neon string in the test configuration, so this is the container branch.
+        Assert.Contains(appHost.Resources, static r => r is IResourceWithConnectionString { Name: "db" });
     }
 
     [Fact]
@@ -78,9 +80,9 @@ public sealed class AppHostModelTests
         var mcp = appHost.Resources.Single(static r => r.Name == "mcp");
 
         var args = await ArgsOf(mcp);
-        Assert.Equal(["mcp", "--port"], args.Take(2));
+        Assert.Equal("--port", args[0]);
         // The server binds the target port; the proxy in front of it owns the public one.
-        var port = Assert.IsType<EndpointReferenceExpression>(args[2]);
+        var port = Assert.IsType<EndpointReferenceExpression>(args[1]);
         Assert.Equal(EndpointProperty.TargetPort, port.Property);
         Assert.Equal("http", port.Endpoint.EndpointName);
 
@@ -92,6 +94,8 @@ public sealed class AppHostModelTests
 #pragma warning restore ASPIREMCP001
         Assert.NotNull(server);
         Assert.Equal(RepoFilters(), await EnvOf(mcp, "MOTELY_FILTERS_DIR"));
+        // The seed database reaches it the Aspire way: ConnectionStrings__db from the db resource.
+        Assert.NotNull(await EnvOf(mcp, "ConnectionStrings__db"));
     }
 
     [Fact]
@@ -104,7 +108,8 @@ public sealed class AppHostModelTests
         var args = await ArgsOf(search);
         Assert.Equal(3, args.Count);
         Assert.Equal("--yaml", args[0]);
-        Assert.Equal("filter", Assert.IsType<ParameterResource>(args[1]).Name);
+        // WithArgs keeps the builder it was given; the parameter is inside it.
+        Assert.Equal("filter", Assert.IsAssignableFrom<IResourceBuilder<ParameterResource>>(args[1]).Resource.Name);
         Assert.Equal("--quiet", args[2]);
         Assert.Equal(RepoFilters(), await EnvOf(search, "MOTELY_FILTERS_DIR"));
     }

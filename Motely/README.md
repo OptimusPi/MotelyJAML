@@ -22,7 +22,10 @@ cd Motely.Wasm && dotnet publish -c Release && node tests/smoke.mjs   # the npm 
 | Project | What it is |
 |---------|------------|
 | `Motely` | The engine and the JAML grammar. Everything else depends inward on it. |
-| `Motely.CLI` | Command-line search. |
+| `Motely.CLI` | Command-line search (NativeAOT). |
+| `Motely.MCP` | The engine as an MCP server for this machine; saves finds to Postgres (Neon). |
+| `Motely.Shared` | What the CLI and the MCP server share: filter checking, search modes, telemetry. |
+| `Motely.AppHost` | Aspire: the database, `check`, `mcp` and `search` behind one dashboard. |
 | `Motely.Wasm` | `motely-wasm` on npm: the engine in the browser or node via Bootsharp. |
 | `Motely.Tests` | The xunit suite. |
 

@@ -6,26 +6,33 @@ using ModelContextProtocol.Server;
 using Motely.Analysis;
 using Motely.Enums;
 using Motely.Filters;
+using Motely.Shared;
+using Npgsql;
 
-namespace Motely.CLI;
+namespace Motely.MCP;
 
 /// <summary>
-/// <c>motely mcp</c>: the engine as an MCP server for a coding agent on this machine, on
-/// stdin/stdout or, with a port, over Streamable HTTP (<see cref="McpHttp"/>). Tools are declared
-/// by hand (schemas as JSON text, raw list/call handlers): nothing is built by reflection, so the
-/// NativeAOT publish stays clean. On stdio, stdout is the protocol channel, so the process's own
-/// Console.Out points at stderr for the whole session; the engine's stray prints land there instead
-/// of corrupting the stream.
+/// The engine as an MCP server for a coding agent on this machine, on stdin/stdout or, with a port,
+/// over Streamable HTTP (<see cref="McpHttp"/>). Tools are declared by hand (schemas as JSON text,
+/// raw list/call handlers): nothing is built by reflection. On stdio, stdout is the protocol
+/// channel, so the process's own Console.Out points at stderr for the whole session; the engine's
+/// stray prints land there instead of corrupting the stream. With a database (<see cref="MotelyDb"/>)
+/// every search's best seeds are kept and can be read back.
 /// </summary>
 internal static class MotelyMcp
 {
     private const string Instructions =
         "Motely searches Balatro seeds with JAML filters: YAML with name, deck, stake and must/should/mustNot clause lists. "
         + "Call validate_filter after every edit to a filter, list_names for the exact names the engine accepts, "
-        + "search_seeds to run a bounded search and get the best seeds back, analyze_seeds to see seeds ante by ante.";
+        + "search_seeds to run a bounded search and get the best seeds back, analyze_seeds to see seeds ante by ante. "
+        + "With the seed database on, every search_seeds result is saved: list_filters shows what has been run and "
+        + "saved_seeds returns a filter's best seeds so far.";
 
     private const int DefaultMaxSeconds = 60;
     private const int DefaultTop = 20;
+
+    /// <summary>The seed database, or null when none is configured.</summary>
+    private static MotelyDb? Db;
 
     /// <param name="port">Serve Streamable HTTP on this loopback port; null for stdin/stdout.</param>
     public static async Task<int> RunAsync(int? port, CancellationToken cancellationToken)
@@ -33,6 +40,25 @@ internal static class MotelyMcp
         // Traces and metrics to the Aspire dashboard when it set an OTLP endpoint; nothing otherwise.
         using var telemetry = ServiceDefaults.Extensions.AddServiceDefaults(SearchTelemetry.Sources, SearchTelemetry.Sources);
 
+        Db = MotelyDb.FromEnvironment();
+        if (Db is { } db)
+        {
+            try
+            {
+                int applied = await db.MigrateAsync(cancellationToken);
+                Console.Error.WriteLine($"motely mcp: database ready ({applied} migration(s) applied)");
+            }
+            catch (Exception ex) when (ex is NpgsqlException or TimeoutException or ArgumentException)
+            {
+                // Loud on purpose: a wrong Neon string should fail the resource, not run a server that silently keeps nothing.
+                Console.Error.WriteLine($"motely mcp: the seed database is unreachable: {ex.Message}");
+                return 1;
+            }
+        }
+        else
+            Console.Error.WriteLine("motely mcp: no ConnectionStrings__db; finds are not saved");
+
+        await using var _ = Db;
         if (port is { } httpPort)
         {
             await McpHttp.RunAsync(httpPort, CreateOptions, cancellationToken);
@@ -125,7 +151,8 @@ internal static class MotelyMcp
                 "Run a filter over seeds and return the best ones as CSV (seed, score, one column per should clause). "
                 + "Pick at most one input: seeds, replay, keywords, random or aesthetic; with none, it sweeps the whole "
                 + "keyspace in order (startBatch/endBatch or startSeed/stopSeed narrow it). Stops at stopAfter matches, "
-                + "after maxSeconds, or when the input runs out; a sequential sweep that stops early says where to resume.",
+                + "after maxSeconds, or when the input runs out; a sequential sweep that stops early says where to resume. "
+                + "With the seed database on, the returned seeds are saved under the filter's slug.",
             InputSchema = Schema(
                 $$"""
                 {
@@ -155,7 +182,41 @@ internal static class MotelyMcp
                 }
                 """
             ),
-            Annotations = new() { ReadOnlyHint = true, OpenWorldHint = false },
+            Annotations = new() { ReadOnlyHint = false, OpenWorldHint = false },
+        },
+        new()
+        {
+            Name = "saved_seeds",
+            Title = "A filter's saved seeds",
+            Description =
+                "The best seeds the database holds for one filter, as CSV (seed, score, tallies as JSON, when it was found). "
+                + "Filters are named by slug; list_filters shows them.",
+            InputSchema = Schema(
+                $$"""
+                {
+                  "type": "object",
+                  "properties": {
+                    "filter": { "type": "string", "description": "The filter's slug, as list_filters shows it." },
+                    "top": { "type": "integer", "minimum": 1, "maximum": 200, "default": {{DefaultTop}}, "description": "How many seeds to return." }
+                  },
+                  "required": ["filter"],
+                  "additionalProperties": false
+                }
+                """
+            ),
+            Annotations = new() { ReadOnlyHint = true, IdempotentHint = true, OpenWorldHint = false },
+        },
+        new()
+        {
+            Name = "list_filters",
+            Title = "Filters with saved seeds",
+            Description = "Every filter the database holds: slug, name, how many seeds, when it last ran.",
+            InputSchema = Schema(
+                """
+                { "type": "object", "properties": {}, "additionalProperties": false }
+                """
+            ),
+            Annotations = new() { ReadOnlyHint = true, IdempotentHint = true, OpenWorldHint = false },
         },
         new()
         {
@@ -216,6 +277,8 @@ internal static class MotelyMcp
             {
                 "validate_filter" => Validate(args),
                 "search_seeds" => await SearchAsync(args, request, cancellationToken),
+                "saved_seeds" => await SavedSeedsAsync(args, cancellationToken),
+                "list_filters" => await ListFiltersAsync(cancellationToken),
                 "analyze_seeds" => Analyze(args),
                 _ => ListNames(args),
             };
@@ -223,6 +286,10 @@ internal static class MotelyMcp
         catch (ToolError ex)
         {
             return Error(ex.Message);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or TimeoutException)
+        {
+            return Error($"Database: {ex.Message}");
         }
     }
 
@@ -404,6 +471,29 @@ internal static class MotelyMcp
 
         if (search.IsSequentialBatchSearch && search.ResumeBatchIndex is >= 0 and var resume && resume < search.TotalBatchCount)
             output.AppendLine($"Resume with startBatch {resume}.");
+
+        // The seeds go to the database after the search, never on its hot path. A save that fails
+        // is reported with the results, not instead of them.
+        if (Db is { } db && best.Length > 0)
+        {
+            var slug = MotelyDb.Slug(config, source);
+            try
+            {
+                await db.SaveFindsAsync(
+                    slug,
+                    config.Name,
+                    text,
+                    plan.TallyLabels,
+                    best.Select(static f => (f.Seed, f.Score, f.Tallies)),
+                    cancellationToken
+                );
+                output.AppendLine($"Saved {best.Length:N0} seed(s) to the database under filter '{slug}'.");
+            }
+            catch (Exception ex) when (ex is NpgsqlException or TimeoutException)
+            {
+                output.AppendLine($"Database save failed: {ex.Message}");
+            }
+        }
         return Text(output.ToString().TrimEnd());
     }
 
@@ -435,6 +525,35 @@ internal static class MotelyMcp
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+    }
+
+    private static async Task<CallToolResult> SavedSeedsAsync(Args args, CancellationToken cancellationToken)
+    {
+        if (Db is not { } db)
+            return Error("No seed database is configured (ConnectionStrings__db).");
+        var slug = args.String("filter") ?? throw new ToolError("filter is required.");
+        int top = args.Int("top", max: 200) ?? DefaultTop;
+
+        var rows = await db.BestSeedsAsync(slug, top, cancellationToken);
+        if (rows.Count == 0)
+            return Error($"No saved seeds for filter '{slug}'. list_filters shows the slugs the database holds.");
+        var output = new StringBuilder("seed,score,tallies,found_at\n");
+        foreach (var row in rows)
+            output.AppendLine($"{row.Seed},{row.Score},{row.Tallies},{row.FoundAt:u}");
+        return Text(output.ToString().TrimEnd());
+    }
+
+    private static async Task<CallToolResult> ListFiltersAsync(CancellationToken cancellationToken)
+    {
+        if (Db is not { } db)
+            return Error("No seed database is configured (ConnectionStrings__db).");
+        var rows = await db.FiltersAsync(cancellationToken);
+        if (rows.Count == 0)
+            return Text("The database holds no filters yet; search_seeds saves its finds.");
+        var output = new StringBuilder("slug,name,seeds,updated_at\n");
+        foreach (var row in rows)
+            output.AppendLine($"{row.Slug},{row.Name ?? ""},{row.Seeds},{row.UpdatedAt:u}");
+        return Text(output.ToString().TrimEnd());
     }
 
     private static CallToolResult Analyze(Args args)

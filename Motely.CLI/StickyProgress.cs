@@ -16,6 +16,7 @@ internal static class StickyProgress
 
     private static readonly object _gate = new();
     private static string _current = "";
+    private static bool _closed;
     private static readonly TextWriter LiveWriter = Console.Out;
 
     /// <summary>True when sticky mode is active (both streams are live TTYs).</summary>
@@ -29,6 +30,9 @@ internal static class StickyProgress
     {
         lock (_gate)
         {
+            // The engine's last report can land after the summary; it stays off the screen.
+            if (_closed)
+                return;
             _current = line;
             if (!IsLive)
             {
@@ -82,12 +86,12 @@ internal static class StickyProgress
     /// </summary>
     public static void Clear()
     {
-        if (!IsLive)
-            return;
         lock (_gate)
         {
+            _closed = true;
             _current = "";
-            LiveWriter.Write($"\r{EraseCurrentLine}");
+            if (IsLive)
+                LiveWriter.Write($"\r{EraseCurrentLine}");
         }
     }
 }

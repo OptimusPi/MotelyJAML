@@ -11,7 +11,7 @@ using Motely.Enums;
 // Exit codes: 0 finished, 1 bad input, 130 interrupted.
 //   motely check <filters>   does each filter load? 0 yes, 1 no.
 //   motely hook              coding-agent post-edit hook: exit 2 with the error when an edited filter breaks.
-//   motely mcp [--port N]    MCP server on stdin/stdout, or Streamable HTTP on localhost:N.
+// The MCP server is its own program: Motely.MCP.
 
 const int DefaultBatchCharCount = CliSearchMode.DefaultBatchCharacterCount;
 const int ExitInterrupted = 130;
@@ -113,20 +113,10 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
-Option<int?> mcpPortOption = new("--port")
-{
-    Description = "Serve Streamable HTTP on http://localhost:<port>/mcp instead of stdin/stdout (loopback only, no auth).",
-};
-Command mcpCommand = new("mcp", "Serve MCP: validate_filter, search_seeds, analyze_seeds, list_names.") { mcpPortOption };
-mcpCommand.SetAction(
-    (parseResult, cancellationToken) => MotelyMcp.RunAsync(parseResult.GetValue(mcpPortOption), cancellationToken)
-);
-
 RootCommand rootCommand = new("Balatro seed search.")
 {
     checkCommand,
     hookCommand,
-    mcpCommand,
     yamlOption,
     analyzeOption,
     deckOption,
@@ -200,6 +190,11 @@ int Analyze(ParseResult parseResult, string seedList)
 async Task<int> SearchAsync(ParseResult parseResult, string filterPath, CancellationToken cancellationToken)
 {
     var path = FilterCheck.ResolvePath(filterPath);
+    if (!File.Exists(path))
+    {
+        Console.Error.WriteLine($"Error: no filter file at {Path.GetFullPath(path)}.");
+        return 1;
+    }
     var config = YamlConfigLoader.FromFile(path);
 
     // --cutoff wins; else the filter's root `cutoff:` is a fixed floor; else auto.

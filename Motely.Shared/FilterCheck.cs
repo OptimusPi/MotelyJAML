@@ -1,14 +1,14 @@
 using System.Diagnostics.CodeAnalysis;
 using Motely.Filters;
 
-namespace Motely.CLI;
+namespace Motely.Shared;
 
 /// <summary>
 /// The one filter check behind every front door (<c>motely check</c>, the agent hook, the MCP
 /// <c>validate_filter</c> tool): the loader's verdict first, then the search plan's, because some
 /// mistakes only surface when the plan is built.
 /// </summary>
-internal static class FilterCheck
+public static class FilterCheck
 {
     /// <summary>
     /// A real path (full or relative) is used as given; a bare name is &lt;filters&gt;/&lt;name&gt;.yaml, where

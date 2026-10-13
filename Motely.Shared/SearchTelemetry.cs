@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Motely.Enums;
 
-namespace Motely.CLI;
+namespace Motely.Shared;
 
 /// <summary>
 /// One search as OpenTelemetry signals: a <c>motely.search</c> span from start to finish, counters
@@ -11,7 +11,7 @@ namespace Motely.CLI;
 /// progress reports the CLI prints. Under Aspire they land on the dashboard; with nothing listening
 /// (no OTLP endpoint) every call is a no-op.
 /// </summary>
-internal sealed class SearchTelemetry : IDisposable
+public sealed class SearchTelemetry : IDisposable
 {
     public const string Name = "Motely";
 

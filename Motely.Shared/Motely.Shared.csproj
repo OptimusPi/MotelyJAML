@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- What Motely.CLI and Motely.MCP share: filter checking, search-mode wiring, the aesthetic
+       names and the search telemetry. The CLI publishes with NativeAOT, so this stays AOT-clean. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Motely\Motely.csproj" />
+  </ItemGroup>
+
+</Project>

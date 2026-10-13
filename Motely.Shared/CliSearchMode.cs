@@ -3,12 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 using Motely.Filters;
 using Motely.SeedProviders;
 
-namespace Motely.CLI;
+namespace Motely.Shared;
 
 /// <summary>
 /// Shared CLI wiring for list / keyword / random / aesthetic / sequential search modes (native + JAML).
 /// </summary>
-internal static class CliSearchMode
+public static class CliSearchMode
 {
     public readonly record struct Input(
         string? SeedsArgument,
@@ -29,7 +29,7 @@ internal static class CliSearchMode
     );
 
     /// <summary>Default batch character count when the caller didn't pass one explicitly.</summary>
-    internal const int DefaultBatchCharacterCount = 3;
+    public const int DefaultBatchCharacterCount = 3;
 
     /// <summary>What <see cref="TryNormalizeSeed"/> accepts, for error messages.</summary>
     public const string SeedRule = "1-8 characters of 1-9, A-Z";

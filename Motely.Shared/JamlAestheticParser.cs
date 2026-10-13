@@ -1,6 +1,6 @@
 using Motely.SeedProviders;
 
-namespace Motely.CLI;
+namespace Motely.Shared;
 
 /// <summary>
 /// Parses the CLI <c>--aesthetic</c> string into a <see cref="MotelyAesthetic"/>.
