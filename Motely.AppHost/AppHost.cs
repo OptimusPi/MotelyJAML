@@ -67,4 +67,6 @@ builder
     .WithEnvironment("MOTELY_FILTERS_DIR", filters)
     .WithExplicitStart();
 
+builder.AddViteApp("web", "../Motely.Web");
+
 builder.Build().Run();

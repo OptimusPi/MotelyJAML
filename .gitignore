@@ -42,6 +42,7 @@ pnpm-debug.log*
 # Root .npmrc often holds secrets; Motely.Wasm/.npmrc is token-via-${RNV} and is tracked.
 .npmrc
 !Motely.Wasm/.npmrc
+!Motely.Web/.npmrc
 /vscode-jaml/out/
 /vscode-jaml/server/
 /vscode-jaml/*.vsix

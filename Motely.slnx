@@ -1,4 +1,11 @@
 <Solution>
+  <Folder Name="/Motely.Web/">
+    <File Path="Motely.Web/package.json" />
+    <File Path="Motely.Web/vite.config.ts" />
+    <File Path="Motely.Web/src/App.tsx" />
+    <File Path="Motely.Web/src/FilterFolder.tsx" />
+    <File Path="Motely.Web/src/main.tsx" />
+  </Folder>
   <Project Path="Motely.AppHost/Motely.AppHost.csproj" />
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
   <Project Path="Motely.MCP/Motely.MCP.csproj" />

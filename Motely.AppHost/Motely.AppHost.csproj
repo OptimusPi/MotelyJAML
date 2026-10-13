@@ -15,6 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Motely.Web: the Vite dev server, served by Aspire. -->
+    <PackageReference Include="Aspire.Hosting.JavaScript" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Motely.CLI\Motely.CLI.csproj" />
     <ProjectReference Include="..\Motely.MCP\Motely.MCP.csproj" />
   </ItemGroup>
