@@ -5,14 +5,14 @@
   "description": "The Motely seed lab: jaml-ui's SeedLab on motely-wasm, served by Aspire.",
   "type": "module",
   "scripts": {
-    "dev": "vite --host --port ${PORT:-5173}",
+    "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@rewaffle/bootsharp-file-system": "latest",
-    "jaml-ui": "^8.1.0",
+    "@rewaffle/bootsharp-file-system": "2026.5.201827",
+    "jaml-ui": "^9.0.0",
     "motely-wasm": "file:../Motely.Wasm",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
