@@ -53,9 +53,9 @@ public static class JamlValidator
             Fail("label names a CSV column, so it cannot hold a comma or a line break.");
 
         if (clause is IAnteScopedClause scoped)
-            CheckIndices(at, "antes", scoped.Antes, MotelyGlobals.MaxAnte, errors);
+            CheckIndices(at, "antes", scoped.Antes, MotelyGlobals.MaxAnte, "the last ante", errors);
         if (clause is IRollScopedClause rolled)
-            CheckIndices(at, "rolls", rolled.Rolls, int.MaxValue, errors);
+            CheckIndices(at, "rolls", rolled.Rolls, MotelyGlobals.MaxRollIndex, "the last roll", errors);
 
         switch (clause)
         {
@@ -77,7 +77,7 @@ public static class JamlValidator
         }
     }
 
-    private static void CheckIndices(string at, string name, int[] values, int max, List<string> errors)
+    private static void CheckIndices(string at, string name, int[] values, int max, string maxName, List<string> errors)
     {
         if (values.Length == 0)
         {
@@ -89,7 +89,7 @@ public static class JamlValidator
             if (value < 0)
                 errors.Add($"{at}: {name} {value} is negative.");
             else if (value > max)
-                errors.Add($"{at}: {name} {value} is past the last ante, {max}.");
+                errors.Add($"{at}: {name} {value} is past {maxName}, {max}.");
         }
         if (values.Distinct().Count() != values.Length)
             errors.Add($"{at}: {name} lists an index twice.");

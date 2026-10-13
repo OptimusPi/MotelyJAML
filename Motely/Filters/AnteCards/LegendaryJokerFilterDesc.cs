@@ -108,7 +108,7 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
             // Pure SIMD additional-filter link only. Never SearchIndividualSeeds here —
             // pack/Soul/face exact law runs last in JamlShouldScoreDesc must re-eval.
             //
-            // Slice 1: soul edition stream (when edition: is set). Negative ~0.3% — kills almost
+            // Stage 1: soul edition stream (when edition: is set). Negative ~0.3% — rejects almost
             // every lane before score. No edition → all valid lanes; scoring does the full walk.
             // Do not prefilter soul face before packs (order-dependent; see LegendarySoulMatcher).
             uint laneMask = 0;

@@ -239,6 +239,10 @@ public static class Names
     public static string? Member(MemberInfo info, string @default) =>
         info switch
         {
+            // Blocks the calling thread until the search ends; in the browser that thread is the
+            // one the search pump runs on, so it would hang the page. JS awaits waitForCompletionAsync.
+            MethodInfo { Name: nameof(IMotelySearch.AwaitCompletion) } m
+                when m.DeclaringType == typeof(IMotelySearch) => null,
             MethodInfo m when !CanCross(m) => null,
             PropertyInfo p when !CanCross(p.PropertyType) => null,
             EventInfo e when e.EventHandlerType is { } h && !CanCross(h) => null,

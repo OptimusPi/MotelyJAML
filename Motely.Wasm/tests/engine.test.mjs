@@ -1,5 +1,5 @@
 // The engine's own API through the published package, under Node.
-// Usage: node --test tests/   (after `dotnet publish -c Release` in Motely.Wasm)
+// Usage: npm test   (after `dotnet publish -c Release` in Motely.Wasm)
 import test from "node:test";
 import assert from "node:assert/strict";
 import bootsharp, {
@@ -81,6 +81,26 @@ test("cancelling stops an open-ended sweep", async () => {
   assert.ok(search.totalSeedsSearched < 35n ** 8n, "cancel stops the sweep");
 });
 
+test("a search can be disposed, and has no blocking wait", async () => {
+  const progress = [];
+  const search = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+    .withThreadCount(1)
+    .withQuietMode(true)
+    .withSequentialSearch()
+    .withBatchCharacterCount(2)
+    .withProgressReportIntervalMs(0n)
+    .withProgressCallback((p) => progress.push(p.percentComplete))
+    .start();
+  assert.equal(typeof search.dispose, "function");
+  assert.equal(search.awaitCompletion, undefined, "a blocking wait would hang the page");
+  const done = search.waitForCompletionAsync();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  search.dispose();
+  await done;
+  assert.ok(search.totalSeedsSearched < 35n ** 8n, "dispose stops the sweep");
+  for (const pct of progress) assert.ok(pct >= 0 && pct <= 100, `percentComplete is 0-100, got ${pct}`);
+});
+
 test("the filter's own cutoff is the floor unless the host gives one", async () => {
   const scored = "name: s\ncutoff: 1000\nmust:\n  - voucher: Telescope\n    antes: [1]\nshould:\n  - voucher: Telescope\n    antes: [1]\n";
   const config = JamlConfigLoader.fromJaml(scored);
@@ -89,7 +109,7 @@ test("the filter's own cutoff is the floor unless the host gives one", async () 
   const own = JamlSearchBuilder.createSettings(config)
     .withThreadCount(1)
     .withQuietMode(true)
-    .withSeedList(["ALEEB"])
+    .withSeedList(["P1111111"])
     .withScoredResultCallback((r) => withOwn.push(r.seed))
     .start();
   await own.waitForCompletionAsync();
@@ -99,11 +119,11 @@ test("the filter's own cutoff is the floor unless the host gives one", async () 
   const host = JamlSearchBuilder.createSettings(config, -2147483648)
     .withThreadCount(1)
     .withQuietMode(true)
-    .withSeedList(["ALEEB"])
+    .withSeedList(["P1111111"])
     .withScoredResultCallback((r) => withHost.push(r.seed))
     .start();
   await host.waitForCompletionAsync();
-  assert.deepEqual(withHost, ["ALEEB"], "no floor reports the seed");
+  assert.deepEqual(withHost, ["P1111111"], "no floor reports the seed");
 });
 
 test("a rejected setting and a rejected range say why", () => {

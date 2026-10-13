@@ -361,10 +361,8 @@ public sealed class JAMLyzerUnitTests
     }
 
     /// <summary>
-    /// Shop depth is its own dial. It used to ride <c>eventRolls</c> behind a
-    /// <c>!= 20</c> guard, which made 20 a dead value -- asking for exactly 20 shop slots
-    /// silently returned the ante-1 default of 15 -- and made a deep shop allocate an equally
-    /// deep array for all eighteen pull and shop-source queues.
+    /// Shop depth is its own dial, independent of <c>eventRolls</c>: exactly 20 shop slots
+    /// gives 20, and a deep shop does not deepen the pull and shop-source queues.
     /// </summary>
     [Fact]
     public void Analyze_ShopSlots_IsIndependentOfEventRolls()
@@ -436,8 +434,7 @@ public sealed class JAMLyzerUnitTests
     [InlineData(20, int.MaxValue)]
     public void Analyze_OutOfRangeWindow_ThrowsArgumentOutOfRange(int eventRolls, int shopSlots)
     {
-        // These used to surface as OverflowException / OutOfMemoryException from an array
-        // allocation, or walk for minutes. JS can pass anything; the call must say what is wrong.
+        // JS can pass anything; the call must say what is wrong.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
         );
@@ -521,7 +518,7 @@ public sealed class JAMLyzerUnitTests
         var config = YamlConfigLoader.FromYaml(
             "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
         );
-        // Off the test thread with a deadline: a regression fails here instead of hanging the run.
+        // Off the test thread with a deadline: a hang fails here instead of stalling the run.
         var result = await Task.Run(() => MotelyJamlyzer.Analyze(config, eventRolls: 3)[0])
             .WaitAsync(TimeSpan.FromSeconds(60));
 

@@ -1570,30 +1570,17 @@ public static class ClauseScoring
                 + CountLegendaryJokerOccurrences(ref ctx, legendaryWildcard, runState);
         }
 
-        var jokers = clause.Jokers;
-        var nonLegendary = jokers
-            .Where(static j =>
-                ((MotelyJokerRarity)((int)j & MotelyGlobals.JokerRarityMask))
-                != MotelyJokerRarity.Legendary
-            )
-            .ToArray();
-
-        var legendary = jokers
-            .Where(static j =>
-                ((MotelyJokerRarity)((int)j & MotelyGlobals.JokerRarityMask))
-                == MotelyJokerRarity.Legendary
-            )
-            .ToArray();
+        var (nonLegendaryTypes, legendary) = SplitByRarity(clause.Jokers);
 
         int count = 0;
 
-        if (nonLegendary.Length > 0)
+        if (nonLegendaryTypes.Length > 0)
         {
-            count += CountJokerOccurrencesGeneric(
+            count += CountJokerOccurrencesOfTypes(
                 ref ctx,
                 clause.Antes,
                 sources,
-                nonLegendary,
+                nonLegendaryTypes,
                 clause.Edition,
                 clause.Stickers,
                 runState
@@ -1620,6 +1607,50 @@ public static class ClauseScoring
         return count;
     }
 
+    /// <summary>
+    /// A clause's joker list as item types, mapped once per array rather than once per seed
+    /// (the mapping goes through the enum names). Keyed on the clause's own array instance, so a
+    /// host that assigns a new <c>Jokers</c> array gets a fresh mapping.
+    /// </summary>
+    private static class JokerItemTypes<TJoker>
+        where TJoker : struct, Enum
+    {
+        private static readonly ConditionalWeakTable<TJoker[], MotelyItemType[]> Cache = new();
+
+        public static MotelyItemType[] Of(TJoker[] jokers) => Cache.GetValue(jokers, Map);
+
+        private static MotelyItemType[] Map(TJoker[] jokers)
+        {
+            var types = new MotelyItemType[jokers.Length];
+            for (int i = 0; i < jokers.Length; i++)
+                types[i] = Enum.Parse<MotelyItemType>(jokers[i].ToString(), true);
+            return types;
+        }
+    }
+
+    /// <summary>A <see cref="JokerClause"/>'s list split by rarity, once per array: legendaries are
+    /// counted through the soul path, the rest through shop and buffoon packs.</summary>
+    private sealed record JokerRaritySplit(MotelyItemType[] NonLegendaryTypes, MotelyJoker[] Legendary);
+
+    private static readonly ConditionalWeakTable<MotelyJoker[], JokerRaritySplit> JokerSplits = new();
+
+    private static JokerRaritySplit SplitByRarity(MotelyJoker[] jokers) =>
+        JokerSplits.GetValue(
+            jokers,
+            static all =>
+            {
+                static bool IsLegendary(MotelyJoker j) =>
+                    ((MotelyJokerRarity)((int)j & MotelyGlobals.JokerRarityMask))
+                    == MotelyJokerRarity.Legendary;
+
+                MotelyJoker[] nonLegendary = Array.FindAll(all, static j => !IsLegendary(j));
+                return new(
+                    JokerItemTypes<MotelyJoker>.Of(nonLegendary),
+                    Array.FindAll(all, IsLegendary)
+                );
+            }
+        );
+
     private static int CountJokerOccurrencesGeneric<TJoker>(
         ref MotelySingleSearchContext ctx,
         int[] antes,
@@ -1629,7 +1660,26 @@ public static class ClauseScoring
         MotelyJokerSticker[] stickers,
         MotelyRunState runState
     )
-        where TJoker : struct, Enum
+        where TJoker : struct, Enum =>
+        CountJokerOccurrencesOfTypes(
+            ref ctx,
+            antes,
+            sources,
+            JokerItemTypes<TJoker>.Of(jokers),
+            edition,
+            stickers,
+            runState
+        );
+
+    private static int CountJokerOccurrencesOfTypes(
+        ref MotelySingleSearchContext ctx,
+        int[] antes,
+        JokerSourceConfig sources,
+        MotelyItemType[] targetTypes,
+        MotelyItemEdition? edition,
+        MotelyJokerSticker[] stickers,
+        MotelyRunState runState
+    )
     {
         int count = 0;
         var shopItems = sources.ShopItems;
@@ -1637,9 +1687,6 @@ public static class ClauseScoring
 
         int maxShop = ArrayMax(shopItems);
         int userMaxPack = ArrayMax(boosterPacks);
-        var targetTypes = new MotelyItemType[jokers.Length];
-        for (int i = 0; i < jokers.Length; i++)
-            targetTypes[i] = Enum.Parse<MotelyItemType>(jokers[i].ToString(), true);
 
         foreach (int ante in antes)
         {

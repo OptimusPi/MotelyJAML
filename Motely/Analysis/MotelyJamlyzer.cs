@@ -281,9 +281,8 @@ public static class MotelyJamlyzer
 
     /// <summary>
     /// A bag only ever comes back from a previous result, but across the JS boundary it is just
-    /// an object. A negative offset used to leave the first slots of every queue as
-    /// default(MotelyItem) (an int.MaxValue one overflowed into an empty walk), a huge one replayed
-    /// for minutes, and a state outside the PRNG's [0, 1] range rolled nonsense. Refuse them.
+    /// an object. A negative or huge offset, or a state outside the PRNG's [0, 1] range, is
+    /// refused.
     /// </summary>
     private static void ThrowIfNotResumable(
         MotelyJamlyzerStreamStates resumeFrom,

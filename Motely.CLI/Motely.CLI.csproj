@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- Performance optimizations -->
     <Optimize>true</Optimize>
+    <!-- JIT-only: these shape `dotnet run -c Release`. The NativeAOT publish has no JIT and
+         ignores them. -->
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
@@ -15,8 +16,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PublishAot >true</PublishAot
-    >
+    <PublishAot>true</PublishAot>
+    <!-- An executable's setting (it lands in the runtimeconfig / AOT feature switch); on the
+         library it did nothing. Without it a Linux NativeAOT binary needs libicu at startup. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <!-- NativeAOT compiles for the baseline x86-64 ISA unless told otherwise: no AVX2, no
          AVX-512, so every Vector256/Vector512 op falls back to software (~0.66M seeds/s vs
          ~4.0-4.4M with v3, at threads 1 on bench-negative-perkeo.jaml). x86-64-v3 (AVX2/FMA/BMI) measured
@@ -26,13 +29,13 @@
          here (the SDK infers it later), so fall back to the SDK's own RID. -->
     <IlcInstructionSet
       Condition="'$(IlcInstructionSet)' == '' and ($(RuntimeIdentifier.EndsWith('-x64')) or ('$(RuntimeIdentifier)' == '' and $(NETCoreSdkRuntimeIdentifier.EndsWith('-x64'))))"
-      >x86-64-v3</IlcInstructionSet
-    >
+      >x86-64-v3</IlcInstructionSet>
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- The NativeAOT publish is the gate: every trim/AOT warning shows per call site (not one
-         collapsed IL2104 per package) and fails the build under TreatWarningsAsErrors. -->
+    <!-- The NativeAOT publish is the gate (CI runs it: ci.yml, job aot): every trim/AOT warning
+         shows per call site (not one collapsed IL2104 per package) and fails the build under
+         TreatWarningsAsErrors. -->
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
   </PropertyGroup>
 

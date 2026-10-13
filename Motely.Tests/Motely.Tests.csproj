@@ -4,7 +4,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
     <RunSettingsFilePath>../coverage.runsettings</RunSettingsFilePath>
   </PropertyGroup>

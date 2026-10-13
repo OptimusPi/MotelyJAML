@@ -29,6 +29,8 @@ public sealed class JamlValidatorTests
     [InlineData("must:\n  - joker: Blueprint\n    antes: [1, 1]\n", "antes lists an index twice")]
     [InlineData("must:\n  - luckyMoney: []\n", "must[0] (luckyMoney): rolls cannot be empty")]
     [InlineData("must:\n  - luckyMoney: [-1]\n", "rolls -1 is negative")]
+    [InlineData("must:\n  - voucher: Telescope\n    rolls: [100000000]\n", "rolls 100000000 is past the last roll, 999")]
+    [InlineData("must:\n  - tag: NegativeTag\n    rolls: [1000]\n", "rolls 1000 is past the last roll, 999")]
     [InlineData("must:\n  - or: []\n", "must[0] (or): needs at least one clause")]
     [InlineData("must:\n  - or:\n      - joker: Blueprint\n    min: 2\n", "min 2 is more arms than its 1")]
     [InlineData("must:\n  - misprintMult: [0]\n    mult: 24\n", "mult 24")]
@@ -79,5 +81,16 @@ public sealed class JamlValidatorTests
     {
         var clause = Assert.IsType<JokerClause>(Load("should:\n  - joker: DietCola\n    antes: [10, 11, 12]\n").Should[0]);
         Assert.Equal([10, 11, 12], clause.Antes);
+    }
+
+    [Fact]
+    public void A_config_edited_after_loading_is_checked_again_before_it_runs()
+    {
+        // A host (the Wasm JS side, or code) can change a loaded config; the filters size stack
+        // buffers from rolls, so CreateSettings validates rather than trusting the loader.
+        var config = Load("must:\n  - voucher: Telescope\n");
+        ((VoucherClause)config.Must[0]).Rolls = [100_000_000];
+        var ex = Assert.Throws<InvalidOperationException>(() => MotelySearchBuilder.CreateSettings(config));
+        Assert.Contains("rolls 100000000 is past the last roll", ex.Message);
     }
 }

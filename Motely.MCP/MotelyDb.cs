@@ -45,7 +45,13 @@ internal sealed class MotelyDb : IAsyncDisposable
             && !raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
             return raw;
 
-        var uri = new Uri(raw);
+        // ArgumentException is what the startup guard reports as "unreachable"; a bare
+        // UriFormatException would escape it as a stack trace. The message leaves the URL out:
+        // it carries the password.
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri))
+            throw new ArgumentException(
+                "the postgresql:// connection string is not a valid URL (percent-encode @, /, # and : in the password)."
+            );
         var builder = new NpgsqlConnectionStringBuilder { Host = uri.Host, Database = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/')) };
         if (uri.Port > 0)
             builder.Port = uri.Port;

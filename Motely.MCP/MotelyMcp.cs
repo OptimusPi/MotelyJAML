@@ -29,6 +29,8 @@ internal static class MotelyMcp
 
     private const int DefaultMaxSeconds = 60;
     private const int DefaultTop = 20;
+    private const int MaxListedSeeds = 10_000;
+    private const int MaxAnalyzeSeeds = 20;
 
     /// <summary>The seed database, or null when none is configured.</summary>
     private static MotelyDb? Db;
@@ -39,23 +41,23 @@ internal static class MotelyMcp
         // Traces and metrics to the Aspire dashboard when it set an OTLP endpoint; nothing otherwise.
         using var telemetry = ServiceDefaults.Extensions.AddServiceDefaults(SearchTelemetry.Sources, SearchTelemetry.Sources);
 
-        Db = MotelyDb.FromEnvironment();
-        if (Db is { } db)
+        try
         {
-            try
+            Db = MotelyDb.FromEnvironment();
+            if (Db is { } db)
             {
                 int applied = await db.MigrateAsync(cancellationToken);
                 Console.Error.WriteLine($"motely mcp: database ready ({applied} migration(s) applied)");
             }
-            catch (Exception ex) when (ex is NpgsqlException or TimeoutException or ArgumentException)
-            {
-                // Loud on purpose: a wrong Neon string should fail the resource, not run a server that silently keeps nothing.
-                Console.Error.WriteLine($"motely mcp: the seed database is unreachable: {ex.Message}");
-                return 1;
-            }
+            else
+                Console.Error.WriteLine("motely mcp: no ConnectionStrings__db; finds are not saved");
         }
-        else
-            Console.Error.WriteLine("motely mcp: no ConnectionStrings__db; finds are not saved");
+        catch (Exception ex) when (ex is NpgsqlException or TimeoutException or ArgumentException)
+        {
+            // Loud on purpose: a wrong Neon string should fail the resource, not run a server that silently keeps nothing.
+            Console.Error.WriteLine($"motely mcp: the seed database is unreachable: {ex.Message}");
+            return 1;
+        }
 
         await using var _ = Db;
         if (port is { } httpPort)
@@ -159,7 +161,7 @@ internal static class MotelyMcp
                   "properties": {
                     "jaml": { "type": "string", "description": "The filter as YAML text." },
                     "path": { "type": "string", "description": "A filter file, or a bare name for YamlFilters/<name>.yaml." },
-                    "seeds": { "type": "array", "items": { "type": "string" }, "description": "Search exactly these seeds." },
+                    "seeds": { "type": "array", "items": { "type": "string" }, "maxItems": {{MaxListedSeeds}}, "description": "Search exactly these seeds." },
                     "replay": { "type": "boolean", "description": "Search the filter's own seeds: block." },
                     "keywords": { "type": "array", "items": { "type": "string" }, "description": "Search seeds containing any of these words." },
                     "padding": { "type": "string", "description": "Characters that fill the free slots of keyword and aesthetic seeds (default: 1-9 and A-Z)." },
@@ -175,7 +177,7 @@ internal static class MotelyMcp
                     "stopAfter": { "type": "integer", "minimum": 1, "description": "Stop after this many matches." },
                     "maxSeconds": { "type": "integer", "minimum": 1, "maximum": 3600, "default": {{DefaultMaxSeconds}}, "description": "Stop after this long and return what was found." },
                     "top": { "type": "integer", "minimum": 1, "maximum": 200, "default": {{DefaultTop}}, "description": "How many of the best seeds to return." },
-                    "threads": { "type": "integer", "minimum": 1, "description": "Worker threads (default: every core)." }
+                    "threads": { "type": "integer", "minimum": 1, "maximum": {{Environment.ProcessorCount}}, "description": "Worker threads (default: every core)." }
                   },
                   "additionalProperties": false
                 }
@@ -290,6 +292,12 @@ internal static class MotelyMcp
         {
             return Error($"Database: {ex.Message}");
         }
+        // A filter file that can't be read, or settings the engine refuses at start, are the
+        // call's fault too: the model gets the reason as a tool error, not a JSON-RPC fault.
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            return Error(ex.Message);
+        }
     }
 
     private static CallToolResult Validate(Args args)
@@ -335,12 +343,14 @@ internal static class MotelyMcp
 
         var deck = args.Enum<MotelyDeck>("deck") ?? config.Deck;
         var stake = args.Enum<MotelyStake>("stake") ?? config.Stake;
-        int threads = args.Int("threads") ?? Environment.ProcessorCount;
+        // A search is CPU-bound: past the core count, more threads only cost memory (each plan
+        // holds native buffers), and the endpoint takes whatever number a caller sends.
+        int threads = args.Int("threads", max: Environment.ProcessorCount) ?? Environment.ProcessorCount;
         int top = args.Int("top", max: 200) ?? DefaultTop;
         int maxSeconds = args.Int("maxSeconds", max: 3600) ?? DefaultMaxSeconds;
         long? stopAfter = args.Int("stopAfter");
         string[] keywords = args.Strings("keywords") ?? [];
-        string[]? seeds = args.Strings("seeds");
+        string[]? seeds = args.Strings("seeds", maxItems: MaxListedSeeds);
         int? random = args.Int("random");
         string? aesthetic = args.String("aesthetic");
         string? startSeed = args.String("startSeed");
@@ -348,7 +358,6 @@ internal static class MotelyMcp
         bool replay = args.Bool("replay") ?? false;
 
         // The CLI's own mode rules and messages, so both front doors accept and refuse the same things.
-        var notes = new List<string>();
         if (
             !CliSearchMode.TryApplySearchMode(
                 plan.Settings.WithDeck(deck).WithStake(stake).WithThreadCount(threads),
@@ -365,11 +374,10 @@ internal static class MotelyMcp
                     StartBatch: args.Long("startBatch"),
                     EndBatch: args.Long("endBatch"),
                     StartPercent: null,
-                    StartSeed: startSeed is null ? null : MotelyGlobals.NormalizeSeed(startSeed),
-                    StopSeed: stopSeed is null ? null : MotelyGlobals.NormalizeSeed(stopSeed),
+                    StartSeed: startSeed,
+                    StopSeed: stopSeed,
                     BatchCharacterCount: null
                 ),
-                notes.Add,
                 out var modeError,
                 out var settings
             )
@@ -427,6 +435,9 @@ internal static class MotelyMcp
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             timedOut = true;
+            // The deadline ends the wait at once; the workers finish the seeds they hold first.
+            // Wait for them so the best list and the totals below include every find.
+            await search.WaitForCompletionAsync();
         }
         finally
         {
@@ -449,8 +460,6 @@ internal static class MotelyMcp
 
         var output = new StringBuilder();
         output.AppendLine($"{config.Name ?? source} | {deck} {stake} | {input} | cutoff {cutoffText}");
-        foreach (var note in notes)
-            output.AppendLine(note);
         output.AppendLine(
             $"{ending}: {search.TotalSeedsSearched:N0} searched, {search.MatchingSeeds:N0} matched, "
                 + $"{search.SeedsPerSecond:N0} seeds/s, {TimeSpan.FromMilliseconds(search.ElapsedMs):hh\\:mm\\:ss\\.f}"
@@ -524,6 +533,12 @@ internal static class MotelyMcp
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A client that hung up mid-search must not turn the finished search into an error:
+            // progress is best-effort, the result is what matters.
+            Console.Error.WriteLine($"motely mcp: progress notifications stopped: {ex.Message}");
+        }
     }
 
     private static async Task<CallToolResult> SavedSeedsAsync(Args args, CancellationToken cancellationToken)
@@ -560,7 +575,7 @@ internal static class MotelyMcp
         var deck = args.Enum<MotelyDeck>("deck") ?? MotelyDeck.Red;
         var stake = args.Enum<MotelyStake>("stake") ?? MotelyStake.White;
         var output = new StringBuilder();
-        foreach (var raw in args.Strings("seeds") ?? [])
+        foreach (var raw in args.Strings("seeds", maxItems: MaxAnalyzeSeeds) ?? [])
         {
             if (!CliSearchMode.TryNormalizeSeed(raw, out var seed))
                 throw new ToolError($"seeds: '{raw}' is not a seed ({CliSearchMode.SeedRule}).");
@@ -584,7 +599,11 @@ internal static class MotelyMcp
     private static CallToolResult Error(string message) =>
         new() { IsError = true, Content = [new TextContentBlock { Text = message }] };
 
-    private static JsonElement Schema(string json) => JsonDocument.Parse(json).RootElement.Clone();
+    private static JsonElement Schema(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
 
     /// <summary>A mistake in the call: reported to the model as an error result, not a protocol fault.</summary>
     private sealed class ToolError(string message) : Exception(message);
@@ -662,11 +681,13 @@ internal static class MotelyMcp
                 ? n >= 1 && n <= max ? (int)n : throw new ToolError($"{name} must be 1-{max}.")
                 : null;
 
-        public string[]? Strings(string name) =>
+        public string[]? Strings(string name, int maxItems = int.MaxValue) =>
             Get(name) is { } v
-                ? v.ValueKind == JsonValueKind.Array
-                    ? [.. v.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.String ? e.GetString()! : throw new ToolError($"{name} must hold strings."))]
-                    : throw new ToolError($"{name} must be an array of strings.")
+                ? v.ValueKind != JsonValueKind.Array
+                    ? throw new ToolError($"{name} must be an array of strings.")
+                    : v.GetArrayLength() > maxItems
+                        ? throw new ToolError($"{name} holds {v.GetArrayLength():N0} items; at most {maxItems:N0}.")
+                        : [.. v.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.String ? e.GetString()! : throw new ToolError($"{name} must hold strings."))]
                 : null;
 
         public T? Enum<T>(string name)

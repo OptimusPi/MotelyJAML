@@ -4,7 +4,7 @@ using Xunit;
 namespace Motely.Tests;
 
 /// <summary>
-/// Regression tests for the Hieroglyph / Petroglyph scenario: these vouchers reset progression
+/// The Hieroglyph / Petroglyph scenario: these vouchers reset progression
 /// one ante backward and re-open the shop, effectively unlocking pack slots 4..7 in ante 1
 /// (which normally caps at 4 packs / slots 0..3, slot 0 being the fixed first-shop Buffoon).
 ///

@@ -353,12 +353,8 @@ ref partial struct MotelyVectorSearchContext
     {
         MotelyVectorItemSet pack = new();
 
-        // Create masks for different pack sizes
-        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal); // 2 cards
-        VectorMask isJumboSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Jumbo); // 4 cards
-        VectorMask isMegaSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Mega); // 4 cards
-
-        // No longer need stackalloc thanks to SIMD helpers!
+        // Normal packs hold 2 cards; Jumbo and Mega hold 4.
+        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal);
 
         // Spectral packs: Normal=2 cards, Jumbo=4 cards, Mega=4 cards
         // Use ConditionalSelect pattern like joker pack generation
@@ -396,63 +392,9 @@ ref partial struct MotelyVectorSearchContext
         return pack;
     }
 
-    public VectorMask GetNextSpectralPackHasTheSoul(
-        ref MotelyVectorSpectralStream spectralStream,
-        MotelyBoosterPackSize size
-    )
-    {
-        Debug.Assert(spectralStream.IsSoulBlackHoleable, "Spectral pack does not have the soul.");
-
-        int cardCount = MotelyBoosterPackType.Spectral.GetCardCount(size);
-        VectorMask hasTheSoul = VectorMask.NoBitsSet;
-        VectorMask hasBlackHole = VectorMask.NoBitsSet;
-
-        for (int i = 0; i < cardCount; i++)
-        {
-            Vector512<double> random = GetNextRandom(ref spectralStream.SoulBlackHolePrngStream);
-            VectorMask isSoul = new(
-                (uint)
-                    Vector512.ExtractMostSignificantBits(
-                        Vector512.GreaterThan(random, Vector512.Create(0.997))
-                    )
-            );
-
-            if (!isSoul.IsAllFalse())
-            {
-                hasTheSoul |= isSoul;
-
-                // Progress the stream for remaining cards
-                for (; i < cardCount; i++)
-                {
-                    Vector512<double> randomBH = GetNextRandom(
-                        ref spectralStream.SoulBlackHolePrngStream
-                    );
-                    hasBlackHole |= new VectorMask(
-                        (uint)
-                            Vector512.ExtractMostSignificantBits(
-                                Vector512.GreaterThan(randomBH, Vector512.Create(0.997))
-                            )
-                    );
-                }
-                break;
-            }
-
-            if (!hasBlackHole.IsAllFalse())
-            {
-                Vector512<double> randomBH = GetNextRandom(
-                    ref spectralStream.SoulBlackHolePrngStream
-                );
-                hasBlackHole |= new VectorMask(
-                    (uint)
-                        Vector512.ExtractMostSignificantBits(
-                            Vector512.GreaterThan(randomBH, Vector512.Create(0.997))
-                        )
-                );
-            }
-        }
-
-        return hasTheSoul;
-    }
+    // (No vector "has the Soul" here: the soul/black-hole walk pulls a different number of rolls
+    // per lane, so it is per-lane by nature. LegendarySoulMatcher uses the scalar
+    // MotelySingleSearchContext.GetNextSpectralPackHasTheSoul.)
 
     // The pack a player opens is deduplicated (resample rolls replace repeats), so HasThe
     // answers from the same contents walk the scalar engine uses — the raw stream diverges

@@ -103,7 +103,7 @@ public sealed class SeedProviderTests
     [Fact]
     public void PalindromeSeedProvider_YieldsFirstPalindromes()
     {
-        var provider = new MotelyPalindromeSeedProvider();
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Palindrome);
         Assert.Equal(3_089_520, provider.SeedCount);
 
         Assert.Equal("1", provider.NextSeed().ToString());
@@ -118,7 +118,7 @@ public sealed class SeedProviderTests
     [Fact]
     public void PsychosisSeedProvider_YieldsFirstPsychosisSeeds()
     {
-        var provider = new MotelyPsychosisSeedProvider();
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Psychosis);
         Assert.Equal(1_014_422_500, provider.SeedCount);
 
         Assert.Equal("AAA1A111", provider.NextSeed().ToString());
@@ -281,5 +281,35 @@ public sealed class SeedProviderTests
             yield return "B1";
             yield return "B2";
         }
+    }
+
+    private const string PermissiveJaml = "name: p\nmust: []\nshould: []\n";
+
+    [Fact]
+    public void ProviderSearch_AllInvalidFirstPack_KeepsSearchingTheRest()
+    {
+        // Eight seeds with '0' (not in the alphabet) fill the first SIMD pack on their own.
+        string[] seeds = ["10", "20", "30", "40", "50", "60", "70", "80", "AAAAAAAA"];
+        var (matching, matched) = ProofSearch.ListMatch(PermissiveJaml, seeds);
+        Assert.Equal(1L, matching);
+        Assert.Equal(["AAAAAAAA"], matched);
+    }
+
+    [Fact]
+    public void ProviderSearch_AllInvalidPackMidList_KeepsTrailingSeeds()
+    {
+        var seeds = new List<string> { "AAAAAAAA" };
+        for (int i = 0; i < 8; i++)
+            seeds.Add("0000000" + i);
+        seeds.Add("BBBBBBBB");
+        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, [.. seeds]);
+        Assert.Equal(2L, matching);
+    }
+
+    [Fact]
+    public void ProviderSearch_OnlyInvalidSeeds_CompletesWithNothingSearched()
+    {
+        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, ["10", "20", "30"]);
+        Assert.Equal(0L, matching);
     }
 }

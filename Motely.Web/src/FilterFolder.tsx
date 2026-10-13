@@ -9,26 +9,22 @@ export interface FilterFolderProps {
   onOpen: (filter: OpenedFilter | null) => void;
 }
 
-let version = 0;
-JamlFiles.onChange.subscribe(() => version++);
+// list() is a new array per call; useSyncExternalStore needs a stable snapshot.
+let snapshot: readonly string[] | null = null;
 
 function subscribeNames(cb: () => void) {
-  const sub = () => { version++; cb(); };
+  const sub = () => { snapshot = null; cb(); };
   JamlFiles.onChange.subscribe(sub);
   return () => JamlFiles.onChange.unsubscribe(sub);
 }
 
 function getNames(): readonly string[] {
-  return JamlFiles.list();
+  return (snapshot ??= JamlFiles.list());
 }
 
 export function FilterFolder({ opened, onOpen }: FilterFolderProps) {
   const names = useSyncExternalStore(subscribeNames, getNames);
   const mounted = JamlFiles.isMounted();
-
-  const pick = useCallback(async () => {
-    await JamlFiles.pickFolder();
-  }, []);
 
   const open = useCallback(async (name: string) => {
     const jaml = await JamlFiles.load(name);
@@ -41,7 +37,7 @@ export function FilterFolder({ opened, onOpen }: FilterFolderProps) {
     <JimboPanel title="Filters">
       <JimboStack gap="sm">
         <JimboRow gap="sm" align="center">
-          <JimboButton size="sm" tone="blue" onClick={pick}>
+          <JimboButton size="sm" tone="blue" onClick={() => JamlFiles.pickFolder()}>
             {mounted ? "Change folder" : "Open folder"}
           </JimboButton>
           {mounted && (

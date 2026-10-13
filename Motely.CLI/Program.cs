@@ -172,7 +172,12 @@ int Analyze(ParseResult parseResult, string seedList)
     int failed = 0;
     foreach (var raw in seedList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     {
-        var seed = MotelyGlobals.NormalizeSeed(raw);
+        if (!CliSearchMode.TryNormalizeSeed(raw, out var seed))
+        {
+            Console.Error.WriteLine($"Error: '{raw}' is not a seed ({CliSearchMode.SeedRule}).");
+            failed++;
+            continue;
+        }
         var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake));
         if (!string.IsNullOrEmpty(analysis.Error))
         {
@@ -195,7 +200,17 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
         Console.Error.WriteLine($"Error: no filter file at {Path.GetFullPath(path)}.");
         return 1;
     }
-    var config = YamlConfigLoader.FromFile(path);
+    JamlConfig config;
+    try
+    {
+        config = YamlConfigLoader.FromFile(path);
+    }
+    catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+    {
+        // One line, as check/hook print it, not a stack trace.
+        Console.Error.WriteLine($"Error: {path}: {ex.Message}");
+        return 1;
+    }
 
     // --cutoff wins; else the filter's root `cutoff:` is a fixed floor; else auto.
     if (
@@ -265,11 +280,10 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
                 StartBatch: parseResult.GetValue(startBatchOption),
                 EndBatch: parseResult.GetValue(endBatchOption),
                 StartPercent: parseResult.GetValue(startPercentOption),
-                StartSeed: startSeed is null ? null : MotelyGlobals.NormalizeSeed(startSeed),
-                StopSeed: stopSeed is null ? null : MotelyGlobals.NormalizeSeed(stopSeed),
+                StartSeed: startSeed,
+                StopSeed: stopSeed,
                 BatchCharacterCount: batchCharCountGiven
             ),
-            static warning => Console.Error.WriteLine(warning),
             out var modeError,
             out var settings
         )
@@ -350,11 +364,18 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     bool interrupted = false;
     try
     {
-        await search.WaitForCompletionAsync(cancellationToken);
-    }
-    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-    {
-        interrupted = true;
+        try
+        {
+            await search.WaitForCompletionAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            interrupted = true;
+            // The token ends this wait at once, but each worker first finishes the 8 seeds it is
+            // on. Wait for them (the search completes on cancel), so no row prints after the
+            // summary and --save and the totals see every find. A second Ctrl+C still ends it.
+            await search.WaitForCompletionAsync();
+        }
     }
     catch (Exception ex)
     {

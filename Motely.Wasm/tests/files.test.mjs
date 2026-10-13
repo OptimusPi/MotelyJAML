@@ -1,6 +1,6 @@
 // JamlFiles over the real @rewaffle/bootsharp-file-system package, mounted on in-memory
 // directory handles: the same code path the site runs, with the browser's picker and observer
-// stood in by handles.mjs. Usage: node --test tests/   (after `dotnet publish -c Release`)
+// stood in by handles.mjs. Usage: npm test   (after `dotnet publish -c Release`)
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "@rewaffle/bootsharp-file-system";
@@ -79,7 +79,7 @@ test("removing deletes the file", async () => {
   changes.length = 0;
   await JamlFiles.remove("sub/new");
   assert.deepEqual([...JamlFiles.list()], ["perkeo", "sub/cola.yml"]);
-  assert.deepEqual(changes, [{ kind: "removed", name: "sub/new", fromName: null }]);
+  assert.deepEqual(changes, [{ kind: "removed", name: "sub/new" }]);
 });
 
 test("a file call that fails says why on Errors.last()", async () => {

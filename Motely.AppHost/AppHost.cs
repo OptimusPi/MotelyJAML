@@ -14,6 +14,8 @@
 //   search   `motely --yaml <filter>`, started by hand from the dashboard or with
 //            `aspire resource search start`. The `filter` parameter picks the filter; its progress
 //            is on the Metrics page (motely.search.*) and its seeds are in the console log.
+//   web      Motely.Web's Vite dev server: jaml-ui's SeedLab on the motely-wasm package (publish
+//            Motely.Wasm first; Motely.Web links it with file:../Motely.Wasm).
 //
 // Resources run in their own project directory, not the repo root, so each one that takes a
 // filter by name gets the repo's YamlFilters/ through MOTELY_FILTERS_DIR.

@@ -34,9 +34,8 @@ internal readonly struct MotelyJamlyzerWindow
     public static int DefaultShopSlots(int ante) => ante <= 1 ? 15 : 50;
 
     /// <summary>
-    /// Both dials arrive from JS unchecked. A negative count used to surface as an
-    /// OverflowException from an array allocation, and a huge one allocated gigabytes or walked
-    /// for minutes on the browser's only thread. Name the argument and the limit instead.
+    /// Both dials arrive from JS unchecked. An out-of-range one throws naming the argument and
+    /// the limit.
     /// </summary>
     public static void ThrowIfOutOfRange(int eventRolls, int shopSlots)
     {
