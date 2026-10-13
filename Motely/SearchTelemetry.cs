@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Motely.Enums;
 
-namespace Motely.Shared;
+namespace Motely;
 
 /// <summary>
 /// One search as OpenTelemetry signals: a <c>motely.search</c> span from start to finish, counters

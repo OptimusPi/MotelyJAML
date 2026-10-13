@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Motely.Filters;
 using Motely.SeedProviders;
 
-namespace Motely.Shared;
+namespace Motely;
 
 /// <summary>
 /// Shared CLI wiring for list / keyword / random / aesthetic / sequential search modes (native + JAML).

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Motely.Filters;
 
-namespace Motely.Shared;
+namespace Motely;
 
 /// <summary>
 /// The one filter check behind every front door (<c>motely check</c>, the agent hook, the MCP

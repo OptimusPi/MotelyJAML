@@ -42,7 +42,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Motely\Motely.csproj" />
-    <ProjectReference Include="..\Motely.Shared\Motely.Shared.csproj" />
     <ProjectReference Include="..\Motely.ServiceDefaults\Motely.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

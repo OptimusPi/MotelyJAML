@@ -6,7 +6,6 @@ using ModelContextProtocol.Server;
 using Motely.Analysis;
 using Motely.Enums;
 using Motely.Filters;
-using Motely.Shared;
 using Npgsql;
 
 namespace Motely.MCP;
