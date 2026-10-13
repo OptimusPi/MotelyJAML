@@ -30,12 +30,10 @@
     <Using Include="Motely.Enums" />
   </ItemGroup>
 
-  <!-- JimmolateScoringOrderTests.cs does not exist in the tree; it referenced a run-state API
-       (NewRunState / GetBossForAnteWithState) that was never wired up. The exclusion stays only so
-       a future restore of that file doesn't silently break the build. JimmolateFilterTests.cs is
-       compiled and running. -->
+  <!-- The browser build's filter naming has no Bootsharp in it, so it is tested here on the
+       normal runtime (JamlFileNamesTests); the Node tests cover the mounted folder itself. -->
   <ItemGroup>
-    <Compile Remove="JimmolateScoringOrderTests.cs" />
+    <Compile Include="../Motely.Wasm/JamlFileNames.cs" Link="Wasm/JamlFileNames.cs" />
   </ItemGroup>
 
   <ItemGroup>

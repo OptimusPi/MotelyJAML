@@ -255,10 +255,6 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record PlanetSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
-    public static readonly string[] SourceKeys =
-        ["shopItems", "boosterPacks", "requireMega", "requireMegaPack"];
-
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 

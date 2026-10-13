@@ -1,22 +1,14 @@
 name: Polychrome Red Seal Steel King
 author: jammy
-description: >
-  Standard card with Polychrome edition, Red Seal, Steel enhancement,
-  King rank in Ante 1
+description: A Polychrome, Red Seal, Steel King of Hearts in antes 1 to 4
 deck: Red
 stake: White
 must:
-  - standardCard: King
-    rank: King
-    suit: Hearts
+  - standardCard: KingOfHearts
     enhancement: Steel
     seal: Red
     edition: Polychrome
-    antes:
-      - 1
-      - 2
-      - 3
-      - 4
+    antes: [1, 2, 3, 4]
 should:
   - rareJoker: Baron
     score: 60

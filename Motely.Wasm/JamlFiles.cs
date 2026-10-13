@@ -1,15 +1,15 @@
-// .jaml files in a folder the user picks (guide: extensions/file-system). An exported interface
-// module (guide: interop-modules); Bootsharp.Inject hands it IFileMounter (guide:
-// dependency-injection). Built with Bootsharp.FileSystem by default; -p:MotelyFileSystem=false
-// builds without it, and JamlFiles keeps the same surface with isSupported() false.
+// Filter files in a folder the user picks, through Bootsharp.FileSystem (guide: extensions/file-system).
+// An exported interface module (guide: interop-modules); Bootsharp.Inject hands it IFileMounter
+// (guide: dependency-injection). Built with the package by default; -p:MotelyFileSystem=false
+// builds the same surface with isSupported() false.
 
 using System.Text;
 #if MOTELY_FILESYSTEM
 using Bootsharp.FileSystem;
 #endif
 
-/// <summary>.jaml files in a folder the user picks. Needs the Bootsharp.FileSystem build; without
-/// it <see cref="IsSupported"/> is false and every file call rejects.</summary>
+/// <summary>.yaml and .yml filter files in a folder the user picks. Needs the Bootsharp.FileSystem
+/// build; without it <see cref="IsSupported"/> is false and every file call rejects.</summary>
 public interface IJamlFiles
 {
     /// <summary>A filter file joined, left, changed or moved within the folder's filter list.</summary>
@@ -41,7 +41,7 @@ public interface IJamlFiles
 
     /// <summary>Deletes the filter file.</summary>
     /// <param name="name">Name as <see cref="List"/> gives it.</param>
-    Task Delete(string name);
+    Task Remove(string name);
 
     /// <summary>Moves the filter file to a new name.</summary>
     /// <param name="fromName">Current name.</param>
@@ -49,22 +49,13 @@ public interface IJamlFiles
     Task Rename(string fromName, string toName);
 }
 
-/// <summary>One change to the folder's filter list.</summary>
-/// <param name="Kind">added, removed, modified or moved, as the filter list sees it: a file moved
-/// to a non-filter name is removed, one moved in from a non-filter name is added.</param>
-/// <param name="Name">What <see cref="IJamlFiles.Load"/> takes: <c>sub/filter</c> for
-/// <c>sub/filter.jaml</c>, other filter extensions kept.</param>
-/// <param name="FromName">The previous name when Kind is moved, otherwise null.</param>
-public readonly record struct JamlFileChange(string Kind, string Name, string? FromName);
-
 #if MOTELY_FILESYSTEM
-/// <summary>JamlFiles over Bootsharp.FileSystem. JS calls
-/// <c>fs.init(Bootsharp.FileSystem.FileMounter)</c> from <c>@rewaffle/bootsharp-file-system</c>
-/// before <c>boot()</c>.</summary>
+/// <summary>JamlFiles over Bootsharp.FileSystem. JS calls <c>fs.init(IFileMounter)</c> from
+/// <c>@rewaffle/bootsharp-file-system</c> before <c>boot()</c>. Every call that can fail runs
+/// through <see cref="Guard"/>, so its reason reaches <c>Errors.last()</c>.</summary>
 /// <param name="mounter">Bootsharp.FileSystem's mounter, injected by AddBootsharp.</param>
 public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWatcher
 {
-    private static readonly string[] FilterExtensions = [".jaml", ".yaml", ".yml", ".json"];
     private readonly SortedSet<string> _names = new(StringComparer.OrdinalIgnoreCase);
     private string? _root;
     private IFileSystem? _fs;
@@ -82,7 +73,7 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
     public string[] List() => [.. _names];
 
     /// <inheritdoc/>
-    public async Task<bool> PickFolder()
+    public Task<bool> PickFolder() => Guard.RunAsync(async () =>
     {
         string? root = await mounter.PickRoot(new PickOptions { Id = "jaml-filters", Mode = PermissionMode.ReadWrite });
         if (root is null)
@@ -96,7 +87,7 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
         );
         _root = root;
         return true;
-    }
+    });
 
     /// <inheritdoc/>
     public async Task Unmount()
@@ -110,16 +101,19 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
     }
 
     /// <inheritdoc/>
-    public async Task<string> Load(string name) => Encoding.UTF8.GetString(await Fs.ReadFile(ToUri(name)));
+    public Task<string> Load(string name) =>
+        Guard.RunAsync(async () => Encoding.UTF8.GetString(await Fs.ReadFile(JamlFileNames.ToUri(name))));
 
     /// <inheritdoc/>
-    public Task Save(string name, string jaml) => Fs.WriteFile(ToUri(name), Encoding.UTF8.GetBytes(jaml));
+    public Task Save(string name, string jaml) =>
+        Guard.RunAsync(() => Fs.WriteFile(JamlFileNames.ToUri(name), Encoding.UTF8.GetBytes(jaml)));
 
     /// <inheritdoc/>
-    public Task Delete(string name) => Fs.DeleteFile(ToUri(name));
+    public Task Remove(string name) => Guard.RunAsync(() => Fs.DeleteFile(JamlFileNames.ToUri(name)));
 
     /// <inheritdoc/>
-    public Task Rename(string fromName, string toName) => Fs.MoveFile(ToUri(fromName), ToUri(toName));
+    public Task Rename(string fromName, string toName) =>
+        Guard.RunAsync(() => Fs.MoveFile(JamlFileNames.ToUri(fromName), JamlFileNames.ToUri(toName)));
 
     /// <summary>Keeps <see cref="List"/> in step with the folder and raises <see cref="OnChange"/>.</summary>
     /// <param name="changes">The folder's changes, from Bootsharp.FileSystem.</param>
@@ -130,55 +124,30 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
         {
             if (!change.File)
                 continue;
-            string? name = ToName(change.Entry.Uri);
-            string? from = change.Moved ? ToName(change.FromUri) : null;
-            if (name is null && from is null)
-                continue;
-            if (from is not null)
-                _names.Remove(from);
-            if (name is not null)
+            var type = change.Type switch
             {
-                if (change.Removed)
-                    _names.Remove(name);
-                else
-                    _names.Add(name);
-            }
-            // Kinds describe the filter list, not the disk.
-            string kind = change.Type switch
-            {
-                ChangeType.Moved when name is null => "removed",
-                ChangeType.Moved when from is null => "added",
-                ChangeType.Added => "added",
-                ChangeType.Removed => "removed",
-                ChangeType.Moved => "moved",
-                _ => "modified",
+                ChangeType.Added => JamlFileEvent.Added,
+                ChangeType.Removed => JamlFileEvent.Removed,
+                ChangeType.Moved => JamlFileEvent.Moved,
+                _ => JamlFileEvent.Modified,
             };
-            OnChange?.Invoke(new JamlFileChange(kind, name ?? from!, kind == "moved" ? from : null));
+            if (JamlFileNames.Change(type, change.Entry.Uri, change.Moved ? change.FromUri : null) is not { } seen)
+                continue;
+            if (seen.Kind == "removed")
+                _names.Remove(seen.Name);
+            else
+            {
+                if (seen.FromName is { } from)
+                    _names.Remove(from);
+                _names.Add(seen.Name);
+            }
+            OnChange?.Invoke(seen);
         }
         return Task.CompletedTask;
     }
 
     private IFileSystem Fs =>
         _fs ?? throw new InvalidOperationException("No folder is mounted: call JamlFiles.pickFolder() first.");
-
-    private static bool IsFilter(string path) =>
-        FilterExtensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>"sub/filter" is "/sub/filter.jaml"; a name with a filter extension keeps it.</summary>
-    private static string ToUri(string name)
-    {
-        string path = name.Replace('\\', '/').TrimStart('/');
-        return "/" + (IsFilter(path) ? path : path + ".jaml");
-    }
-
-    /// <summary>"/sub/filter.jaml" is "sub/filter"; null for files that are not filters.</summary>
-    private static string? ToName(string uri)
-    {
-        string path = uri.TrimStart('/');
-        if (path.EndsWith(".jaml", StringComparison.OrdinalIgnoreCase))
-            return path[..^".jaml".Length];
-        return IsFilter(path) ? path : null;
-    }
 }
 #else
 /// <summary>The build without Bootsharp.FileSystem: the same surface, and nothing can mount.</summary>
@@ -211,7 +180,7 @@ public sealed class JamlFilesModule : IJamlFiles
     public Task Save(string name, string jaml) => Task.FromException(NoFileSystem());
 
     /// <inheritdoc/>
-    public Task Delete(string name) => Task.FromException(NoFileSystem());
+    public Task Remove(string name) => Task.FromException(NoFileSystem());
 
     /// <inheritdoc/>
     public Task Rename(string fromName, string toName) => Task.FromException(NoFileSystem());

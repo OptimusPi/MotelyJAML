@@ -10,6 +10,9 @@ public sealed partial class StandardCardClause: IMotelyClause, IAnteScopedClause
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    /// <summary>A whole card (<c>standardCard: AceOfSpades</c>): its rank and suit at once.</summary>
+    public MotelyStandardCard? Card { get; set; }
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
     public MotelyItemEnhancement? Enhancement { get; set; }
@@ -77,15 +80,6 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record StandardCardSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
-    public static readonly string[] SourceKeys =
-    [
-        "shopItems",
-        "boosterPacks",
-        "requireMega",
-        "requireMegaPack",
-    ];
-
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 

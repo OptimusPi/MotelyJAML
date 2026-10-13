@@ -24,6 +24,16 @@
     "prepack": "npm run build",
     "build": "dotnet publish -c Release",
     "build:nofs": "dotnet publish -c Release -p:MotelyFileSystem=false",
-    "test": "node tests/smoke.mjs"
+    "test": "node --test tests/",
+    "cover": "node --test --experimental-test-coverage --test-coverage-include=bin/motely-wasm/index.mjs --test-coverage-include=bin/motely-wasm/generated/** --test-coverage-include=tests/** tests/"
+  },
+  "peerDependencies": {
+    "@rewaffle/bootsharp-file-system": "*"
+  },
+  "peerDependenciesMeta": {
+    "@rewaffle/bootsharp-file-system": { "optional": true }
+  },
+  "devDependencies": {
+    "@rewaffle/bootsharp-file-system": "latest"
   }
 }

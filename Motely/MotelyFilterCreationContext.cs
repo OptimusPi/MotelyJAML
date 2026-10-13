@@ -45,11 +45,13 @@ public ref struct MotelyFilterCreationContext
 
     public readonly void CachePseudoHash(int keyLength, bool force = false)
     {
-        // We don't cache values if they are not forced and this filter is an additional filter
+        // Additional filters cache nothing unless forced: their batches carry the base set.
         if (!force && IsAdditionalFilter)
             return;
 
-        _cachedPseudohashKeyLengths.Add(keyLength);
+        // The cache is indexed by key length; a longer key is hashed from the seed on each use.
+        if (keyLength < MotelyGlobals.MaxCachedPseudoHashKeyLength)
+            _cachedPseudohashKeyLengths.Add(keyLength);
     }
 
     public readonly void CachePseudoHash(string key, bool force = false)

@@ -341,19 +341,6 @@ public struct JokerFilterDesc(JokerClause clause)
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record JokerSourceConfig
 {
-    /// <summary>
-    /// This class's settable properties, camelCased — the single list YamlConfigLoader
-    /// ValidateKeys and Motely.Schema both read. <c>emperor</c> lives on
-    /// <see cref="TarotCardSourceConfig"/>, not here.
-    /// </summary>
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
-    public static readonly string[] SourceKeys =
-    [
-        "shopItems", "boosterPacks", "judgement", "wraith", "riffRaff", "rareTag", "uncommonTag",
-        "commonShopJokers", "uncommonShopJokers", "rareShopJokers", "allShopJokers",
-        "requireMega", "requireMegaPack",
-    ];
-
     /// <summary>Assembled shop slots via the full shop item stream (any item type).</summary>
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];

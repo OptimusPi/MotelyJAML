@@ -12,7 +12,8 @@ public sealed class JamlSearchPlan
 
 public static class MotelySearchBuilder
 {
-    public static JamlSearchPlan CreatePlan(JamlConfig config, int engineCutoff = int.MinValue)
+    /// <inheritdoc cref="CreateSettings"/>
+    public static JamlSearchPlan CreatePlan(JamlConfig config, int? engineCutoff = null)
     {
         var settings = CreateSettings(config, engineCutoff);
         return new JamlSearchPlan
@@ -30,8 +31,19 @@ public static class MotelySearchBuilder
     public static string DefaultTallyLabel(IMotelyClause clause, int index) =>
         clause.Label ?? $"score{index}";
 
-    public static IMotelySearchSettings CreateSettings(JamlConfig config, int engineCutoff = int.MinValue)
+    /// <summary>
+    /// The engine's search settings for a filter: its deck and stake, its must and exact mustNot
+    /// clauses as the SIMD chain, and the scoring pass when anything scores.
+    /// </summary>
+    /// <param name="engineCutoff">
+    /// The score floor the scorer drops seeds below, before any callback. Null takes the filter's
+    /// own <c>cutoff:</c>, or no floor when it has none; <see cref="int.MinValue"/> is no floor
+    /// whatever the filter says (a host whose own cutoff mode wins, as the CLI's --cutoff does).
+    /// </param>
+    public static IMotelySearchSettings CreateSettings(JamlConfig config, int? engineCutoff = null)
     {
+        int floor = engineCutoff ?? config.Cutoff ?? int.MinValue;
+
         // A JAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
         // and nothing else, with the host's own predicate free to drive the whole decision.
         IMotelySearchSettings settings =
@@ -72,7 +84,7 @@ public static class MotelySearchBuilder
                 new JamlShouldScoreDesc(
                     [.. config.Must],
                     [.. config.Should],
-                    minimumTotalScore: engineCutoff,
+                    minimumTotalScore: floor,
                     mustNotClauses: scoredMustNot
                 )
             );

@@ -11,10 +11,11 @@ public sealed partial class BossClause: IMotelyClause, IAnteScopedClause
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    /// <summary>The bosses that count; empty (<c>any</c>) counts every ante's boss.</summary>
     public MotelyBossBlind[] Bosses { get; set; } = [];
-    // No Rolls — for now. Boss re-rolls ARE a real source, but the re-roll read isn't
-    // implemented in MotelySearchContext.Boss.cs yet (state-heavy, same blocker as joker
-    // re-rolls). Antes select the WHERE; re-add Rolls here when that source lands.
+    // No Rolls: boss re-rolls need the full-run rewind that MotelySearchContext.Boss.cs does
+    // not simulate yet. Antes select the where.
 
     public IMotelySeedFilterDesc CreateFilterDesc() => new BossFilterDesc(this);
 }
@@ -92,8 +93,6 @@ public readonly struct BossFilterDesc(BossClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
-            Debug.Assert(_clause.Bosses.Length > 0);
-
             // Single match core: same PrepareRunState + CountBossOccurrences as should-scoring.
             var clause = _clause;
             return ctx.SearchIndividualSeeds(

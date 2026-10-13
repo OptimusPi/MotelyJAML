@@ -10,6 +10,9 @@ public sealed partial class StartingDrawClause: IMotelyClause, IAnteScopedClause
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    /// <summary>A whole card (<c>startingDraw: AceOfSpades</c>): its rank and suit at once.</summary>
+    public MotelyStandardCard? Card { get; set; }
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
 

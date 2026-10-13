@@ -9,6 +9,12 @@ public static partial class MotelyGlobals
     public const int MaxVectorWidth = 8;
 
     /// <summary>
+    /// The last ante a clause may name. Ante 0 is the shop before the first blind; a run ends
+    /// at ante 8 unless it goes endless, where Balatro's own counters hold out to 39.
+    /// </summary>
+    public const int MaxAnte = 39;
+
+    /// <summary>
     /// Default seeds per provider-mode report batch: <c>35³</c>. SIMD still processes
     /// <see cref="MaxVectorWidth"/> lanes at a time; this is how many seeds a provider plan
     /// chews before progress / auto-cutoff chat. Sequential batch size is different — it

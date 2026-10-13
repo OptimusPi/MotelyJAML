@@ -1,16 +1,12 @@
 name: Blue Seal planetCard Generation
 author: jammy
-description: Standard card with Blue Seal for planetCard card generation
+description: A Blue Seal card in antes 1 to 4 for planet card generation
 deck: Nebula
 stake: White
 must:
-  - standardCard: BlueSeal
+  - standardCard: any
     seal: Blue
-    antes:
-      - 1
-      - 2
-      - 3
-      - 4
+    antes: [1, 2, 3, 4]
 should:
   - uncommonJoker: Constellation
     score: 60

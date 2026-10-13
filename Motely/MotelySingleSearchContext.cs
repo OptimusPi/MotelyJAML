@@ -26,7 +26,9 @@ public struct MotelySingleResampleStream(MotelySinglePrngStream initialPrngStrea
         get { return new(MotelySinglePrngStream.Invalid, false); }
     }
 
-    public const int StackResampleCount = 4;
+    // The vector stream's inline array is copied lane by lane into this one (CreateSingleStream),
+    // so the two must hold the same number of resamples.
+    public const int StackResampleCount = MotelyVectorResampleStream.StackResampleCount;
 
     [InlineArray(StackResampleCount)]
     public struct MotelyResampleStreams
@@ -37,7 +39,9 @@ public struct MotelySingleResampleStream(MotelySinglePrngStream initialPrngStrea
     public MotelySinglePrngStream InitialPrngStream = initialPrngStream;
     public MotelyResampleStreams ResamplePrngStreams;
     public int ResamplePrngStreamInitCount;
-    public List<object>? HighResamplePrngStreams;
+
+    /// <summary>Resamples past the inline array, indexed from <see cref="StackResampleCount"/>.</summary>
+    public List<StrongBox<MotelySinglePrngStream>>? HighResamplePrngStreams;
     public bool IsCached = isCached;
 
     public readonly bool IsInvalid
@@ -185,78 +189,19 @@ public unsafe partial class MotelySingleSearchContext
         return num;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static double Fract(double x)
-    {
-        if (double.IsNaN(x))
-            return x;
+    private const double PrngRoundingFactor = 1e13;
+    private const double PrngMagicNumber = 4503599627370496.0; // 2^52
 
-        ref ulong xInt = ref Unsafe.As<double, ulong>(ref x);
-
-        const ulong DblExpo = 0x7FF0000000000000;
-        const ulong DblMant = 0x000FFFFFFFFFFFFF;
-
-        const int DblMantSZ = 52;
-
-        const int DblExpoBias = 1023;
-
-        ulong expo = (xInt & DblExpo) >> DblMantSZ;
-
-        if (expo < DblExpoBias)
-            return x;
-
-        // We don't have to worry about this edge case
-
-        // const int DblExpoSZ = 11;
-        // if (expo == ((1 << DblExpoSZ) - 1)) return double.NaN;
-
-        ulong expoBiased = expo - DblExpoBias;
-
-        if (expoBiased > DblMantSZ)
-            return 0;
-
-        ulong mant = xInt & DblMant;
-        ulong fractMant = mant & ((1ul << (int)(DblMantSZ - expoBiased)) - 1);
-
-        if (fractMant == 0)
-            return 0;
-
-        int fractLzcnt = BitOperations.LeadingZeroCount(fractMant) - (64 - DblMantSZ);
-        ulong resExpo = (expo - (ulong)fractLzcnt - 1) << DblMantSZ;
-        ulong resMant = (fractMant << (fractLzcnt + 1)) & DblMant;
-
-        ulong res = resExpo | resMant;
-
-        return Unsafe.As<ulong, double>(ref res);
-    }
-
-    private static readonly double InvPrec = Math.Pow(10.0, 13);
-    private static readonly double TwoInvPrec = Math.Pow(2.0, 13);
-    private static readonly double FiveInvPrec = Math.Pow(5.0, 13);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static double Round13(double x)
-    {
-        double normalCase = Math.Round(x * InvPrec, MidpointRounding.AwayFromZero) / InvPrec;
-
-        if (
-            normalCase
-            == Math.Round(Math.BitDecrement(x) * InvPrec, MidpointRounding.AwayFromZero) / InvPrec
-        )
-            return normalCase;
-
-        double truncated = Fract(x * TwoInvPrec) * FiveInvPrec;
-
-        if (Fract(truncated) >= 0.5)
-            return (Math.Floor(x * InvPrec) + 1) / InvPrec;
-
-        return Math.Floor(x * InvPrec) / InvPrec;
-    }
-
+    // The scalar twin of MotelyVectorSearchContext.IteratePRNG, step for step: multiply, add,
+    // take the fraction, then round to 13 decimals with one FMA against 2^52. Any difference
+    // between the two would make a seed read differently under SIMD than under --analyze.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double IteratePRNG(double state)
     {
-        return Round13(Fract(state * 1.72431234 + 2.134453429141));
+        state = state * 1.72431234 + 2.134453429141;
+        state -= Math.Floor(state);
+        state = Math.FusedMultiplyAdd(state, PrngRoundingFactor, PrngMagicNumber) - PrngMagicNumber;
+        return state / PrngRoundingFactor;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -348,32 +293,19 @@ public unsafe partial class MotelySingleSearchContext
 
             return ref prngStream;
         }
-        else
-        {
-            if (resample == MotelySingleResampleStream.StackResampleCount)
-            {
-                resampleStream.HighResamplePrngStreams = [];
-            }
 
-            Debug.Assert(resampleStream.HighResamplePrngStreams != null);
+        // Past the inline array the streams live on the heap, kept for the stream's whole life:
+        // Balatro re-reads a resample stream it has seen before rather than re-seeding it.
+        var high = resampleStream.HighResamplePrngStreams ??= [];
+        int index = resample - MotelySingleResampleStream.StackResampleCount;
+        if (index < high.Count)
+            return ref high[index].Value;
 
-            if (resample < resampleStream.HighResamplePrngStreams.Count)
-            {
-                return ref Unsafe.Unbox<MotelySinglePrngStream>(
-                    resampleStream.HighResamplePrngStreams[resample]
-                );
-            }
-
-            object prngStreamObject = new MotelySinglePrngStream();
-
-            resampleStream.HighResamplePrngStreams.Add(prngStreamObject);
-
-            ref MotelySinglePrngStream prngStream = ref Unsafe.Unbox<MotelySinglePrngStream>(
-                prngStreamObject
-            );
-            prngStream = CreateResamplePrngStream(key, resample, resampleStream.IsCached);
-
-            return ref prngStream;
-        }
+        Debug.Assert(index == high.Count, "Resample streams are created in order.");
+        var box = new StrongBox<MotelySinglePrngStream>(
+            CreateResamplePrngStream(key, resample, resampleStream.IsCached)
+        );
+        high.Add(box);
+        return ref box.Value;
     }
 }

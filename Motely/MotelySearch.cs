@@ -1249,9 +1249,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // Bootsharp marshals that Task to the JS Promise.
         if (OperatingSystem.IsBrowser())
         {
-            Task pump = _isProviderMode
-                ? RunProviderBrowserPumpAsync()
-                : RunSequentialBrowserPumpAsync();
+            Task pump = RunBrowserPumpAsync(_isProviderMode);
 
             // Don't drop the handle. If the pump faults before it can signal completion, route
             // the exception onto the SAME _completionSource the Promise awaits — otherwise the
@@ -1313,7 +1311,6 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WORKER EXCEPTION] {ex}");
                 Interlocked.CompareExchange(ref _firstError, ex, null);
                 // The error only surfaces when the LAST worker exits, so the others must stop
                 // too — otherwise a callback that throws once leaves the awaiter hanging for
@@ -2149,48 +2146,15 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
                         }
                     }
 
-                    // Store the cached hashes
-                    // The cache structure: Cache[partialHashLength] already points to the correct Vector512<double>*
-                    // for that key length. We just need to copy lane 'lane' from source to lane 'seedBatchIndex' in target.
-                    if (
-                        Search._pseudoHashKeyLengths == null
-                        || Search._pseudoHashKeyLengthCount <= 0
-                    )
-                        return;
-
+                    // Carry the cached partial hashes: lane `lane` of each registered key
+                    // length's vector (Cache[keyLength] points at it) into lane `seedBatchIndex`
+                    // of the batch's own vector for that key length (SeedHashes[i]). The key set
+                    // is fixed at search creation and every registered length has a cache slot.
                     for (int i = 0; i < Search._pseudoHashKeyLengthCount; i++)
                     {
-                        int partialHashLength = Search._pseudoHashKeyLengths[i];
-
-                        // Ensure cache entry exists before accessing
-                        if (searchParams.SeedHashCache == null)
-                            continue;
-
-                        if (partialHashLength >= MotelyGlobals.MaxCachedPseudoHashKeyLength)
-                            Console.WriteLine(
-                                $"partialHashLength {partialHashLength} >= MotelyGlobals.MaxCachedPseudoHashKeyLength {MotelyGlobals.MaxCachedPseudoHashKeyLength}"
-                            );
-
-                        if (searchParams.SeedHashCache->Cache[partialHashLength] == null)
-                            continue;
-
-                        // Cache[partialHashLength] already points to the correct Vector512<double>*
-                        // for this key length (set up by PartialSeedHashCache ctor:
-                        //     InitialCache[keyLength] = &partialSeedHashes[i]
-                        // ). So the source vector is one Vector512 and we just need lane `lane`.
-                        // Using `[i * Vector512<double>.Count + lane]` here reads `_hashes[2*i]`
-                        // — correct only when i == 0, wrong vector or OOB for i >= 1 — which
-                        // silently drops seeds from multi-keylength additional-filter chains.
-                        // Regression covered by Tacodiva/Motely#5 and
-                        // Motely.Tests/ChainedMustClauseSeedTests.cs.
-                        double sourceValue = (
-                            (double*)searchParams.SeedHashCache->Cache[partialHashLength]
-                        )[lane];
-
-                        // Write to target: filterBatch->SeedHashes is an array of Vector512<double>
-                        ((double*)filterBatch->SeedHashes)[
-                            i * Vector512<double>.Count + seedBatchIndex
-                        ] = sourceValue;
+                        int keyLength = Search._pseudoHashKeyLengths[i];
+                        ((double*)filterBatch->SeedHashes)[i * Vector512<double>.Count + seedBatchIndex] =
+                            ((double*)searchParams.SeedHashCache->Cache[keyLength])[lane];
                     }
 
                     if (seedBatchIndex == Vector512<double>.Count - 1)
@@ -2641,7 +2605,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             _batchCharCount = settings.SequentialBatchCharacterCount;
 
             _nonBatchCharCount = MotelyGlobals.MaxSeedLength - _batchCharCount;
-            MaxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, _nonBatchCharCount);
+            MaxBatch = MotelyGlobals.SequentialBatchCount(_batchCharCount);
 
             // Safety check for pseudoHashKeyLengthCount to prevent null pointer issues
             if (Search._pseudoHashKeyLengthCount <= 0)

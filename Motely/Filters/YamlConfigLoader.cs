@@ -19,11 +19,17 @@ public static class YamlConfigLoader
         .WithNodeDeserializer(new ClauseNodeDeserializer())
         .Build();
 
+    /// <summary>
+    /// Loads a filter: the YAML as typed clauses, then <see cref="JamlValidator"/>'s checks, so a
+    /// config that comes back can be searched. Throws <see cref="InvalidOperationException"/>
+    /// with the line for a YAML fault, or the clause's path for a value the engine cannot run.
+    /// </summary>
     public static JamlConfig FromYaml(string text)
     {
+        JamlConfig config;
         try
         {
-            return Deserializer.Deserialize<JamlConfig?>(text)
+            config = Deserializer.Deserialize<JamlConfig?>(text)
                 ?? throw new InvalidOperationException("YAML: the document is empty.");
         }
         catch (YamlException ex)
@@ -34,6 +40,8 @@ public static class YamlConfigLoader
             throw new InvalidOperationException(
                 $"YAML line {inner.Start.Line}: {inner.InnerException?.Message ?? inner.Message}", ex);
         }
+        JamlValidator.Validate(config);
+        return config;
     }
 
     public static JamlConfig FromFile(string path) => FromYaml(File.ReadAllText(path));
@@ -87,8 +95,8 @@ internal sealed class ClauseNodeDeserializer : INodeDeserializer
         ["spectralCards"] = new(typeof(SpectralCardClause), "spectrals", true),
         ["tarotCard"] = new(typeof(TarotCardClause), "tarots", true),
         ["tarotCards"] = new(typeof(TarotCardClause), "tarots", true),
-        ["standardCard"] = new(typeof(StandardCardClause), "label", false),
-        ["standardCards"] = new(typeof(StandardCardClause), "label", false),
+        ["standardCard"] = new(typeof(StandardCardClause), "card", false),
+        ["standardCards"] = new(typeof(StandardCardClause), "card", false),
         ["erraticRank"] = new(typeof(ErraticRankClause), "rank", false),
         ["erraticRanks"] = new(typeof(ErraticRankClause), "rank", false),
         ["erraticSuit"] = new(typeof(ErraticSuitClause), "suit", false),
@@ -105,7 +113,7 @@ internal sealed class ClauseNodeDeserializer : INodeDeserializer
         ["boosterPacks"] = new(typeof(BoosterPackClause), "packs", true),
         ["pokerHand"] = new(typeof(PokerHandClause), "pokerHands", true),
         ["pokerHands"] = new(typeof(PokerHandClause), "pokerHands", true),
-        ["startingDraw"] = new(typeof(StartingDrawClause), "label", false),
+        ["startingDraw"] = new(typeof(StartingDrawClause), "card", false),
         ["luckyMoney"] = new(typeof(LuckyMoneyClause), "rolls", true),
         ["luckyMult"] = new(typeof(LuckyMultClause), "rolls", true),
         ["misprintMult"] = new(typeof(MisprintMultClause), "rolls", true),
@@ -160,13 +168,19 @@ internal sealed class ClauseNodeDeserializer : INodeDeserializer
         }
         else if (!IsNull(wireValue))
         {
+            // `any` is the whole category: the empty list, or for a single-valued key nothing at all.
+            bool any = wireValue is [Scalar { Value: var word }]
+                && word.Trim().Equals("any", StringComparison.OrdinalIgnoreCase);
             if (key.ValueIsList && wireValue[0] is Scalar scalar)
-                wireValue = scalar.Value.Trim().Equals("any", StringComparison.OrdinalIgnoreCase)
+                wireValue = any
                     ? [Sequence(scalar), new SequenceEnd(scalar.Start, scalar.End)]
                     : [Sequence(scalar), scalar, new SequenceEnd(scalar.Start, scalar.End)];
-            var property = new Scalar(AnchorName.Empty, TagName.Empty, key.ValueProperty,
-                ScalarStyle.Plain, true, false, wire.Start, wire.End);
-            AddOnce(entries, (property, wireValue), wire);
+            if (key.ValueIsList || !any)
+            {
+                var property = new Scalar(AnchorName.Empty, TagName.Empty, key.ValueProperty,
+                    ScalarStyle.Plain, true, false, wire.Start, wire.End);
+                AddOnce(entries, (property, wireValue), wire);
+            }
         }
 
         var events = new List<ParsingEvent> { start };

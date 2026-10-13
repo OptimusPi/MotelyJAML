@@ -93,20 +93,8 @@ public static class ClauseScoring
             RareJokerClause rjc => rjc.Sources is { RequireMegaPack: true },
             AndClause a => AllExactFilterConfirm(a.Clauses),
             OrClause o => AllExactFilterConfirm(o.Clauses),
-            // Roll-scoped event filters are vector counts over the same absolute roll indices as
-            // scoring (no coarse pack walk) — min only, so exact only without a max.
-            LuckyMoneyClause
-            or LuckyMultClause
-            or MisprintMultClause
-            or WheelOfFortuneClause
-            or CavendishExtinctClause
-            or GrosMichelExtinctClause
-            or SpaceLevelupClause
-            or BusinessPayoutClause
-            or BloodstoneTriggerClause
-            or ParkingPayoutClause
-            or GlassDestroyClause
-            or WheelStaysFlippedClause => clause.Max is null,
+            // Event filters count the same absolute roll indices as scoring, min and max both.
+            EventClause => true,
             _ => false,
         };
 
@@ -244,12 +232,11 @@ public static class ClauseScoring
         CapScoreCount(count, clause);
 
     /// <summary>
-    /// Match bounds contract: <see cref="IMotelyClause.Min"/> is the lower gate;
-    /// <see cref="IMotelyClause.Max"/> when set is the upper gate for must / filter confirm, at
-    /// every value — null is the only "no ceiling". The loader guarantees <c>1 ≤ min ≤ max</c>
-    /// (<c>YamlConfigLoader.ValidateBounds</c>), so a zero ceiling never reaches here today.
-    /// Score tallies still use <see cref="CapScoreCount"/> so should columns cap contribution.
-    /// SIMD prefilters may stay over-permissive on Max; scoring / exact confirm enforce it.
+    /// Match bounds: <see cref="IMotelyClause.Min"/> is the floor and <see cref="IMotelyClause.Max"/>,
+    /// when set, the ceiling; null is the only "no ceiling". <see cref="JamlValidator"/> guarantees
+    /// <c>1 ≤ min ≤ max</c> at load. Score tallies use <see cref="CapScoreCount"/> instead, so a
+    /// should column's contribution is capped rather than gated. SIMD prefilters may stay
+    /// over-permissive on max; scoring and the exact confirm paths enforce it.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool MeetsOccurrenceBounds(int raw, IMotelyClause clause)
@@ -260,6 +247,16 @@ public static class ClauseScoring
             return false;
         return true;
     }
+
+    /// <summary>
+    /// Whether a counted clause matched. A plain clause matches when its occurrence count sits
+    /// inside its own <c>min</c>/<c>max</c>. An <c>and:</c>/<c>or:</c> gates itself (it returns
+    /// 0 below its arm-count <c>min</c>) and returns an aggregate, not an occurrence count, so
+    /// for it any positive return is a match: its <c>min</c> is never re-applied as a floor.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool Matches(int raw, IMotelyClause clause) =>
+        clause is LogicClause ? raw > 0 : MeetsOccurrenceBounds(raw, clause);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int CapScoreCount(int count, IMotelyClause clause)
@@ -276,17 +273,6 @@ public static class ClauseScoring
         );
         return 0;
     }
-
-    /// <summary>
-    /// A child arm of <c>and:</c>/<c>or:</c> counts as matched only when its occurrence count sits
-    /// inside the child's own <c>min</c>/<c>max</c>. Nested logic arms gate themselves (they
-    /// return 0 below their arm-count <c>min</c>, and their return is an aggregate, not an
-    /// occurrence count), so for those any positive return is a match; the scored callers then
-    /// cap a nested arm at its own <c>max</c> as <see cref="CountOccurrences"/> does.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ChildMatches(int count, IMotelyClause child) =>
-        child is LogicClause ? count > 0 : MeetsOccurrenceBounds(count, child);
 
     private static int CountAndOccurrences(
         ref MotelySingleSearchContext ctx,
@@ -305,7 +291,7 @@ public static class ClauseScoring
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountOccurrencesUncapped(ref ctx, clause.Clauses[i], runState);
-            if (!ChildMatches(count, clause.Clauses[i]))
+            if (!Matches(count, clause.Clauses[i]))
                 return 0;
             count = CapScoreCount(count, clause.Clauses[i]);
             if (count < combos)
@@ -338,7 +324,7 @@ public static class ClauseScoring
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountOccurrencesUncapped(ref ctx, clause.Clauses[i], runState);
-            if (!ChildMatches(count, clause.Clauses[i]))
+            if (!Matches(count, clause.Clauses[i]))
                 continue;
             matched++;
             int contribution = CapScoreCount(count, clause.Clauses[i]) * OrArmWeight(clause.Clauses[i]);
@@ -388,7 +374,7 @@ public static class ClauseScoring
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountRawOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (!ChildMatches(count, clause.Clauses[i]))
+            if (!Matches(count, clause.Clauses[i]))
                 return 0;
             if (count < combos)
                 combos = count;
@@ -421,7 +407,7 @@ public static class ClauseScoring
         for (int i = 0; i < clause.Clauses.Length; i++)
         {
             int count = CountRawOccurrences(ref ctx, clause.Clauses[i], runState);
-            if (!ChildMatches(count, clause.Clauses[i]))
+            if (!Matches(count, clause.Clauses[i]))
                 continue;
             matched++;
             total += count;
@@ -444,15 +430,6 @@ public static class ClauseScoring
 
     private static int CountBossOccurrences(BossClause clause, MotelyRunState runState)
     {
-        Debug.Assert(
-            clause.Bosses.Length > 0,
-            "BossClause.Bosses must be non-empty after YAML load (validator / loader bug)."
-        );
-        Debug.Assert(
-            clause.Antes.Length > 0,
-            "BossClause.Antes must be non-empty after YAML load (validator / loader bug)."
-        );
-
         // Not Debug.Assert: ApplyPrepareRunState allocates CachedBosses only when some clause
         // named a boss ante >= 1, so a clause that slipped past the loader must fail with the
         // cause in Release too, not with a null dereference.
@@ -469,14 +446,17 @@ public static class ClauseScoring
                 throw new InvalidOperationException(
                     $"Boss ante {ante} is outside the cached range 1..{bosses.Length - 1}; bosses start at ante 1."
                 );
-            for (int i = 0; i < clause.Bosses.Length; i++)
-                if (clause.Bosses[i] == bosses[ante])
-                {
-                    count++;
-                }
+            if (Names(clause.Bosses, bosses[ante]))
+                count++;
         }
         return count;
     }
+
+    /// <summary>An item list names a value when it holds it; an empty list (<c>any</c>) names them all.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool Names<T>(T[] wanted, T value)
+        where T : struct, Enum =>
+        wanted.Length == 0 || Array.IndexOf(wanted, value) >= 0;
 
     private static int CountStandardCardOccurrences(
         ref MotelySingleSearchContext ctx,
@@ -1034,7 +1014,7 @@ public static class ClauseScoring
         var localState = new MotelyRunState();
         int count = 0;
         int maxAnte = GetMaxAnte(clause);
-        int maxVoucherRoll = (clause.Rolls.Length == 0 ? -1 : clause.Rolls.Max());
+        int maxVoucherRoll = clause.Rolls.Max();
         Span<MotelyVoucher> streamDraws = stackalloc MotelyVoucher[maxVoucherRoll + 1];
 
         for (int ante = 1; ante <= maxAnte; ante++)
@@ -1053,13 +1033,8 @@ public static class ClauseScoring
                 foreach (var roll in clause.Rolls)
                 {
                     var rolled = roll == 0 ? voucher : streamDraws[roll];
-                    for (int i = 0; i < clause.Vouchers.Length; i++)
-                    {
-                        if (rolled == clause.Vouchers[i])
-                        {
-                            count++;
-                        }
-                    }
+                    if (Names(clause.Vouchers, rolled))
+                        count++;
                 }
             }
 
@@ -1076,7 +1051,7 @@ public static class ClauseScoring
     )
     {
         int count = 0;
-        int maxDraw = (clause.Rolls.Length == 0 ? -1 : clause.Rolls.Max());
+        int maxDraw = clause.Rolls.Max();
         Span<MotelyTag> draws = stackalloc MotelyTag[maxDraw + 1];
 
         foreach (int ante in clause.Antes)
@@ -1086,16 +1061,8 @@ public static class ClauseScoring
                 draws[i] = ctx.GetNextTag(ref tagStream);
 
             foreach (var drawIndex in clause.Rolls)
-            {
-                var rolled = draws[drawIndex];
-                for (int i = 0; i < clause.Tags.Length; i++)
-                {
-                    if (rolled == clause.Tags[i])
-                    {
-                        count++;
-                    }
-                }
-            }
+                if (Names(clause.Tags, draws[drawIndex]))
+                    count++;
         }
         return count;
     }

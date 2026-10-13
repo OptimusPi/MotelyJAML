@@ -133,14 +133,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record LegendaryJokerSourceConfig
 {
-    /// <summary>
-    /// requireMega/requireMegaPack are both real aliases the loader accepts for the one
-    /// RequireMegaPack bool below — the only case where this list has two entries for one
-    /// property, and it's a deliberate alias, not drift.
-    /// </summary>
-    public static readonly string[] SourceKeys =
-        ["boosterPacks", "arcanaPacks", "spectralPacks", "requireMega", "requireMegaPack"];
-
     // No ShopItems: shops never offer legendary/Soul jokers, so a shop slot would silently match
     // nothing. The loader rejects a `shopItems:` key on legendaryJoker sources outright.
 

@@ -56,6 +56,10 @@ dotnet publish -c Release        # bin/motely-wasm, warnings are errors, nothing
 node tests/smoke.mjs
 ```
 
+Install [Binaryen](https://github.com/WebAssembly/binaryen/releases) and put `wasm-opt` on
+PATH first. Bootsharp runs it on every Release publish; when it's missing it logs a warning
+and ships an unoptimized binary.
+
 The default build includes `JamlFiles` (folder access through Bootsharp.FileSystem). That package
 is not on nuget.org: add the rewaffle sponsor feed as a `rewaffle` source in your user-level
 NuGet.Config (the repo's nuget.config already maps `Bootsharp.FileSystem` to it). JS then calls
@@ -70,5 +74,6 @@ dotnet publish -c Release -p:MotelyFileSystem=false
 `JamlFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
 file calls reject.
 
-The engine's YAML loader reads with VYaml's parser only. VYaml's serializer layer finds
-formatters by reflection, which NativeAOT cannot compile (the old IL2104 / IL3053).
+The engine's YAML loader is YamlDotNet's static (source-generated) deserializer through the
+Vecc generator (`Vecc.YamlDotNet.Analyzers.StaticGenerator`): no reflection, so NativeAOT
+trims it cleanly.

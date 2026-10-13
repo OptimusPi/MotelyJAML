@@ -1,16 +1,12 @@
 name: Purple Seal tarotCard Generation
 author: jammy
-description: Standard card with Purple Seal for tarotCard card generation on discard
+description: A Purple Seal card in antes 1 to 4 for tarot card generation on discard
 deck: Blue
 stake: White
 must:
-  - standardCard: PurpleSeal
+  - standardCard: any
     seal: Purple
-    antes:
-      - 1
-      - 2
-      - 3
-      - 4
+    antes: [1, 2, 3, 4]
 should:
   - commonJoker: FortuneTeller
     score: 60

@@ -32,7 +32,9 @@ public sealed record MotelyRunState
     // check), which a bare `{ get; set; }` field never enforced.
     public int VoucherBitfield { get; private set; }
     public int BossBitfield { get; private set; }
-    public int ExtendedPackAnteBitfield { get; private set; }
+
+    /// <summary>One bit per ante (<see cref="MotelyGlobals.MaxAnte"/> needs more than an int's 32).</summary>
+    public long ExtendedPackAnteBitfield { get; private set; }
 
     // MotelyLuck, not int — the enum exists specifically so an invalid multiplier (a stray "3")
     // can't be represented at all, the same reason MotelyWith.Luck is typed this way.
@@ -66,12 +68,12 @@ public sealed record MotelyRunState
     public void ActivateExtendedPackAnte(int ante)
     {
         if (ante > 0)
-            ExtendedPackAnteBitfield |= 1 << ante;
+            ExtendedPackAnteBitfield |= 1L << ante;
     }
 
     public bool IsExtendedPackAnteActive(int ante)
     {
-        return ante > 0 && (ExtendedPackAnteBitfield & (1 << ante)) != 0;
+        return ante > 0 && (ExtendedPackAnteBitfield & (1L << ante)) != 0;
     }
 
     public void SeeBoss(MotelyBossBlind boss)

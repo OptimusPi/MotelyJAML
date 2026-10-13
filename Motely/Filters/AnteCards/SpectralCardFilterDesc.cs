@@ -391,19 +391,6 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record SpectralCardSourceConfig
 {
-    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
-    public static readonly string[] SourceKeys =
-    [
-        "shopItems",
-        "boosterPacks",
-        "sixthSense",
-        "seance",
-        "etherealTag",
-        "requireMega",
-        "requireMegaPack",
-        "omenGlobe",
-    ];
-
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
     public int[] SixthSense { get; set; } = [];
