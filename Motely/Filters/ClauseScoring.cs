@@ -1413,16 +1413,16 @@ public static class ClauseScoring
         var sources = clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
         int userMaxPack = sources.MaxReferencedBoosterSlot();
 
-        foreach (int ante in clause.Antes)
+        // One Joker4 walk for the whole run: Souls are opened in ante order, so antes go ascending
+        // whatever order the clause lists them in.
+        var walk = new LegendarySoulMatcher.SoulWalk(ctx.CreateRunLegendaryJokerStream());
+        int lastAnte = ArrayMax(clause.Antes);
+        for (int ante = 0; ante <= lastAnte && !walk.Done; ante++)
         {
+            if (!ArrayContains(clause.Antes, ante))
+                continue;
             int maxPack = ClampBoosterPackSlotForAnte(ante, userMaxPack, runState);
-            count += LegendarySoulMatcher.CountAnte(
-                ref ctx,
-                ante,
-                clause,
-                maxPack,
-                stopAfterFirstMatch: false
-            );
+            count += LegendarySoulMatcher.CountAnte(ref ctx, ante, clause, maxPack, ref walk);
         }
 
         return count;
@@ -1554,13 +1554,17 @@ public static class ClauseScoring
                 runState
             );
 
+            var wildcardLegendarySources = LegendarySourcesFor(clause);
+            if (wildcardLegendarySources is null)
+                return normalWildcard;
+
             var legendaryWildcard = new LegendaryJokerClause
             {
                 Label = clause.Label,
                 Score = clause.Score,
                 Jokers = [],
                 Edition = clause.Edition,
-                Sources = clause.LegendarySources ?? LegendaryJokerFilterDesc.DefaultSources,
+                Sources = wildcardLegendarySources,
                 Antes = clause.Antes,
                 Min = clause.Min,
                 Max = clause.Max,
@@ -1587,7 +1591,7 @@ public static class ClauseScoring
             );
         }
 
-        if (legendary.Length > 0)
+        if (legendary.Length > 0 && LegendarySourcesFor(clause) is { } legendarySources)
         {
             var legendaryClause = new LegendaryJokerClause
             {
@@ -1595,7 +1599,7 @@ public static class ClauseScoring
                 Score = clause.Score,
                 Jokers = legendary,
                 Edition = clause.Edition,
-                Sources = clause.LegendarySources ?? LegendaryJokerFilterDesc.DefaultSources,
+                Sources = legendarySources,
                 Antes = clause.Antes,
                 Min = clause.Min,
                 Max = clause.Max,
@@ -1605,6 +1609,28 @@ public static class ClauseScoring
         }
 
         return count;
+    }
+
+    /// <summary>
+    /// Where a <c>joker:</c> clause looks for legendaries (Soul cards in Arcana/Spectral packs).
+    /// <c>legendarySources:</c> wins when given. With no <c>sources:</c> block at all, the legendary
+    /// default applies. An explicit <c>sources:</c> block is taken literally: its <c>boosterPacks</c>
+    /// slots are the Soul slots, and a block that lists no packs asks for no Souls (null) — a clause
+    /// never pulls from a source it did not name.
+    /// </summary>
+    private static LegendaryJokerSourceConfig? LegendarySourcesFor(JokerClause clause)
+    {
+        if (clause.LegendarySources is { } explicitLegendary)
+            return explicitLegendary;
+        if (clause.Sources is null)
+            return LegendaryJokerFilterDesc.DefaultSources;
+        if (clause.Sources.BoosterPacks.Length == 0)
+            return null;
+        return new LegendaryJokerSourceConfig
+        {
+            BoosterPacks = clause.Sources.BoosterPacks,
+            RequireMegaPack = clause.Sources.RequireMegaPack,
+        };
     }
 
     /// <summary>

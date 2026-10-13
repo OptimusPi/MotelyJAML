@@ -4,8 +4,18 @@ using Motely;
 
 namespace Motely.Filters;
 
+/// <summary>
+/// <c>legendaryJoker:</c> — the legendary a Soul card gives.
+///
+/// Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is decided by how many
+/// Souls the player has opened in the whole run, not by the ante the Soul sits in. The Souls this
+/// clause targets (<see cref="Antes"/> × <see cref="Sources"/>) are the ones the player opens, in
+/// ante then pack order: the first gets <c>Joker4</c> draw 0, the next draw 1, across antes. Leaving
+/// a Soul out of scope is skipping it — <c>antes: [1, 8]</c> skips ante 2's Soul. The edition still
+/// comes from the ante's own <c>edisou{ante}</c> stream.
+/// </summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClause
+public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -17,6 +27,17 @@ public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClau
     /// <summary>Null = apply <see cref="LegendaryJokerFilterDesc.DefaultSources"/>; an explicit block
     /// overrides wholesale (same convention as every other clause's <c>Sources</c>).</summary>
     public LegendaryJokerSourceConfig? Sources { get; set; }
+
+    /// <summary>
+    /// Which opened Souls count: 0 is the first Soul opened, 1 the second, and so on through the
+    /// run. Empty = every opened Soul. <c>rolls: [0, 1], min: 2</c> with Perkeo = the first two Souls
+    /// both give Perkeo (sell the first before opening the second, or it resamples — see <see cref="With"/>).
+    /// </summary>
+    public int[] Rolls { get; set; } = [];
+
+    /// <summary><c>with: { jokers: [Perkeo] }</c> — legendaries held while opening Souls drop out of
+    /// the pool and resample; holding Showman keeps them in.</summary>
+    public MotelyWith With { get; set; } = new();
 
     /// <summary>
     /// When true, match as soon as The Soul appears in a targeted arcana/Spectral pack (Tarot/Spectral
@@ -65,6 +86,9 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
             Edition = _clause.Edition,
             Antes = _clause.Antes,
             Min = _clause.Min,
+            Max = _clause.Max,
+            Rolls = _clause.Rolls,
+            With = _clause.With,
             SoulCardOnly = _clause.SoulCardOnly,
             SoulEditionRolls = _clause.SoulEditionRolls,
             Sources = new LegendaryJokerSourceConfig

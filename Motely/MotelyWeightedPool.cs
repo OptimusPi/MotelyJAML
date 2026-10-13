@@ -11,7 +11,11 @@ public struct MotelyWeightedPoolItem<T>(T value, double weight)
     public double Weight = weight;
 }
 
-public unsafe class MotelyWeightedPool<T> : IDisposable
+/// <summary>
+/// Process-lifetime weighted table. Instances are static singletons; the native buffer is
+/// intentionally never freed (freeing a shared static would be a use-after-free hazard).
+/// </summary>
+public unsafe class MotelyWeightedPool<T>
     where T : unmanaged, Enum
 {
     private readonly MotelyWeightedPoolItem<T>* _pool;
@@ -126,13 +130,6 @@ public unsafe class MotelyWeightedPool<T> : IDisposable
                 throw new IndexOutOfRangeException();
 #endif
         }
-    }
-
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-    public void Dispose()
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
-    {
-        Marshal.FreeHGlobal((nint)_pool);
     }
 }
 

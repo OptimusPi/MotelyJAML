@@ -74,6 +74,11 @@ public static class JamlValidator
             case StartingDrawClause d when d.Card is { } card:
                 (d.Rank, d.Suit) = WholeCard(at, card, d.Rank, d.Suit, errors);
                 break;
+            // rolls on legendaryJoker is optional (empty = every opened Soul), so it is only
+            // bounds-checked when given.
+            case LegendaryJokerClause l when l.Rolls.Length > 0:
+                CheckIndices(at, "rolls", l.Rolls, MotelyGlobals.MaxRollIndex, "the last roll", errors);
+                break;
         }
     }
 
