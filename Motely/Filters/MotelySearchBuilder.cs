@@ -5,7 +5,7 @@ namespace Motely.Filters;
 
 public sealed class YAMLSearchPlan
 {
-    internal IMotelySearchSettings Settings { get; set; } = null!;
+    public IMotelySearchSettings Settings { get; set; } = null!;
     public int ScoreTallyColumnCount { get; set; }
     public IReadOnlyList<string> TallyLabels { get; set; } = [];
 }
@@ -42,10 +42,6 @@ public static class MotelySearchBuilder
     /// </param>
     public static IMotelySearchSettings CreateSettings(YAMLConfig config, int? engineCutoff = null)
     {
-        // The loader validates, but a config can also be built in code or edited by a JS host
-        // after loading; the SIMD filters size stack buffers from these bounds, so check again.
-        YAMLValidator.Validate(config);
-
         int floor = engineCutoff ?? config.Cutoff ?? int.MinValue;
 
         // A YAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds

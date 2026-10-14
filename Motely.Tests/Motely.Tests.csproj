@@ -32,7 +32,7 @@
   <!-- The browser build's filter naming has no Bootsharp in it, so it is tested here on the
        normal runtime (YAMLFileNamesTests); the Node tests cover the mounted folder itself. -->
   <ItemGroup>
-    <Compile Include="../Motely.Wasm/YAMLFileNames.cs" Link="Wasm/YAMLFileNames.cs" />
+    <Compile Include="../Motely.Wasm/JamlFileNames.cs" Link="Wasm/JamlFileNames.cs" />
   </ItemGroup>
 
   <ItemGroup>
