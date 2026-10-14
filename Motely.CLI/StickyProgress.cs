@@ -24,7 +24,7 @@ internal static class StickyProgress
 
     /// <summary>
     /// Update the sticky progress line.
-    /// In non-live mode this emits a plain stderr newline (old behaviour).
+    /// In non-live mode this emits a plain stderr line.
     /// </summary>
     public static void Update(string line)
     {

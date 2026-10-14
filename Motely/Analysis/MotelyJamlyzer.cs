@@ -13,8 +13,22 @@ public sealed record MotelyJamlyzerSeedResult(
     IReadOnlyList<MotelyJamlyzerAnteResult> Antes,
     MotelyJamlyzerEvents Events,
     MotelyJamlyzerStreamStates StreamStates,
+    IReadOnlyList<MotelyJamlyzerLegendary> LegendaryOrder,
     MotelyItem[]? ErraticDeck = null,
     int[]? Tally = null
+);
+
+/// <summary>
+/// One Soul the player opens, in run order: the Nth entry is the Nth Soul opened, whatever ante it
+/// sits in. Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is run-global;
+/// the edition still comes from the Soul's own ante (<c>edisou{ante}</c>). This is the sequence
+/// <c>legendaryJoker:</c> matches against, read once per seed instead of restarted every ante.
+/// </summary>
+public sealed record MotelyJamlyzerLegendary(
+    int Ante,
+    int PackSlot,
+    MotelyJoker Joker,
+    MotelyItemEdition Edition
 );
 
 public sealed record MotelyJamlyzerAnteResult(
@@ -49,6 +63,8 @@ public sealed record MotelyJamlyzerShopStreams(
 /// <summary>
 /// Per-ante rolls from streams that only fire when activated by a specific card or joker.
 /// All arrays have length == eventRolls. EmperorTarots has length == eventRolls * 2 (2 per use).
+/// Legendaries are not here: <c>Joker4</c> is run-global, so they live once per seed in
+/// <see cref="MotelyJamlyzerSeedResult.LegendaryOrder"/>.
 /// </summary>
 public sealed record MotelyJamlyzerPulls(
     IReadOnlyList<MotelyItem> JudgementJokers,
@@ -60,7 +76,6 @@ public sealed record MotelyJamlyzerPulls(
     IReadOnlyList<MotelyItem> RiffRaffJokers,
     IReadOnlyList<MotelyItem> RareTagJokers,
     IReadOnlyList<MotelyItem> UncommonTagJokers,
-    IReadOnlyList<MotelyItem> LegendaryJokers,
     IReadOnlyList<MotelyVoucher> VoucherSequence
 );
 
@@ -281,9 +296,8 @@ public static class MotelyJamlyzer
 
     /// <summary>
     /// A bag only ever comes back from a previous result, but across the JS boundary it is just
-    /// an object. A negative offset used to leave the first slots of every queue as
-    /// default(MotelyItem) (an int.MaxValue one overflowed into an empty walk), a huge one replayed
-    /// for minutes, and a state outside the PRNG's [0, 1] range rolled nonsense. Refuse them.
+    /// an object. A negative or huge offset, or a state outside the PRNG's [0, 1] range, is
+    /// refused.
     /// </summary>
     private static void ThrowIfNotResumable(
         MotelyJamlyzerStreamStates resumeFrom,

@@ -154,7 +154,7 @@ public sealed class JamlSimdPackSupportTests
     [Fact]
     public void HieroglyphSeed_StillMatches_Slot6_Legendary()
     {
-        // Regression: the ante-1 slot clamp must not drop Hieroglyph-extended KHTW99TC.
+        // The ante-1 slot clamp keeps Hieroglyph-extended KHTW99TC.
         const string seed = "KHTW99TC";
         var jaml = """
             name: HieroglyphPerkeo

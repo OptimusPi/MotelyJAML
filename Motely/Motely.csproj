@@ -10,8 +10,8 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- YDNG001: the static generator can't register an interface. IMotelyClause is read by
-         ClauseNodeDeserializer (YamlConfigLoader.cs) before the generated code is asked. -->
+    <!-- YDNG001: the static generator can't register an interface. IMotelyClause is discriminated
+         at deserialize time via YamlDotNet's type-discriminating node deserializer. -->
     <NoWarn>$(NoWarn);YDNG001</NoWarn>
   </PropertyGroup>
 

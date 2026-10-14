@@ -161,6 +161,9 @@ public struct JokerFilterDesc(JokerClause clause)
             }
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
+            // Lanes with an in-pack duplicate: SIMD can't resample, so the scalar confirm decides.
+            VectorMask undecided = VectorMask.NoBitsSet;
+            BuffoonPackDuplicateTracker duplicates = default;
 
             var shopIndices = _shopIndices;
             var boosterIndices = _boosterIndices;
@@ -270,14 +273,19 @@ public struct JokerFilterDesc(JokerClause clause)
                         var baseMask = SimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = SimdPackSupport.ToPrngMask(extraLanes);
 
+                        duplicates.Reset();
                         for (int c = 0; c < 2; c++)
                         {
                             var joker = ctx.GetNextJoker(ref jokerStream, baseMask);
+                            VectorMask dup = duplicates.Add(joker);
                             if (countLanes.IsPartiallyTrue())
+                            {
                                 SimdPackSupport.AddMatchCounts(
                                     MatchJokers(joker) & countLanes & baseLanes,
                                     ref matchCounts
                                 );
+                                undecided |= dup & countLanes & baseLanes;
+                            }
                         }
 
                         if (extraLanes.IsPartiallyTrue())
@@ -285,18 +293,25 @@ public struct JokerFilterDesc(JokerClause clause)
                             for (int c = 0; c < 2; c++)
                             {
                                 var joker = ctx.GetNextJoker(ref jokerStream, extraMask);
+                                VectorMask dup = duplicates.Add(joker);
                                 if (countLanes.IsPartiallyTrue())
+                                {
                                     SimdPackSupport.AddMatchCounts(
                                         MatchJokers(joker) & countLanes & extraLanes,
                                         ref matchCounts
                                     );
+                                    undecided |= dup & countLanes & extraLanes;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            return SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
+            VectorMask result = SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
+            if (undecided.IsPartiallyTrue())
+                result |= undecided & SimdPackSupport.ValidLaneMask(ref ctx);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -351,7 +366,7 @@ public sealed partial record JokerSourceConfig
     /// <summary>0..n rolls of the joker stream keyed by the Judgement tarot (rarity-polled, no stickers).</summary>
     public int[] Judgement { get; set; } = [];
 
-    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (rarity-polled, no stickers).</summary>
+    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (always Rare, no stickers).</summary>
     public int[] Wraith { get; set; } = [];
 
     /// <summary>0..n rolls of the common-pool stream Riff-Raff spawns from (no stickers).</summary>

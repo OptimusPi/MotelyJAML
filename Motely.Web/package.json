@@ -1,6 +1,6 @@
 {
   "name": "motely-web",
-  "version": "29.0.0",
+  "version": "30.0.0",
   "private": true,
   "description": "The Motely seed lab: jaml-ui's SeedLab on motely-wasm, served by Aspire.",
   "type": "module",

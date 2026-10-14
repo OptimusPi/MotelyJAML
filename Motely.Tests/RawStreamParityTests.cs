@@ -105,7 +105,7 @@ public sealed class RawStreamParityTests
                     var judgement = ctx.CreateJudgementJokerStream(ante);
                     specialty["judgement"][ante] = PullMixed(ref judgement, ref ctx, SpecialtyPulls);
                     var wraith = ctx.CreateWraithJokerStream(ante);
-                    specialty["wraith"][ante] = PullMixed(ref wraith, ref ctx, SpecialtyPulls);
+                    specialty["wraith"][ante] = Pull(ref wraith, ref ctx, SpecialtyPulls);
                     var riffRaff = ctx.CreateRiffRaffJokerStream(ante);
                     specialty["riffRaff"][ante] = Pull(ref riffRaff, ref ctx, SpecialtyPulls);
                     var rareTag = ctx.CreateRareTagJokerStream(ante);

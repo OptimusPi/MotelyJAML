@@ -270,14 +270,27 @@ public sealed class JokerDescScalarAgreementTests
     }
 
     [Fact]
-    public void UncommonJoker_WraithSource_ConfirmsPerSeed()
+    public void RareJoker_WraithSource_ConfirmsPerSeed()
+    {
+        var clause = new RareJokerClause
+        {
+            Antes = [1, 2],
+            Sources = new JokerSourceConfig { Wraith = [0, 1] },
+        };
+        AssertAgreeNonEmpty(Simd(clause, MotelyStake.White), Scalar(clause, MotelyStake.White));
+    }
+
+    /// <summary>Wraith is <c>create_card(…, 0.99, …, 'wra')</c>: always Rare, so it can never yield an Uncommon.</summary>
+    [Fact]
+    public void UncommonJoker_WraithSource_NeverMatches()
     {
         var clause = new UncommonJokerClause
         {
             Antes = [1, 2],
             Sources = new JokerSourceConfig { Wraith = [0, 1] },
         };
-        AssertAgreeNonEmpty(Simd(clause, MotelyStake.White), Scalar(clause, MotelyStake.White));
+        Assert.Empty(Scalar(clause, MotelyStake.White));
+        Assert.Empty(Simd(clause, MotelyStake.White));
     }
 
     /// <summary>Uncommon keeps its native raw shop joker walks; they must still match scalar.</summary>

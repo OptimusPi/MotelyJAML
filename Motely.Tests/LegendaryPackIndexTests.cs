@@ -5,8 +5,6 @@ namespace Motely.Tests;
 /// a <c>legendaryJoker:</c> clause or a <c>boosterPack:</c> / <c>tarotCard:</c> clause names
 /// them: ante 1 slot 0 is the fixed first-shop Buffoon for all of them, and ante 0 — which only
 /// exists after Hieroglyph is bought in that first shop — has no fixed pack for any of them.
-/// The legendary walker used to number ante 1 from the first rolled pack, so its index k meant
-/// the other families' k+1 and its slot 3 named a fifth ante-1 pack no run offers.
 /// </summary>
 public sealed class LegendaryPackIndexTests
 {

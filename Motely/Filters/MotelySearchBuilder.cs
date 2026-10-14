@@ -42,6 +42,10 @@ public static class MotelySearchBuilder
     /// </param>
     public static IMotelySearchSettings CreateSettings(JamlConfig config, int? engineCutoff = null)
     {
+        // The loader validates, but a config can also be built in code or edited by a JS host
+        // after loading; the SIMD filters size stack buffers from these bounds, so check again.
+        JamlValidator.Validate(config);
+
         int floor = engineCutoff ?? config.Cutoff ?? int.MinValue;
 
         // A JAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
@@ -63,7 +67,7 @@ public static class MotelySearchBuilder
         var simdMustNot = config.MustNot.Where(ClauseScoring.IsExactFilterConfirm).ToArray();
         var scoredMustNot = config.MustNot.Where(c => !ClauseScoring.IsExactFilterConfirm(c)).ToArray();
 
-        // SIMD filter chain: must + mustNot cheapest-first so trivial clauses kill lanes before
+        // SIMD filter chain: must + mustNot cheapest-first so trivial clauses reject lanes before
         // expensive SearchIndividualSeeds arms. Does not mutate the config; scoring still sees
         // authored must/should order (tally columns + must re-eval).
         foreach (

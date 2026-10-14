@@ -6,7 +6,7 @@ namespace Motely.Tests;
 
 /// <summary>
 /// S8.P2 — MotelySearch / settings / filter-creation-context guts. Every search here is a
-/// bounded list or a fixed sequential slice (the StopAfterTests recipe); assertions observe
+/// bounded list or a fixed sequential range (the StopAfterTests recipe); assertions observe
 /// engine counters, delivered seeds, or PRNG-derived state — never load-and-stop.
 /// </summary>
 public sealed class S8P2SearchGutsTests
@@ -101,6 +101,23 @@ public sealed class S8P2SearchGutsTests
         search.AwaitCompletion();
     }
 
+    [Fact]
+    public void WaitingOnASearchThatWasNeverStarted_Throws_InsteadOfHanging()
+    {
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
+            .WithThreadCount(1)
+            .CreateSearch();
+        Assert.Throws<InvalidOperationException>(() => search.AwaitCompletion());
+        // Thrown on the call itself, not through the task.
+        Assert.Throws<InvalidOperationException>(() => { _ = search.WaitForCompletionAsync(); });
+
+        // Disposed without a start, it is settled, and waiting returns.
+        search.Dispose();
+        search.AwaitCompletion();
+    }
+
     /// <summary>
     /// G01 host contract: sequential/provider Start is non-blocking (worker threads).
     /// TUI polls IsCompleted; calling complete/dispose immediately after Start is wrong.
@@ -139,9 +156,7 @@ public sealed class S8P2SearchGutsTests
     }
 
     /// <summary>
-    /// The ETA counts only the batches the run was asked for. It used to count to the end of the
-    /// whole space, so a bounded run quoted the time to sweep everything after it: a one-batch
-    /// range that finished in twelve seconds reported 148 days.
+    /// The ETA counts only the batches the run was asked for, not the rest of the space.
     /// <para>
     /// Both assertions are exact rather than timing-tolerant, because the ratio is exact. Two
     /// batches requested: at the first report half the run is done, so the time left equals the
@@ -188,7 +203,7 @@ public sealed class S8P2SearchGutsTests
         Assert.Equal(12L, search.CompletedBatchCount);
     }
 
-    // ── Sequential slice: progress, counters, async completion ─────────────
+    // ── Sequential range: progress, counters, async completion ─────────────
 
     [Fact]
     public async Task SequentialSlice_ProgressCountersAndAsyncCompletion()
@@ -217,7 +232,7 @@ public sealed class S8P2SearchGutsTests
         // Two full batches of 35^3 seeds each, and both booked as completed.
         Assert.Equal(2L * 35 * 35 * 35, search.TotalSeedsSearched);
         Assert.Equal(2L, search.CompletedBatchCount);
-        Assert.True(search.MatchingSeeds > 0, "permissive filter found nothing in the slice");
+        Assert.True(search.MatchingSeeds > 0, "permissive filter found nothing in the range");
         Assert.Equal(search.TotalSeedsSearched - search.MatchingSeeds, search.FilteredSeeds);
         Assert.True(search.ElapsedMs >= 0);
 

@@ -36,9 +36,8 @@ public static class CliSearchMode
 
     /// <summary>
     /// Normalizes a typed seed (trim, upper-case, 0 to O) and checks it is 1-8 characters of
-    /// 1-9/A-Z, the only seeds the engine searches. Anything else used to slip through: '!' or a
-    /// space was hashed as if it were a seed, and an over-long one was silently dropped (0 seeds
-    /// searched, exit 0).
+    /// 1-9/A-Z, the only seeds the engine searches. Anything else is refused rather than hashed
+    /// as a seed or dropped.
     /// </summary>
     public static bool TryNormalizeSeed(string input, [NotNullWhen(true)] out string? seed)
     {
@@ -52,10 +51,18 @@ public static class CliSearchMode
         return false;
     }
 
+    /// <summary>A seed the sequential sweep visits: valid, and the full 8 characters.</summary>
+    private static bool TrySweepSeed(string input, [NotNullWhen(true)] out string? seed)
+    {
+        if (TryNormalizeSeed(input, out seed) && seed.Length == MotelyGlobals.MaxSeedLength)
+            return true;
+        seed = null;
+        return false;
+    }
+
     public static bool TryApplySearchMode(
         IMotelySearchSettings settings,
         in Input input,
-        Action<string>? writeWarning,
         [NotNullWhen(false)] out string? error,
         out IMotelySearchSettings updated
     )
@@ -164,7 +171,7 @@ public static class CliSearchMode
         {
             if (string.IsNullOrWhiteSpace(input.JamlPath))
             {
-                error = "Error: --replay requires --jaml (it replays that file's seeds: block).";
+                error = "Error: --replay requires --yaml (it replays that file's seeds: block).";
                 return false;
             }
             if (input.JamlSeeds is not { Count: > 0 })
@@ -204,11 +211,8 @@ public static class CliSearchMode
         }
         else if (hasKeywordMode)
         {
-            // An unparseable --padding still means "keyword only, no pad", not "full alphabet".
-            var pad = Padding(input.PaddingCharsOption);
-            if (pad is null && !string.IsNullOrWhiteSpace(input.PaddingCharsOption))
-                pad = [];
-            updated = updated.WithKeywordSearch([.. keywords], pad);
+            // An unparseable --padding was refused above, so this is the full alphabet or the set.
+            updated = updated.WithKeywordSearch([.. keywords], paddingChars);
         }
         else if (input.RandomCount.HasValue)
         {
@@ -227,7 +231,7 @@ public static class CliSearchMode
         else if (explicitAesthetic.HasValue)
         {
             // --padding mixes with --aesthetic: free slots / keyword pads use that charset.
-            // Default when omitted: full alphabet (explicit single-family hunt). Collect's
+            // Default when omitted: full alphabet (explicit single-family search). Collect's
             // multi-family prepass defaults to digit pad separately in Program.
             updated = updated.WithAestheticSearch(
                 explicitAesthetic.Value,
@@ -254,9 +258,7 @@ public static class CliSearchMode
             }
             updated = updated.WithBatchCharacterCount(batchCharacterCount).WithSequentialSearch();
 
-            bool hasSeedRange =
-                input.StartSeed is not null || input.StopSeed is not null;
-            if (hasSeedRange)
+            if (hasSeedIndexOptions)
             {
                 if (
                     input.StartBatch.HasValue
@@ -269,12 +271,26 @@ public static class CliSearchMode
                     return false;
                 }
 
+                // The sweep only visits 8-character seeds, and SeedToBatchIndex reads every
+                // character as a digit: anything else would land on a wrong (or negative) batch.
+                string? startSeed = null, stopSeed = null;
+                if (input.StartSeed is { } rawStart && !TrySweepSeed(rawStart, out startSeed))
+                {
+                    error = $"Error: --startSeed '{rawStart}' is not an 8-character seed of 1-9, A-Z.";
+                    return false;
+                }
+                if (input.StopSeed is { } rawStop && !TrySweepSeed(rawStop, out stopSeed))
+                {
+                    error = $"Error: --stopSeed '{rawStop}' is not an 8-character seed of 1-9, A-Z.";
+                    return false;
+                }
+
                 // A seed names the batch that contains it, in the engine's sweep order: the batch
                 // digits are the seed's tail (SeedToBatchIndex), not a reading-order index.
-                long startBatch = input.StartSeed is { } startSeed
+                long startBatch = startSeed is not null
                     ? SeedMath.SeedToBatchIndex(startSeed, batchCharacterCount)
                     : 0;
-                long endBatchExclusive = input.StopSeed is { } stopSeed
+                long endBatchExclusive = stopSeed is not null
                     ? SeedMath.SeedToBatchIndex(stopSeed, batchCharacterCount) + 1
                     : long.MaxValue;
                 if (startBatch >= endBatchExclusive)
@@ -306,7 +322,7 @@ public static class CliSearchMode
                 else if (input.StartPercent.HasValue)
                 {
                     double pct = input.StartPercent.Value;
-                    // Negated so NaN fails too; NaN used to slip past and sweep from batch 0.
+                    // Negated so NaN fails too.
                     if (!(pct >= 0 && pct <= 100))
                     {
                         error = "Error: --startPercent must be between 0 and 100.";

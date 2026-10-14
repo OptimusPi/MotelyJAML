@@ -4,37 +4,47 @@ using Motely;
 namespace Motely.Filters;
 
 /// <summary>
-/// Soul / legendary checks walk the shop's pack slots in the same numbering every other family
-/// uses — <see cref="MotelySingleSearchContext.CreateBoosterPackStream(int, bool)"/>'s default,
-/// where ante 1 slot 0 is the fixed first-shop Buffoon — then The Soul in arcana/Spectral, then
-/// <see cref="MotelySingleSearchContext.GetNextJoker"/>. Streams must be read in pack order: the
-/// older "read soul stream before packs" path mis-aligned them and matched nothing.
+/// The exact Soul / legendary walk (scalar verification pass; the SIMD filter only finds Souls).
+/// Packs are walked in the slot numbering every other family uses —
+/// <see cref="MotelySingleSearchContext.CreateBoosterPackStream(int, bool)"/>'s default, where ante 1
+/// slot 0 is the fixed first-shop Buffoon — and The Soul is read off the Arcana / Spectral streams in
+/// pack order.
+///
+/// The legendary face is not per ante. Balatro keys the pool <c>Joker4</c> with no ante, so the Nth
+/// Soul opened in the run gets draw N. A <see cref="SoulWalk"/> carries that one stream (and the
+/// opened-Soul count) across every ante the clause walks; each targeted Soul is opened and advances
+/// it. The edition comes from the ante's own <c>edisou{ante}</c> stream, read once per Soul opened there.
 /// </summary>
 internal static class LegendarySoulMatcher
 {
-    internal static bool MatchAnte(
-        ref MotelySingleSearchContext ctx,
-        int ante,
-        LegendaryJokerClause clause,
-        int maxBoosterPack
-    ) => CountAnte(ref ctx, ante, clause, maxBoosterPack, stopAfterFirstMatch: true) > 0;
+    /// <summary>State that lives across antes for one clause walk.</summary>
+    internal struct SoulWalk(MotelySingleLegendaryJokerStream faces)
+    {
+        public MotelySingleLegendaryJokerStream Faces = faces;
+
+        /// <summary>Souls opened so far — the next Soul's index for <see cref="LegendaryJokerClause.Rolls"/>.</summary>
+        public int Opened;
+
+        /// <summary>Set once every listed roll has been passed; the walk can stop.</summary>
+        public bool Done;
+    }
 
     /// <summary>
-    /// Walks every targeted arcana/Spectral pack in <paramref name="ante"/> and returns the total
-    /// number of soul-legendary matches. Soul stream must be consumed once per soul seen regardless
-    /// of whether the joker matches the clause, so short-circuiting mid-ante would misalign later antes
-    /// (and, more visibly, hide the second soul in antes like ALEEB's 1–2 with double legendaries).
+    /// Opens every targeted Soul in <paramref name="ante"/> (slots 0..<paramref name="maxBoosterPack"/>)
+    /// and returns how many match the clause. Antes must be walked in ascending order with the same
+    /// <paramref name="walk"/>.
     /// </summary>
     internal static int CountAnte(
         ref MotelySingleSearchContext ctx,
         int ante,
         LegendaryJokerClause clause,
         int maxBoosterPack,
-        bool stopAfterFirstMatch = false
+        ref SoulWalk walk
     )
     {
         // Null Sources (no sources: block) → legendary defaults; a non-null block is used as-is.
         var src = clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
+        int lastRoll = clause.Rolls.Length > 0 ? MaxOf(clause.Rolls) : int.MaxValue;
 
         var packStream = ctx.CreateBoosterPackStream(ante);
 
@@ -42,20 +52,18 @@ internal static class LegendarySoulMatcher
         MotelySingleSpectralStream spectralStream = default;
         bool tarotInit = false;
         bool spectralInit = false;
-        MotelySingleJokerFixedRarityStream soulStream = default;
-        bool soulStreamInited = false;
+        MotelySingleJokerFixedRarityStream editionStream = default;
+        bool editionInit = false;
 
         int count = 0;
 
         for (int p = 0; p <= maxBoosterPack; p++)
         {
             var pack = ctx.GetNextBoosterPack(ref packStream);
+            var type = pack.GetPackType();
 
-            bool isTarget =
-                IsBoosterSlotTargetForLegendary(src, p, pack)
-                && (!src.RequireMegaPack || pack.GetPackSize() == MotelyBoosterPackSize.Mega);
-
-            if (pack.GetPackType() == MotelyBoosterPackType.Arcana)
+            bool hasSoul;
+            if (type == MotelyBoosterPackType.Arcana)
             {
                 if (!tarotInit)
                 {
@@ -63,74 +71,60 @@ internal static class LegendarySoulMatcher
                     tarotStream = ctx.CreateArcanaPackTarotStream(ante, true);
                 }
 
-                bool hasSoul = ctx.GetNextArcanaPackHasTheSoul(ref tarotStream, pack.GetPackSize());
-
-                if (!isTarget || !hasSoul)
-                    continue;
-
-                if (clause.SoulCardOnly)
-                {
-                    count++;
-                    if (stopAfterFirstMatch)
-                        return count;
-                    continue;
-                }
-
-                if (!soulStreamInited)
-                {
-                    soulStream = ctx.CreateLegendaryJokerStream(ante);
-                    soulStreamInited = true;
-                }
-
-                var legendaryJoker = ctx.GetNextJoker(ref soulStream);
-                if (LegendaryJokerMatchesFull(clause, legendaryJoker))
-                {
-                    count++;
-                    if (stopAfterFirstMatch)
-                        return count;
-                }
+                hasSoul = ctx.GetNextArcanaPackHasTheSoul(ref tarotStream, pack.GetPackSize());
             }
-            else if (pack.GetPackType() == MotelyBoosterPackType.Spectral)
+            else if (type == MotelyBoosterPackType.Spectral)
             {
                 if (!spectralInit)
                 {
                     spectralInit = true;
                     // PerkeoObservatory: ante 1 Spectral uses soulOnly false; ante 2+ uses true.
-                    spectralStream = ctx.CreateSpectralPackSpectralStream(
+                    spectralStream = ctx.CreateSpectralPackSpectralStream(ante, soulOnly: ante != 1);
+                }
+
+                hasSoul = ctx.GetNextSpectralPackHasTheSoul(ref spectralStream, pack.GetPackSize());
+            }
+            else
+            {
+                continue;
+            }
+
+            bool isTarget =
+                IsBoosterSlotTargetForLegendary(src, p, pack)
+                && (!src.RequireMegaPack || pack.GetPackSize() == MotelyBoosterPackSize.Mega);
+            if (!hasSoul || !isTarget)
+                continue;
+
+            // The player opens this Soul.
+            int roll = walk.Opened++;
+            bool counted = clause.Rolls.Length == 0 || ArrayContains(clause.Rolls, roll);
+
+            if (clause.SoulCardOnly)
+            {
+                if (counted)
+                    count++;
+            }
+            else
+            {
+                if (!editionInit)
+                {
+                    editionInit = true;
+                    editionStream = ctx.CreateLegendaryJokerStream(
                         ante,
-                        soulOnly: ante != 1
+                        MotelyJokerFixedRarityStreamFlags.ExcludeJokerType
                     );
                 }
 
-                bool hasSoul = ctx.GetNextSpectralPackHasTheSoul(
-                    ref spectralStream,
-                    pack.GetPackSize()
-                );
-
-                if (!isTarget || !hasSoul)
-                    continue;
-
-                if (clause.SoulCardOnly)
-                {
+                MotelyJoker face = ctx.GetNextLegendaryJoker(ref walk.Faces, clause.With.Jokers);
+                MotelyItemEdition edition = ctx.GetNextJoker(ref editionStream).Edition;
+                if (counted && LegendaryJokerMatches(clause, face, edition))
                     count++;
-                    if (stopAfterFirstMatch)
-                        return count;
-                    continue;
-                }
+            }
 
-                if (!soulStreamInited)
-                {
-                    soulStream = ctx.CreateLegendaryJokerStream(ante);
-                    soulStreamInited = true;
-                }
-
-                var legendaryJoker = ctx.GetNextJoker(ref soulStream);
-                if (LegendaryJokerMatchesFull(clause, legendaryJoker))
-                {
-                    count++;
-                    if (stopAfterFirstMatch)
-                        return count;
-                }
+            if (roll >= lastRoll)
+            {
+                walk.Done = true;
+                return count;
             }
         }
 
@@ -138,69 +132,9 @@ internal static class LegendarySoulMatcher
     }
 
     /// <summary>
-    /// Soul-card-only path: same pack walk / slot rules as <see cref="MatchAnte"/>, returns on first The Soul in a targeted arcana/Spectral pack.
-    /// </summary>
-    internal static bool MatchAnteShopPackHasSoulOnly(
-        ref MotelySingleSearchContext ctx,
-        int ante,
-        LegendaryJokerSourceConfig src,
-        int maxBoosterPack
-    )
-    {
-        var packStream = ctx.CreateBoosterPackStream(ante);
-
-        MotelySingleTarotStream tarotStream = default;
-        MotelySingleSpectralStream spectralStream = default;
-        bool tarotInit = false;
-        bool spectralInit = false;
-
-        for (int p = 0; p <= maxBoosterPack; p++)
-        {
-            var pack = ctx.GetNextBoosterPack(ref packStream);
-
-            bool isTarget =
-                IsBoosterSlotTargetForLegendary(src, p, pack)
-                && (!src.RequireMegaPack || pack.GetPackSize() == MotelyBoosterPackSize.Mega);
-
-            if (pack.GetPackType() == MotelyBoosterPackType.Arcana)
-            {
-                if (!tarotInit)
-                {
-                    tarotInit = true;
-                    tarotStream = ctx.CreateArcanaPackTarotStream(ante, true);
-                }
-
-                bool hasSoul = ctx.GetNextArcanaPackHasTheSoul(ref tarotStream, pack.GetPackSize());
-                if (hasSoul && isTarget)
-                    return true;
-            }
-            else if (pack.GetPackType() == MotelyBoosterPackType.Spectral)
-            {
-                if (!spectralInit)
-                {
-                    spectralInit = true;
-                    spectralStream = ctx.CreateSpectralPackSpectralStream(
-                        ante,
-                        soulOnly: ante != 1
-                    );
-                }
-
-                bool hasSoul = ctx.GetNextSpectralPackHasTheSoul(
-                    ref spectralStream,
-                    pack.GetPackSize()
-                );
-                if (hasSoul && isTarget)
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Split mode (non-empty arcana and/or Spectral slot lists): only those paths count.
-    /// Legacy mode: <see cref="LegendaryJokerSourceConfig.BoosterPacks"/> — slot matches regardless of rolled pack type
-    /// (arcana/Spectral branches still gate The Soul).
+    /// Otherwise <see cref="LegendaryJokerSourceConfig.BoosterPacks"/> — slot matches regardless of
+    /// rolled pack type (arcana/Spectral branches still gate The Soul).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsBoosterSlotTargetForLegendary(
@@ -211,67 +145,50 @@ internal static class LegendarySoulMatcher
     {
         bool split = src.ArcanaPacks.Length > 0 || src.SpectralPacks.Length > 0;
         if (!split)
+            return ArrayContains(src.BoosterPacks, p);
+
+        return pack.GetPackType() switch
         {
-            for (int i = 0; i < src.BoosterPacks.Length; i++)
-            {
-                if (src.BoosterPacks[i] == p)
-                    return true;
-            }
-
-            return false;
-        }
-
-        var type = pack.GetPackType();
-        if (type == MotelyBoosterPackType.Arcana)
-        {
-            for (int i = 0; i < src.ArcanaPacks.Length; i++)
-            {
-                if (src.ArcanaPacks[i] == p)
-                    return true;
-            }
-
-            return false;
-        }
-
-        if (type == MotelyBoosterPackType.Spectral)
-        {
-            for (int i = 0; i < src.SpectralPacks.Length; i++)
-            {
-                if (src.SpectralPacks[i] == p)
-                    return true;
-            }
-
-            return false;
-        }
-
-        return false;
+            MotelyBoosterPackType.Arcana => ArrayContains(src.ArcanaPacks, p),
+            MotelyBoosterPackType.Spectral => ArrayContains(src.SpectralPacks, p),
+            _ => false,
+        };
     }
 
-    /// <summary>Whether <paramref name="ty"/> matches one of the clause's legendary jokers (no allocation).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TypeMatchesLegendary(LegendaryJokerClause clause, MotelyItemType ty)
+    private static bool LegendaryJokerMatches(
+        LegendaryJokerClause clause,
+        MotelyJoker face,
+        MotelyItemEdition edition
+    )
     {
-        var jokers = clause.Jokers;
-        for (int i = 0; i < jokers.Length; i++)
+        if (clause.Edition.HasValue && edition != clause.Edition.Value)
+            return false;
+        return clause.Jokers.Length == 0 || ArrayContains(clause.Jokers, face);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ArrayContains<T>(T[] array, T value)
+        where T : struct
+    {
+        for (int i = 0; i < array.Length; i++)
         {
-            if (ty == (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)jokers[i]))
+            if (EqualityComparer<T>.Default.Equals(array[i], value))
                 return true;
         }
 
         return false;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool LegendaryJokerMatchesFull(
-        LegendaryJokerClause clause,
-        Motely.MotelyItem joker
-    )
+    private static int MaxOf(int[] values)
     {
-        if ((clause.Jokers.Length == 0))
-            return !clause.Edition.HasValue || joker.Edition == clause.Edition.Value;
+        int max = values[0];
+        for (int i = 1; i < values.Length; i++)
+        {
+            if (values[i] > max)
+                max = values[i];
+        }
 
-        if (!TypeMatchesLegendary(clause, joker.Type))
-            return false;
-        return !clause.Edition.HasValue || joker.Edition == clause.Edition.Value;
+        return max;
     }
 }

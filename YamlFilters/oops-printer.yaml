@@ -1,0 +1,81 @@
+name: Oops Printer
+author: pifreak
+description: >
+  Skip the small blind for a Negative Tag, then Oops! All 6s in that same ante's
+  shop (slots 2-8; 0 and 1 aren't reachable after the skip): a free negative Oops.
+  Showman by ante 4 so copies can stack. Scored on a second Oops, The Magician,
+  and Lucky cards.
+deck: Red
+stake: White
+
+must:
+  # Same-ante pairing: inside one `and`, each arm keeps its own antes, so each
+  # ante gets its own `and` and the `or` takes whichever ante hits.
+  - or:
+      clauses:
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [2]
+              - joker: OopsAll6s
+                antes: [2]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [3]
+              - joker: OopsAll6s
+                antes: [3]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [4]
+              - joker: OopsAll6s
+                antes: [4]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [5]
+              - joker: OopsAll6s
+                antes: [5]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [6]
+              - joker: OopsAll6s
+                antes: [6]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [7]
+              - joker: OopsAll6s
+                antes: [7]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+        - and:
+            clauses:
+              - smallBlindTag: NegativeTag
+                antes: [8]
+              - joker: OopsAll6s
+                antes: [8]
+                sources: { shopItems: [2, 3, 4, 5, 6, 7, 8] }
+  - joker: Showman
+    antes: [1, 2, 3, 4]
+
+should:
+  - joker: OopsAll6s
+    antes: [1, 2, 3, 4, 5, 6]
+    score: 100
+    label: oops_any
+  - tarotCard: TheMagician
+    antes: [1, 2, 3]
+    score: 30
+    label: magician
+  - standardCard: any
+    enhancement: Lucky
+    antes: [1, 2, 3]
+    score: 10
+    label: lucky

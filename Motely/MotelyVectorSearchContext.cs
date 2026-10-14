@@ -255,8 +255,11 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         Vector512<double> partialHash;
 
         // An additional-filter context never trusts the length-keyed cache: it was filled for the
-        // base filter's key set. Same law as the scalar context.
-        if (!IsAdditionalFilter && (isCached || SeedHashCache->HasPartialHash(key.Length)))
+        // base filter's key set. Same law as the scalar context. isCached is only a hint: the
+        // cache is always asked, so a key the desc forgot to register (or one too long to cache)
+        // computes its hash instead of dereferencing an empty native slot.
+        _ = isCached;
+        if (!IsAdditionalFilter && SeedHashCache->HasPartialHash(key.Length))
         {
             partialHash = SeedHashCache->GetPartialHashVector(key.Length);
         }

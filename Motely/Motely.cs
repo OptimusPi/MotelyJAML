@@ -115,14 +115,12 @@ public static partial class MotelyGlobals
     /// <summary>Maximum pack-slot INDEX at antes 2+ (6 packs, 0..5). Not user-configurable.</summary>
     public const int LateAntesMaxPackSlot = 5;
 
-    /// <summary>Tag-stream draw indices per ante: 0 small blind, 1 big blind, 2+ replay / double-tag extras.</summary>
-    public const int MaxMapTagRollIndex = 5;
-
-    /// <summary>Voucher-stream draw indices per ante: 0 ante award, 1+ Hieroglyph bonus / voucher-tag extras.</summary>
-    public const int MaxMapVoucherRollIndex = 2;
-
-    /// <summary>Boss roll 1+ needs full-run rewind simulation; filters match roll 0 today.</summary>
-    public const int MaxMapBossRollIndex = 2;
+    /// <summary>
+    /// Largest <c>rolls</c> index any clause may ask for. Voucher and tag filters stackalloc one
+    /// 32-byte vector per draw up to the largest roll, and event filters walk that many draws per
+    /// 8 seeds, so the bound keeps both to ~32 KB of stack and a bounded loop.
+    /// </summary>
+    public const int MaxRollIndex = 999;
 
     public const double EnhancementLuckyMoneyChance = 15;
     public const double EnhancementLuckyMultChance = 5;

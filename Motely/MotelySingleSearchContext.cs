@@ -135,7 +135,9 @@ public unsafe partial class MotelySingleSearchContext
 
         // Same law as the vector context: an additional-filter context never trusts the
         // length-keyed partial-hash cache — it was filled for the base filter's key set.
-        if (!IsAdditionalFilter && (isCached || SeedHashCache->HasPartialHash(key.Length)))
+        // isCached is only a hint; the cache is always asked (see the vector context).
+        _ = isCached;
+        if (!IsAdditionalFilter && SeedHashCache->HasPartialHash(key.Length))
         {
             partialHash = SeedHashCache->GetPartialHash(key.Length, VectorLane);
         }

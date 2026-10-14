@@ -102,11 +102,9 @@ public struct VoucherFilterDesc(VoucherClause clause)
         )
         {
             // Walk the voucher stream once, index 0..maxRoll, mirroring the scalar
-            // CountVoucherOccurrences. The old code only materialized draws 1 and 2, so any
-            // requested roll index >= 3 (the clause doc says "1+") was silently dropped by SIMD
-            // while scalar scoring still counted it — a SIMD/scalar completeness gap. Index 0 is
-            // the ante award; 1+ are successive stream draws. (stackalloc of VectorEnum256 is the
-            // same pattern TagFilter uses for its tag-stream draws.)
+            // CountVoucherOccurrences. Index 0 is the ante award; 1+ are successive stream draws.
+            // (stackalloc of VectorEnum256 is the same pattern TagFilter uses for its tag-stream
+            // draws.)
             int maxRoll = clause.Rolls.Max();
             Span<VectorEnum256<MotelyVoucher>> draws =
                 stackalloc VectorEnum256<MotelyVoucher>[maxRoll + 1];

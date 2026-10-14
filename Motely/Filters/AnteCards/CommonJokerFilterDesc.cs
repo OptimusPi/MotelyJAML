@@ -124,6 +124,9 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             }
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
+            // Lanes with an in-pack duplicate: SIMD can't resample, so the scalar confirm decides.
+            VectorMask undecided = VectorMask.NoBitsSet;
+            BuffoonPackDuplicateTracker duplicates = default;
 
             var shopIndices = _shopIndices;
             var boosterIndices = _boosterIndices;
@@ -233,14 +236,19 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
                         var baseMask = SimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = SimdPackSupport.ToPrngMask(extraLanes);
 
+                        duplicates.Reset();
                         for (int c = 0; c < 2; c++)
                         {
                             var joker = ctx.GetNextJoker(ref jokerStream, baseMask);
+                            VectorMask dup = duplicates.Add(joker);
                             if (countLanes.IsPartiallyTrue())
+                            {
                                 SimdPackSupport.AddMatchCounts(
                                     MatchJokers(joker) & countLanes & baseLanes,
                                     ref matchCounts
                                 );
+                                undecided |= dup & countLanes & baseLanes;
+                            }
                         }
 
                         if (extraLanes.IsPartiallyTrue())
@@ -248,18 +256,25 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
                             for (int c = 0; c < 2; c++)
                             {
                                 var joker = ctx.GetNextJoker(ref jokerStream, extraMask);
+                                VectorMask dup = duplicates.Add(joker);
                                 if (countLanes.IsPartiallyTrue())
+                                {
                                     SimdPackSupport.AddMatchCounts(
                                         MatchJokers(joker) & countLanes & extraLanes,
                                         ref matchCounts
                                     );
+                                    undecided |= dup & countLanes & extraLanes;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            return SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
+            VectorMask result = SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
+            if (undecided.IsPartiallyTrue())
+                result |= undecided & SimdPackSupport.ValidLaneMask(ref ctx);
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

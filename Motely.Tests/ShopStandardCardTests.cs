@@ -1,9 +1,8 @@
 namespace Motely.Tests;
 
 /// <summary>
-/// Proof for Magic Trick shop playing cards (b9950e0b). Scalar shop stream used to return
-/// <see cref="MotelyItemType.NotImplemented"/> for the standard-card branch; it must emit bare
-/// <see cref="MotelyItemTypeCategory.Standardcard"/> items when Magic Trick is active.
+/// Magic Trick shop playing cards: with Magic Trick active, the scalar shop stream's
+/// standard-card branch emits bare <see cref="MotelyItemTypeCategory.Standardcard"/> items.
 /// </summary>
 public sealed class ShopStandardCardTests
 {
