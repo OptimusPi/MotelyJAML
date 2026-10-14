@@ -26,14 +26,14 @@ public partial class TagClause: IMotelyClause, IAnteScopedClause, IRollScopedCla
 
 /// <summary>The small blind's tag offer only.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class SmallBlindTagClause: TagClause
+public sealed partial class SmallBlindTagClause: TagClause
 {
     public SmallBlindTagClause() => Rolls = [0];
 }
 
 /// <summary>The big blind's tag offer only.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class BigBlindTagClause: TagClause
+public sealed partial class BigBlindTagClause: TagClause
 {
     public BigBlindTagClause() => Rolls = [1];
 }

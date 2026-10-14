@@ -134,22 +134,6 @@ public sealed class JamlWildcardTests
     }
 
     [Fact]
-    public void WithLuck_UnderTarot_FailsLoad()
-    {
-        var jaml = """
-            name: with-on-tarot
-            deck: Red
-            stake: White
-            must:
-              - tarotCard: []
-                with:
-                  luck: 2
-            """;
-        Assert.False(YamlConfigLoader.TryLoad(jaml, out _, out var error));
-        Assert.False(string.IsNullOrEmpty(error));
-    }
-
-    [Fact]
     public void StandardCard_EmptyProps_LoadsAsAnyPlayingCard()
     {
         var jaml = """

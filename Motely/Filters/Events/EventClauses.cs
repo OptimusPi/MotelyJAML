@@ -27,84 +27,84 @@ public abstract class LuckEventClause : EventClause, IWithScopedClause
 
 /// <summary>A Lucky card paying $20.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class LuckyMoneyClause : LuckEventClause
+public sealed partial class LuckyMoneyClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<LuckyMoneyRoll>(this, new(Luck));
 }
 
 /// <summary>A Lucky card giving +20 Mult.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class LuckyMultClause : LuckEventClause
+public sealed partial class LuckyMultClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<LuckyMultRoll>(this, new(Luck));
 }
 
 /// <summary>The Wheel of Fortune applying an edition.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class WheelOfFortuneClause : LuckEventClause
+public sealed partial class WheelOfFortuneClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<WheelOfFortuneRoll>(this, new(Luck));
 }
 
 /// <summary>The Wheel boss blind leaving a card face down.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class WheelStaysFlippedClause : LuckEventClause
+public sealed partial class WheelStaysFlippedClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<WheelStaysFlippedRoll>(this, new(Luck));
 }
 
 /// <summary>A Glass card shattering.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class GlassDestroyClause : LuckEventClause
+public sealed partial class GlassDestroyClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<GlassDestroyRoll>(this, new(Luck));
 }
 
 /// <summary>Cavendish going extinct.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class CavendishExtinctClause : LuckEventClause
+public sealed partial class CavendishExtinctClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<CavendishExtinctRoll>(this, new(Luck));
 }
 
 /// <summary>Gros Michel going extinct.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class GrosMichelExtinctClause : LuckEventClause
+public sealed partial class GrosMichelExtinctClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<GrosMichelExtinctRoll>(this, new(Luck));
 }
 
 /// <summary>Space Joker levelling up the hand.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class SpaceLevelupClause : LuckEventClause
+public sealed partial class SpaceLevelupClause : LuckEventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<SpaceLevelupRoll>(this, new(Luck));
 }
 
 /// <summary>Business Card paying out: a flat coin flip, so no luck dial.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class BusinessPayoutClause : EventClause
+public sealed partial class BusinessPayoutClause : EventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<BusinessPayoutRoll>(this, default);
 }
 
 /// <summary>Reserved Parking paying out: a flat coin flip.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class ParkingPayoutClause : EventClause
+public sealed partial class ParkingPayoutClause : EventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<ParkingPayoutRoll>(this, default);
 }
 
 /// <summary>Bloodstone triggering: a flat coin flip.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class BloodstoneTriggerClause : EventClause
+public sealed partial class BloodstoneTriggerClause : EventClause
 {
     public override IMotelySeedFilterDesc CreateFilterDesc() => new EventFilterDesc<BloodstoneTriggerRoll>(this, default);
 }
 
 /// <summary>Misprint rolling at least <see cref="Mult"/>.</summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed class MisprintMultClause : EventClause
+public sealed partial class MisprintMultClause : EventClause
 {
     /// <summary>The least Mult a roll must show to count (0..23).</summary>
     public int Mult { get; set; }
