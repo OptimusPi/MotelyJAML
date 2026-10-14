@@ -252,15 +252,17 @@ public unsafe partial class MotelySingleSearchContext
 
     /// <summary>
     /// The legendary the next opened Soul gives. A legendary in <paramref name="held"/> is out of the
-    /// pool (Balatro's <c>used_jokers</c>), so landing on it resamples — unless Showman is held. With
+    /// pool (Balatro's <c>used_jokers</c>), so landing on it resamples — unless Showman is active
+    /// (<paramref name="showmanActive"/>, the run state seeded from the clause's <c>with:</c>). With
     /// all five held the pool is empty and the game falls back to <c>j_joker</c>, still drawing once.
     /// </summary>
     public MotelyJoker GetNextLegendaryJoker(
         ref MotelySingleLegendaryJokerStream stream,
-        ReadOnlySpan<MotelyJoker> held
+        ReadOnlySpan<MotelyJoker> held,
+        bool showmanActive
     )
     {
-        bool poolKeepsHeld = held.Contains(MotelyJoker.Showman);
+        bool poolKeepsHeld = showmanActive;
         if (!poolKeepsHeld && AllLegendariesHeld(held))
         {
             GetNextPrngState(ref stream.JokerPrngStream);

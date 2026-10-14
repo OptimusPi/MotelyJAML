@@ -1,3 +1,5 @@
+using Motely.Filters;
+
 namespace Motely;
 
 // A plain reference type, not a ref struct — it doesn't need to be. The actual hot state in this
@@ -101,5 +103,18 @@ public sealed record MotelyRunState
     public void ActivateShowman()
     {
         ShowmanActive = true;
+    }
+
+    /// <summary>
+    /// Seed the run's shared state from a clause's <c>with:</c> block — the luck multiplier the
+    /// event clauses read, and Showman (held jokers containing it keep duplicates in the Soul pool).
+    /// The clause's own <c>with:</c> is the authority; scoring pushes it here so the event and
+    /// legendary walks read one run-wide value instead of re-deriving it per clause.
+    /// </summary>
+    public void ApplyWith(MotelyWith scope)
+    {
+        Luck = scope.Luck;
+        if (System.Array.IndexOf(scope.Jokers, MotelyJoker.Showman) >= 0)
+            ActivateShowman();
     }
 }

@@ -12,13 +12,13 @@ namespace Motely.Filters;
 /// entry <c>i</c> is the (i+1)-th Soul opened. Each entry may pin an ante range (<c>antes:</c>, empty
 /// = any ante). The clause matches only when every listed Soul lands on its legendary in order.
 ///
-/// A legendary already opened is owned, so the game resamples (<c>Joker4_resample2</c>, …) rather
-/// than giving a duplicate — unless Showman is held. <c>showman: true</c> keeps duplicates in the
-/// pool, so the effective sequence is the raw <c>Joker4</c> draws (the same sequence
-/// <c>jamlyze_seeds</c> reports).
+/// A legendary already opened (or listed in <c>with: { jokers: [...] }</c>) is owned, so the game
+/// resamples (<c>Joker4_resample2</c>, …) rather than giving a duplicate — unless <c>with:</c> holds
+/// Showman, which keeps duplicates in the pool. With Showman held the effective sequence is the raw
+/// <c>Joker4</c> draws (the same sequence <c>jamlyze_seeds</c> reports).
 /// </summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class LegendarySoulOrderClause: IMotelyClause
+public sealed partial class LegendarySoulOrderClause: IMotelyClause, IWithScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -35,10 +35,11 @@ public sealed partial class LegendarySoulOrderClause: IMotelyClause
     public int[] BoosterPacks { get; set; } = [];
 
     /// <summary>
-    /// Holding Showman keeps legendaries already opened in the pool, so a repeat draw stays instead
-    /// of resampling. Default (false) is game-accurate: the second Soul can never repeat the first.
+    /// Jokers held while opening Souls (<c>with: { jokers: [Showman] }</c>). A held legendary drops
+    /// out of the pool and resamples; holding Showman keeps duplicates in, so the sequence becomes
+    /// the raw <c>Joker4</c> draws.
     /// </summary>
-    public bool Showman { get; set; }
+    public MotelyWith With { get; set; } = new();
 
     public IMotelySeedFilterDesc CreateFilterDesc() => new LegendarySoulOrderFilterDesc(this);
 }
