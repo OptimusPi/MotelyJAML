@@ -14,7 +14,7 @@ public sealed class LegendaryPackIndexTests
     // The Soul sits in the fourth rolled pack — a fifth ante-1 pack that the run never offers.
     private static readonly string[] PhantomSlotSeeds = ["6E7ZRTWV", "AF2C8QH3"];
 
-    // Zerkeo.jaml seeds: Hieroglyph in ante 1's first shop, Negative Perkeo in ante 0's shop.
+    // Zerkeo.yaml seeds: Hieroglyph in ante 1's first shop, Negative Perkeo in ante 0's shop.
     private static readonly string[] AnteZeroPerkeoSeeds =
     [
         "F2U88X11",

@@ -2,7 +2,7 @@ namespace Motely.Filters;
 
 // The event clauses: things that happen on a joker's or card's own PRNG stream rather than in an
 // ante. `rolls` are absolute indices into that stream (roll i is the i-th pull), the same indices
-// the Jamlyzer's event queues report. Each clause names its stream and its trigger through a
+// the YAMLyzer's event queues report. Each clause names its stream and its trigger through a
 // roll struct; EventFilterDesc walks the stream for all of them.
 
 /// <summary>A clause over one event stream: <c>rolls</c> picks the pulls that count.</summary>

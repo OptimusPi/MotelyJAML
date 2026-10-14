@@ -51,17 +51,17 @@ public sealed class MotelyScoreCutoffTests
     }
 
     [Fact]
-    public void TryResolve_JamlCutoff_ReplacesAuto()
+    public void TryResolve_YAMLCutoff_ReplacesAuto()
     {
         Assert.True(MotelyScoreCutoff.TryResolve(null, 12, out var cutoff, out var text, out var err));
         Assert.Null(err);
         Assert.False(cutoff.IsAuto);
         Assert.Equal(12, cutoff.EngineCutoff);
-        Assert.Equal("12 (jaml)", text);
+        Assert.Equal("12 (yaml)", text);
     }
 
     [Fact]
-    public void TryResolve_HostText_WinsOverJamlCutoff()
+    public void TryResolve_HostText_WinsOverYAMLCutoff()
     {
         Assert.True(MotelyScoreCutoff.TryResolve("off", 12, out var off, out var offText, out _));
         Assert.Equal(int.MinValue, off.EngineCutoff);
@@ -84,7 +84,7 @@ public sealed class MotelyScoreCutoffTests
     }
 
     [Fact]
-    public void JamlCutoff_DropsSeedsBelowItInTheEngine()
+    public void YAMLCutoff_DropsSeedsBelowItInTheEngine()
     {
         const string yaml = """
             should:

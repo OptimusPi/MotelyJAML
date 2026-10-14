@@ -9,7 +9,7 @@ namespace Motely.Tests;
 /// </summary>
 public sealed class S8P3ThreadTimingTests
 {
-    private const string PermissiveJaml = """
+    private const string PermissiveYAML = """
         name: s8p3-permissive
         deck: Red
         stake: White
@@ -18,7 +18,7 @@ public sealed class S8P3ThreadTimingTests
             antes: [1]
         """;
 
-    private static JamlConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveJaml);
+    private static YAMLConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveYAML);
 
     private const long SeedsPerBatch3 = 35L * 35 * 35; // batchCharCount 3
 

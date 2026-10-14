@@ -3,9 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import bootsharp, {
-  JamlConfigLoader,
-  JamlSearchBuilder,
-  MotelyJamlyzer,
+  YAMLConfigLoader,
+  YAMLSearchBuilder,
+  MotelyYAMLyzer,
   MotelyDeck,
   MotelyItemType,
   MotelyJokerRarity,
@@ -19,7 +19,7 @@ await bootsharp.boot();
 const telescope = "name: smoke\ndeck: Red\nstake: White\nmust:\n  - voucher: Telescope\n    antes: [1]\n";
 
 test("a filter loads into the engine's config", () => {
-  const config = JamlConfigLoader.fromJaml(telescope);
+  const config = YAMLConfigLoader.fromYAML(telescope);
   assert.equal(config.name, "smoke");
   assert.equal(config.deck, MotelyDeck.Red);
   assert.equal(config.must.length, 1);
@@ -28,19 +28,19 @@ test("a filter loads into the engine's config", () => {
 test("a filter that does not load says why, with its line", () => {
   const bad = "name: x\nmust:\n  - joker: Blueprint\n    antes: [1\n";
   Errors.last();
-  assert.throws(() => JamlConfigLoader.fromJaml(bad));
+  assert.throws(() => YAMLConfigLoader.fromYAML(bad));
   assert.match(Errors.last() ?? "", /line \d+/i, "the thrown reason is kept on Errors.last()");
-  assert.match(JamlConfigLoader.check(bad), /line \d+/i);
-  assert.equal(JamlConfigLoader.check(telescope), null);
+  assert.match(YAMLConfigLoader.check(bad), /line \d+/i);
+  assert.equal(YAMLConfigLoader.check(telescope), null);
 });
 
 test("a value the engine cannot run is refused by the clause's place", () => {
-  assert.match(JamlConfigLoader.check("must:\n  - joker: Blueprint\n    min: 0\n"), /must\[0\] \(joker\): min 0/);
+  assert.match(YAMLConfigLoader.check("must:\n  - joker: Blueprint\n    min: 0\n"), /must\[0\] \(joker\): min 0/);
 });
 
 test("a seed list is searched once each, with one callback per find", async () => {
   const finds = [];
-  const search = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+  const search = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope))
     .withThreadCount(1)
     .withQuietMode(true)
     .withSeedList(["ALEEB", "AAAAAAAA", "PIROCKS"])
@@ -54,7 +54,7 @@ test("a seed list is searched once each, with one callback per find", async () =
 
 test("a sequential slice sweeps its batches and finds seeds", async () => {
   const finds = [];
-  const search = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+  const search = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope))
     .withThreadCount(1)
     .withQuietMode(true)
     .withSequentialSearch()
@@ -69,7 +69,7 @@ test("a sequential slice sweeps its batches and finds seeds", async () => {
 
 test("cancelling stops an open-ended sweep", async () => {
   const token = new CancellationToken();
-  const search = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+  const search = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope))
     .withThreadCount(1)
     .withQuietMode(true)
     .withSequentialSearch()
@@ -83,7 +83,7 @@ test("cancelling stops an open-ended sweep", async () => {
 
 test("a search can be disposed, and has no blocking wait", async () => {
   const progress = [];
-  const search = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+  const search = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope))
     .withThreadCount(1)
     .withQuietMode(true)
     .withSequentialSearch()
@@ -103,10 +103,10 @@ test("a search can be disposed, and has no blocking wait", async () => {
 
 test("the filter's own cutoff is the floor unless the host gives one", async () => {
   const scored = "name: s\ncutoff: 1000\nmust:\n  - voucher: Telescope\n    antes: [1]\nshould:\n  - voucher: Telescope\n    antes: [1]\n";
-  const config = JamlConfigLoader.fromJaml(scored);
+  const config = YAMLConfigLoader.fromYAML(scored);
 
   const withOwn = [];
-  const own = JamlSearchBuilder.createSettings(config)
+  const own = YAMLSearchBuilder.createSettings(config)
     .withThreadCount(1)
     .withQuietMode(true)
     .withSeedList(["P1111111"])
@@ -116,7 +116,7 @@ test("the filter's own cutoff is the floor unless the host gives one", async () 
   assert.deepEqual(withOwn, [], "a floor of 1000 drops a seed scoring 1");
 
   const withHost = [];
-  const host = JamlSearchBuilder.createSettings(config, -2147483648)
+  const host = YAMLSearchBuilder.createSettings(config, -2147483648)
     .withThreadCount(1)
     .withQuietMode(true)
     .withSeedList(["P1111111"])
@@ -127,12 +127,12 @@ test("the filter's own cutoff is the floor unless the host gives one", async () 
 });
 
 test("a rejected setting and a rejected range say why", () => {
-  const sequential = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope)).withThreadCount(1).withSequentialSearch();
+  const sequential = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope)).withThreadCount(1).withSequentialSearch();
   Errors.last();
   assert.throws(() => sequential.withBatchCharacterCount(99));
   assert.match(Errors.last() ?? "", /Batch character count must be 1-/);
 
-  const backwards = JamlSearchBuilder.createSettings(JamlConfigLoader.fromJaml(telescope))
+  const backwards = YAMLSearchBuilder.createSettings(YAMLConfigLoader.fromYAML(telescope))
     .withThreadCount(1)
     .withSequentialSearch()
     .withBatchCharacterCount(3)
@@ -144,30 +144,30 @@ test("a rejected setting and a rejected range say why", () => {
 });
 
 test("createSettings leaves the config alone", () => {
-  const config = JamlConfigLoader.fromJaml("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");
-  const before = MotelyJamlyzer.analyze(config)[0].antes.map((a) => a.ante).join();
-  JamlSearchBuilder.createSettings(config);
-  assert.equal(MotelyJamlyzer.analyze(config)[0].antes.map((a) => a.ante).join(), before);
+  const config = YAMLConfigLoader.fromYAML("name: o\nseeds: [ALEEB]\nmust:\n  - joker: Blueprint\n");
+  const before = MotelyYAMLyzer.analyze(config)[0].antes.map((a) => a.ante).join();
+  YAMLSearchBuilder.createSettings(config);
+  assert.equal(MotelyYAMLyzer.analyze(config)[0].antes.map((a) => a.ante).join(), before);
 });
 
-test("the Jamlyzer walks a seed, and resumes from where it stopped", () => {
-  const config = JamlConfigLoader.fromJaml(telescope + "seeds: [ALEEB]\n");
-  const first = MotelyJamlyzer.analyze(config);
+test("the YAMLyzer walks a seed, and resumes from where it stopped", () => {
+  const config = YAMLConfigLoader.fromYAML(telescope + "seeds: [ALEEB]\n");
+  const first = MotelyYAMLyzer.analyze(config);
   assert.equal(first.length, 1);
   assert.equal(first[0].seed, "ALEEB");
-  const next = MotelyJamlyzer.resume(config, first[0].streamStates, 20);
+  const next = MotelyYAMLyzer.resume(config, first[0].streamStates, 20);
   assert.equal(next.length, 1);
   assert.ok(next[0].streamStates.rollOffset > first[0].streamStates.rollOffset, "resume advances");
 });
 
-test("the Jamlyzer rides a search: each find arrives with its antes", async () => {
+test("the YAMLyzer rides a search: each find arrives with its antes", async () => {
   const analyzed = [];
-  const config = JamlConfigLoader.fromJaml(telescope);
-  const search = JamlSearchBuilder.createSettings(config)
+  const config = YAMLConfigLoader.fromYAML(telescope);
+  const search = YAMLSearchBuilder.createSettings(config)
     .withThreadCount(1)
     .withQuietMode(true)
     .withSeedList(["ALEEB", "PIROCKS"])
-    .withSeedAnalyzeProvider(MotelyJamlyzer.createRiderDesc(config, (r) => analyzed.push(r), 0))
+    .withSeedAnalyzeProvider(MotelyYAMLyzer.createRiderDesc(config, (r) => analyzed.push(r), 0))
     .start();
   await search.waitForCompletionAsync();
   assert.equal(BigInt(analyzed.length), search.matchingSeeds);

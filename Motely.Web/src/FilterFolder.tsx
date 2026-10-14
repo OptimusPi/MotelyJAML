@@ -1,8 +1,8 @@
 import { useSyncExternalStore, useCallback } from "react";
-import { JamlFiles } from "motely-wasm";
-import { JimboButton, JimboPanel, JimboRow, JimboStack, JimboBadge } from "jaml-ui";
+import { YAMLFiles } from "motely-wasm";
+import { JimboButton, JimboPanel, JimboRow, JimboStack, JimboBadge } from "yaml-ui";
 
-export type OpenedFilter = { name: string; jaml: string };
+export type OpenedFilter = { name: string; yaml: string };
 
 export interface FilterFolderProps {
   opened: OpenedFilter | null;
@@ -14,30 +14,30 @@ let snapshot: readonly string[] | null = null;
 
 function subscribeNames(cb: () => void) {
   const sub = () => { snapshot = null; cb(); };
-  JamlFiles.onChange.subscribe(sub);
-  return () => JamlFiles.onChange.unsubscribe(sub);
+  YAMLFiles.onChange.subscribe(sub);
+  return () => YAMLFiles.onChange.unsubscribe(sub);
 }
 
 function getNames(): readonly string[] {
-  return (snapshot ??= JamlFiles.list());
+  return (snapshot ??= YAMLFiles.list());
 }
 
 export function FilterFolder({ opened, onOpen }: FilterFolderProps) {
   const names = useSyncExternalStore(subscribeNames, getNames);
-  const mounted = JamlFiles.isMounted();
+  const mounted = YAMLFiles.isMounted();
 
   const open = useCallback(async (name: string) => {
-    const jaml = await JamlFiles.load(name);
-    onOpen({ name, jaml });
+    const yaml = await YAMLFiles.load(name);
+    onOpen({ name, yaml });
   }, [onOpen]);
 
-  if (!JamlFiles.isSupported()) return null;
+  if (!YAMLFiles.isSupported()) return null;
 
   return (
     <JimboPanel title="Filters">
       <JimboStack gap="sm">
         <JimboRow gap="sm" align="center">
-          <JimboButton size="sm" tone="blue" onClick={() => JamlFiles.pickFolder()}>
+          <JimboButton size="sm" tone="blue" onClick={() => YAMLFiles.pickFolder()}>
             {mounted ? "Change folder" : "Open folder"}
           </JimboButton>
           {mounted && (

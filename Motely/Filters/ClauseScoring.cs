@@ -1220,7 +1220,7 @@ public static class ClauseScoring
 
     // ── Event clauses ──
     // `rolls` are absolute indices into the event's own PRNG stream: roll i is the i-th pull,
-    // the same index the SIMD event filters walk (sorted, 0..max) and the Jamlyzer's event queues
+    // the same index the SIMD event filters walk (sorted, 0..max) and the YAMLyzer's event queues
     // report. Each requested index counts once, and the whole count is returned: the tally
     // reports every hit, and min/max are judged by the caller (MeetsOccurrenceBounds / should
     // min-gating), never cut short here.

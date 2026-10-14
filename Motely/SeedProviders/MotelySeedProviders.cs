@@ -326,7 +326,7 @@ public sealed class MotelySeedListProvider : IMotelySeedProvider
 
 /// <summary>
 /// Drains <paramref name="first"/> to exhaustion, then falls through to <paramref name="second"/>.
-/// Used to always run a JAML file's saved <c>seeds:</c> list ahead of whatever seed source the
+/// Used to always run a YAML file's saved <c>seeds:</c> list ahead of whatever seed source the
 /// search was otherwise configured with.
 /// </summary>
 public sealed class MotelyChainedSeedProvider(IMotelySeedProvider first, IMotelySeedProvider second)

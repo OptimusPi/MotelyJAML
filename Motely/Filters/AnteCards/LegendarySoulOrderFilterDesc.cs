@@ -15,7 +15,7 @@ namespace Motely.Filters;
 /// A legendary already opened is owned, so the game resamples (<c>Joker4_resample2</c>, …) rather
 /// than giving a duplicate — unless Showman is held. <c>showman: true</c> keeps duplicates in the
 /// pool, so the effective sequence is the raw <c>Joker4</c> draws (the same sequence
-/// <c>jamlyze_seeds</c> reports).
+/// <c>yamlyze_seeds</c> reports).
 /// </summary>
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial class LegendarySoulOrderClause: IMotelyClause

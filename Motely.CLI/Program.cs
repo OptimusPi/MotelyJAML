@@ -60,7 +60,7 @@ Option<int?> randomOption = new("--random") { Description = "Search N random see
 Option<string> aestheticOption = new("--aesthetic")
 {
     Description =
-        $"Search one aesthetic seed family: {MotelyAestheticParser.KnownJamlStringsDescription()} ('all' runs every family in turn).",
+        $"Search one aesthetic seed family: {MotelyAestheticParser.KnownYAMLStringsDescription()} ('all' runs every family in turn).",
 };
 Option<string> paddingOption = new("--padding")
 {
@@ -200,7 +200,7 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
         Console.Error.WriteLine($"Error: no filter file at {Path.GetFullPath(path)}.");
         return 1;
     }
-    JamlConfig config;
+    YAMLConfig config;
     try
     {
         config = YamlConfigLoader.FromFile(path);
@@ -231,7 +231,7 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             $"Warning: cutoff {cutoffText} with no should: clauses — every seed scores 0, so nothing will print."
         );
 
-    JamlSearchPlan plan;
+    YAMLSearchPlan plan;
     try
     {
         // A fixed floor goes into the engine, so low scores are dropped before any callback.
@@ -268,9 +268,9 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             new CliSearchMode.Input(
                 SeedsArgument: seedsArgument,
                 Replay: replay,
-                JamlPath: path,
+                YAMLPath: path,
                 FilterId: config.Id,
-                JamlSeeds: config.Seeds,
+                YAMLSeeds: config.Seeds,
                 KeywordInputs: keywords,
                 // Unset padding is spelled out as the whole alphabet: that is what a bare keyword
                 // means, short ones included, and the space aesthetics default to.

@@ -11,7 +11,7 @@ namespace Motely.Tests;
 /// </summary>
 public sealed class S8P2SearchGutsTests
 {
-    private const string PermissiveJaml = """
+    private const string PermissiveYAML = """
         name: s8p2-permissive
         deck: Red
         stake: White
@@ -23,7 +23,7 @@ public sealed class S8P2SearchGutsTests
     private static readonly string[] FixtureSeeds =
         ["ALEEB", "MOTELY77", "UNITTEST", "5X5", "616", "696", "6J6", "7H7"];
 
-    private static JamlConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveJaml);
+    private static YAMLConfig Permissive() => ProofSearch.LoadOrThrow(PermissiveYAML);
 
     // ── Settings fluent surface (interface chain) ──────────────────────────
 
@@ -121,7 +121,7 @@ public sealed class S8P2SearchGutsTests
     /// <summary>
     /// G01 host contract: sequential/provider Start is non-blocking (worker threads).
     /// TUI polls IsCompleted; calling complete/dispose immediately after Start is wrong.
-    /// Note: MotelySeedListProvider runs inline on the caller (Jamlyzer/browser); sequential does not.
+    /// Note: MotelySeedListProvider runs inline on the caller (YAMLyzer/browser); sequential does not.
     /// Gate blocks workers so IsCompleted stays false until the host allows finish.
     /// </summary>
     [Fact]
@@ -491,7 +491,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void AutoScoreCutoff_ReportsCandidatesWhileDisengaged()
     {
-        const string jaml = """
+        const string yaml = """
             name: s8p2-should
             deck: Red
             stake: White
@@ -504,7 +504,7 @@ public sealed class S8P2SearchGutsTests
             """;
         var scored = new List<MotelyScoredSeedResult>();
         using var search = MotelySearchBuilder
-            .CreateSettings(ProofSearch.LoadOrThrow(jaml))
+            .CreateSettings(ProofSearch.LoadOrThrow(yaml))
             .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
             .WithThreadCount(1)
             .WithQuietMode(true)

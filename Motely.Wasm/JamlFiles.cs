@@ -10,10 +10,10 @@ using Bootsharp.FileSystem;
 
 /// <summary>.yaml and .yml filter files in a folder the user picks. Needs the Bootsharp.FileSystem
 /// build; without it <see cref="IsSupported"/> is false and every file call rejects.</summary>
-public interface IJamlFiles
+public interface IYAMLFiles
 {
     /// <summary>A filter file joined, left, changed or moved within the folder's filter list.</summary>
-    event Action<JamlFileChange> OnChange;
+    event Action<YAMLFileChange> OnChange;
 
     /// <summary>True when this build has Bootsharp.FileSystem and can mount a folder.</summary>
     bool IsSupported();
@@ -36,8 +36,8 @@ public interface IJamlFiles
 
     /// <summary>Writes the filter file, creating it when missing.</summary>
     /// <param name="name">Name as <see cref="List"/> gives it.</param>
-    /// <param name="jaml">The filter text.</param>
-    Task Save(string name, string jaml);
+    /// <param name="yaml">The filter text.</param>
+    Task Save(string name, string yaml);
 
     /// <summary>Deletes the filter file.</summary>
     /// <param name="name">Name as <see cref="List"/> gives it.</param>
@@ -50,18 +50,18 @@ public interface IJamlFiles
 }
 
 #if MOTELY_FILESYSTEM
-/// <summary>JamlFiles over Bootsharp.FileSystem. JS calls <c>fs.init(IFileMounter)</c> from
+/// <summary>YAMLFiles over Bootsharp.FileSystem. JS calls <c>fs.init(IFileMounter)</c> from
 /// <c>@rewaffle/bootsharp-file-system</c> before <c>boot()</c>. Every call that can fail runs
 /// through <see cref="Guard"/>, so its reason reaches <c>Errors.last()</c>.</summary>
 /// <param name="mounter">Bootsharp.FileSystem's mounter, injected by AddBootsharp.</param>
-public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWatcher
+public sealed class YAMLFilesModule(IFileMounter mounter) : IYAMLFiles, IFileWatcher
 {
     private readonly SortedSet<string> _names = new(StringComparer.OrdinalIgnoreCase);
     private string? _root;
     private IFileSystem? _fs;
 
     /// <inheritdoc/>
-    public event Action<JamlFileChange>? OnChange;
+    public event Action<YAMLFileChange>? OnChange;
 
     /// <inheritdoc/>
     public bool IsSupported() => true;
@@ -75,7 +75,7 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
     /// <inheritdoc/>
     public Task<bool> PickFolder() => Guard.RunAsync(async () =>
     {
-        string? root = await mounter.PickRoot(new PickOptions { Id = "jaml-filters", Mode = PermissionMode.ReadWrite });
+        string? root = await mounter.PickRoot(new PickOptions { Id = "yaml-filters", Mode = PermissionMode.ReadWrite });
         if (root is null)
             return false;
         await Unmount();
@@ -102,18 +102,18 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
 
     /// <inheritdoc/>
     public Task<string> Load(string name) =>
-        Guard.RunAsync(async () => Encoding.UTF8.GetString(await Fs.ReadFile(JamlFileNames.ToUri(name))));
+        Guard.RunAsync(async () => Encoding.UTF8.GetString(await Fs.ReadFile(YAMLFileNames.ToUri(name))));
 
     /// <inheritdoc/>
-    public Task Save(string name, string jaml) =>
-        Guard.RunAsync(() => Fs.WriteFile(JamlFileNames.ToUri(name), Encoding.UTF8.GetBytes(jaml)));
+    public Task Save(string name, string yaml) =>
+        Guard.RunAsync(() => Fs.WriteFile(YAMLFileNames.ToUri(name), Encoding.UTF8.GetBytes(yaml)));
 
     /// <inheritdoc/>
-    public Task Remove(string name) => Guard.RunAsync(() => Fs.DeleteFile(JamlFileNames.ToUri(name)));
+    public Task Remove(string name) => Guard.RunAsync(() => Fs.DeleteFile(YAMLFileNames.ToUri(name)));
 
     /// <inheritdoc/>
     public Task Rename(string fromName, string toName) =>
-        Guard.RunAsync(() => Fs.MoveFile(JamlFileNames.ToUri(fromName), JamlFileNames.ToUri(toName)));
+        Guard.RunAsync(() => Fs.MoveFile(YAMLFileNames.ToUri(fromName), YAMLFileNames.ToUri(toName)));
 
     /// <summary>Keeps <see cref="List"/> in step with the folder and raises <see cref="OnChange"/>.</summary>
     /// <param name="changes">The folder's changes, from Bootsharp.FileSystem.</param>
@@ -126,12 +126,12 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
                 continue;
             var type = change.Type switch
             {
-                ChangeType.Added => JamlFileEvent.Added,
-                ChangeType.Removed => JamlFileEvent.Removed,
-                ChangeType.Moved => JamlFileEvent.Moved,
-                _ => JamlFileEvent.Modified,
+                ChangeType.Added => YAMLFileEvent.Added,
+                ChangeType.Removed => YAMLFileEvent.Removed,
+                ChangeType.Moved => YAMLFileEvent.Moved,
+                _ => YAMLFileEvent.Modified,
             };
-            if (JamlFileNames.Change(type, change.Entry.Uri, change.Moved ? change.FromUri : null) is not { } seen)
+            if (YAMLFileNames.Change(type, change.Entry.Uri, change.Moved ? change.FromUri : null) is not { } seen)
                 continue;
             if (seen.Kind == "removed")
                 _names.Remove(seen.Name);
@@ -147,15 +147,15 @@ public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWat
     }
 
     private IFileSystem Fs =>
-        _fs ?? throw new InvalidOperationException("No folder is mounted: call JamlFiles.pickFolder() first.");
+        _fs ?? throw new InvalidOperationException("No folder is mounted: call YAMLFiles.pickFolder() first.");
 }
 #else
 /// <summary>The build without Bootsharp.FileSystem: the same surface, and nothing can mount.</summary>
-public sealed class JamlFilesModule : IJamlFiles
+public sealed class YAMLFilesModule : IYAMLFiles
 {
 #pragma warning disable CS0067 // never raised here; declared so both builds export it
     /// <inheritdoc/>
-    public event Action<JamlFileChange>? OnChange;
+    public event Action<YAMLFileChange>? OnChange;
 #pragma warning restore CS0067
 
     /// <inheritdoc/>
@@ -177,7 +177,7 @@ public sealed class JamlFilesModule : IJamlFiles
     public Task<string> Load(string name) => Task.FromException<string>(NoFileSystem());
 
     /// <inheritdoc/>
-    public Task Save(string name, string jaml) => Task.FromException(NoFileSystem());
+    public Task Save(string name, string yaml) => Task.FromException(NoFileSystem());
 
     /// <inheritdoc/>
     public Task Remove(string name) => Task.FromException(NoFileSystem());

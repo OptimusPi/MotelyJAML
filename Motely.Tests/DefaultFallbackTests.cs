@@ -4,7 +4,7 @@ namespace Motely.Tests;
 
 /// <summary>
 /// Pins the FilterDesc-side fallback defaults that <see cref="MotelySearchBuilder"/> fills in for
-/// clauses that named no ante / no source. The loader injects nothing (JAML is typed — a clause
+/// clauses that named no ante / no source. The loader injects nothing (YAML is typed — a clause
 /// arrives as a real <see cref="JokerClause"/> with empty <c>Antes</c>/<c>Sources</c>, not a blob
 /// of text), so without these defaults every <c>foreach (ante in clause.Antes)</c> and
 /// <c>if (Sources.X.Length &gt; 0)</c> would simply never fire and the clause would match nothing.
@@ -19,7 +19,7 @@ public class DefaultFallbackTests
 
     private static (long Matching, int Score) Score(JokerClause clause)
     {
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "default-fallback",
             Deck = MotelyDeck.Red,
@@ -94,12 +94,12 @@ public class DefaultFallbackTests
 
     // ── Tally-column labels ──
     // CreatePlan names each should-clause tally column. An explicit label: wins; an
-    // unlabeled clause gets its one-line JAML spelling as the column name; scoreN is the
+    // unlabeled clause gets its one-line YAML spelling as the column name; scoreN is the
     // last resort for clauses that spelling cannot render as a single line.
 
-    private static JamlConfig LabelConfig(params IMotelyClause[] should)
+    private static YAMLConfig LabelConfig(params IMotelyClause[] should)
     {
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "tally-labels",
             Deck = MotelyDeck.Red,

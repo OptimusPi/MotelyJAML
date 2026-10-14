@@ -4,7 +4,7 @@ namespace Motely;
 
 /// <summary>
 /// Poker-hand evaluation over a multi-card span (starting draw = 8 cards after deck shuffle).
-/// Lifted from the native <c>ShuffleFinder</c> filter so JAML and native share one law.
+/// Lifted from the native <c>ShuffleFinder</c> filter so YAML and native share one law.
 /// </summary>
 public static class MotelyPokerHandEval
 {

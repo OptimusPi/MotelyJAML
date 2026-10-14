@@ -14,7 +14,7 @@ public sealed partial class TarotCardClause: IMotelyClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyTarotCard[] Tarots { get; set; } = [];
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
+    // null = no sources: in YAML → filter DefaultSources at CreateFilter/score (not parse).
     public TarotCardSourceConfig? Sources { get; set; }
 
     public IMotelySeedFilterDesc CreateFilterDesc() => new TarotCardFilterDesc(this);

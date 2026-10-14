@@ -12,11 +12,11 @@ namespace Motely.Tests;
 /// instead of negating a prefilter that passes every lane.
 /// Ground truth MOTELY77 Red/White: ante 1 = Polychrome Tag + Tarot Merchant, ante 2 = Blank.
 /// </summary>
-public class JamlMinMaxMustNotTests
+public class YAMLMinMaxMustNotTests
 {
     private const string Seed = "MOTELY77";
 
-    /// <summary>First twelve seeds of YamlFilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
+    /// <summary>First twelve seeds of YamlFilters/Zerkeo.yaml: Anaglyph/White, Hieroglyph in
     /// ante 1, Negative Perkeo in an ante-0 pack.</summary>
     private static readonly string[] ZerkeoSeeds =
     [
@@ -24,11 +24,11 @@ public class JamlMinMaxMustNotTests
         "4E1MRX11", "KWR8OX11", "BB3BOX11", "K4GBQX11", "B5BCQX11", "6E5RVX11",
     ];
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
@@ -49,11 +49,11 @@ public class JamlMinMaxMustNotTests
         return (search.MatchingSeeds, score, tally);
     }
 
-    private static HashSet<string> RunSeedList(string jaml, string[] seeds)
+    private static HashSet<string> RunSeedList(string yaml, string[] seeds)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         var hits = new HashSet<string>();

@@ -4,12 +4,12 @@ namespace Motely.Tests;
 /// <summary>
 /// ADR-001 item 9: every test fixture filter loads through the one loader. Reads
 /// Motely.Tests/YamlFilters/ in place, not the copies in bin/, so a file that isn't copied to
-/// output still gets checked. All four extensions the loader accepts: .jaml .yaml .yml .json.
+/// output still gets checked. All four extensions the loader accepts: .yaml .yaml .yml .json.
 /// The repo-root YamlFilters/ is the user's own filter folder and is not a test input.
 /// </summary>
 public sealed class MotelyfilterCorpusLoadTests
 {
-    private static readonly string[] Extensions = [".jaml", ".yaml", ".yml", ".json"];
+    private static readonly string[] Extensions = [".yaml", ".yaml", ".yml", ".json"];
 
     private static string TestsDir =>
         Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "..", "..", ".."));

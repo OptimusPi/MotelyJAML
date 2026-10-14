@@ -6,7 +6,7 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace Motely.Filters;
 
 /// <summary>
-/// YAML text → <see cref="JamlConfig"/> through YamlDotNet's static deserializer. JSON is YAML,
+/// YAML text → <see cref="YAMLConfig"/> through YamlDotNet's static deserializer. JSON is YAML,
 /// so a JSON document loads through the same path.
 /// </summary>
 public static class YamlConfigLoader
@@ -15,7 +15,7 @@ public static class YamlConfigLoader
 
     private static IDeserializer CreateDeserializer()
     {
-        var builder = new StaticDeserializerBuilder(new JamlYamlContext())
+        var builder = new StaticDeserializerBuilder(new YAMLYamlContext())
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .WithCaseInsensitivePropertyMatching()
             .WithNodeDeserializer(new ClauseTypeDiscriminatingNodeDeserializer());
@@ -24,11 +24,11 @@ public static class YamlConfigLoader
         return builder.Build();
     }
 
-    public static JamlConfig FromYaml(string text)
+    public static YAMLConfig FromYaml(string text)
     {
         try
         {
-            return Deserializer.Deserialize<JamlConfig?>(text)
+            return Deserializer.Deserialize<YAMLConfig?>(text)
                 ?? throw new InvalidOperationException("YAML: the document is empty.");
         }
         catch (YamlException ex)
@@ -41,12 +41,12 @@ public static class YamlConfigLoader
         }
     }
 
-    public static JamlConfig FromFile(string path) => FromYaml(File.ReadAllText(path));
+    public static YAMLConfig FromFile(string path) => FromYaml(File.ReadAllText(path));
 
     /// <summary>Every key that starts a YAML filter clause (<c>joker</c>, <c>legendaryJoker</c>, <c>or</c>, …).</summary>
     public static IReadOnlyCollection<string> ClauseKeys => YamlClauseBinding.ClauseKeys;
 
-    public static bool TryLoad(string text, [NotNullWhen(true)] out JamlConfig? config, out string? error)
+    public static bool TryLoad(string text, [NotNullWhen(true)] out YAMLConfig? config, out string? error)
     {
         try
         {
@@ -65,4 +65,4 @@ public static class YamlConfigLoader
 
 [YamlStaticContext]
 [YamlSerializable(typeof(IMotelyClause))]
-public partial class JamlYamlContext : YamlDotNet.Serialization.StaticContext;
+public partial class YAMLYamlContext : YamlDotNet.Serialization.StaticContext;

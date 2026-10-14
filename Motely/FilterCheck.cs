@@ -32,8 +32,8 @@ public static class FilterCheck
 
     public static bool TryCheck(
         string text,
-        [NotNullWhen(true)] out JamlConfig? config,
-        [NotNullWhen(true)] out JamlSearchPlan? plan,
+        [NotNullWhen(true)] out YAMLConfig? config,
+        [NotNullWhen(true)] out YAMLSearchPlan? plan,
         [NotNullWhen(false)] out string? error
     )
     {

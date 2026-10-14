@@ -2,10 +2,10 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-public class JamlJsonLoaderTests
+public class YAMLJsonLoaderTests
 {
     /// <summary>The one must clause is a joker clause naming no joker, which the engine reads as the whole category.</summary>
-    private static void AssertSingleMustIsAnyJoker(JamlConfig config)
+    private static void AssertSingleMustIsAnyJoker(YAMLConfig config)
     {
         var clause = Assert.Single(config.Must);
         var joker = Assert.IsType<JokerClause>(clause);

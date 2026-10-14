@@ -12,11 +12,11 @@ public class LuckyEventLuckTests
         long MatchingSeeds,
         int? Score,
         int? Tally
-    ) RunSingleSeedJaml(string jaml)
+    ) RunSingleSeedYAML(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
@@ -68,8 +68,8 @@ public class LuckyEventLuckTests
                   luck: 5
             """;
 
-        var defaultResult = RunSingleSeedJaml(defaultLuck);
-        var luck5Result = RunSingleSeedJaml(luck5);
+        var defaultResult = RunSingleSeedYAML(defaultLuck);
+        var luck5Result = RunSingleSeedYAML(luck5);
 
         Assert.Equal(1, defaultResult.SeedsSearched);
         Assert.Equal(0, defaultResult.MatchingSeeds);
@@ -85,7 +85,7 @@ public class LuckyEventLuckTests
     [Fact]
     public void LuckyMult_LoadsWithLuck()
     {
-        var jaml = """
+        var yaml = """
             name: LuckyMultLuck5
             deck: Red
             stake: White
@@ -102,8 +102,8 @@ public class LuckyEventLuckTests
             """;
 
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         var must = Assert.IsType<LuckyMultClause>(config!.Must[0]);
@@ -117,7 +117,7 @@ public class LuckyEventLuckTests
     [Fact]
     public void GrosMichelExtinct_LoadsWithLuck()
     {
-        var jaml = """
+        var yaml = """
             name: GrosMichelExtinctLuck5
             deck: Red
             stake: White
@@ -128,8 +128,8 @@ public class LuckyEventLuckTests
             """;
 
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         var clause = Assert.IsType<GrosMichelExtinctClause>(config!.Must[0]);
@@ -175,11 +175,11 @@ public class LuckyEventLuckTests
         Assert.Subset(luck5Matches, defaultMatches);
     }
 
-    private static HashSet<string> CollectMatchingSeedsFromList(string jaml, string[] seeds)
+    private static HashSet<string> CollectMatchingSeedsFromList(string yaml, string[] seeds)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         var matches = new HashSet<string>(StringComparer.Ordinal);

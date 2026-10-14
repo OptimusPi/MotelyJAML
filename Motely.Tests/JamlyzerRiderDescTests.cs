@@ -4,28 +4,28 @@ using Motely.Filters;
 namespace Motely.Tests;
 
 /// <summary>
-/// The Jamlyzer riding a search (<see cref="MotelyJamlyzerRiderDesc"/>): every seed the search
+/// The YAMLyzer riding a search (<see cref="MotelyYAMLyzerRiderDesc"/>): every seed the search
 /// reports gets its breakdown in the same pass, carrying the search's own score and tally, and that
-/// breakdown is identical to what the standalone Jamlyzer says about the seed. Underneath it, the
+/// breakdown is identical to what the standalone YAMLyzer says about the seed. Underneath it, the
 /// engine contract the rider depends on: the analyze provider sees exactly the reported lanes,
 /// never the ones the auto score cutoff dropped.
 /// </summary>
-public sealed class JamlyzerRiderDescTests
+public sealed class YAMLyzerRiderDescTests
 {
     private static readonly string[] Seeds = ["UNITTEST", "ALEEB", "1234567"];
 
     // A should clause so the search scores; no must, so every listed seed is a find. No antes on
-    // the clause on purpose: the search fills 1..8, and the standalone Jamlyzer has to agree.
-    private const string ShouldJaml = """
+    // the clause on purpose: the search fills 1..8, and the standalone YAMLyzer has to agree.
+    private const string ShouldYAML = """
         should:
           - joker: Blueprint
             score: 3
         seeds: []
         """;
 
-    private static JamlConfig Config(params string[] seeds)
+    private static YAMLConfig Config(params string[] seeds)
     {
-        var config = YamlConfigLoader.FromYaml(ShouldJaml);
+        var config = YamlConfigLoader.FromYaml(ShouldYAML);
         foreach (var seed in seeds)
             config.Seeds.Add(seed);
         return config;
@@ -35,12 +35,12 @@ public sealed class JamlyzerRiderDescTests
     public void RidesSearch_EveryFindGetsTheStandaloneBreakdownWithTheSearchScore()
     {
         var config = Config();
-        var analyzed = new List<MotelyJamlyzerSeedResult>();
+        var analyzed = new List<MotelyYAMLyzerSeedResult>();
         var scored = new List<MotelySeedScore>();
 
         // Desc before CreateSettings: the builder fills unscoped clauses with antes 1..8 in place,
         // which would narrow the rider to 1..8 while Analyze(config) walks 0..8.
-        var desc = MotelyJamlyzer.CreateRiderDesc(config, analyzed.Add, eventRolls: 5);
+        var desc = MotelyYAMLyzer.CreateRiderDesc(config, analyzed.Add, eventRolls: 5);
 
         using var search = MotelySearchBuilder
             .CreateSettings(config)
@@ -63,7 +63,7 @@ public sealed class JamlyzerRiderDescTests
             Assert.Equal(s.Score, a.Score);
             Assert.Equal(s.Tally, a.Tally);
 
-            var standalone = MotelyJamlyzer.Analyze(Config(a.Seed), eventRolls: 5)[0];
+            var standalone = MotelyYAMLyzer.Analyze(Config(a.Seed), eventRolls: 5)[0];
             Assert.Equal(standalone.Score, a.Score);
             Assert.Equal(standalone.Tally, a.Tally);
             AssertSameBreakdown(standalone, a);
@@ -73,12 +73,12 @@ public sealed class JamlyzerRiderDescTests
     [Fact]
     public void RidesUnscoredSearch_ScoreZeroTallyNull_ZeroRollsIsSummaryOnly()
     {
-        var analyzed = new List<MotelyJamlyzerSeedResult>();
+        var analyzed = new List<MotelyYAMLyzerSeedResult>();
         using var search = new MotelySearchSettings<PassthroughFilterDesc.PassthroughFilter>(
             new PassthroughFilterDesc()
         )
             .WithSeedAnalyzeProvider(
-                new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, analyzed.Add, eventRolls: 0)
+                new MotelyYAMLyzerRiderDesc(MotelyYAMLyzer.AllAntes, analyzed.Add, eventRolls: 0)
             )
             .WithSeedList(Seeds)
             .WithThreadCount(1)
@@ -144,8 +144,8 @@ public sealed class JamlyzerRiderDescTests
     }
 
     private static void AssertSameBreakdown(
-        MotelyJamlyzerSeedResult expected,
-        MotelyJamlyzerSeedResult actual
+        MotelyYAMLyzerSeedResult expected,
+        MotelyYAMLyzerSeedResult actual
     )
     {
         Assert.Equal(expected.Seed, actual.Seed);

@@ -4,13 +4,13 @@ namespace Motely.Tests;
 /// Pins P0 single-match-core: FilterDesc scalar confirm arms and should-scoring share
 /// <see cref="ClauseScoring.ClauseMeetsMinForFilter"/> / CountRawOccurrences so they cannot drift.
 /// </summary>
-public sealed class JamlMatchCoreParityTests
+public sealed class YAMLMatchCoreParityTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"];
 
     private static HashSet<string> RunMustHits(IMotelyClause clause)
     {
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "match-core-must",
             Deck = MotelyDeck.Red,
@@ -34,7 +34,7 @@ public sealed class JamlMatchCoreParityTests
     private static HashSet<string> RunShouldHits(IMotelyClause clause)
     {
         clause.Score = 1;
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "match-core-should",
             Deck = MotelyDeck.Red,

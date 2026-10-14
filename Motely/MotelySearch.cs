@@ -182,7 +182,7 @@ public interface IMotelySearchSettings
     IMotelySearchSettings WithCsvOutput(bool csvOutput);
 
     /// <summary>A flag for the host's own output; the engine never reads it (it writes nothing).
-    /// Kept because hosts such as jaml-ui set it.</summary>
+    /// Kept because hosts such as yaml-ui set it.</summary>
     IMotelySearchSettings WithQuietMode(bool quietMode);
     IMotelySearchSettings WithSeedMatchCallback(Action<string> callback);
     IMotelySearchSettings WithScoredResultCallback(Action<MotelyScoredSeedResult> callback);
@@ -203,7 +203,7 @@ public interface IMotelySearchSettings
     /// is the engine's scalar escape hatch, so keep the predicate cheap: it is called per seed.
     /// This is a native/CLI-side feature. There is no cross-boundary version of it and there cannot
     /// usefully be one — a predicate authored in JS would marshal once per seed plus once more for
-    /// every context member it touches. JAML is the equivalent that crosses a boundary: it travels
+    /// every context member it touches. YAML is the equivalent that crosses a boundary: it travels
     /// once as data and then executes natively at full width.
     /// </summary>
     IMotelySearchSettings WithJimmolate(MotelyIndividualSeedSearcher searcher, int scoreCutoff = 1);
@@ -1214,7 +1214,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     {
         _elapsedTime.Start();
 
-        // Inline (Jamlyzer): the entire bounded workload runs synchronously on the caller,
+        // Inline (YAMLyzer): the entire bounded workload runs synchronously on the caller,
         // so AwaitCompletion() is safe on every platform, including the browser's single
         // thread where the pump below would deadlock it.
         if (_runInline)

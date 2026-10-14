@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Motely.Filters;
 
-public sealed class JamlSearchPlan
+public sealed class YAMLSearchPlan
 {
     internal IMotelySearchSettings Settings { get; set; } = null!;
     public int ScoreTallyColumnCount { get; set; }
@@ -13,10 +13,10 @@ public sealed class JamlSearchPlan
 public static class MotelySearchBuilder
 {
     /// <inheritdoc cref="CreateSettings"/>
-    public static JamlSearchPlan CreatePlan(JamlConfig config, int? engineCutoff = null)
+    public static YAMLSearchPlan CreatePlan(YAMLConfig config, int? engineCutoff = null)
     {
         var settings = CreateSettings(config, engineCutoff);
-        return new JamlSearchPlan
+        return new YAMLSearchPlan
         {
             Settings = settings,
             ScoreTallyColumnCount = config.Should.Count,
@@ -40,22 +40,22 @@ public static class MotelySearchBuilder
     /// own <c>cutoff:</c>, or no floor when it has none; <see cref="int.MinValue"/> is no floor
     /// whatever the filter says (a host whose own cutoff mode wins, as the CLI's --cutoff does).
     /// </param>
-    public static IMotelySearchSettings CreateSettings(JamlConfig config, int? engineCutoff = null)
+    public static IMotelySearchSettings CreateSettings(YAMLConfig config, int? engineCutoff = null)
     {
         // The loader validates, but a config can also be built in code or edited by a JS host
         // after loading; the SIMD filters size stack buffers from these bounds, so check again.
-        JamlValidator.Validate(config);
+        YAMLValidator.Validate(config);
 
         int floor = engineCutoff ?? config.Cutoff ?? int.MinValue;
 
-        // A JAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
+        // A YAML with no must/should/mustNot clauses is a valid, real search: deck/stake/seeds
         // and nothing else, with the host's own predicate free to drive the whole decision.
         IMotelySearchSettings settings =
             new MotelySearchSettings<PassthroughFilterDesc.PassthroughFilter>(
                 new PassthroughFilterDesc()
             );
 
-        // The JAML document names its own deck and stake; the settings carry them from here so
+        // The YAML document names its own deck and stake; the settings carry them from here so
         // every caller searches what the filter says. Callers may still override afterwards
         // (the CLI applies --deck/--stake on top).
         settings = settings.WithDeck(config.Deck).WithStake(config.Stake);
@@ -85,7 +85,7 @@ public static class MotelySearchBuilder
         if (config.Must.Count + config.Should.Count + scoredMustNot.Length > 0)
         {
             settings = settings.WithSeedScoreProvider(
-                new JamlShouldScoreDesc(
+                new YAMLShouldScoreDesc(
                     [.. config.Must],
                     [.. config.Should],
                     minimumTotalScore: floor,

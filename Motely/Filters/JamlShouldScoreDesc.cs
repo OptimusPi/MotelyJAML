@@ -10,8 +10,8 @@ namespace Motely.Filters;
 /// (negating a coarse prefilter drops every seed that merely might have the item). Then
 /// <c>should</c> clauses contribute score and CSV tallies.
 /// </summary>
-public struct JamlShouldScoreDesc
-    : IMotelySeedScoreDesc<JamlShouldScoreDesc.JamlShouldScoreProvider>
+public struct YAMLShouldScoreDesc
+    : IMotelySeedScoreDesc<YAMLShouldScoreDesc.YAMLShouldScoreProvider>
 {
     private readonly IMotelyClause[] _mustClauses;
     private readonly IMotelyClause[] _shouldClauses;
@@ -20,7 +20,7 @@ public struct JamlShouldScoreDesc
     private readonly int _minimumTotalScore;
     private readonly bool _skipMustReeval;
 
-    public JamlShouldScoreDesc(
+    public YAMLShouldScoreDesc(
         IMotelyClause[] mustClauses,
         IMotelyClause[] shouldClauses,
         Action<string>? seedMatchCallback = null,
@@ -36,7 +36,7 @@ public struct JamlShouldScoreDesc
         _skipMustReeval = ClauseScoring.CanSkipMustReeval(mustClauses);
     }
 
-    public JamlShouldScoreProvider CreateScoreProvider(ref MotelyFilterCreationContext ctx) =>
+    public YAMLShouldScoreProvider CreateScoreProvider(ref MotelyFilterCreationContext ctx) =>
         new(
             _mustClauses,
             _shouldClauses,
@@ -46,7 +46,7 @@ public struct JamlShouldScoreDesc
             _mustNotClauses
         );
 
-    public struct JamlShouldScoreProvider : IMotelySeedScoreProvider
+    public struct YAMLShouldScoreProvider : IMotelySeedScoreProvider
     {
         private readonly IMotelyClause[] _mustClauses;
         private readonly IMotelyClause[] _shouldClauses;
@@ -56,7 +56,7 @@ public struct JamlShouldScoreDesc
         private readonly int _minimumTotalScore;
         private readonly bool _skipMustReeval;
 
-        public JamlShouldScoreProvider(
+        public YAMLShouldScoreProvider(
             IMotelyClause[] mustClauses,
             IMotelyClause[] shouldClauses,
             Action<string>? seedMatchCallback,
@@ -72,7 +72,7 @@ public struct JamlShouldScoreDesc
             );
             Debug.Assert(
                 shouldClauses.Length <= MotelyScoredSeedResult.MAX_TALLY_COUNT,
-                $"Should clause count {shouldClauses.Length} exceeds MotelyScoredSeedResult.MAX_TALLY_COUNT ({MotelyScoredSeedResult.MAX_TALLY_COUNT}); fix JAML / builder before search."
+                $"Should clause count {shouldClauses.Length} exceeds MotelyScoredSeedResult.MAX_TALLY_COUNT ({MotelyScoredSeedResult.MAX_TALLY_COUNT}); fix YAML / builder before search."
             );
 
             _mustClauses = mustClauses;

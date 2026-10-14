@@ -19,14 +19,14 @@ public class HieroglyphPackSlotTests
 {
     private const string HieroglyphPerkeoSeed = "KHTW99TC";
 
-    private static (long SeedsSearched, long MatchingSeeds) RunSingleSeedJaml(
-        string jaml,
+    private static (long SeedsSearched, long MatchingSeeds) RunSingleSeedYAML(
+        string yaml,
         string seed
     )
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         var settings = MotelySearchBuilder
@@ -48,7 +48,7 @@ public class HieroglyphPackSlotTests
     [Fact]
     public void KHTW99TC_HasNegativePerkeo_InAnte1_Slot6_WhenRunStateRewindsAnte()
     {
-        var jaml = """
+        var yaml = """
             name: HieroglyphPerkeo
             deck: Red
             stake: White
@@ -60,7 +60,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [6]
             """;
 
-        var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(1, result.MatchingSeeds);
     }
@@ -71,7 +71,7 @@ public class HieroglyphPackSlotTests
     [Fact]
     public void KHTW99TC_HasNegativePerkeo_InAnte1_FullSlotRange_WithRunStateRewind()
     {
-        var jaml = """
+        var yaml = """
             name: HieroglyphPerkeoFullRange
             deck: Red
             stake: White
@@ -83,7 +83,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [0, 1, 2, 3, 4, 5, 6, 7]
             """;
 
-        var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(1, result.MatchingSeeds);
     }
@@ -96,7 +96,7 @@ public class HieroglyphPackSlotTests
     [Fact]
     public void KHTW99TC_DoesNotMatch_WhenRestrictedTo_NormalAnte1_Slots()
     {
-        var jaml = """
+        var yaml = """
             name: HieroglyphPerkeoRestricted
             deck: Red
             stake: White
@@ -108,7 +108,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [0, 1, 2, 3]
             """;
 
-        var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(0, result.MatchingSeeds);
     }
@@ -119,7 +119,7 @@ public class HieroglyphPackSlotTests
     [Fact]
     public void EarlyAntesMaxPackSourceProperty_IsRejected()
     {
-        var jaml = """
+        var yaml = """
             name: RemovedEarlyAntesMaxPack
             deck: Red
             stake: White
@@ -132,7 +132,7 @@ public class HieroglyphPackSlotTests
                   earlyAntesMaxPack: 6
             """;
 
-        Assert.False(YamlConfigLoader.TryLoad(jaml, out _, out var error));
+        Assert.False(YamlConfigLoader.TryLoad(yaml, out _, out var error));
         Assert.Contains("earlyAntesMaxPack", error);
     }
 
@@ -145,7 +145,7 @@ public class HieroglyphPackSlotTests
     [Fact]
     public void BareLegendaryJokerClause_CompilesAndRuns()
     {
-        var jaml = """
+        var yaml = """
             name: HieroglyphPerkeoBare
             deck: Red
             stake: White
@@ -155,7 +155,7 @@ public class HieroglyphPackSlotTests
 
         // We don't assert match/no-match here because the seed may or may not have Perkeo in
         // other antes; this test pins that the bare form still parses and runs.
-        var result = RunSingleSeedJaml(jaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
     }
 }

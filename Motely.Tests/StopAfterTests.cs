@@ -14,7 +14,7 @@ namespace Motely.Tests;
 public class StopAfterTests(ITestOutputHelper output)
 {
     // Matches nearly every seed — any joker, anywhere in ante 1.
-    private const string PermissiveJaml = """
+    private const string PermissiveYAML = """
         name: permissive
         deck: Red
         stake: White
@@ -26,7 +26,7 @@ public class StopAfterTests(ITestOutputHelper output)
     private static (long Matching, int Delivered) RunSlice(long? stopAfter)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error),
+            YamlConfigLoader.TryLoad(PermissiveYAML, out var config, out var error),
             $"YAML parse failed: {error}"
         );
 
@@ -79,7 +79,7 @@ public class StopAfterTests(ITestOutputHelper output)
     [Fact]
     public void StopAfterReportsTheSearchAsCompletedNotAborted()
     {
-        Assert.True(YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(PermissiveYAML, out var config, out var error), error);
 
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
@@ -107,7 +107,7 @@ public class StopAfterTests(ITestOutputHelper output)
     [InlineData(6)]
     public void StopAfterDoesNotBookTheBatchItAbandoned(int batchCharCount)
     {
-        Assert.True(YamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
+        Assert.True(YamlConfigLoader.TryLoad(PermissiveYAML, out var config, out var error), error);
 
         var settings = MotelySearchBuilder
             .CreateSettings(config!)

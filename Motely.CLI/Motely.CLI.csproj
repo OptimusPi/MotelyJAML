@@ -22,7 +22,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- NativeAOT compiles for the baseline x86-64 ISA unless told otherwise: no AVX2, no
          AVX-512, so every Vector256/Vector512 op falls back to software (~0.66M seeds/s vs
-         ~4.0-4.4M with v3, at threads 1 on bench-negative-perkeo.jaml). x86-64-v3 (AVX2/FMA/BMI) measured
+         ~4.0-4.4M with v3, at threads 1 on bench-negative-perkeo.yaml). x86-64-v3 (AVX2/FMA/BMI) measured
          fastest; v4 (AVX-512) bought nothing on that bench, and v3 runs on any AVX2 CPU.
          Override with -p:IlcInstructionSet=native for a local-only build. The JIT (dotnet
          build/run) picks the host ISA by itself and ignores this. The RID is often still empty

@@ -283,14 +283,14 @@ public sealed class SeedProviderTests
         }
     }
 
-    private const string PermissiveJaml = "name: p\nmust: []\nshould: []\n";
+    private const string PermissiveYAML = "name: p\nmust: []\nshould: []\n";
 
     [Fact]
     public void ProviderSearch_AllInvalidFirstPack_KeepsSearchingTheRest()
     {
         // Eight seeds with '0' (not in the alphabet) fill the first SIMD pack on their own.
         string[] seeds = ["10", "20", "30", "40", "50", "60", "70", "80", "AAAAAAAA"];
-        var (matching, matched) = ProofSearch.ListMatch(PermissiveJaml, seeds);
+        var (matching, matched) = ProofSearch.ListMatch(PermissiveYAML, seeds);
         Assert.Equal(1L, matching);
         Assert.Equal(["AAAAAAAA"], matched);
     }
@@ -302,14 +302,14 @@ public sealed class SeedProviderTests
         for (int i = 0; i < 8; i++)
             seeds.Add("0000000" + i);
         seeds.Add("BBBBBBBB");
-        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, [.. seeds]);
+        var (matching, _) = ProofSearch.ListMatch(PermissiveYAML, [.. seeds]);
         Assert.Equal(2L, matching);
     }
 
     [Fact]
     public void ProviderSearch_OnlyInvalidSeeds_CompletesWithNothingSearched()
     {
-        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, ["10", "20", "30"]);
+        var (matching, _) = ProofSearch.ListMatch(PermissiveYAML, ["10", "20", "30"]);
         Assert.Equal(0L, matching);
     }
 }

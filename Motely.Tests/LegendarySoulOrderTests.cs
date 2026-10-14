@@ -6,7 +6,7 @@ namespace Motely.Tests;
 /// E17: <c>soulOrder:</c> — the run-wide order Souls turn into legendaries. Balatro keys the
 /// legendary pool <c>Joker4</c> with no ante, so the Nth Soul opened in the run gets draw N.
 /// With <c>showman: true</c> the pool keeps duplicates, so the effective order is the raw
-/// <c>Joker4</c> sequence (the same one <c>jamlyze_seeds</c> reports, E3/S3).
+/// <c>Joker4</c> sequence (the same one <c>yamlyze_seeds</c> reports, E3/S3).
 /// </summary>
 public sealed class LegendarySoulOrderTests
 {

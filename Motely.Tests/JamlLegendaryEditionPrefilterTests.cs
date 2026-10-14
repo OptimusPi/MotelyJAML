@@ -3,7 +3,7 @@ namespace Motely.Tests;
 /// <summary>
 /// Pins legendary edition soul prefilter for any Min (not only Min==1), and expanded exact-confirm families.
 /// </summary>
-public sealed class JamlLegendaryEditionPrefilterTests
+public sealed class YAMLLegendaryEditionPrefilterTests
 {
     [Fact]
     public void Legendary_Edition_MinTwo_StillFindsHieroglyphSeedWhenRangeWide()
@@ -12,7 +12,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
         // KHTW99TC has Negative Perkeo ante 1 slot 6; Min=1 is the real case — Min=2 on antes 1..8
         // may or may not match; use Min=1 with edition to prove prefilter path with edition set.
         const string seed = "KHTW99TC";
-        var jaml = """
+        var yaml = """
             name: leg-ed
             deck: Red
             stake: White
@@ -24,7 +24,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(YamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
@@ -47,7 +47,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
             Min = 2,
             Sources = new LegendaryJokerSourceConfig { BoosterPacks = [0, 1, 2, 3, 4, 5] },
         };
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "leg-min2",
             Deck = MotelyDeck.Red,

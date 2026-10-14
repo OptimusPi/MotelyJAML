@@ -8,15 +8,15 @@ namespace Motely.Tests;
 /// only the best arm (deep shop chunks / multi-window "land on the best one").
 /// Ground truth seed MOTELY77 Red/White ante 1: Polychrome Tag + Tarot Merchant both hit.
 /// </summary>
-public class JamlOrModeScoringTests
+public class YAMLOrModeScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
@@ -200,7 +200,7 @@ public class JamlOrModeScoringTests
     [Fact]
     public void Or_ArmsWriteTheirOwnAntes_LoadAndScore_MOTELY77()
     {
-        const string jaml = """
+        const string yaml = """
             name: or-arm-antes
             deck: Red
             stake: White
@@ -218,7 +218,7 @@ public class JamlOrModeScoringTests
             """;
 
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
             error
         );
 
@@ -231,7 +231,7 @@ public class JamlOrModeScoringTests
         Assert.Equal([1], tag.Antes);
         Assert.Equal([1], voucher.Antes);
 
-        var (matching, score, tally) = RunSingleSeed(jaml);
+        var (matching, score, tally) = RunSingleSeed(yaml);
         Assert.Equal(1, matching);
         Assert.Equal(5, score); // max(3, 5) via ante-1 hits only
         Assert.Equal(1, tally);

@@ -10,15 +10,15 @@ namespace Motely.Tests;
 /// Ground truth (analyzer, MOTELY77 Red/White, ante 1): boss is The Window, voucher is
 /// Tarot Merchant — so the conjunction below is one complete match worth its score of 7.
 /// </summary>
-public class JamlNestedBossScoringTests
+public class YAMLNestedBossScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score) RunSingleSeed(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;

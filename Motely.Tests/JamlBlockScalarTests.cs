@@ -6,7 +6,7 @@ namespace Motely.Tests;
 /// Block scalars follow YAML: '|' keeps the line breaks an author typed, '>' folds them into
 /// spaces, and the chomping indicators ('-' strip, '+' keep) decide the trailing newline.
 /// </summary>
-public sealed class JamlBlockScalarTests
+public sealed class YAMLBlockScalarTests
 {
     private static string Doc(string indicator) =>
         $"name: probe\ndescription: {indicator}\n  line one\n  line two\nstake: White\n";

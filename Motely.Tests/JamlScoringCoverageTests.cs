@@ -4,7 +4,7 @@ namespace Motely.Tests;
 /// Smoke: scalar ClauseScoring paths golden tests skip. Asserts list batch ran and scored callback
 /// fired. Exact scores/seeds live in golden/behavior tests.
 /// </summary>
-public sealed class JamlScoringCoverageTests
+public sealed class YAMLScoringCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77"];
 
@@ -12,7 +12,7 @@ public sealed class JamlScoringCoverageTests
     {
         if (clause.Score == 0)
             clause.Score = 1;
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "scoring-cov",
             Deck = deck,

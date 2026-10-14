@@ -7,7 +7,7 @@ namespace Motely.Tests;
 /// every property from <c>default(T)</c>, so an omitted key wipes the class initializer, and it
 /// skips unknown keys, so a typo loads as nothing.
 /// </summary>
-public class JamlLoaderKeyTests
+public class YAMLLoaderKeyTests
 {
     [Fact]
     public void OmittedClauseKeys_KeepTheirInitializers()

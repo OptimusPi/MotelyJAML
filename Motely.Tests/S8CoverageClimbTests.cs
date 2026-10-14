@@ -97,7 +97,7 @@ public sealed class S8CoverageClimbTests
         MotelyDeck deck = MotelyDeck.Red
     )
     {
-        var config = new JamlConfig
+        var config = new YAMLConfig
         {
             Id = "s8-clause",
             Deck = deck,
@@ -471,9 +471,9 @@ public sealed class S8CoverageClimbTests
 
     /// <summary>
     /// R3 parity lock for the raw-stream fix pair: the vector fixed-rarity streams carry the
-    /// Joker category bits, and the scalar must re-eval (JamlShouldScoreDesc) counts raw-stream
+    /// Joker category bits, and the scalar must re-eval (YAMLShouldScoreDesc) counts raw-stream
     /// sources. The uncommon raw stream always yields an uncommon, so the wildcard matches all
-    /// eight seeds on every route: raw desc, MotelySearchBuilder, and JAML text agree.
+    /// eight seeds on every route: raw desc, MotelySearchBuilder, and YAML text agree.
     /// commonShopJokers stays zero — a common-rarity stream can never satisfy an uncommon clause.
     /// </summary>
     [Fact]
@@ -481,7 +481,7 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string sources)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-parity
                 deck: Red
                 stake: White
@@ -491,7 +491,7 @@ public sealed class S8CoverageClimbTests
                     sources:
                 {sources}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         Assert.Equal(8, Count("      uncommonShopJokers: [0]"));
@@ -531,14 +531,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-tarot-probe
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         long shopAny = Count("""
@@ -590,14 +590,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-spectral
                 deck: Ghost
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         const string AllContent =
@@ -768,14 +768,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-legendary
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, WideSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, WideSeeds);
             return matching;
         }
         long split = Count("""
@@ -836,7 +836,7 @@ public sealed class S8CoverageClimbTests
 
     /// <summary>
     /// Real 8-character seeds over Balatro's own 1-9A-Z alphabet, collected by a live CLI run of
-    /// the exact JAML below. Decimal strings are not seeds: the provider drops every one holding
+    /// the exact YAML below. Decimal strings are not seeds: the provider drops every one holding
     /// a '0', and 1-4 characters is not the shape the game hands out.
     /// </summary>
     private static readonly string[] NegativeLegendaryAnte12Seeds =
@@ -861,11 +861,11 @@ public sealed class S8CoverageClimbTests
         """;
 
     /// <summary>
-    /// The exact JAML route accepts these seeds — that is what "real seed" means here, and it is
+    /// The exact YAML route accepts these seeds — that is what "real seed" means here, and it is
     /// the ground truth the prefilter is measured against.
     /// </summary>
     [Fact]
-    public void NegativeLegendaryAnte12_ExactJamlRoute_MatchesRealSeeds()
+    public void NegativeLegendaryAnte12_ExactYAMLRoute_MatchesRealSeeds()
     {
         ProofSearch.MustMatchAll(NegativeLegendaryAnte12, NegativeLegendaryAnte12Seeds);
     }

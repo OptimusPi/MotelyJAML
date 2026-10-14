@@ -6,16 +6,16 @@ using Motely.SeedProviders;
 namespace Motely;
 
 /// <summary>
-/// Shared CLI wiring for list / keyword / random / aesthetic / sequential search modes (native + JAML).
+/// Shared CLI wiring for list / keyword / random / aesthetic / sequential search modes (native + YAML).
 /// </summary>
 public static class CliSearchMode
 {
     public readonly record struct Input(
         string? SeedsArgument,
         bool Replay,
-        string? JamlPath,
+        string? YAMLPath,
         string? FilterId,
-        IReadOnlyList<string>? JamlSeeds,
+        IReadOnlyList<string>? YAMLSeeds,
         IReadOnlyList<string> KeywordInputs,
         string? PaddingCharsOption,
         int? RandomCount,
@@ -85,7 +85,7 @@ public static class CliSearchMode
             else if (!MotelyAestheticParser.TryParse(trimmed, out var aesthetic))
             {
                 error =
-                    $"Error: unknown --aesthetic value '{trimmed}'. Known: {MotelyAestheticParser.KnownJamlStringsDescription()}.";
+                    $"Error: unknown --aesthetic value '{trimmed}'. Known: {MotelyAestheticParser.KnownYAMLStringsDescription()}.";
                 return false;
             }
             else
@@ -169,17 +169,17 @@ public static class CliSearchMode
 
         if (hasReplayMode)
         {
-            if (string.IsNullOrWhiteSpace(input.JamlPath))
+            if (string.IsNullOrWhiteSpace(input.YAMLPath))
             {
                 error = "Error: --replay requires --yaml (it replays that file's seeds: block).";
                 return false;
             }
-            if (input.JamlSeeds is not { Count: > 0 })
+            if (input.YAMLSeeds is not { Count: > 0 })
             {
-                error = $"Error: '{input.JamlPath}' has no seeds: block to replay.";
+                error = $"Error: '{input.YAMLPath}' has no seeds: block to replay.";
                 return false;
             }
-            explicitSeeds = [.. input.JamlSeeds.Select(static s => MotelyGlobals.NormalizeSeed(s))];
+            explicitSeeds = [.. input.YAMLSeeds.Select(static s => MotelyGlobals.NormalizeSeed(s))];
         }
         else if (hasSeedsArg)
         {
@@ -238,14 +238,14 @@ public static class CliSearchMode
                 Padding(input.PaddingCharsOption)
             );
         }
-        // The JAML seeds: replay and the sequential sweep are the *default* modes — they apply
+        // The YAML seeds: replay and the sequential sweep are the *default* modes — they apply
         // only when the caller picked no explicit search input above. An explicit mode
         // (--keyword, --random, --aesthetic, --seeds, --replay) already installed its provider;
         // reaching the block below would silently stomp it back to sequential.
         if (explicitSearchModeCount > 0)
             return true;
 
-        // Sequential is the default, always. A JAML `seeds:` block is saved *output* — the engine
+        // Sequential is the default, always. A YAML `seeds:` block is saved *output* — the engine
         // writes it back after a run — so treating its presence as an instruction meant a filter
         // silently stopped sweeping the moment it had ever found anything. Replaying that list is
         // the explicit `--replay`. Nothing is lost by not guessing.

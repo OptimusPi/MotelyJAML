@@ -14,7 +14,7 @@ public sealed partial class SpectralCardClause: IMotelyClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelySpectralCard[] Spectrals { get; set; } = [];
 
-    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
+    // null = no sources: in YAML → filter DefaultSources at CreateFilter/score (not parse).
     public SpectralCardSourceConfig? Sources { get; set; }
 
     public IMotelySeedFilterDesc CreateFilterDesc() =>
@@ -31,7 +31,7 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     /// <summary>
     /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
     /// every booster-pack slot (Spectral packs). The shop half only ever pays on the Ghost deck —
-    /// its spectral weight is zero everywhere else (<see cref="JamlRarityContext.ShopSpectralRate"/>)
+    /// its spectral weight is zero everywhere else (<see cref="YAMLRarityContext.ShopSpectralRate"/>)
     /// — so the packs are what make the default matchable on the other fourteen decks. Sixth Sense,
     /// Séance, Ethereal and Omen Globe need an explicit <c>sources:</c>. Slot range is the engine's
     /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.

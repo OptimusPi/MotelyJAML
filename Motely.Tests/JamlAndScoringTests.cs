@@ -9,15 +9,15 @@ namespace Motely.Tests;
 /// Ground truth (analyzer, MOTELY77 Red/White, ante 1): small blind tag is
 /// Polychrome Tag, voucher is Tarot Merchant.
 /// </summary>
-public class JamlAndScoringTests
+public class YAMLAndScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{jaml}"
+            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"YAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
