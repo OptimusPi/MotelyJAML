@@ -12,7 +12,19 @@ public sealed partial class StandardCardClause: IMotelyClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
 
     /// <summary>A whole card (<c>standardCard: AceOfSpades</c>): its rank and suit at once.</summary>
-    public MotelyStandardCard? Card { get; set; }
+    public MotelyStandardCard? Card
+    {
+        get;
+        set
+        {
+            field = value;
+            if (value is { } card)
+            {
+                Rank = card.GetRank();
+                Suit = card.GetSuit();
+            }
+        }
+    }
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
     public MotelyItemEnhancement? Enhancement { get; set; }

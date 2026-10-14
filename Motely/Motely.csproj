@@ -7,12 +7,11 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
-    <!-- The CLI and Motely.Wasm both NativeAOT-compile the engine: surface trim/AOT warnings at
-         build time here, not only at publish. -->
-    <IsAotCompatible>true</IsAotCompatible>
-    <!-- YDNG001: the static generator can't register an interface. IMotelyClause is read by
-         ClauseNodeDeserializer (YamlConfigLoader.cs) before the generated code is asked. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- YDNG001: the static generator can't register an interface. IMotelyClause is discriminated
+         at deserialize time via YamlDotNet's type-discriminating node deserializer. -->
     <NoWarn>$(NoWarn);YDNG001</NoWarn>
   </PropertyGroup>
 

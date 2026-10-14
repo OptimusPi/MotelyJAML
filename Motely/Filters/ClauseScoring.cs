@@ -240,8 +240,7 @@ public static class ClauseScoring
 
     /// <summary>
     /// Match bounds: <see cref="IMotelyClause.Min"/> is the floor and <see cref="IMotelyClause.Max"/>,
-    /// when set, the ceiling; null is the only "no ceiling". <see cref="JamlValidator"/> guarantees
-    /// <c>1 ≤ min ≤ max</c> at load. Score tallies use <see cref="CapScoreCount"/> instead, so a
+    /// when set, the ceiling; null is the only "no ceiling". Score tallies use <see cref="CapScoreCount"/> instead, so a
     /// should column's contribution is capped rather than gated. SIMD prefilters may stay
     /// over-permissive on max; scoring and the exact confirm paths enforce it.
     /// </summary>
