@@ -255,7 +255,8 @@ internal static class MotelyYAMLyzerSeedWalk
 
                 MotelyJoker face = ctx.GetNextLegendaryJoker(
                     ref legendaryFaces,
-                    ReadOnlySpan<MotelyJoker>.Empty
+                    ReadOnlySpan<MotelyJoker>.Empty,
+                    showmanActive: false
                 );
                 if (!soulEditionInit)
                 {

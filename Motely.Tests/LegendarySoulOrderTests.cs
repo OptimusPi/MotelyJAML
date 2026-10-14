@@ -5,8 +5,8 @@ namespace Motely.Tests;
 /// <summary>
 /// E17: <c>soulOrder:</c> — the run-wide order Souls turn into legendaries. Balatro keys the
 /// legendary pool <c>Joker4</c> with no ante, so the Nth Soul opened in the run gets draw N.
-/// With <c>showman: true</c> the pool keeps duplicates, so the effective order is the raw
-/// <c>Joker4</c> sequence (the same one <c>yamlyze_seeds</c> reports, E3/S3).
+/// With <c>with: { jokers: [Showman] }</c> the pool keeps duplicates, so the effective order is
+/// the raw <c>Joker4</c> sequence (the same one <c>jamlyze_seeds</c> reports, E3/S3).
 /// </summary>
 public sealed class LegendarySoulOrderTests
 {
@@ -21,7 +21,8 @@ public sealed class LegendarySoulOrderTests
         foreach (var legendary in legendaries)
             sb.AppendLine($"      - {{ legendary: {legendary} }}");
         sb.AppendLine($"    maxAnte: {maxAnte}");
-        sb.AppendLine($"    showman: {(showman ? "true" : "false")}");
+        if (showman)
+            sb.AppendLine("    with: { jokers: [Showman] }");
         return sb.ToString();
     }
 
@@ -38,7 +39,7 @@ public sealed class LegendarySoulOrderTests
                   - { legendary: Perkeo, antes: [1] }
                   - { legendary: Yorick }
                 maxAnte: 8
-                showman: true
+                with: { jokers: [Showman] }
             """
         );
 
@@ -47,7 +48,7 @@ public sealed class LegendarySoulOrderTests
         Assert.Equal(MotelyJoker.Perkeo, clause.Entries[0].Legendary);
         Assert.Equal([1], clause.Entries[0].Antes);
         Assert.Equal(MotelyJoker.Yorick, clause.Entries[1].Legendary);
-        Assert.True(clause.Showman);
+        Assert.Contains(MotelyJoker.Showman, clause.With.Jokers);
     }
 
     [Fact]

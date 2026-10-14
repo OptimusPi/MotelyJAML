@@ -196,6 +196,11 @@ public static class ClauseScoring
         MotelyRunState runState
     )
     {
+        // A clause's with: is the run-wide authority for luck + held jokers (incl. Showman); push it
+        // into the shared run state so the event counters and the legendary walk read one source.
+        if (clause is IWithScopedClause withScoped)
+            runState.ApplyWith(withScoped.With);
+
         return clause switch
         {
             JokerClause c => CountJokerOccurrences(ref ctx, c, runState),
@@ -217,15 +222,15 @@ public static class ClauseScoring
             LuckyMoneyClause c => CountLuckyMoneyOccurrences(ref ctx, c, runState),
             LuckyMultClause c => CountLuckyMultOccurrences(ref ctx, c, runState),
             MisprintMultClause c => CountMisprintMultOccurrences(ref ctx, c),
-            WheelOfFortuneClause c => CountWheelOfFortuneOccurrences(ref ctx, c),
-            CavendishExtinctClause c => CountCavendishExtinctOccurrences(ref ctx, c),
-            GrosMichelExtinctClause c => CountGrosMichelExtinctOccurrences(ref ctx, c),
-            SpaceLevelupClause c => CountSpaceLevelupOccurrences(ref ctx, c),
+            WheelOfFortuneClause c => CountWheelOfFortuneOccurrences(ref ctx, c, runState),
+            CavendishExtinctClause c => CountCavendishExtinctOccurrences(ref ctx, c, runState),
+            GrosMichelExtinctClause c => CountGrosMichelExtinctOccurrences(ref ctx, c, runState),
+            SpaceLevelupClause c => CountSpaceLevelupOccurrences(ref ctx, c, runState),
             BusinessPayoutClause c => CountBusinessPayoutOccurrences(ref ctx, c),
             BloodstoneTriggerClause c => CountBloodstoneTriggerOccurrences(ref ctx, c),
             ParkingPayoutClause c => CountParkingPayoutOccurrences(ref ctx, c),
-            GlassDestroyClause c => CountGlassDestroyOccurrences(ref ctx, c),
-            WheelStaysFlippedClause c => CountWheelStaysFlippedOccurrences(ref ctx, c),
+            GlassDestroyClause c => CountGlassDestroyOccurrences(ref ctx, c, runState),
+            WheelStaysFlippedClause c => CountWheelStaysFlippedOccurrences(ref ctx, c, runState),
             StartingDrawClause c => CountStartingDrawOccurrences(ref ctx, c),
             PokerHandClause c => CountPokerHandOccurrences(ref ctx, c),
             AndClause c => CountAndOccurrences(ref ctx, c, runState),
@@ -1233,7 +1238,7 @@ public static class ClauseScoring
     {
         int count = 0;
         var stream = ctx.CreateLuckyCardMoneyStream(isCached: false);
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextLuckyMoney(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1249,7 +1254,7 @@ public static class ClauseScoring
     {
         int count = 0;
         var stream = ctx.CreateLuckyCardMultStream(isCached: false);
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextLuckyMult(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1273,12 +1278,13 @@ public static class ClauseScoring
 
     private static int CountWheelOfFortuneOccurrences(
         ref MotelySingleSearchContext ctx,
-        WheelOfFortuneClause clause
+        WheelOfFortuneClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateWheelOfFortuneStream();
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (
@@ -1291,12 +1297,13 @@ public static class ClauseScoring
 
     private static int CountCavendishExtinctOccurrences(
         ref MotelySingleSearchContext ctx,
-        CavendishExtinctClause clause
+        CavendishExtinctClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateCavendishPrngStream(false);
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextCavendishExtinct(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1306,12 +1313,13 @@ public static class ClauseScoring
 
     private static int CountGrosMichelExtinctOccurrences(
         ref MotelySingleSearchContext ctx,
-        GrosMichelExtinctClause clause
+        GrosMichelExtinctClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateGrosMichelPrngStream(false);
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextGrosMichelExtinct(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1321,12 +1329,13 @@ public static class ClauseScoring
 
     private static int CountSpaceLevelupOccurrences(
         ref MotelySingleSearchContext ctx,
-        SpaceLevelupClause clause
+        SpaceLevelupClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateSpacePrngStream();
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextSpaceLevelup(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1381,12 +1390,13 @@ public static class ClauseScoring
 
     private static int CountGlassDestroyOccurrences(
         ref MotelySingleSearchContext ctx,
-        GlassDestroyClause clause
+        GlassDestroyClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateGlassPrngStream();
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextGlassDestroy(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1396,12 +1406,13 @@ public static class ClauseScoring
 
     private static int CountWheelStaysFlippedOccurrences(
         ref MotelySingleSearchContext ctx,
-        WheelStaysFlippedClause clause
+        WheelStaysFlippedClause clause,
+        MotelyRunState runState
     )
     {
         int count = 0;
         var stream = ctx.CreateTheWheelPrngStream();
-        double luck = (double)clause.With.Luck;
+        double luck = (double)runState.Luck;
         int maxRoll = ArrayMax(clause.Rolls);
         for (int roll = 0; roll <= maxRoll; roll++)
             if (ctx.GetNextWheelStaysFlipped(ref stream, luck) && ArrayContains(clause.Rolls, roll))
@@ -1428,7 +1439,7 @@ public static class ClauseScoring
             if (!ArrayContains(clause.Antes, ante))
                 continue;
             int maxPack = ClampBoosterPackSlotForAnte(ante, userMaxPack, runState);
-            count += LegendarySoulMatcher.CountAnte(ref ctx, ante, clause, maxPack, ref walk);
+            count += LegendarySoulMatcher.CountAnte(ref ctx, ante, clause, maxPack, ref walk, runState);
         }
 
         return count;
@@ -1438,7 +1449,8 @@ public static class ClauseScoring
     /// <c>soulOrder:</c> — opens the run's Souls in ante then pack order with ONE run-wide
     /// <c>Joker4</c> stream (the same walk <see cref="LegendarySoulMatcher"/> uses), and checks the
     /// Nth Soul against the Nth listed entry. Returns 1 when the whole ordered list matches, else 0.
-    /// A legendary already opened stays owned (resample to <c>Joker4_resample{n}</c>) unless Showman.
+    /// A legendary already opened (or in <c>with: { jokers: [...] }</c>) stays owned (resample to
+    /// <c>Joker4_resample{n}</c>) unless <c>with:</c> holds Showman.
     /// </summary>
     private static int CountLegendarySoulOrderOccurrences(
         ref MotelySingleSearchContext ctx,
@@ -1457,10 +1469,13 @@ public static class ClauseScoring
         int maxAnte = clause.MaxAnte > 0 ? clause.MaxAnte : 8;
 
         var faces = ctx.CreateRunLegendaryJokerStream();
+        MotelyJoker[] withJokers = clause.With?.Jokers ?? [];
         Span<MotelyJoker> owned = stackalloc MotelyJoker[MotelyGlobals.MaxVectorWidth];
         int ownedCount = 0;
-        Span<MotelyJoker> showmanHeld = stackalloc MotelyJoker[1];
-        showmanHeld[0] = MotelyJoker.Showman;
+        Span<MotelyJoker> held = stackalloc MotelyJoker[
+            withJokers.Length + MotelyGlobals.MaxVectorWidth
+        ];
+        withJokers.CopyTo(held);
         int entry = 0;
 
         for (int ante = 0; ante <= maxAnte && entry < clause.Entries.Length; ante++)
@@ -1509,9 +1524,14 @@ public static class ClauseScoring
                 if (!hasSoul || !ArrayContains(sourcePacks, p))
                     continue;
 
-                ReadOnlySpan<MotelyJoker> held = clause.Showman ? showmanHeld : owned[..ownedCount];
-                MotelyJoker face = ctx.GetNextLegendaryJoker(ref faces, held);
-                if (!clause.Showman && ownedCount < owned.Length)
+                owned.Slice(0, ownedCount).CopyTo(held[withJokers.Length..]);
+                ReadOnlySpan<MotelyJoker> heldNow = held[..(withJokers.Length + ownedCount)];
+                MotelyJoker face = ctx.GetNextLegendaryJoker(
+                    ref faces,
+                    heldNow,
+                    runState.ShowmanActive
+                );
+                if (ownedCount < owned.Length)
                     owned[ownedCount++] = face;
 
                 var expected = clause.Entries[entry];

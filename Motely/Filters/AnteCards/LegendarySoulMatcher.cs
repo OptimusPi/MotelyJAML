@@ -39,7 +39,8 @@ internal static class LegendarySoulMatcher
         int ante,
         LegendaryJokerClause clause,
         int maxBoosterPack,
-        ref SoulWalk walk
+        ref SoulWalk walk,
+        MotelyRunState runState
     )
     {
         // Null Sources (no sources: block) → legendary defaults; a non-null block is used as-is.
@@ -115,7 +116,12 @@ internal static class LegendarySoulMatcher
                     );
                 }
 
-                MotelyJoker face = ctx.GetNextLegendaryJoker(ref walk.Faces, clause.With.Jokers);
+                MotelyJoker face = ctx.GetNextLegendaryJoker(
+                    ref walk.Faces,
+                    walk.Held.AsSpan(0, walk.HeldCount),
+                    runState.ShowmanActive
+                );
+                walk.Own(face);
                 MotelyItemEdition edition = ctx.GetNextJoker(ref editionStream).Edition;
                 if (counted && LegendaryJokerMatches(clause, face, edition))
                     count++;
