@@ -89,6 +89,7 @@ internal sealed class ClauseNodeDeserializer : INodeDeserializer
         ["rareJokers"] = new(typeof(RareJokerClause), "jokers", true),
         ["legendaryJoker"] = new(typeof(LegendaryJokerClause), "jokers", true),
         ["legendaryJokers"] = new(typeof(LegendaryJokerClause), "jokers", true),
+        ["soulOrder"] = new(typeof(LegendarySoulOrderClause), "entries", true),
         ["planetCard"] = new(typeof(PlanetCardClause), "planets", true),
         ["planetCards"] = new(typeof(PlanetCardClause), "planets", true),
         ["spectralCard"] = new(typeof(SpectralCardClause), "spectrals", true),

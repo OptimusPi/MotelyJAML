@@ -774,6 +774,10 @@ public unsafe partial class MotelySingleSearchContext
                                 );
                                 break;
                         }
+
+                        // Advance to the next resample substream (_resample2, _resample3, …) so a
+                        // back-to-back duplicate retries the next seed, not the same one forever.
+                        resample++;
                     } while (
                         items.Contains(
                             (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)joker)

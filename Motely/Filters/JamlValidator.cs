@@ -79,7 +79,44 @@ public static class JamlValidator
             case LegendaryJokerClause l when l.Rolls.Length > 0:
                 CheckIndices(at, "rolls", l.Rolls, MotelyGlobals.MaxRollIndex, "the last roll", errors);
                 break;
+            case LegendarySoulOrderClause so:
+                CheckSoulOrder(at, so, errors);
+                break;
         }
+    }
+
+    private static void CheckSoulOrder(string at, LegendarySoulOrderClause clause, List<string> errors)
+    {
+        if (clause.Entries.Length == 0)
+        {
+            errors.Add($"{at}: soulOrder needs at least one soul.");
+            return;
+        }
+
+        if (clause.MaxAnte < 1 || clause.MaxAnte > MotelyGlobals.MaxAnte)
+            errors.Add($"{at}: maxAnte {clause.MaxAnte} is outside 1..{MotelyGlobals.MaxAnte}.");
+
+        for (int i = 0; i < clause.Entries.Length; i++)
+        {
+            var entry = clause.Entries[i];
+            if (
+                ((MotelyJokerRarity)((int)entry.Legendary & MotelyGlobals.JokerRarityMask))
+                != MotelyJokerRarity.Legendary
+            )
+                errors.Add($"{at}: soul[{i}] names {entry.Legendary}, which is not a legendary.");
+            if (entry.Antes.Length > 0)
+                CheckIndices(at, $"soul[{i}].antes", entry.Antes, clause.MaxAnte, "maxAnte", errors);
+        }
+
+        if (clause.BoosterPacks.Length > 0)
+            CheckIndices(
+                at,
+                "boosterPacks",
+                clause.BoosterPacks,
+                MotelyGlobals.LateAntesMaxPackSlot,
+                "the last pack slot",
+                errors
+            );
     }
 
     private static void CheckIndices(string at, string name, int[] values, int max, string maxName, List<string> errors)

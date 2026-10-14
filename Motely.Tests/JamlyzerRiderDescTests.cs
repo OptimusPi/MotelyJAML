@@ -179,6 +179,7 @@ public sealed class JamlyzerRiderDescTests
             actual.Events.WheelOfFortune
         );
         Assert.Equal(expected.StreamStates, actual.StreamStates);
+        Assert.Equal(expected.LegendaryOrder, actual.LegendaryOrder);
         Assert.Equal(expected.ErraticDeck, actual.ErraticDeck);
     }
 

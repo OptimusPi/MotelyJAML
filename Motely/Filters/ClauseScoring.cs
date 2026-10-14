@@ -71,6 +71,8 @@ public static class ClauseScoring
             StandardCardClause => true,
             // Legendary filter is pure SIMD edition (or passthrough) — pack/Soul confirm is score-only.
             LegendaryJokerClause => false,
+            // soulOrder threads one run-wide Joker4 stream across antes; only the scalar walk knows it.
+            LegendarySoulOrderClause => false,
             // Full vector roll walks — same law as scoring counts.
             VoucherClause => true,
             TagClause => true,
@@ -85,12 +87,16 @@ public static class ClauseScoring
             TarotCardClause tc => tc.Sources is { CharmTag: true }
                 || tc.Sources is { RequireMegaPack: true },
             PlanetCardClause pc => pc.Sources is { RequireMegaPack: true },
-            // StandardCardClause is already exact (true above).
-            JokerClause jc => JokerUsesLegendaryExactPath(jc)
-                || jc.Sources is { RequireMegaPack: true },
-            CommonJokerClause cjc => cjc.Sources is { RequireMegaPack: true },
-            UncommonJokerClause ujc => ujc.Sources is { RequireMegaPack: true },
-            RareJokerClause rjc => rjc.Sources is { RequireMegaPack: true },
+            // The shop/pack SIMD walk over-accepts in-pack duplicates as "undecided" (see
+            // BuffoonPackDuplicateTracker), so no named-joker lane is ever confirmed by the
+            // vector walk: scoring's scalar re-eval must always see them. Only the legendary /
+            // category-any path, which runs SearchIndividualSeeds, is exact. A requireMegaPack
+            // joker clause is deliberately NOT exempt — claiming it exact let undecided lanes
+            // through `must` and made `mustNot` negate the coarse prefilter.
+            JokerClause jc => JokerUsesLegendaryExactPath(jc),
+            CommonJokerClause => false,
+            UncommonJokerClause => false,
+            RareJokerClause => false,
             AndClause a => AllExactFilterConfirm(a.Clauses),
             OrClause o => AllExactFilterConfirm(o.Clauses),
             // Event filters count the same absolute roll indices as scoring, min and max both.
@@ -197,6 +203,7 @@ public static class ClauseScoring
             UncommonJokerClause c => CountUncommonJokerOccurrences(ref ctx, c, runState),
             RareJokerClause c => CountRareJokerOccurrences(ref ctx, c, runState),
             LegendaryJokerClause c => CountLegendaryJokerOccurrences(ref ctx, c, runState),
+            LegendarySoulOrderClause c => CountLegendarySoulOrderOccurrences(ref ctx, c, runState),
             VoucherClause c => CountVoucherOccurrences(ref ctx, c, runState),
             TarotCardClause c => CountTarotCardOccurrences(ref ctx, c, runState),
             SpectralCardClause c => CountSpectralCardOccurrences(ref ctx, c, runState),
@@ -1428,6 +1435,98 @@ public static class ClauseScoring
         return count;
     }
 
+    /// <summary>
+    /// <c>soulOrder:</c> — opens the run's Souls in ante then pack order with ONE run-wide
+    /// <c>Joker4</c> stream (the same walk <see cref="LegendarySoulMatcher"/> uses), and checks the
+    /// Nth Soul against the Nth listed entry. Returns 1 when the whole ordered list matches, else 0.
+    /// A legendary already opened stays owned (resample to <c>Joker4_resample{n}</c>) unless Showman.
+    /// </summary>
+    private static int CountLegendarySoulOrderOccurrences(
+        ref MotelySingleSearchContext ctx,
+        LegendarySoulOrderClause clause,
+        MotelyRunState runState
+    )
+    {
+        if (clause.Entries.Length == 0)
+            return 0;
+
+        int[] sourcePacks =
+            clause.BoosterPacks.Length > 0
+                ? clause.BoosterPacks
+                : LegendaryJokerFilterDesc.DefaultSources.BoosterPacks;
+        int userMaxPack = ArrayMax(sourcePacks);
+        int maxAnte = clause.MaxAnte > 0 ? clause.MaxAnte : 8;
+
+        var faces = ctx.CreateRunLegendaryJokerStream();
+        Span<MotelyJoker> owned = stackalloc MotelyJoker[MotelyGlobals.MaxVectorWidth];
+        int ownedCount = 0;
+        Span<MotelyJoker> showmanHeld = stackalloc MotelyJoker[1];
+        showmanHeld[0] = MotelyJoker.Showman;
+        int entry = 0;
+
+        for (int ante = 0; ante <= maxAnte && entry < clause.Entries.Length; ante++)
+        {
+            int maxPack = ClampBoosterPackSlotForAnte(ante, userMaxPack, runState);
+            var packStream = ctx.CreateBoosterPackStream(ante);
+            MotelySingleTarotStream tarotStream = default;
+            MotelySingleSpectralStream spectralStream = default;
+            bool tarotInit = false;
+            bool spectralInit = false;
+
+            for (int p = 0; p <= maxPack && entry < clause.Entries.Length; p++)
+            {
+                var pack = ctx.GetNextBoosterPack(ref packStream);
+                var type = pack.GetPackType();
+
+                bool hasSoul;
+                if (type == MotelyBoosterPackType.Arcana)
+                {
+                    if (!tarotInit)
+                    {
+                        tarotInit = true;
+                        tarotStream = ctx.CreateArcanaPackTarotStream(ante, true);
+                    }
+
+                    hasSoul = ctx.GetNextArcanaPackHasTheSoul(ref tarotStream, pack.GetPackSize());
+                }
+                else if (type == MotelyBoosterPackType.Spectral)
+                {
+                    if (!spectralInit)
+                    {
+                        spectralInit = true;
+                        spectralStream = ctx.CreateSpectralPackSpectralStream(ante, soulOnly: ante != 1);
+                    }
+
+                    hasSoul = ctx.GetNextSpectralPackHasTheSoul(
+                        ref spectralStream,
+                        pack.GetPackSize()
+                    );
+                }
+                else
+                {
+                    continue;
+                }
+
+                if (!hasSoul || !ArrayContains(sourcePacks, p))
+                    continue;
+
+                ReadOnlySpan<MotelyJoker> held = clause.Showman ? showmanHeld : owned[..ownedCount];
+                MotelyJoker face = ctx.GetNextLegendaryJoker(ref faces, held);
+                if (!clause.Showman && ownedCount < owned.Length)
+                    owned[ownedCount++] = face;
+
+                var expected = clause.Entries[entry];
+                if (face != expected.Legendary)
+                    return 0;
+                if (expected.Antes.Length > 0 && !ArrayContains(expected.Antes, ante))
+                    return 0;
+                entry++;
+            }
+        }
+
+        return entry == clause.Entries.Length ? 1 : 0;
+    }
+
     private static int CountJokerOccurrences(
         ref MotelySingleSearchContext ctx,
         JokerClause clause,
@@ -2242,6 +2341,7 @@ public static class ClauseScoring
             UncommonJokerClause c => ArrayMax(c.Antes),
             RareJokerClause c => ArrayMax(c.Antes),
             LegendaryJokerClause c => ArrayMax(c.Antes),
+            LegendarySoulOrderClause c => c.MaxAnte,
             VoucherClause c => ArrayMax(c.Antes),
             TarotCardClause c => ArrayMax(c.Antes),
             SpectralCardClause c => ArrayMax(c.Antes),

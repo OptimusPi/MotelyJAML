@@ -68,6 +68,25 @@ public sealed class JAMLyzerUnitTests
             Assert.Equal(i, results[0].Antes[i].Ante);
     }
 
+    [Theory]
+    [InlineData("C3DW94B8", 1)]
+    [InlineData("3MLDLU2W", 2)]
+    [InlineData("9KIXS1TL", 3)]
+    public void Analyze_LegendaryOrder_ReadsTheSameSoulTheScorerFinds(string seed, int expectedSlot)
+    {
+        // These Red/White seeds each hold one ante-1 Soul at a known pack slot — the same seeds
+        // LegendaryPackIndexTests pins the legendaryJoker clause against. The analyser's run-global
+        // LegendaryOrder must find exactly that one Soul, at that slot.
+        var order = MotelyJamlyzer.Analyze(SeedConfig(seed), eventRolls: 1)[0].LegendaryOrder;
+        var entry = Assert.Single(order);
+        Assert.Equal(1, entry.Ante);
+        Assert.Equal(expectedSlot, entry.PackSlot);
+
+        var legendaries = MotelyEnum<MotelyJokerLegendary>
+            .Values.Select(l => (MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)l));
+        Assert.Contains(entry.Joker, legendaries);
+    }
+
     [Fact]
     public void Analyze_EventRollsLengthMatchesParameter()
     {
@@ -168,10 +187,6 @@ public sealed class JAMLyzerUnitTests
                 fa.Pulls.UncommonTagJokers,
                 p1.Pulls.UncommonTagJokers.Concat(p2.Pulls.UncommonTagJokers)
             );
-            Assert.Equal<IEnumerable<MotelyItem>>(
-                fa.Pulls.LegendaryJokers,
-                p1.Pulls.LegendaryJokers.Concat(p2.Pulls.LegendaryJokers)
-            );
             Assert.Equal<IEnumerable<MotelyVoucher>>(
                 fa.Pulls.VoucherSequence,
                 p1.Pulls.VoucherSequence.Concat(p2.Pulls.VoucherSequence)
@@ -207,6 +222,11 @@ public sealed class JAMLyzerUnitTests
                 p1.ShopStreams.ShopSpectrals.Concat(p2.ShopStreams.ShopSpectrals)
             );
         }
+
+        // The legendary order is run-global (one Joker4 walk per seed), so every page reports the
+        // whole sequence identically -- it is not sliced by the window like the per-ante queues.
+        Assert.Equal(full.LegendaryOrder, page1.LegendaryOrder);
+        Assert.Equal(full.LegendaryOrder, page2.LegendaryOrder);
     }
 
     [Fact]

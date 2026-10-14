@@ -829,7 +829,7 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(8, soulOnly);
         Assert.Equal(0, mega);
         Assert.Equal(8, legacy);
-        Assert.Equal(0, perkeo);
+        Assert.Equal(1, perkeo);
         Assert.Equal(8, theSoulClause);
         Assert.Equal(0, ante0);
     }
