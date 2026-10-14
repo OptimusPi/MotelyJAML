@@ -27,6 +27,23 @@ internal static class LegendarySoulMatcher
 
         /// <summary>Set once every listed roll has been passed; the walk can stop.</summary>
         public bool Done;
+
+        /// <summary>
+        /// Legendaries already drawn in this walk (Balatro's <c>used_jokers</c>). The pool has five
+        /// members; a sixth draw is impossible, so a fixed array is enough. <see cref="HeldCount"/>
+        /// is the live length — <see cref="GetNextLegendaryJoker"/> reads only that slice.
+        /// </summary>
+        public MotelyJoker[] Held = new MotelyJoker[5];
+
+        /// <summary>Live length of <see cref="Held"/>.</summary>
+        public int HeldCount;
+
+        /// <summary>Record a legendary draw so later draws resample off it (when Showman is off).</summary>
+        public void Own(MotelyJoker face)
+        {
+            if (HeldCount < Held.Length)
+                Held[HeldCount++] = face;
+        }
     }
 
     /// <summary>
