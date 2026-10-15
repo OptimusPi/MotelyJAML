@@ -107,7 +107,7 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
             // charmTag counts only alongside a boosterPacks list — the bonus pack's contents
             // are gated on its pack index being in boosterPacks, so charmTag alone matches
             // nothing by construction.
-            if (sources.CharmTag)
+            if (sources.CharmTag || sources.TagPacks.Length > 0)
             {
                 return ctx.SearchIndividualSeeds(
                     (MotelySingleSearchContext single) =>
@@ -383,6 +383,14 @@ public sealed partial record TarotCardSourceConfig
     /// When true, booster arcana scoring may consume the Charm-tag bonus pack (second weighted slot, no natural Arcana).
     /// </summary>
     public bool CharmTag { get; set; }
+
+    /// <summary>
+    /// Charm Tag Mega Arcana packs, opened at blind select before the ante's shop: 0 = small-blind
+    /// tag, 1 = big-blind tag. Each takes the next 5 draws of the ante's <c>ar1</c> stream, so shop
+    /// Arcana packs in the same clause draw after them. Listing a pack assumes the player skipped
+    /// that blind for a Charm Tag; pair it with a <c>smallBlindTag</c>/<c>bigBlindTag</c> must.
+    /// </summary>
+    public int[] TagPacks { get; set; } = [];
 
     /// <summary>When true, only Mega-sized Arcana packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }

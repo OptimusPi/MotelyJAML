@@ -85,7 +85,8 @@ public static class ClauseScoring
                 || sc.Sources is { EtherealTag: true }
                 || sc.Sources is { OmenGlobe: true },
             TarotCardClause tc => tc.Sources is { CharmTag: true }
-                || tc.Sources is { RequireMegaPack: true },
+                || tc.Sources is { RequireMegaPack: true }
+                || tc.Sources is { TagPacks.Length: > 0 },
             PlanetCardClause pc => pc.Sources is { RequireMegaPack: true },
             // The shop/pack SIMD walk over-accepts in-pack duplicates as "undecided" (see
             // BuffoonPackDuplicateTracker), so no named-joker lane is ever confirmed by the
@@ -550,12 +551,29 @@ public static class ClauseScoring
                 }
             }
 
+            var tarotStream = ctx.CreateArcanaPackTarotStream(ante);
+
+            if (sources.TagPacks.Length > 0)
+            {
+                int maxTagPack = ArrayMax(sources.TagPacks);
+                for (int tagPack = 0; tagPack <= maxTagPack; tagPack++)
+                {
+                    var contents = ctx.GetNextArcanaPackContents(
+                        ref tarotStream,
+                        MotelyBoosterPackSize.Mega
+                    );
+                    if (!ArrayContains(sources.TagPacks, tagPack))
+                        continue;
+                    for (int i = 0; i < contents.Length; i++)
+                        count += MatchTarot(contents[i], clause);
+                }
+            }
+
             if (sources.BoosterPacks.Length > 0)
             {
                 bool charmWant = sources.CharmTag;
 
                 var packStream = ctx.CreateBoosterPackStream(ante);
-                var tarotStream = ctx.CreateArcanaPackTarotStream(ante);
                 bool hadNaturalArcanaPack = false;
                 int weightedShopDrawNumber = 0;
 

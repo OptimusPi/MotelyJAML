@@ -7,13 +7,18 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Version>$(MotelyVersion)</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- YDNG001: the static generator can't register an interface. IMotelyClause is discriminated
          at deserialize time via YamlDotNet's type-discriminating node deserializer. -->
     <NoWarn>$(NoWarn);YDNG001</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Motely.CLI" />
+    <InternalsVisibleTo Include="Motely.Tests" />
+    <InternalsVisibleTo Include="Motely.Wasm" />
+  </ItemGroup>
 
   <!-- Packages (versions from Directory.Packages.props) -->
   <ItemGroup>
