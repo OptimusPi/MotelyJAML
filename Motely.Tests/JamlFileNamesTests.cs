@@ -21,7 +21,7 @@ public sealed class YAMLFileNamesTests
     [InlineData("/sub/perkeo.YAML", "sub/perkeo")]
     [InlineData("/sub/perkeo.yml", "sub/perkeo.yml")]
     [InlineData("/notes.txt", null)]
-    [InlineData("/perkeo.yaml", null)]
+    [InlineData("/perkeo.jaml", null)]
     public void A_file_is_named_without_its_yaml_extension(string uri, string? name)
     {
         Assert.Equal(name, YAMLFileNames.ToName(uri));

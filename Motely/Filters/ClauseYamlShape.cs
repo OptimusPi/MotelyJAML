@@ -30,6 +30,44 @@ public sealed partial class LegendaryJokerClause
     public MotelyJoker[]? LegendaryJokers { get => Jokers; set => Jokers = value ?? []; }
 }
 
+public sealed partial class LegendarySoulOrderClause
+{
+    public SoulOrderEntry[]? SoulOrder
+    {
+        get => Entries;
+        set => Entries = RequireSoulOrder(value);
+    }
+
+    public SoulOrderEntry[]? SoulOrders
+    {
+        get => Entries;
+        set => Entries = RequireSoulOrder(value);
+    }
+
+    // The plain-loader rewrite dropped JamlValidator, whose CheckSoulOrder rejected a soulOrder
+    // list that can never match; keep that guard at the binding point, where the YAML value lands.
+    private static SoulOrderEntry[] RequireSoulOrder(SoulOrderEntry[]? entries)
+    {
+        entries ??= [];
+        if (entries.Length == 0)
+            throw new InvalidOperationException("soulOrder needs at least one soul.");
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            var legendary = entries[i].Legendary;
+            if (
+                ((MotelyJokerRarity)((int)legendary & MotelyGlobals.JokerRarityMask))
+                != MotelyJokerRarity.Legendary
+            )
+                throw new InvalidOperationException(
+                    $"soulOrder[{i}] names {legendary}, which is not a legendary."
+                );
+        }
+
+        return entries;
+    }
+}
+
 public sealed partial class PlanetCardClause
 {
     public MotelyPlanetCard[]? PlanetCard { get => Planets; set => Planets = value ?? []; }

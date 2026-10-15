@@ -116,6 +116,13 @@ public static partial class MotelyGlobals
     public const int LateAntesMaxPackSlot = 5;
 
     /// <summary>
+    /// The pack slot a Charm Tag Mega Arcana opens before. The ante goes up when the boss falls,
+    /// before its shop, so antes 2+ start with the previous boss's shop (slots 0..1) and only then
+    /// reach blind select; ante 1 has no such shop, so its Charms open before any pack.
+    /// </summary>
+    public static int TagPackInsertSlot(int ante) => ante <= 1 ? 0 : 2;
+
+    /// <summary>
     /// Largest <c>rolls</c> index any clause may ask for. Voucher and tag filters stackalloc one
     /// 32-byte vector per draw up to the largest roll, and event filters walk that many draws per
     /// 8 seeds, so the bound keeps both to ~32 KB of stack and a bounded loop.

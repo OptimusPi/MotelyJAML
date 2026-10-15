@@ -12,10 +12,12 @@ internal static class LegendarySoulEditionPrefilter
 {
     internal static int GetEditionSoulRollCount(LegendaryJokerClause clause)
     {
-        int maxSlot = (clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources).MaxReferencedBoosterSlot();
-        int n = maxSlot >= 0 ? maxSlot + 1 : 6;
-        if (n <= 0)
-            n = 6;
+        var sources = clause.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
+        int maxSlot = sources.MaxReferencedBoosterSlot();
+        // One edition roll per Soul opened: up to one per shop slot walked, plus one per Charm.
+        int n = maxSlot >= 0 || sources.TagPacks.Length > 0
+            ? maxSlot + 1 + sources.TagPacks.Length
+            : 6;
         if (clause.SoulEditionRolls > 0)
             n = Math.Max(n, clause.SoulEditionRolls);
         return n;

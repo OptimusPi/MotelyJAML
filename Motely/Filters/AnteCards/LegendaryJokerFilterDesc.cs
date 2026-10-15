@@ -96,6 +96,7 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
                 BoosterPacks = src.BoosterPacks,
                 ArcanaPacks = src.ArcanaPacks,
                 SpectralPacks = src.SpectralPacks,
+                TagPacks = src.TagPacks,
                 RequireMegaPack = src.RequireMegaPack,
             },
         };
@@ -173,6 +174,15 @@ public sealed partial record LegendaryJokerSourceConfig
 
     /// <summary>Only listed slots on the Spectral pack path.</summary>
     public int[] SpectralPacks { get; set; } = [];
+
+    /// <summary>
+    /// Charm Tag Mega Arcana packs, opened at blind select before the ante's shop: 0 = small-blind
+    /// tag, 1 = big-blind tag. Each takes the next 5 draws of the ante's ar&lt;ante&gt; / soul_Tarot&lt;ante&gt;
+    /// streams, so a Soul in the Charm is opened before any shop-pack Soul. Listing a pack assumes
+    /// the player skipped that blind for a Charm Tag; pair it with a <c>smallBlindTag</c>/<c>bigBlindTag</c>
+    /// must. Mirrors <see cref="TarotCardSourceConfig.TagPacks"/>; always Mega.
+    /// </summary>
+    public int[] TagPacks { get; set; } = [];
 
     /// <summary>If true, only Mega-sized booster packs (e.g. Charm Tag Mega arcana) match.</summary>
     public bool RequireMegaPack { get; set; }

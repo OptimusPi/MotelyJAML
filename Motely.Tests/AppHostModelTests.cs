@@ -51,15 +51,13 @@ public sealed class AppHostModelTests
     }
 
     [Fact]
-    public async Task Composes_check_mcp_and_search_from_the_cli()
+    public async Task Composes_check_and_search_from_the_cli()
     {
         await using var appHost = await CreateAsync();
         var projects = appHost.Resources.OfType<ProjectResource>().Select(static r => r.Name).Order().ToArray();
 
-        Assert.Equal(["check", "mcp", "search"], projects);
+        Assert.Equal(["check", "search"], projects);
         Assert.Contains(appHost.Resources, static r => r is ParameterResource { Name: "filter" });
-        // No Neon string in the test configuration, so this is the container branch.
-        Assert.Contains(appHost.Resources, static r => r is IResourceWithConnectionString { Name: "db" });
     }
 
     [Fact]
@@ -71,31 +69,6 @@ public sealed class AppHostModelTests
         Assert.Equal(["check", RepoFilters()], await ArgsOf(check));
         Assert.True(Directory.Exists(RepoFilters()));
         Assert.Empty(check.Annotations.OfType<ExplicitStartupAnnotation>());
-    }
-
-    [Fact]
-    public async Task Mcp_serves_http_on_its_target_port_with_a_health_check_and_an_mcp_annotation()
-    {
-        await using var appHost = await CreateAsync();
-        var mcp = appHost.Resources.Single(static r => r.Name == "mcp");
-
-        var args = await ArgsOf(mcp);
-        Assert.Equal("--port", args[0]);
-        // The server binds the target port; the proxy in front of it owns the public one.
-        var port = Assert.IsType<EndpointReferenceExpression>(args[1]);
-        Assert.Equal(EndpointProperty.TargetPort, port.Property);
-        Assert.Equal("http", port.Endpoint.EndpointName);
-
-        var http = Assert.Single(mcp.Annotations.OfType<EndpointAnnotation>());
-        Assert.Equal("http", http.UriScheme);
-        Assert.NotEmpty(mcp.Annotations.OfType<HealthCheckAnnotation>());
-#pragma warning disable ASPIREMCP001 // Resource MCP servers are experimental.
-        var server = Assert.Single(mcp.Annotations.OfType<McpServerEndpointAnnotation>());
-#pragma warning restore ASPIREMCP001
-        Assert.NotNull(server);
-        Assert.Equal(RepoFilters(), await EnvOf(mcp, "MOTELY_FILTERS_DIR"));
-        // The seed database reaches it the Aspire way: ConnectionStrings__db from the db resource.
-        Assert.NotNull(await EnvOf(mcp, "ConnectionStrings__db"));
     }
 
     [Fact]

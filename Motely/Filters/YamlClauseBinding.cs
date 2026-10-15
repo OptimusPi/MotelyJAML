@@ -81,6 +81,8 @@ internal static class YamlClauseBinding
         ["bloodstoneTrigger"] = typeof(BloodstoneTriggerClause),
         ["and"] = typeof(AndClause),
         ["or"] = typeof(OrClause),
+        ["soulOrder"] = typeof(LegendarySoulOrderClause),
+        ["soulOrders"] = typeof(LegendarySoulOrderClause),
     };
 
     private static readonly FrozenSet<string> DiscriminatorKeys =

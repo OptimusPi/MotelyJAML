@@ -553,23 +553,17 @@ public static class ClauseScoring
 
             var tarotStream = ctx.CreateArcanaPackTarotStream(ante);
 
-            if (sources.TagPacks.Length > 0)
+            // Charm Tag Mega Arcanas open at blind select on the same ar1 stream: before every
+            // shop pack in ante 1, after the previous boss's shop (slots 0..1) in antes 2+.
+            bool tagPending = sources.TagPacks.Length > 0;
+            int tagSlot = tagPending ? MotelyGlobals.TagPackInsertSlot(ante) : -1;
+            if (tagPending && tagSlot == 0)
             {
-                int maxTagPack = ArrayMax(sources.TagPacks);
-                for (int tagPack = 0; tagPack <= maxTagPack; tagPack++)
-                {
-                    var contents = ctx.GetNextArcanaPackContents(
-                        ref tarotStream,
-                        MotelyBoosterPackSize.Mega
-                    );
-                    if (!ArrayContains(sources.TagPacks, tagPack))
-                        continue;
-                    for (int i = 0; i < contents.Length; i++)
-                        count += MatchTarot(contents[i], clause);
-                }
+                tagPending = false;
+                count += CountTarotTagPacks(ref ctx, ref tarotStream, sources, clause);
             }
 
-            if (sources.BoosterPacks.Length > 0)
+            if (sources.BoosterPacks.Length > 0 || tagPending)
             {
                 bool charmWant = sources.CharmTag;
 
@@ -579,9 +573,16 @@ public static class ClauseScoring
 
                 for (int packIndex = 0; ; packIndex++)
                 {
-                    bool needForClause = packIndex <= maxPack;
+                    if (tagPending && packIndex == tagSlot)
+                    {
+                        tagPending = false;
+                        count += CountTarotTagPacks(ref ctx, ref tarotStream, sources, clause);
+                    }
+
+                    bool needForClause =
+                        sources.BoosterPacks.Length > 0 && packIndex <= maxPack;
                     bool needForCharmClosure = charmWant && weightedShopDrawNumber < 2;
-                    if (!needForClause && !needForCharmClosure)
+                    if (!needForClause && !needForCharmClosure && !tagPending)
                         break;
 
                     var pack = ctx.GetNextBoosterPack(ref packStream);
@@ -655,6 +656,31 @@ public static class ClauseScoring
                         count += MatchTarot(item, clause);
                 }
             }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// The ante's Charm Tag Mega Arcanas, in order (0 = first Charm, 1 = second; listing 1 assumes
+    /// Charm 0 was opened too). Each takes the next five cards of <paramref name="tarotStream"/>.
+    /// </summary>
+    private static int CountTarotTagPacks(
+        ref MotelySingleSearchContext ctx,
+        ref MotelySingleTarotStream tarotStream,
+        TarotCardSourceConfig sources,
+        TarotCardClause clause
+    )
+    {
+        int count = 0;
+        int maxTagPack = ArrayMax(sources.TagPacks);
+        for (int tagPack = 0; tagPack <= maxTagPack; tagPack++)
+        {
+            var contents = ctx.GetNextArcanaPackContents(ref tarotStream, MotelyBoosterPackSize.Mega);
+            if (!ArrayContains(sources.TagPacks, tagPack))
+                continue;
+            for (int i = 0; i < contents.Length; i++)
+                count += MatchTarot(contents[i], clause);
         }
 
         return count;
