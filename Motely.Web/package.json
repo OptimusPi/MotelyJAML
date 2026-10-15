@@ -2,7 +2,7 @@
   "name": "motely-web",
   "version": "30.0.0",
   "private": true,
-  "description": "The Motely seed lab: yaml-ui's SeedLab on motely-wasm, served by Aspire.",
+  "description": "The Motely seed lab: jaml-ui's SeedLab on motely-wasm, served by Aspire.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@rewaffle/bootsharp-file-system": "2026.5.201827",
-    "yaml-ui": "^9.0.0",
+    "jaml-ui": "^9.0.0",
     "motely-wasm": "file:../Motely.Wasm",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
@@ -23,5 +23,8 @@
     "@vitejs/plugin-react": "^5.1.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.0"
+  },
+  "overrides": {
+    "motely-wasm": "$motely-wasm"
   }
 }

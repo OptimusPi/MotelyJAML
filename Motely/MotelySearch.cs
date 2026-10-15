@@ -182,7 +182,7 @@ public interface IMotelySearchSettings
     IMotelySearchSettings WithCsvOutput(bool csvOutput);
 
     /// <summary>A flag for the host's own output; the engine never reads it (it writes nothing).
-    /// Kept because hosts such as yaml-ui set it.</summary>
+    /// Kept because hosts such as jaml-ui set it.</summary>
     IMotelySearchSettings WithQuietMode(bool quietMode);
     IMotelySearchSettings WithSeedMatchCallback(Action<string> callback);
     IMotelySearchSettings WithScoredResultCallback(Action<MotelyScoredSeedResult> callback);
