@@ -25,6 +25,9 @@ public static class MotelyAestheticParser
         ("step", MotelyAesthetic.Step),
         ("leet", MotelyAesthetic.Leet),
         ("psychosis", MotelyAesthetic.Psychosis),
+        ("pi", MotelyAesthetic.Pi),
+        ("spin", MotelyAesthetic.Spin),
+        ("fibonacci", MotelyAesthetic.Fibonacci),
     ];
 
     /// <summary>CLI meta-token: run every aesthetic family (not a <see cref="MotelyAesthetic"/> value).</summary>
