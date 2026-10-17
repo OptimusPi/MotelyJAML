@@ -5,31 +5,31 @@ The Motely engine in one JS package, compiled by NativeAOT-LLVM through
 types the CLI uses, with no wrapper layer in between.
 
 ```js
-import bootsharp, { JamlConfigLoader, JamlSearchBuilder, MotelyJamlyzer, CancellationToken } from "motely-wasm";
+import bootsharp, { YAMLConfigLoader, YAMLSearchBuilder, MotelyYAMLyzer, CancellationToken } from "motely-wasm";
 
 await bootsharp.boot();
 
-JamlConfigLoader.check(text);                       // null, or the reason with its line
-const config = JamlConfigLoader.fromJaml(text);     // the engine's JamlConfig, as a plain object
+YAMLConfigLoader.check(text);                       // null, or the reason with its line
+const config = YAMLConfigLoader.fromYAML(text);     // the engine's YAMLConfig, as a plain object
 
 const token = new CancellationToken();
-const search = JamlSearchBuilder.createSettings(config)
+const search = YAMLSearchBuilder.createSettings(config)
   .withThreadCount(1)
   .withSequentialSearch()
   .withSeedMatchCallback((seed) => console.log(seed))
-  .withSeedAnalyzeProvider(MotelyJamlyzer.createRiderDesc(config, (r) => console.log(r.antes)))
+  .withSeedAnalyzeProvider(MotelyYAMLyzer.createRiderDesc(config, (r) => console.log(r.antes)))
   .start(token);                                    // token.cancel() stops it
 await search.waitForCompletionAsync();
 search.dispose();                                   // frees the search's native buffers
 
-MotelyJamlyzer.analyze(config);                     // one result per seed in the config's seeds:
+MotelyYAMLyzer.analyze(config);                     // one result per seed in the config's seeds:
 ```
 
 ## How the engine crosses
 
-- Records (`JamlConfig`, `MotelyJamlyzerSeedResult`, `MotelyProgress`, ...) cross by value as
+- Records (`YAMLConfig`, `MotelyYAMLyzerSeedResult`, `MotelyProgress`, ...) cross by value as
   plain objects. Classes and interfaces (`IMotelySearchSettings`, `IMotelySearch`, clauses,
-  filter descs, the Jamlyzer rider) cross by reference. `long` is `bigint`.
+  filter descs, the YAMLyzer rider) cross by reference. `long` is `bigint`.
 - Members whose signature holds a ref, a pointer or a ref struct are erased by one rule in
   `Program.cs` (`Names`): that's the SIMD plumbing, which has no JS form. Their types still cross
   as handles, so an engine-made filter desc or rider moves between engine calls as itself.
@@ -45,7 +45,7 @@ MotelyJamlyzer.analyze(config);                     // one result per seed in th
 - `MotelyProgress.percentComplete` is 0-100.
 - The NativeAOT runtime gives a thrown C# exception to JS as "C# exception from NativeAOT",
   without its message. After any call throws (a filter that does not load, a rejected `with*`
-  value, a `start` that fails), `Errors.last()` returns its message. `JamlConfigLoader.check`
+  value, a `start` that fails), `Errors.last()` returns its message. `YAMLConfigLoader.check`
   returns the loader's reason without throwing.
 
 ## Hosts
@@ -68,7 +68,7 @@ Install [Binaryen](https://github.com/WebAssembly/binaryen/releases) and put `wa
 PATH first. Bootsharp runs it on every Release publish; when it's missing it logs a warning
 and ships an unoptimized binary.
 
-The default build includes `JamlFiles` (folder access through Bootsharp.FileSystem). That package
+The default build includes `YAMLFiles` (folder access through Bootsharp.FileSystem). That package
 is not on nuget.org: add the rewaffle sponsor feed as a `rewaffle` source in your user-level
 NuGet.Config (the repo's nuget.config already maps `Bootsharp.FileSystem` to it). JS then calls
 `fs.init(IFileMounter)` (`fs` from `@rewaffle/bootsharp-file-system`, `IFileMounter` from
@@ -80,7 +80,7 @@ Without the feed, build with the flag off:
 dotnet publish -c Release -p:MotelyFileSystem=false
 ```
 
-`JamlFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
+`YAMLFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
 file calls reject.
 
 The engine's YAML loader is YamlDotNet's static (source-generated) deserializer through the
