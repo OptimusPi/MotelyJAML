@@ -85,6 +85,29 @@ public sealed class JAMLyzerUnitTests
         var legendaries = MotelyEnum<MotelyJokerLegendary>
             .Values.Select(l => (MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)l));
         Assert.Contains(entry.Joker, legendaries);
+
+        // The yielded joker as an item: the engine's own construction, edition carried, so a
+        // consumer draws it like any shop or pack card.
+        Assert.Equal(new MotelyItem(entry.Joker, entry.Edition), entry.Item);
+        Assert.Equal(MotelyItemTypeCategory.Joker, entry.Item.TypeCategory);
+        Assert.Equal(entry.Edition, entry.Item.Edition);
+    }
+
+    [Fact]
+    public void Analyze_EachAnteCarriesItsPublishedShopDepthAndPackCount()
+    {
+        // DefaultShopSlots / PackCount are what a consumer sizes an ante with before it has a
+        // result; they must be exactly what the result then carries.
+        var result = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 1)[0];
+        foreach (var ante in result.Antes)
+        {
+            Assert.Equal(MotelyJamlyzer.DefaultShopSlots(ante.Ante), ante.ShopItems.Count);
+            Assert.Equal(MotelyJamlyzer.PackCount(ante.Ante), ante.Packs.Count);
+        }
+        Assert.Equal(4, MotelyJamlyzer.PackCount(1));
+        Assert.Equal(6, MotelyJamlyzer.PackCount(2));
+        Assert.Equal(15, MotelyJamlyzer.DefaultShopSlots(1));
+        Assert.Equal(50, MotelyJamlyzer.DefaultShopSlots(2));
     }
 
     [Fact]

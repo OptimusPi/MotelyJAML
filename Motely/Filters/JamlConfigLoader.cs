@@ -9,7 +9,7 @@ namespace Motely.Filters;
 /// JAML text → <see cref="JamlConfig"/> through YamlDotNet's static deserializer. JSON is JAML,
 /// so a JSON document loads through the same path.
 /// </summary>
-public static class JamlConfigLoader
+public static partial class JamlConfigLoader
 {
     private static readonly IDeserializer Deserializer = CreateDeserializer();
 

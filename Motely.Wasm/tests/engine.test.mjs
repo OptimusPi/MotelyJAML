@@ -8,6 +8,7 @@ import bootsharp, {
   MotelyJamlyzer,
   MotelyDeck,
   MotelyItemType,
+  MotelyJoker,
   MotelyJokerRarity,
   MotelyJokers,
   CancellationToken,
@@ -172,6 +173,36 @@ test("the Jamlyzer rides a search: each find arrives with its antes", async () =
   await search.waitForCompletionAsync();
   assert.equal(BigInt(analyzed.length), search.matchingSeeds);
   for (const result of analyzed) assert.ok(result.antes.length > 0);
+});
+
+test("a filter goes YAML → JSON → YAML through the engine, and the JSON loads", () => {
+  const json = JamlConfigLoader.toJson(telescope);
+  assert.deepEqual(JSON.parse(json), {
+    name: "smoke",
+    deck: "Red",
+    stake: "White",
+    must: [{ voucher: "Telescope", antes: [1] }],
+  });
+  assert.equal(JamlConfigLoader.check(json), null);
+  assert.equal(JamlConfigLoader.toJson(JamlConfigLoader.toYaml(json)), json);
+});
+
+test("a legendary from the Jamlyzer is an item like every other card", () => {
+  // C3DW94B8 (Red/White) holds one ante-1 Soul (Motely.Tests JAMLyzerUnitTests pins its slot).
+  const result = MotelyJamlyzer.analyze(JamlConfigLoader.fromJaml("name: soul\nseeds: [C3DW94B8]\n"), 1)[0];
+  const [legendary] = result.legendaryOrder;
+  assert.equal(legendary.ante, 1);
+  assert.equal(MotelyItemType[legendary.item.type], MotelyJoker[legendary.joker]);
+  assert.equal(legendary.item.edition, legendary.edition);
+  assert.equal(MotelyJokers.rarity(legendary.item.type), MotelyJokerRarity.Legendary);
+});
+
+test("an ante's shop depth and pack count are published before any result", () => {
+  const result = MotelyJamlyzer.analyze(JamlConfigLoader.fromJaml("name: w\nseeds: [ALEEB]\n"), 1)[0];
+  for (const ante of result.antes) {
+    assert.equal(ante.shopItems.length, MotelyJamlyzer.defaultShopSlots(ante.ante));
+    assert.equal(ante.packs.length, MotelyJamlyzer.packCount(ante.ante));
+  }
 });
 
 test("joker rarity, as an export and as the same test with no call", () => {

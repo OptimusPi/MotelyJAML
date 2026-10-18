@@ -23,12 +23,15 @@ public sealed record MotelyJamlyzerSeedResult(
 /// sits in. Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is run-global;
 /// the edition still comes from the Soul's own ante (<c>edisou{ante}</c>). This is the sequence
 /// <c>legendaryJoker:</c> matches against, read once per seed instead of restarted every ante.
+/// <c>Item</c> is the joker the Soul yields as an item, edition included — the same shape as every
+/// other card the Jamlyzer reports, so a consumer draws it like any shop or pack card.
 /// </summary>
 public sealed record MotelyJamlyzerLegendary(
     int Ante,
     int PackSlot,
     MotelyJoker Joker,
-    MotelyItemEdition Edition
+    MotelyItemEdition Edition,
+    MotelyItem Item
 );
 
 public sealed record MotelyJamlyzerAnteResult(
@@ -213,6 +216,18 @@ public static class MotelyJamlyzer
 
     /// <summary>Every ante the Jamlyzer can walk: the pre-run shop (0) and antes 1..8.</summary>
     public static readonly int[] AllAntes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+    /// <summary>How deep an ante's shop is walked when <c>shopSlots</c> is 0: 15 for the pre-run
+    /// shop and ante 1, 50 beyond.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>The number of shop items the result carries for that ante.</returns>
+    public static int DefaultShopSlots(int ante) => MotelyJamlyzerWindow.DefaultShopSlots(ante);
+
+    /// <summary>How many booster packs an ante offers, and so how many the result carries: 4 for
+    /// the pre-run shop and ante 1, 6 beyond. Pack indices in <c>sources:</c> count these.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>The pack count.</returns>
+    public static int PackCount(int ante) => MotelyJamlyzerWindow.PackCount(ante);
 
     /// <summary>
     /// The Jamlyzer as a rider on a search. Attach the returned desc with

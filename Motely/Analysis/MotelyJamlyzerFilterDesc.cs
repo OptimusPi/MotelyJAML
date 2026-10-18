@@ -33,6 +33,9 @@ internal readonly struct MotelyJamlyzerWindow
     /// <summary>The per-ante shop depth a <c>shopSlots: 0</c> window walks.</summary>
     public static int DefaultShopSlots(int ante) => ante <= 1 ? 15 : 50;
 
+    /// <summary>The booster packs an ante offers: 4 for the pre-run shop and ante 1, 6 beyond.</summary>
+    public static int PackCount(int ante) => ante <= 1 ? 4 : 6;
+
     /// <summary>
     /// Both dials arrive from JS unchecked. An out-of-range one throws naming the argument and
     /// the limit.
@@ -196,7 +199,7 @@ internal static class MotelyJamlyzerSeedWalk
 
             // Packs
             var packStream = ctx.CreateBoosterPackStream(ante);
-            int maxPacks = ante <= 1 ? 4 : 6;
+            int maxPacks = MotelyJamlyzerWindow.PackCount(ante);
             MotelyJamlyzerPack[] packs = new MotelyJamlyzerPack[maxPacks];
 
             // Soul detection rides its own per-ante streams, so the content stream above is untouched:
@@ -268,7 +271,7 @@ internal static class MotelyJamlyzerSeedWalk
                 }
 
                 MotelyItemEdition edition = ctx.GetNextJoker(ref soulEditionStream).Edition;
-                legendaryOrder.Add(new(ante, i, face, edition));
+                legendaryOrder.Add(new(ante, i, face, edition, new MotelyItem(face, edition)));
             }
 
             // pulls streams — card/joker-activated streams beyond shops/packs.

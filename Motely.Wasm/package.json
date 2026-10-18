@@ -1,6 +1,6 @@
 {
   "name": "motely-wasm",
-  "version": "30.0.0",
+  "version": "31.0.0",
   "description": "Motely, the Balatro seed engine, as a single-threaded WebAssembly module (NativeAOT-LLVM via Bootsharp).",
   "keywords": ["balatro", "seed", "seed-finder", "motely", "yaml", "webassembly", "wasm", "nativeaot", "bootsharp"],
   "license": "MIT",
@@ -9,6 +9,11 @@
   "types": "./bin/motely-wasm/index.d.mts",
   "exports": {
     ".": "./bin/motely-wasm/index.mjs",
+    "./jaml": {
+      "types": "./jaml/index.d.ts",
+      "default": "./jaml/index.mjs"
+    },
+    "./jaml/schema.json": "./jaml/motely-filter.schema.json",
     "./*": "./bin/motely-wasm/generated/modules/*.g.mjs"
   },
   "browser": {
@@ -19,7 +24,7 @@
     "node:crypto": false,
     "node:process": false
   },
-  "files": ["bin/motely-wasm"],
+  "files": ["bin/motely-wasm", "jaml"],
   "scripts": {
     "prepack": "npm run build",
     "build": "dotnet publish -c Release",
