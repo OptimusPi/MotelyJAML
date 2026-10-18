@@ -23,6 +23,9 @@ public sealed record MotelyJamlyzerSeedResult(
 /// sits in. Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is run-global;
 /// the edition still comes from the Soul's own ante (<c>edisou{ante}</c>). This is the sequence
 /// <c>legendaryJoker:</c> matches against, read once per seed instead of restarted every ante.
+/// Every Soul is taken as opened and its legendary kept, so a draw that repeats a legendary already
+/// held resamples, as it does in the game without Showman: the order a <c>soulOrder:</c> clause
+/// without <c>with:</c> matches.
 /// <c>Item</c> is the joker the Soul yields as an item, edition included — the same shape as every
 /// other card the Jamlyzer reports, so a consumer draws it like any shop or pack card.
 /// </summary>

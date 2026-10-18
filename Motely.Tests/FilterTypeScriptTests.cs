@@ -47,6 +47,19 @@ public sealed class FilterTypeScriptTests
     }
 
     [Fact]
+    public void AListOfBlocksIsAnArray()
+    {
+        // The loader binds soulOrder as a sequence and refuses a lone block, so the types say so.
+        Assert.True(JamlConfigLoader.TryLoad("must:\n  - soulOrder: [{ legendary: Perkeo }]\n", out _, out _));
+        Assert.False(JamlConfigLoader.TryLoad("must:\n  - soulOrder: { legendary: Perkeo }\n", out _, out _));
+
+        var clause = Declarations[Declarations.IndexOf("export interface JamlLegendarySoulOrderClause {", StringComparison.Ordinal)..];
+        clause = clause[..clause.IndexOf("\n}", StringComparison.Ordinal)];
+        Assert.Contains("\n  soulOrder?: JamlSoulOrderEntry[];", clause);
+        Assert.Contains("\n  entries?: JamlSoulOrderEntry[];", clause);
+    }
+
+    [Fact]
     public void ShippedDeclarationsAreCurrent() =>
         Assert.Equal(Declarations, File.ReadAllText(PackagePath("index.d.ts")).ReplaceLineEndings("\n"));
 

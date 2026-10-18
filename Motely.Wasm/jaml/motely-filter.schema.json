@@ -4882,7 +4882,10 @@
           }
         },
         "entries": {
-          "$ref": "#/definitions/soulOrderEntry"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/soulOrderEntry"
+          }
         },
         "label": {
           "anyOf": [
@@ -4918,10 +4921,16 @@
           "type": "integer"
         },
         "soulOrder": {
-          "$ref": "#/definitions/soulOrderEntry"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/soulOrderEntry"
+          }
         },
         "soulOrders": {
-          "$ref": "#/definitions/soulOrderEntry"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/soulOrderEntry"
+          }
         },
         "with": {
           "anyOf": [

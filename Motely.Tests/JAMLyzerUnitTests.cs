@@ -93,6 +93,40 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(entry.Edition, entry.Item.Edition);
     }
 
+    [Theory]
+    // Ghost/White seeds with a Soul in ante 1 and another in ante 2. On the first three the raw
+    // Joker4 draw for the second Soul repeats the first legendary; with that legendary held the
+    // game resamples it. 3VX11111's draws differ, so nothing resamples.
+    [InlineData("BHT11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
+    [InlineData("D6L11111", MotelyJoker.Perkeo, MotelyJoker.Triboulet)]
+    [InlineData("L4V11111", MotelyJoker.Yorick, MotelyJoker.Perkeo)]
+    [InlineData("3VX11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
+    public void Analyze_LegendaryOrder_ResamplesOffTheLegendariesAlreadyHeld(
+        string seed,
+        MotelyJoker first,
+        MotelyJoker second
+    )
+    {
+        var order = MotelyJamlyzer.Analyze(SeedConfig(seed, MotelyDeck.Ghost), eventRolls: 1)[0].LegendaryOrder;
+        Assert.True(order.Count >= 2, $"{seed}: a Soul in ante 1 and another in ante 2");
+        Assert.Equal([first, second], order.Take(2).Select(l => l.Joker));
+
+        // The filter walks the same Souls the same way: soulOrder matches exactly this order.
+        ProofSearch.MustMatchAll(
+            $$"""
+            name: soul-order
+            deck: Ghost
+            stake: White
+            must:
+              - soulOrder:
+                  - { legendary: {{first}}, antes: [{{order[0].Ante}}] }
+                  - { legendary: {{second}}, antes: [{{order[1].Ante}}] }
+                maxAnte: {{order[1].Ante}}
+            """,
+            seed
+        );
+    }
+
     [Fact]
     public void Analyze_EachAnteCarriesItsPublishedShopDepthAndPackCount()
     {

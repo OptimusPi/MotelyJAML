@@ -511,14 +511,14 @@ export interface JamlOrPayload {
 
 export interface JamlLegendarySoulOrderClause {
   boosterPacks?: number[];
-  entries?: JamlSoulOrderEntry;
+  entries?: JamlSoulOrderEntry[];
   label?: string | number | boolean | null;
   max?: number | null;
   maxAnte?: number;
   min?: number;
   score?: number;
-  soulOrder?: JamlSoulOrderEntry;
-  soulOrders?: JamlSoulOrderEntry;
+  soulOrder?: JamlSoulOrderEntry[];
+  soulOrders?: JamlSoulOrderEntry[];
   with?: JamlWith | null;
 }
 

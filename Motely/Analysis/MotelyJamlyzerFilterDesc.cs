@@ -147,8 +147,13 @@ internal static class MotelyJamlyzerSeedWalk
         // player opens gets draw N however the antes fall. One stream carried across the whole walk
         // records that order once per seed. (The old per-ante LegendaryJokers queues restarted it on
         // every ante, so each ante showed the same global prefix; they are gone.)
+        // Every Soul is opened and every legendary kept, so a draw that repeats one already held
+        // resamples (Balatro's used_jokers), exactly as a legendaryJoker or soulOrder clause walk
+        // without Showman does. The pool has five legendaries.
         MotelySingleLegendaryJokerStream legendaryFaces = ctx.CreateRunLegendaryJokerStream();
         List<MotelyJamlyzerLegendary> legendaryOrder = [];
+        MotelyJoker[] heldLegendaries = new MotelyJoker[5];
+        int heldCount = 0;
 
         for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
@@ -258,9 +263,11 @@ internal static class MotelyJamlyzerSeedWalk
 
                 MotelyJoker face = ctx.GetNextLegendaryJoker(
                     ref legendaryFaces,
-                    ReadOnlySpan<MotelyJoker>.Empty,
+                    heldLegendaries.AsSpan(0, heldCount),
                     showmanActive: false
                 );
+                if (heldCount < heldLegendaries.Length)
+                    heldLegendaries[heldCount++] = face;
                 if (!soulEditionInit)
                 {
                     soulEditionInit = true;

@@ -32,6 +32,17 @@ The engine hands JavaScript what a UI draws, so consumers stop translating.
   Spectral pack of Black Hole and Immolate, not The Soul and Black Hole, so 1 of the 460 seeds in
   sequential batch 0 (batchChars 3) with an ante-1 legendary is gone. `SpectralSoulBlackHoleTests`
   pins the game's cards.
+- **The Jamlyzer's `legendaryOrder` resamples off the legendaries already held.** It drew every
+  Soul's legendary straight off the run's `Joker4` stream, so a second Soul could repeat the
+  first one's: BHT11111 (Ghost, White) read Triboulet, Triboulet. In the game, without Showman, a
+  legendary you hold drops out of the pool and the draw resamples, which is what every
+  `legendaryJoker:` and `soulOrder:` clause already does. The Jamlyzer now walks the same way
+  (BHT11111: Triboulet, Canio), so what it shows and what a clause matches agree. `soulOrder` with
+  `with: { jokers: [Showman] }` still matches the raw sequence.
+- **`soulOrder:` is a list in the schema.** `FilterJsonSchema` described a list of blocks
+  (`soulOrder`, `soulOrders`, `entries`) as a single block, so an editor on
+  `schema/motely-filter.schema.json` flagged every valid `soulOrder: [...]`; the loader has
+  always bound a sequence and refuses a lone block.
 
 ## Changed
 

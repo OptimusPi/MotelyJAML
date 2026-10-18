@@ -109,7 +109,8 @@ public static class FilterJsonSchema
                     },
                     var x when x == typeof(string) => ArraySchema(ScalarString()),
                     var x when x == typeof(int) => ArraySchema(new JsonObject { ["type"] = "integer" }),
-                    _ => EnsureDef(defs, elem),
+                    // A list of blocks (soulOrder: [{ legendary: Perkeo }, …]): the loader binds a sequence.
+                    _ => ArraySchema((JsonObject)EnsureDef(defs, elem)),
                 }
             );
         }
