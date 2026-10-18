@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using AGUI.Abstractions;
 using Microsoft.Extensions.AI;
@@ -39,7 +40,6 @@ public sealed class MotelySearchAgent : IChatClient
         yield return Text($"Searching {filter} ({mode ?? "replay"})…");
 
         var runner = new SearchRunner();
-        int matched = 0;
 
         await foreach (var evt in runner.RunAsync(filter, mode, null, cancellationToken).ConfigureAwait(false))
         {
@@ -56,11 +56,13 @@ public sealed class MotelySearchAgent : IChatClient
                             rate = p.Rate
                         }
                     );
-                    yield return new ChatResponseUpdate { RawRepresentation = new StateSnapshotEvent { Snapshot = state } };
+                    yield return new ChatResponseUpdate
+                    {
+                        RawRepresentation = new StateSnapshotEvent { Snapshot = state }
+                    };
                     break;
 
                 case SearchEvent.Match m:
-                    matched++;
                     yield return Text(m.Seed);
                     break;
 
@@ -76,11 +78,6 @@ public sealed class MotelySearchAgent : IChatClient
                     break;
             }
         }
-
-        if (matched == 0 && parseError is null)
-        {
-            // No Done event (an error short-circuited the run) — nothing more to say.
-        }
     }
 
     public void Dispose() { }
@@ -93,17 +90,22 @@ public sealed class MotelySearchAgent : IChatClient
     )
     {
         var sb = new StringBuilder();
-        await foreach (var update in GetStreamingResponseAsync(messages, options, cancellationToken).ConfigureAwait(false))
+        await foreach (
+            var update in GetStreamingResponseAsync(messages, options, cancellationToken).ConfigureAwait(false)
+        )
         {
-            if (update.TextContent is TextContent textContent)
-                sb.Append(textContent.Text);
+            foreach (var content in update.Contents)
+            {
+                if (content is TextContent textContent)
+                    sb.Append(textContent.Text);
+            }
         }
-        return new ChatResponse([new ChatMessage(ChatRole.Assistant) { Text = sb.ToString() }]);
+        return new ChatResponse([new ChatMessage(ChatRole.Assistant, sb.ToString())]);
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
-    private static ChatResponseUpdate Text(string text) => new() { TextContent = new TextContent(text) };
+    private static ChatResponseUpdate Text(string text) => new() { Contents = [new TextContent(text)] };
 
     /// <summary>Pulls a filter name and an optional mode out of the user's message.</summary>
     private static (string? filter, string? mode, string? error) ParseMessage(string text)

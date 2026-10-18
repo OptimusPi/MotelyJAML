@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
+using Motely;
 using Motely.Filters;
 
 namespace Motely.MCP.Search;
@@ -54,25 +55,15 @@ public sealed class SearchRunner
             yield break;
         }
 
-        JamlConfig config;
-        try
+        if (!TryLoadConfig(path, out var config, out var loadError))
         {
-            config = JamlConfigLoader.FromFile(path);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
-        {
-            yield return new SearchEvent.Error($"{path}: {ex.Message}");
+            yield return new SearchEvent.Error(loadError);
             yield break;
         }
 
-        JamlSearchPlan plan;
-        try
+        if (!TryCreatePlan(config, out var plan, out var planError))
         {
-            plan = MotelySearchBuilder.CreatePlan(config);
-        }
-        catch (InvalidOperationException ex)
-        {
-            yield return new SearchEvent.Error(ex.Message);
+            yield return new SearchEvent.Error(planError);
             yield break;
         }
 
@@ -116,7 +107,7 @@ public sealed class SearchRunner
         settings = settings.WithProgressCallback(p =>
             channel.Writer.TryWrite(
                 new SearchEvent.Progress(
-                    p.PercentComplete,
+                    (int)p.PercentComplete,
                     p.SeedsSearched,
                     p.MatchingSeeds,
                     p.SeedsPerMillisecond * 1000.0
@@ -148,7 +139,6 @@ public sealed class SearchRunner
         using var search = settings.Start(cancellationToken);
         _ = search
             .WaitForCompletionAsync(cancellationToken)
-            .AsTask()
             .ContinueWith(
                 t =>
                 {
@@ -178,6 +168,46 @@ public sealed class SearchRunner
         );
     }
 
+    private static bool TryLoadConfig(
+        string path,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JamlConfig? config,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? error
+    )
+    {
+        config = null;
+        error = null;
+        try
+        {
+            config = JamlConfigLoader.FromFile(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            error = $"{path}: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryCreatePlan(
+        JamlConfig config,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JamlSearchPlan? plan,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? error
+    )
+    {
+        plan = null;
+        error = null;
+        try
+        {
+            plan = MotelySearchBuilder.CreatePlan(config);
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
     /// <summary>Splits a mode string into (keyword, random, replay); exactly one is set, or an error.</summary>
     private static (string? keyword, int? random, bool replay, string? error) ParseMode(string? mode)
     {
@@ -187,7 +217,9 @@ public sealed class SearchRunner
         if (mode.StartsWith("keyword ", StringComparison.OrdinalIgnoreCase))
         {
             var kw = mode["keyword ".Length..].Trim();
-            return kw.Length == 0 ? (null, null, false, "Error: 'keyword' needs a seed word after it.") : (kw, null, false, null);
+            return kw.Length == 0
+                ? (null, null, false, "Error: 'keyword' needs a seed word after it.")
+                : (kw, null, false, null);
         }
 
         if (mode.StartsWith("random ", StringComparison.OrdinalIgnoreCase))
@@ -201,6 +233,11 @@ public sealed class SearchRunner
         if (mode == "sequential")
             return (null, null, false, null);
 
-        return (null, null, false, $"Error: unknown mode '{mode}'. Use replay, keyword <kw>, random <n>, or sequential.");
+        return (
+            null,
+            null,
+            false,
+            $"Error: unknown mode '{mode}'. Use replay, keyword <kw>, random <n>, or sequential."
+        );
     }
 }
