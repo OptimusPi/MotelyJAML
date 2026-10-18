@@ -17,12 +17,20 @@ The engine hands JavaScript what a UI draws, so consumers stop translating.
 - **`MotelyJamlyzerLegendary.item`.** Each Soul's legendary as a `MotelyItem` (the engine's
   `new MotelyItem(joker, edition)`), the same shape as every shop and pack card in the result.
 - **`MotelyJamlyzer.defaultShopSlots(ante)` and `MotelyJamlyzer.packCount(ante)`.** The shop
-  depth (15 for antes 0–1, 50 beyond) and pack count (4 for antes 0–1, 6 beyond) the Jamlyzer
-  walks, so a UI can lay out an ante before it has a result. Pack indices in `sources:` count
-  these packs.
+  depth (15 for antes 0–1, 50 beyond) and pack count (4 for ante 1, 6 for every other ante) the
+  Jamlyzer walks, so a UI can lay out an ante before it has a result. Pack indices in `sources:`
+  count these packs.
 
 ## Fixed
 
+- **An ante-0 Soul is opened only when a legendary clause names ante 0.** Ante 0 is in the run
+  only after Hieroglyph or Petroglyph, but with no clause naming an ante the Jamlyzer walked it on
+  every seed and opened its Soul first, so every later Soul read the next legendary over:
+  1YU11111's ante-2 Soul read Yorick, where a run that never plays ante 0 gets Triboulet.
+  `soulOrder:` walked ante 0 the same way. Both now open ante 0's Souls only when a
+  `legendaryJoker:` or `soulOrder:` clause names ante 0, as a `legendaryJoker:` clause on antes 1
+  and up already did; ante 0's cards still show. Ante 0 also offers 6 packs in the Jamlyzer
+  (`packCount(0)`), the six a clause has always searched.
 - **Souls and Black Holes in Spectral packs follow the game** (9d3e5d6, which landed after 30.0.0
   was published). Balatro's `create_card` makes the Soul check and then the Black Hole check for
   every Spectral card, both on the ante's `soul_Spectral{ante}` stream, and the Black Hole check

@@ -8,13 +8,19 @@ namespace Motely.Analysis;
 /// </summary>
 internal readonly struct MotelyJamlyzerWindow
 {
-    public MotelyJamlyzerWindow(int[] antesToAnalyze, int eventRolls, int shopSlots = 0)
+    public MotelyJamlyzerWindow(
+        int[] antesToAnalyze,
+        int eventRolls,
+        int shopSlots = 0,
+        bool opensAnteZeroSouls = false
+    )
     {
         ThrowIfOutOfRange(eventRolls, shopSlots);
         StartAnte = antesToAnalyze.Length > 0 && antesToAnalyze[0] == 0 ? 0 : 1;
         MaxAnte = antesToAnalyze.Length > 0 ? antesToAnalyze[^1] : 8;
         EventRolls = eventRolls;
         ShopSlots = shopSlots;
+        OpensAnteZeroSouls = opensAnteZeroSouls;
     }
 
     // Ante 0 (the pre-run shop a JAML clause can target with `antes: [0]`) is real data
@@ -22,6 +28,14 @@ internal readonly struct MotelyJamlyzerWindow
     public readonly int StartAnte;
     public readonly int MaxAnte;
     public readonly int EventRolls;
+
+    /// <summary>
+    /// Whether the walk opens ante 0's Souls. Ante 0 is in the run only after Hieroglyph or
+    /// Petroglyph, so its cards are shown and its Souls stay shut unless a legendary clause names
+    /// ante 0 (<see cref="MotelyJamlyzer.OpensAnteZeroSouls"/>): opened first, an ante-0 Soul handed
+    /// every later Soul the next legendary over, which a run that never plays ante 0 does not get.
+    /// </summary>
+    public readonly bool OpensAnteZeroSouls;
 
     // How deep to walk each ante's shop queue, independent of EventRolls. 0 keeps the historical
     // defaults (15 for the pre-run shop and ante 1, 50 beyond). The shop stream never runs dry --
@@ -33,8 +47,12 @@ internal readonly struct MotelyJamlyzerWindow
     /// <summary>The per-ante shop depth a <c>shopSlots: 0</c> window walks.</summary>
     public static int DefaultShopSlots(int ante) => ante <= 1 ? 15 : 50;
 
-    /// <summary>The booster packs an ante offers: 4 for the pre-run shop and ante 1, 6 beyond.</summary>
-    public static int PackCount(int ante) => ante <= 1 ? 4 : 6;
+    /// <summary>
+    /// The booster packs an ante offers: 4 for ante 1 (its first shop opens after the small blind)
+    /// and 6 for every other ante. Ante 0 runs all three of its shops once Hieroglyph and Petroglyph
+    /// ease the run back to it, and a clause searches its six packs.
+    /// </summary>
+    public static int PackCount(int ante) => ante == 1 ? 4 : 6;
 
     /// <summary>
     /// Both dials arrive from JS unchecked. An out-of-range one throws naming the argument and
@@ -61,7 +79,8 @@ public sealed class MotelyJamlyzerFilterDesc(
     int[] antesToAnalyze,
     int eventRolls = 20,
     MotelyJamlyzerStreamStates? resumeFrom = null,
-    int shopSlots = 0
+    int shopSlots = 0,
+    bool opensAnteZeroSouls = false
 ) : IMotelySeedFilterDesc<MotelyJamlyzerFilterDesc.JamlyzerFilter>
 {
     /// <summary>
@@ -88,7 +107,8 @@ public sealed class MotelyJamlyzerFilterDesc(
         }
     }
 
-    private readonly MotelyJamlyzerWindow _window = new(antesToAnalyze, eventRolls, shopSlots);
+    private readonly MotelyJamlyzerWindow _window =
+        new(antesToAnalyze, eventRolls, shopSlots, opensAnteZeroSouls);
     private readonly MotelyJamlyzerStreamStates? _resumeFrom = resumeFrom;
 }
 
@@ -259,6 +279,8 @@ internal static class MotelyJamlyzerSeedWalk
                     continue;
 
                 if (!hasSoul)
+                    continue;
+                if (ante == 0 && !window.OpensAnteZeroSouls)
                     continue;
 
                 MotelyJoker face = ctx.GetNextLegendaryJoker(

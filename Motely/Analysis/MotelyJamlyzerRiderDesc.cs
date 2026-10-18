@@ -20,7 +20,8 @@ public sealed class MotelyJamlyzerRiderDesc(
     int[] antesToAnalyze,
     Action<MotelyJamlyzerSeedResult> onAnalyzed,
     int eventRolls = 20,
-    int shopSlots = 0
+    int shopSlots = 0,
+    bool opensAnteZeroSouls = false
 ) : IMotelySeedAnalyzeDesc<MotelyJamlyzerRiderDesc.JamlyzerRider>
 {
     public JamlyzerRider CreateAnalyzeProvider(ref MotelyFilterCreationContext ctx) => new(this);
@@ -56,6 +57,7 @@ public sealed class MotelyJamlyzerRiderDesc(
         }
     }
 
-    private readonly MotelyJamlyzerWindow _window = new(antesToAnalyze, eventRolls, shopSlots);
+    private readonly MotelyJamlyzerWindow _window =
+        new(antesToAnalyze, eventRolls, shopSlots, opensAnteZeroSouls);
     private readonly Action<MotelyJamlyzerSeedResult> _onAnalyzed = onAnalyzed;
 }

@@ -1522,7 +1522,10 @@ public static class ClauseScoring
         withJokers.CopyTo(held);
         int entry = 0;
 
-        for (int ante = 0; ante <= maxAnte && entry < clause.Entries.Length; ante++)
+        // Ante 0 is in the run only after Hieroglyph or Petroglyph: its Souls are opened only when
+        // an entry names it, as the Jamlyzer does (MotelyJamlyzer.OpensAnteZeroSouls).
+        int firstAnte = Array.Exists(clause.Entries, e => Array.IndexOf(e.Antes, 0) >= 0) ? 0 : 1;
+        for (int ante = firstAnte; ante <= maxAnte && entry < clause.Entries.Length; ante++)
         {
             int maxPack = ClampBoosterPackSlotForAnte(ante, userMaxPack, runState);
             var packStream = ctx.CreateBoosterPackStream(ante);

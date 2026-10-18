@@ -40,15 +40,17 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(2, results[0].Antes.Count);
         Assert.Equal(0, results[0].Antes[0].Ante);
         Assert.Equal(1, results[0].Antes[1].Ante);
-        Assert.Equal(4, results[0].Antes[0].Packs.Count);
+        Assert.Equal(6, results[0].Antes[0].Packs.Count);
         Assert.Equal(15, results[0].Antes[0].ShopItems.Count);
     }
 
     [Fact]
-    public void Analyze_AnteOneHasFourPacks()
+    public void Analyze_AnteOneHasFourPacks_AnteZeroSix()
     {
+        // Ante 1's first shop opens after the small blind; ante 0 runs all three shops once
+        // Hieroglyph and Petroglyph ease the run back to it, the six packs a clause searches.
         var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
-        Assert.Equal(4, results[0].Antes[0].Packs.Count);
+        Assert.Equal(6, results[0].Antes[0].Packs.Count);
         Assert.Equal(4, results[0].Antes[1].Packs.Count);
     }
 
@@ -128,6 +130,45 @@ public sealed class JAMLyzerUnitTests
     }
 
     [Fact]
+    public void Analyze_AnteZeroSoulStaysShutUnlessALegendaryClauseNamesAnteZero()
+    {
+        // 1YU11111 (Red/White) has a Soul in ante 0's first pack and one in ante 2's. Ante 0 is in
+        // the run only after Hieroglyph or Petroglyph, so with no clause naming it the walk shows
+        // ante 0's cards but leaves its Soul shut, and the ante-2 Soul is the first one opened:
+        // the stream's first legendary, Triboulet. Opening ante 0 first made it read Yorick.
+        var plain = MotelyJamlyzer.Analyze(SeedConfig("1YU11111"), eventRolls: 1)[0];
+        Assert.Equal(0, plain.Antes[0].Ante);
+        var only = Assert.Single(plain.LegendaryOrder);
+        Assert.Equal((2, 0, MotelyJoker.Triboulet), (only.Ante, only.PackSlot, only.Joker));
+
+        // A legendary clause naming ante 0 opens its Soul, first, as the clause itself does.
+        var namesAnteZero = JamlConfigLoader.FromJaml("""
+            deck: Red
+            stake: White
+            must:
+              - legendaryJoker: Triboulet
+                antes: [0, 1, 2]
+                sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }
+            seeds: [1YU11111]
+            """);
+        Assert.Equal(
+            [(0, MotelyJoker.Triboulet), (2, MotelyJoker.Yorick)],
+            MotelyJamlyzer.Analyze(namesAnteZero, eventRolls: 1)[0].LegendaryOrder.Select(l => (l.Ante, l.Joker)));
+
+        // The clauses agree with both readings: a clause on ante 2 opens that Soul first.
+        const string head = "name: ante-zero\ndeck: Red\nstake: White\nmust:\n";
+        ProofSearch.MustMatchAll(
+            head + "  - legendaryJoker: Triboulet\n    antes: [2]\n"
+                + "    sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }\n",
+            "1YU11111");
+        ProofSearch.MustMatchAll(head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [2] }\n", "1YU11111");
+        ProofSearch.MustMatchNone(head + "  - soulOrder:\n      - { legendary: Yorick, antes: [2] }\n", "1YU11111");
+        ProofSearch.MustMatchAll(
+            head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [0] }\n      - { legendary: Yorick, antes: [2] }\n",
+            "1YU11111");
+    }
+
+    [Fact]
     public void Analyze_EachAnteCarriesItsPublishedShopDepthAndPackCount()
     {
         // DefaultShopSlots / PackCount are what a consumer sizes an ante with before it has a
@@ -138,6 +179,7 @@ public sealed class JAMLyzerUnitTests
             Assert.Equal(MotelyJamlyzer.DefaultShopSlots(ante.Ante), ante.ShopItems.Count);
             Assert.Equal(MotelyJamlyzer.PackCount(ante.Ante), ante.Packs.Count);
         }
+        Assert.Equal(6, MotelyJamlyzer.PackCount(0));
         Assert.Equal(4, MotelyJamlyzer.PackCount(1));
         Assert.Equal(6, MotelyJamlyzer.PackCount(2));
         Assert.Equal(15, MotelyJamlyzer.DefaultShopSlots(1));
