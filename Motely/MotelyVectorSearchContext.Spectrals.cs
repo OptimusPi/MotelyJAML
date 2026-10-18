@@ -91,36 +91,35 @@ ref partial struct MotelyVectorSearchContext
 
         if (stream.IsSoulBlackHoleable)
         {
+            // create_card: the Soul check, then the Black Hole check, both rolled on every lane
+            // (a Soul does not skip the Black Hole roll). The Black Hole check overwrites
+            // forced_key, so a lane that rolls both is a Black Hole. Same law as the scalar
+            // MotelySingleSearchContext.GetNextSpectral.
             Vector512<double> randomSoul = GetNextRandom(
                 ref stream.SoulBlackHolePrngStream,
                 activeMask
             );
-            Vector512<double> maskSoul =
-                activeMask & Vector512.GreaterThan(randomSoul, Vector512.Create(0.997));
-            Vector256<int> maskSoulInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(maskSoul);
+            Vector512<double> randomBH = GetNextRandom(
+                ref stream.SoulBlackHolePrngStream,
+                activeMask
+            );
+            Vector512<double> maskBH =
+                activeMask & Vector512.GreaterThan(randomBH, Vector512.Create(0.997));
+            Vector512<double> maskSoul = Vector512.AndNot(
+                activeMask & Vector512.GreaterThan(randomSoul, Vector512.Create(0.997)),
+                maskBH
+            );
             items = Vector256.ConditionalSelect(
-                maskSoulInt,
+                MotelyVectorUtils.ShrinkDoubleMaskToInt(maskSoul),
                 Vector256.Create((int)MotelyItemType.TheSoul),
                 items
             );
-            activeMask = Vector512.AndNot(activeMask, maskSoul);
-
-            if (!Vector512.EqualsAll(activeMask, Vector512<double>.Zero))
-            {
-                Vector512<double> randomBH = GetNextRandom(
-                    ref stream.SoulBlackHolePrngStream,
-                    activeMask
-                );
-                Vector512<double> maskBH =
-                    activeMask & Vector512.GreaterThan(randomBH, Vector512.Create(0.997));
-                Vector256<int> maskBHInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(maskBH);
-                items = Vector256.ConditionalSelect(
-                    maskBHInt,
-                    Vector256.Create((int)MotelyItemType.BlackHole),
-                    items
-                );
-                activeMask = Vector512.AndNot(activeMask, maskBH);
-            }
+            items = Vector256.ConditionalSelect(
+                MotelyVectorUtils.ShrinkDoubleMaskToInt(maskBH),
+                Vector256.Create((int)MotelyItemType.BlackHole),
+                items
+            );
+            activeMask = Vector512.AndNot(Vector512.AndNot(activeMask, maskSoul), maskBH);
         }
 
         if (Vector512.EqualsAll(activeMask, Vector512<double>.Zero))
@@ -235,21 +234,21 @@ ref partial struct MotelyVectorSearchContext
                 & MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.TheSoul)
                 );
-            soulMaskDbl =
+            Vector512<double> soulRolled =
                 soulValidMask
                 & Vector512.GreaterThan(
                     GetNextRandom(ref stream.SoulBlackHolePrngStream, soulValidMask),
                     Vector512.Create(0.997)
                 );
-            soulMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(soulMaskDbl);
 
-            // Black Hole roll: skipped for lanes that just rolled TheSoul and lanes whose pack
-            // already holds BlackHole.
+            // Black Hole roll: every lane whose pack does not already hold BlackHole rolls it,
+            // including lanes that just rolled TheSoul (create_card makes both checks). The
+            // Black Hole check overwrites forced_key, so a lane that rolls both is a Black Hole.
             Vector512<double> blackHoleValidMask =
                 mask
                 & MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.BlackHole)
-                ) & ~soulMaskDbl;
+                );
             blackHoleMaskDbl =
                 blackHoleValidMask
                 & Vector512.GreaterThan(
@@ -257,6 +256,9 @@ ref partial struct MotelyVectorSearchContext
                     Vector512.Create(0.997)
                 );
             blackHoleMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(blackHoleMaskDbl);
+
+            soulMaskDbl = Vector512.AndNot(soulRolled, blackHoleMaskDbl);
+            soulMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(soulMaskDbl);
         }
         else
         {

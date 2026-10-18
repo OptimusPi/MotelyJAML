@@ -96,30 +96,30 @@ public partial class MotelySingleSearchContext
 
         int cardCount = MotelyBoosterPackType.Spectral.GetCardCount(size);
 
+        // Balatro's create_card rolls the Soul check, then the Black Hole check, on the same
+        // soul_Spectral{ante} stream, and the Black Hole check overwrites forced_key: a card that
+        // rolls both is a Black Hole, not a Soul (Immolate's next_spectral agrees). Once the pack
+        // holds a Soul or a Black Hole, that check is skipped for the rest of the pack
+        // (used_jokers) and pulls no roll. Every card is walked so the stream ends where the game
+        // leaves it for the ante's next Spectral pack.
+        bool hasSoul = false;
         bool hasBlackHole = false;
 
         for (int i = 0; i < cardCount; i++)
         {
-            if (GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997)
-            {
-                // We found the soul!
+            bool soul =
+                !hasSoul && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
+            bool blackHole =
+                !hasBlackHole
+                && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
 
-                // Progress the stream to get ready for the next pack
-                for (; i < cardCount && !hasBlackHole; i++)
-                {
-                    hasBlackHole =
-                        GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
-                }
-                return true;
-            }
-
-            if (!hasBlackHole && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997)
-            {
+            if (blackHole)
                 hasBlackHole = true;
-            }
+            else if (soul)
+                hasSoul = true;
         }
 
-        return false;
+        return hasSoul;
     }
 
     public MotelySingleItemSet GetNextSpectralPackContents(
@@ -151,15 +151,14 @@ public partial class MotelySingleSearchContext
     {
         if (spectralStream.IsSoulBlackHoleable)
         {
-            if (GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997)
-            {
-                return MotelyItemType.TheSoul;
-            }
+            // create_card: both checks roll; the Black Hole check runs second and wins.
+            bool soul = GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
+            bool blackHole = GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
 
-            if (GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997)
-            {
+            if (blackHole)
                 return MotelyItemType.BlackHole;
-            }
+            if (soul)
+                return MotelyItemType.TheSoul;
         }
 
         MotelyItemType Spectral =
@@ -202,21 +201,21 @@ public partial class MotelySingleSearchContext
     {
         if (spectralStream.IsSoulBlackHoleable)
         {
-            if (
+            // create_card rolls the Soul check, then the Black Hole check, and the Black Hole
+            // check overwrites forced_key, so a card that rolls both is a Black Hole. A Soul does
+            // not skip the Black Hole roll. A check for a card the pack already holds is skipped
+            // (used_jokers) and pulls no roll.
+            bool soul =
                 !itemSet.Contains(MotelyItemType.TheSoul)
-                && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997
-            )
-            {
-                return MotelyItemType.TheSoul;
-            }
-
-            if (
+                && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
+            bool blackHole =
                 !itemSet.Contains(MotelyItemType.BlackHole)
-                && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997
-            )
-            {
+                && GetNextRandom(ref spectralStream.SoulBlackHolePrngStream) > 0.997;
+
+            if (blackHole)
                 return MotelyItemType.BlackHole;
-            }
+            if (soul)
+                return MotelyItemType.TheSoul;
         }
 
         MotelyItemType Spectral =
