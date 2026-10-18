@@ -12,6 +12,8 @@
     <ProjectReference Include="../Motely/Motely.csproj" />
     <!-- AppHostModelTests reads the Aspire composition; nothing here starts it. -->
     <ProjectReference Include="../Motely.AppHost/Motely.AppHost.csproj" />
+    <!-- MotelyMcpTests covers the MCP server and AG-UI agent. -->
+    <ProjectReference Include="../Motely.MCP/Motely.MCP.csproj" />
   </ItemGroup>
 
   <ItemGroup>

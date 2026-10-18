@@ -33,4 +33,10 @@ builder
 
 builder.AddViteApp("web", "../Motely.Web");
 
+// The MCP + AG-UI server. Runs as an Aspire resource: its URL is on the dashboard, and it shares
+// the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI resources do.
+builder
+    .AddProject<Projects.Motely_MCP>("mcp")
+    .WithEnvironment("MOTELY_FILTERS_DIR", filters);
+
 builder.Build().Run();

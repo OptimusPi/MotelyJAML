@@ -8,7 +8,7 @@
   </Folder>
   <Project Path="Motely.AppHost/Motely.AppHost.csproj" />
   <Project Path="Motely.CLI/Motely.CLI.csproj" />
-  <Project Path="Motely.Lsp/Motely.Lsp.csproj" />
+  <Project Path="Motely.MCP/Motely.MCP.csproj" />
   <Project Path="Motely.Wasm/Motely.Wasm.csproj" />
   <Project Path="Motely/Motely.csproj" />
   <Project Path="Motely.ServiceDefaults/Motely.ServiceDefaults.csproj" />
