@@ -56,7 +56,7 @@ public sealed class AppHostModelTests
         await using var appHost = await CreateAsync();
         var projects = appHost.Resources.OfType<ProjectResource>().Select(static r => r.Name).Order().ToArray();
 
-        Assert.Equal(["check", "search"], projects);
+        Assert.Equal(["check", "mcp", "search"], projects);
         Assert.Contains(appHost.Resources, static r => r is ParameterResource { Name: "filter" });
     }
 
@@ -96,5 +96,14 @@ public sealed class AppHostModelTests
         Assert.False(string.IsNullOrWhiteSpace(name));
         var path = Path.Combine(RepoFilters(), name + ".yaml");
         Assert.True(Filters.JamlConfigLoader.TryLoad(File.ReadAllText(path), out _, out var error), error);
+    }
+
+    [Fact]
+    public async Task Mcp_runs_the_mcp_server_with_the_repo_filters()
+    {
+        await using var appHost = await CreateAsync();
+        var mcp = appHost.Resources.Single(static r => r.Name == "mcp");
+
+        Assert.Equal(RepoFilters(), await EnvOf(mcp, "MOTELY_FILTERS_DIR"));
     }
 }

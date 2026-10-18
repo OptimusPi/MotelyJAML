@@ -41,6 +41,10 @@ var authority = mcpConfig["Authority"];
 var audience = mcpConfig["Audience"] ?? "motely-mcp";
 var signingKey = mcpConfig["DevSigningKey"] ?? "motely-dev-signing-key-32-bytes!!";
 var allowDevToken = mcpConfig.GetValue<bool?>("AllowDevTokenIssuer") ?? builder.Environment.IsDevelopment();
+// Secure by default: require a token in Production, or whenever an authority is configured. In
+// Development with no authority, the server is open so the editor and web panel work out of the
+// box; POST /dev/token still mints a token if you want to exercise the auth flow.
+var requireAuth = !string.IsNullOrEmpty(authority) || !builder.Environment.IsDevelopment();
 
 builder.Services
     .AddAuthentication(options =>
@@ -104,7 +108,10 @@ var app = builder.Build();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapMcp("/mcp").RequireAuthorization().RequireCors("Web");
+var mcp = app.MapMcp("/mcp");
+mcp.RequireCors("Web");
+if (requireAuth)
+    mcp.RequireAuthorization();
 app.MapAGUI("/agui").RequireCors("Web");
 
 // Dev token issuer: mint a local token so a client can connect without an external IdP.
