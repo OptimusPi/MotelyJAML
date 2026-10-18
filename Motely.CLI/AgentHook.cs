@@ -7,7 +7,7 @@ namespace Motely.CLI;
 /// <c>motely hook</c>: a post-edit hook for coding agents (Claude Code, and VS Code agent plugins
 /// in the Claude layout). The event arrives as JSON on stdin; when the edited file is a Motely
 /// filter that no longer loads, the error goes to stderr with exit code 2, which is how a hook
-/// hands feedback back to the agent. Anything else, including YAML that isn't a filter, exits 0.
+/// hands feedback back to the agent. Anything else, including JAML that isn't a filter, exits 0.
 /// </summary>
 internal static partial class AgentHook
 {
@@ -18,7 +18,8 @@ internal static partial class AgentHook
         if (!TryReadEditedPath(Console.In.ReadToEnd(), out var path))
             return 0;
         if (!path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)
-            && !path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            && !path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)
+            && !path.EndsWith(".jaml", StringComparison.OrdinalIgnoreCase))
             return 0;
         if (!File.Exists(path))
             return 0;
@@ -72,11 +73,11 @@ internal static partial class AgentHook
     }
 
     /// <summary>
-    /// Filters live under YamlFilters/, or carry a root must:/should:/mustNot: list. Other YAML
+    /// Filters live under JamlFilters/, or carry a root must:/should:/mustNot: list. Other JAML
     /// (CI configs, compose files) is none of this hook's business.
     /// </summary>
     private static bool IsFilter(string path, string text) =>
-        path.Replace('\\', '/').Contains("/YamlFilters/", StringComparison.OrdinalIgnoreCase)
+        path.Replace('\\', '/').Contains("/JamlFilters/", StringComparison.OrdinalIgnoreCase)
         || ClauseListKey().IsMatch(text);
 
     [GeneratedRegex(@"^(must|should|mustNot)\s*:", RegexOptions.Multiline | RegexOptions.IgnoreCase)]

@@ -14,12 +14,12 @@ using Motely.Analysis;
 using Motely.Enums;
 using Motely.Filters;
 
-[assembly: Export(typeof(IYAMLFiles))]
+[assembly: Export(typeof(IJamlFiles))]
 
 /// <summary>Entry point; the exports below are live once <c>bootsharp.boot()</c> resolves.</summary>
 public static class Program
 {
-    /// <summary>Hands YAMLFiles its injected Bootsharp.FileSystem mounter (guide: dependency-injection).
+    /// <summary>Hands JamlFiles its injected Bootsharp.FileSystem mounter (guide: dependency-injection).
     /// Error messages are recorded by <see cref="Guard"/>'s explicit catch at each export boundary,
     /// not by AppDomain.FirstChanceException: on browser-wasm NativeAOT raising that event is itself
     /// the fatal "attempted to call a UnmanagedCallersOnly method from managed code", so it must not
@@ -30,7 +30,7 @@ public static class Program
         MotelyErrors.Thrown += Errors.Record;
         new ServiceCollection()
             .AddBootsharp()
-            .AddSingleton<IYAMLFiles, YAMLFilesModule>()
+            .AddSingleton<IJamlFiles, JamlFilesModule>()
             .BuildServiceProvider()
             .RunBootsharp();
     }
@@ -121,16 +121,16 @@ public static class Errors
     internal static void Record(Exception e) => LastMessage = e.Message;
 }
 
-/// <summary>The engine's filter loader (<see cref="Motely.Filters.YamlConfigLoader"/>).</summary>
-public static class YAMLConfigLoader
+/// <summary>The engine's filter loader (<see cref="Motely.Filters.JamlConfigLoader"/>).</summary>
+public static class JamlConfigLoader
 {
     /// <summary>Loads a filter. Throws when it does not load; the line-numbered reason is on
     /// <see cref="Errors.Last"/>.</summary>
     /// <param name="yaml">The filter text.</param>
     /// <returns>The engine's config.</returns>
     [Export]
-    public static YAMLConfig FromYAML(string yaml) =>
-        Guard.Run(() => Motely.Filters.YamlConfigLoader.FromYaml(yaml));
+    public static JamlConfig FromJaml(string yaml) =>
+        Guard.Run(() => Motely.Filters.JamlConfigLoader.FromJaml(yaml));
 
     /// <summary>The loader's verdict without a throw: null when the filter loads, otherwise the
     /// line-numbered reason.</summary>
@@ -138,61 +138,61 @@ public static class YAMLConfigLoader
     /// <returns>Null, or why the filter does not load.</returns>
     [Export]
     public static string? Check(string yaml) =>
-        Motely.Filters.YamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
+        Motely.Filters.JamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.MotelySearchBuilder"/>.</summary>
-public static class YAMLSearchBuilder
+public static class JamlSearchBuilder
 {
     /// <summary>The engine's search settings for a config, held by reference.</summary>
-    /// <param name="config">Config from <see cref="YAMLConfigLoader.FromYAML"/>.</param>
+    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
     /// <param name="engineCutoff">The score floor the scorer drops seeds below. Left out, the
     /// filter's own <c>cutoff:</c> applies (no floor when it has none).</param>
     /// <returns>The engine's settings; configure, then start.</returns>
     [Export]
-    public static IMotelySearchSettings CreateSettings(YAMLConfig config, int? engineCutoff = null) =>
+    public static IMotelySearchSettings CreateSettings(JamlConfig config, int? engineCutoff = null) =>
         Guard.Run(() => Motely.Filters.MotelySearchBuilder.CreateSettings(config, engineCutoff));
 }
 
-/// <summary>Engine's <see cref="Motely.Analysis.MotelyYAMLyzer"/>.</summary>
-public static class MotelyYAMLyzer
+/// <summary>Engine's <see cref="Motely.Analysis.MotelyJamlyzer"/>.</summary>
+public static class MotelyJamlyzer
 {
     /// <summary>One result per seed in the config's seeds.</summary>
-    /// <param name="config">Config from <see cref="YAMLConfigLoader.FromYAML"/>.</param>
+    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
     /// <param name="eventRolls">Size of each roll queue.</param>
     /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
-    /// <returns>The YAMLyzer results.</returns>
+    /// <returns>The Jamlyzer results.</returns>
     [Export]
-    public static IReadOnlyList<MotelyYAMLyzerSeedResult> Analyze(YAMLConfig config, int eventRolls = 20, int shopSlots = 0) =>
-        Guard.Run(() => Motely.Analysis.MotelyYAMLyzer.Analyze(config, eventRolls, shopSlots));
+    public static IReadOnlyList<MotelyJamlyzerSeedResult> Analyze(JamlConfig config, int eventRolls = 20, int shopSlots = 0) =>
+        Guard.Run(() => Motely.Analysis.MotelyJamlyzer.Analyze(config, eventRolls, shopSlots));
 
     /// <summary>Continues a scroll from a previous result's stream states. One seed only.</summary>
-    /// <param name="config">Config from <see cref="YAMLConfigLoader.FromYAML"/>.</param>
+    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
     /// <param name="resumeFrom">A previous result's stream states.</param>
     /// <param name="eventRolls">Size of each roll queue.</param>
     /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
-    /// <returns>The YAMLyzer results.</returns>
+    /// <returns>The Jamlyzer results.</returns>
     [Export]
-    public static IReadOnlyList<MotelyYAMLyzerSeedResult> Resume(
-        YAMLConfig config,
-        MotelyYAMLyzerStreamStates resumeFrom,
+    public static IReadOnlyList<MotelyJamlyzerSeedResult> Resume(
+        JamlConfig config,
+        MotelyJamlyzerStreamStates resumeFrom,
         int eventRolls = 20,
         int shopSlots = 0
-    ) => Guard.Run(() => Motely.Analysis.MotelyYAMLyzer.Analyze(config, resumeFrom, eventRolls, shopSlots));
+    ) => Guard.Run(() => Motely.Analysis.MotelyJamlyzer.Analyze(config, resumeFrom, eventRolls, shopSlots));
 
-    /// <summary>The YAMLyzer riding a search: each find arrives with its full breakdown.</summary>
-    /// <param name="config">Config from <see cref="YAMLConfigLoader.FromYAML"/>.</param>
+    /// <summary>The Jamlyzer riding a search: each find arrives with its full breakdown.</summary>
+    /// <param name="config">Config from <see cref="JamlConfigLoader.FromJaml"/>.</param>
     /// <param name="onAnalyzed">Receives each find's result.</param>
     /// <param name="eventRolls">Size of each roll queue.</param>
     /// <param name="shopSlots">Shop depth per ante; 0 keeps the defaults.</param>
     /// <returns>The engine's rider desc.</returns>
     [Export]
-    public static MotelyYAMLyzerRiderDesc CreateRiderDesc(
-        YAMLConfig config,
-        Action<MotelyYAMLyzerSeedResult> onAnalyzed,
+    public static MotelyJamlyzerRiderDesc CreateRiderDesc(
+        JamlConfig config,
+        Action<MotelyJamlyzerSeedResult> onAnalyzed,
         int eventRolls = 20,
         int shopSlots = 0
-    ) => Guard.Run(() => Motely.Analysis.MotelyYAMLyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots));
+    ) => Guard.Run(() => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots));
 }
 
 /// <summary>Renaming (guide: renaming).</summary>
@@ -209,7 +209,7 @@ public static class Names
     /// <returns>The module name.</returns>
     [RenameModule]
     public static string Module(Type type, string @default) =>
-        type.Assembly == typeof(Names).Assembly || type.Assembly == typeof(YAMLConfig).Assembly ? "index" : @default;
+        type.Assembly == typeof(Names).Assembly || type.Assembly == typeof(JamlConfig).Assembly ? "index" : @default;
 
     /// <summary>Erases types that cannot cross (see <see cref="CanCross(Type)"/>). The inspector
     /// still meets them on the way to the members <see cref="Member"/> erases; this keeps them out
@@ -224,8 +224,8 @@ public static class Names
         // Bootsharp names System.Action and System.Action<T> both "Action" in the system module,
         // and TypeScript has no arity overloads: the zero-argument one carries its arity.
         : type == typeof(Action) ? "Action0"
-        // An exported interface module is named after the interface minus its I; JS knows it as YAMLFiles.
-        : type == typeof(IYAMLFiles) ? "YAMLFiles"
+        // An exported interface module is named after the interface minus its I; JS knows it as JamlFiles.
+        : type == typeof(IJamlFiles) ? "JamlFiles"
         : @default;
 
     /// <summary>Erases members whose signature holds a type that cannot cross: the SIMD plumbing

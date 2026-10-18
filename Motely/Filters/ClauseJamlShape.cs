@@ -1,6 +1,6 @@
 namespace Motely.Filters;
 
-/// <summary>YAML-facing properties on filter clause types (Nat's YAML shorthand keys).</summary>
+/// <summary>JAML-facing properties on filter clause types (Nat's JAML shorthand keys).</summary>
 public sealed partial class JokerClause
 {
     public MotelyJoker[]? Joker { get => Jokers; set => Jokers = value ?? []; }
@@ -45,7 +45,7 @@ public sealed partial class LegendarySoulOrderClause
     }
 
     // The plain-loader rewrite dropped JamlValidator, whose CheckSoulOrder rejected a soulOrder
-    // list that can never match; keep that guard at the binding point, where the YAML value lands.
+    // list that can never match; keep that guard at the binding point, where the JAML value lands.
     private static SoulOrderEntry[] RequireSoulOrder(SoulOrderEntry[]? entries)
     {
         entries ??= [];
@@ -88,19 +88,19 @@ public sealed partial class TarotCardClause
 
 public sealed partial class StandardCardClause
 {
-    public YamlStandardCardSlot? StandardCard
+    public JamlStandardCardSlot? StandardCard
     {
         get => null;
         set => ApplyStandardCardSlot(value);
     }
 
-    public YamlStandardCardSlot? StandardCards
+    public JamlStandardCardSlot? StandardCards
     {
         get => null;
         set => ApplyStandardCardSlot(value);
     }
 
-    private void ApplyStandardCardSlot(YamlStandardCardSlot? slot)
+    private void ApplyStandardCardSlot(JamlStandardCardSlot? slot)
     {
         if (slot is null)
             return;
@@ -196,7 +196,7 @@ public sealed partial class StartingDrawClause
 
 public sealed partial class LuckyMoneyClause
 {
-    public YamlEventRolls LuckyMoney
+    public JamlEventRolls LuckyMoney
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -205,7 +205,7 @@ public sealed partial class LuckyMoneyClause
 
 public sealed partial class LuckyMultClause
 {
-    public YamlEventRolls LuckyMult
+    public JamlEventRolls LuckyMult
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -214,7 +214,7 @@ public sealed partial class LuckyMultClause
 
 public sealed partial class WheelOfFortuneClause
 {
-    public YamlEventRolls WheelOfFortune
+    public JamlEventRolls WheelOfFortune
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -223,7 +223,7 @@ public sealed partial class WheelOfFortuneClause
 
 public sealed partial class WheelStaysFlippedClause
 {
-    public YamlEventRolls WheelStaysFlipped
+    public JamlEventRolls WheelStaysFlipped
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -232,7 +232,7 @@ public sealed partial class WheelStaysFlippedClause
 
 public sealed partial class GlassDestroyClause
 {
-    public YamlEventRolls GlassDestroy
+    public JamlEventRolls GlassDestroy
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -241,7 +241,7 @@ public sealed partial class GlassDestroyClause
 
 public sealed partial class CavendishExtinctClause
 {
-    public YamlEventRolls CavendishExtinct
+    public JamlEventRolls CavendishExtinct
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -250,7 +250,7 @@ public sealed partial class CavendishExtinctClause
 
 public sealed partial class GrosMichelExtinctClause
 {
-    public YamlEventRolls GrosMichelExtinct
+    public JamlEventRolls GrosMichelExtinct
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -259,7 +259,7 @@ public sealed partial class GrosMichelExtinctClause
 
 public sealed partial class SpaceLevelupClause
 {
-    public YamlEventRolls SpaceLevelup
+    public JamlEventRolls SpaceLevelup
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -268,7 +268,7 @@ public sealed partial class SpaceLevelupClause
 
 public sealed partial class BusinessPayoutClause
 {
-    public YamlEventRolls BusinessPayout
+    public JamlEventRolls BusinessPayout
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -277,7 +277,7 @@ public sealed partial class BusinessPayoutClause
 
 public sealed partial class ParkingPayoutClause
 {
-    public YamlEventRolls ParkingPayout
+    public JamlEventRolls ParkingPayout
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -286,7 +286,7 @@ public sealed partial class ParkingPayoutClause
 
 public sealed partial class BloodstoneTriggerClause
 {
-    public YamlEventRolls BloodstoneTrigger
+    public JamlEventRolls BloodstoneTrigger
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();
@@ -295,7 +295,7 @@ public sealed partial class BloodstoneTriggerClause
 
 public sealed partial class MisprintMultClause
 {
-    public YamlEventRolls MisprintMult
+    public JamlEventRolls MisprintMult
     {
         get => new() { Rolls = Rolls };
         set => Rolls = value.ToArray();

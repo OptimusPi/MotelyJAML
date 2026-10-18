@@ -1,6 +1,6 @@
 // The engine's SIMD hooks (guide: specialization). Each interface is one member over a ref struct,
 // so a JS object can never implement one. These pairs make them handles: an engine-made filter desc,
-// score desc or YAMLyzer rider crosses to JS and back to the settings as itself; a JS-made one is
+// score desc or Jamlyzer rider crosses to JS and back to the settings as itself; a JS-made one is
 // a proxy that throws if the engine ever runs it.
 
 using Bootsharp;

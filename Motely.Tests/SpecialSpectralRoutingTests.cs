@@ -66,7 +66,7 @@ public class SpecialSpectralRoutingTests
     [Fact]
     public void TheSoulMust_FindsAleebViaSpecialSpectralRoute()
     {
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "t4-soul-aleeb",
             Deck = MotelyDeck.Red,

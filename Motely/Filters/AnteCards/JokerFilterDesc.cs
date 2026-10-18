@@ -33,7 +33,7 @@ public struct JokerFilterDesc(JokerClause clause)
     private readonly JokerClause _clause = clause;
 
     /// <summary>
-    /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in YAML).
+    /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
     /// The loader leaves Sources null — this is not parse/language. Shop slots only; packs and
     /// specialty streams require an explicit <c>sources:</c> block (wholesale, no merge).
     /// </summary>
@@ -351,7 +351,7 @@ public struct JokerFilterDesc(JokerClause clause)
 
 /// <summary>
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
-/// desc family (T5) — not on the dumb <see cref="YAMLConfig"/> bag.
+/// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
 [YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record JokerSourceConfig

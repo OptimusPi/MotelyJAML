@@ -16,7 +16,7 @@ namespace Motely.Tests;
 public class ImmolateCavendishPortTests(ITestOutputHelper output)
 {
     // Gros Michel anywhere in ante 1 — the one condition Motely can answer 8 seeds at a time.
-    private const string GateYAML = """
+    private const string GateJaml = """
         name: cavendish-gate
         deck: Red
         stake: White
@@ -59,7 +59,7 @@ public class ImmolateCavendishPortTests(ITestOutputHelper output)
     [Fact]
     public void PortedCavendishFilter_RunsBehindItsGate_AndEveryHitClearsIt()
     {
-        Assert.True(YamlConfigLoader.TryLoad(GateYAML, out var gate, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(GateJaml, out var gate, out var error), error);
 
         var hits = new List<string>();
         var settings = MotelySearchBuilder

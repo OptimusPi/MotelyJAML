@@ -3,7 +3,7 @@ namespace Motely.Tests;
 /// <summary>
 /// Pins legendary edition soul prefilter for any Min (not only Min==1), and expanded exact-confirm families.
 /// </summary>
-public sealed class YAMLLegendaryEditionPrefilterTests
+public sealed class JamlLegendaryEditionPrefilterTests
 {
     [Fact]
     public void Legendary_Edition_MinTwo_StillFindsHieroglyphSeedWhenRangeWide()
@@ -24,7 +24,7 @@ public sealed class YAMLLegendaryEditionPrefilterTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
@@ -47,7 +47,7 @@ public sealed class YAMLLegendaryEditionPrefilterTests
             Min = 2,
             Sources = new LegendaryJokerSourceConfig { BoosterPacks = [0, 1, 2, 3, 4, 5] },
         };
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "leg-min2",
             Deck = MotelyDeck.Red,

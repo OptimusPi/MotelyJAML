@@ -8,7 +8,7 @@ namespace Motely.Tests;
 /// defaults to 1..8 on its own record. Antes on the group is an unknown key.
 /// Neg free Oops package: Neg never ante 1, so both arms say [2..8] themselves.
 /// </summary>
-public class YAMLNegFreeOopsAndTests
+public class JamlNegFreeOopsAndTests
 {
     private const string Seed = "1F5WEAYR";
 
@@ -17,7 +17,7 @@ public class YAMLNegFreeOopsAndTests
 
     private static (long Matching, int? Score) Run(string yaml)
     {
-        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
         int? score = null;
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
@@ -36,7 +36,7 @@ public class YAMLNegFreeOopsAndTests
     public void AntesOnTheGroup_IsALoadError(string group)
     {
         Assert.False(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 $"""
                 must:
                   - {group}:
@@ -55,7 +55,7 @@ public class YAMLNegFreeOopsAndTests
     public void EachArm_KeepsItsOwnAntes_AndUnscopedArmsDefaultTo1Through8()
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 """
                 must:
                   - and:

@@ -7,10 +7,10 @@ namespace Motely.Tests;
 /// </summary>
 public static class ProofSearch
 {
-    public static YAMLConfig LoadOrThrow(string yaml)
+    public static JamlConfig LoadOrThrow(string yaml)
     {
-        if (!YamlConfigLoader.TryLoad(yaml, out var config, out var error) || config is null)
-            throw new InvalidOperationException($"YAML load failed: {error}");
+        if (!JamlConfigLoader.TryLoad(yaml, out var config, out var error) || config is null)
+            throw new InvalidOperationException($"JAML load failed: {error}");
         return config;
     }
 

@@ -4,7 +4,7 @@ namespace Motely.Tests;
 /// Pins P1 SIMD pack helpers: ante-1 slot reachability and Charm/Ethereal routing to the
 /// single match core (must ≡ should hits on a small seed list).
 /// </summary>
-public sealed class YAMLSimdPackSupportTests
+public sealed class JamlSimdPackSupportTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"];
 
@@ -48,7 +48,7 @@ public sealed class YAMLSimdPackSupportTests
 
     private static HashSet<string> RunMust(IMotelyClause clause)
     {
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "pack-must",
             Deck = MotelyDeck.Red,
@@ -70,7 +70,7 @@ public sealed class YAMLSimdPackSupportTests
     private static HashSet<string> RunShould(IMotelyClause clause)
     {
         clause.Score = 1;
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "pack-should",
             Deck = MotelyDeck.Red,
@@ -167,7 +167,7 @@ public sealed class YAMLSimdPackSupportTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)

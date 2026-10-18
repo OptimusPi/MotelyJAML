@@ -8,7 +8,7 @@ namespace Motely;
 // Collector below, which keeps only the top-N by score when given a real limit (push the new
 // high score on, evict the lowest off the bottom once the count exceeds it) — or all of them,
 // unbounded, when the caller passes int.MaxValue. Survivors get written to their final
-// destination — a YAML `seeds:` block on disk.
+// destination — a JAML `seeds:` block on disk.
 //
 // The pure text rewrite + collector both live here so the CLI (file IO) and Motely.Wasm (browser
 // File System Access) share one tested core.
@@ -63,20 +63,20 @@ public static class MotelyTopSeedSink
 
     /// <summary>
     /// Pure text transform: merge the given seeds into the top-level <c>seeds:</c> block of a
-    /// YAML document (appending the block if absent). Seeds already in the document are a seed
+    /// JAML document (appending the block if absent). Seeds already in the document are a seed
     /// provider the user curated — they stay, in front, in their original order; new finds go
     /// after them. No IO, no validation. The original newline style is preserved. Seeds are
     /// normalized (<see cref="MotelyGlobals.NormalizeSeed"/>) and de-duped — no count cap; the
     /// caller's Collector (if any) already decided how many survive.
     /// </summary>
-    public static string RewriteSeedsBlock(string yamlText, IReadOnlyList<string> seeds)
+    public static string RewriteSeedsBlock(string jamlText, IReadOnlyList<string> seeds)
     {
-        string normalizedNewline = yamlText.Contains("\r\n", StringComparison.Ordinal)
+        string normalizedNewline = jamlText.Contains("\r\n", StringComparison.Ordinal)
             ? "\r\n"
             : "\n";
 
-        var originalHasTrailingNewline = yamlText.EndsWith("\n", StringComparison.Ordinal);
-        var lines = yamlText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').ToList();
+        var originalHasTrailingNewline = jamlText.EndsWith("\n", StringComparison.Ordinal);
+        var lines = jamlText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').ToList();
 
         int seedsStart = FindTopLevelSeedsLine(lines);
         int seedsEndExclusive =
@@ -124,14 +124,14 @@ public static class MotelyTopSeedSink
     /// caught before it ever touches disk.
     /// </summary>
     public static bool TryRewriteAndValidate(
-        string yamlText,
+        string jamlText,
         IReadOnlyList<string> seeds,
         out string newText,
         out string? error
     )
     {
-        newText = RewriteSeedsBlock(yamlText, seeds);
-        if (!Motely.Filters.YamlConfigLoader.TryLoad(newText, out _, out var loadError))
+        newText = RewriteSeedsBlock(jamlText, seeds);
+        if (!Motely.Filters.JamlConfigLoader.TryLoad(newText, out _, out var loadError))
         {
             error = loadError ?? "The updated filter did not load.";
             return false;

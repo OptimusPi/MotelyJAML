@@ -294,7 +294,7 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "AndClause should not be empty after YAML load (validator / loader bug)."
+            "AndClause should not be empty after JAML load (validator / loader bug)."
         );
 
         // An AND counts COMPLETE conjunctions: min over children, not their sum.
@@ -321,11 +321,11 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "OrClause should not be empty after YAML load (validator / loader bug)."
+            "OrClause should not be empty after JAML load (validator / loader bug)."
         );
         Debug.Assert(
             clause.Min >= 1,
-            "OrClause.Min must be >= 1 after YAML load (validator / loader bug)."
+            "OrClause.Min must be >= 1 after JAML load (validator / loader bug)."
         );
 
         int matched = 0;
@@ -378,7 +378,7 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "AndClause should not be empty after YAML load (validator / loader bug)."
+            "AndClause should not be empty after JAML load (validator / loader bug)."
         );
 
         // Same min-of-children semantics as CountAndOccurrences: complete conjunctions only.
@@ -403,11 +403,11 @@ public static class ClauseScoring
     {
         Debug.Assert(
             clause.Clauses.Length > 0,
-            "OrClause should not be empty after YAML load (validator / loader bug)."
+            "OrClause should not be empty after JAML load (validator / loader bug)."
         );
         Debug.Assert(
             clause.Min >= 1,
-            "OrClause.Min must be >= 1 after YAML load (validator / loader bug)."
+            "OrClause.Min must be >= 1 after JAML load (validator / loader bug)."
         );
 
         int matched = 0;
@@ -1269,7 +1269,7 @@ public static class ClauseScoring
 
     // ── Event clauses ──
     // `rolls` are absolute indices into the event's own PRNG stream: roll i is the i-th pull,
-    // the same index the SIMD event filters walk (sorted, 0..max) and the YAMLyzer's event queues
+    // the same index the SIMD event filters walk (sorted, 0..max) and the Jamlyzer's event queues
     // report. Each requested index counts once, and the whole count is returned: the tally
     // reports every hit, and min/max are judged by the caller (MeetsOccurrenceBounds / should
     // min-gating), never cut short here.

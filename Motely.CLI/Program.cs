@@ -6,10 +6,11 @@ using Motely.Analysis;
 using Motely.CLI;
 using Motely.Enums;
 
-// motely: search a YAML filter, or analyze seeds.
+// motely: search a JAML filter, or analyze seeds.
 // stdout carries results only (CSV rows, or --analyze text); everything else goes to stderr.
 // Exit codes: 0 finished, 1 bad input, 130 interrupted.
 //   motely check <filters>   does each filter load? 0 yes, 1 no.
+//   motely schema            write the filter JSON Schema + TextMate grammar from the engine.
 //   motely hook              coding-agent post-edit hook: exit 2 with the error when an edited filter breaks.
 // The MCP server is its own program: Motely.MCP.
 
@@ -32,9 +33,9 @@ using var sigint = PosixSignalRegistration.Create(PosixSignal.SIGINT, Interrupt)
 using var sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, Interrupt);
 using var sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, Interrupt);
 
-Option<string> yamlOption = new("--yaml")
+Option<string> jamlOption = new("--jaml")
 {
-    Description = "Filter file (YAML or JSON).",
+    Description = "Filter file (JAML or JSON).",
 };
 Option<string> analyzeOption = new("--analyze")
 {
@@ -60,7 +61,7 @@ Option<int?> randomOption = new("--random") { Description = "Search N random see
 Option<string> aestheticOption = new("--aesthetic")
 {
     Description =
-        $"Search one aesthetic seed family: {MotelyAestheticParser.KnownYAMLStringsDescription()} ('all' runs every family in turn).",
+        $"Search one aesthetic seed family: {MotelyAestheticParser.KnownJamlStringsDescription()} ('all' runs every family in turn).",
 };
 Option<string> paddingOption = new("--padding")
 {
@@ -101,7 +102,7 @@ Option<bool> quietOption = new("--quiet", "-q") { Description = "No startup line
 
 Argument<string[]> checkFiltersArgument = new("filters")
 {
-    Description = "Filter files, or bare names for YamlFilters/<name>.yaml.",
+    Description = "Filter files, or bare names for JamlFilters/<name>.yaml.",
     Arity = ArgumentArity.OneOrMore,
 };
 Command checkCommand = new("check", "Check that each filter loads and builds a search plan.") { checkFiltersArgument };
@@ -113,11 +114,25 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
+Option<string?> schemaOutOption = new("--out")
+{
+    Description = "Directory for the schema and grammar (default: the checkout's schema/ and vscode-jaml/syntaxes/).",
+};
+Command schemaCommand = new(
+    "schema",
+    "Write the filter JSON Schema and TextMate grammar, generated from the engine's own vocabulary."
+)
+{
+    schemaOutOption,
+};
+schemaCommand.SetAction(parseResult => SchemaWriter.Run(parseResult.GetValue(schemaOutOption)));
+
 RootCommand rootCommand = new("Balatro seed search.")
 {
     checkCommand,
     hookCommand,
-    yamlOption,
+    schemaCommand,
+    jamlOption,
     analyzeOption,
     deckOption,
     stakeOption,
@@ -146,11 +161,11 @@ rootCommand.SetAction(
     {
         if (parseResult.GetValue(analyzeOption) is { } seedList)
             return Analyze(parseResult, seedList);
-        if (parseResult.GetValue(yamlOption) is { } filterPath)
+        if (parseResult.GetValue(jamlOption) is { } filterPath)
             return await SearchAsync(parseResult, filterPath, cancellationToken);
         if (args.Length > 0)
         {
-            Console.Error.WriteLine("Error: give --yaml <PATH> to search, or --analyze <SEEDS>.");
+            Console.Error.WriteLine("Error: give --jaml <PATH> to search, or --analyze <SEEDS>.");
             return 1;
         }
         return await rootCommand.Parse(["--help"]).InvokeAsync(cancellationToken: cancellationToken);
@@ -200,10 +215,10 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
         Console.Error.WriteLine($"Error: no filter file at {Path.GetFullPath(path)}.");
         return 1;
     }
-    YAMLConfig config;
+    JamlConfig config;
     try
     {
-        config = YamlConfigLoader.FromFile(path);
+        config = JamlConfigLoader.FromFile(path);
     }
     catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
     {
@@ -231,7 +246,7 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             $"Warning: cutoff {cutoffText} with no should: clauses — every seed scores 0, so nothing will print."
         );
 
-    YAMLSearchPlan plan;
+    JamlSearchPlan plan;
     try
     {
         // A fixed floor goes into the engine, so low scores are dropped before any callback.
@@ -268,9 +283,9 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             new CliSearchMode.Input(
                 SeedsArgument: seedsArgument,
                 Replay: replay,
-                YAMLPath: path,
+                JamlPath: path,
                 FilterId: config.Id,
-                YAMLSeeds: config.Seeds,
+                JamlSeeds: config.Seeds,
                 KeywordInputs: keywords,
                 // Unset padding is spelled out as the whole alphabet: that is what a bare keyword
                 // means, short ones included, and the space aesthetics default to.

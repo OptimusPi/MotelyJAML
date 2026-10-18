@@ -2,13 +2,13 @@ using Motely.Filters;
 
 namespace Motely.Tests;
 
-public sealed class YAMLFileLoadTests
+public sealed class JamlFileLoadTests
 {
     [Fact]
-    public void TestYAMLFiles_AllLoadAndPlan()
+    public void TestJamlFiles_AllLoadAndPlan()
     {
-        var dir = Path.Join(AppContext.BaseDirectory, "YamlFilters");
-        Assert.True(Directory.Exists(dir), $"Test YAML files not in output: {dir}");
+        var dir = Path.Join(AppContext.BaseDirectory, "JamlFilters");
+        Assert.True(Directory.Exists(dir), $"Test JAML files not in output: {dir}");
 
         var files = Directory
             .GetFiles(dir, "*.yaml", SearchOption.AllDirectories)
@@ -21,7 +21,7 @@ public sealed class YAMLFileLoadTests
         foreach (var file in files)
         {
             var content = File.ReadAllText(file);
-            if (!YamlConfigLoader.TryLoad(content, out var config, out var error))
+            if (!JamlConfigLoader.TryLoad(content, out var config, out var error))
             {
                 failures.Add($"{Path.GetRelativePath(dir, file)}: {error}");
                 continue;

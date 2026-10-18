@@ -55,7 +55,7 @@ public static class MotelySeedKeywordSequences
     // All keywords must be 4–8 chars, using only 1-9A-Z (no zero), and unique within their list.
 
     /// <summary>
-    /// Baked padded-seed totals for YAML keyword aesthetics (<see cref="MotelyAesthetics.GetSeedCount"/>).
+    /// Baked padded-seed totals for JAML keyword aesthetics (<see cref="MotelyAesthetics.GetSeedCount"/>).
     /// Must match <see cref="MotelyGlobals.GetPaddedSeedCountForKeywordsLong"/> for the paired <c>*Keywords</c> array;
     /// recompute with a one-off console if those tables change (see <c>Motely.Tests</c> guard test).
     /// </summary>
@@ -72,7 +72,7 @@ public static class MotelySeedKeywordSequences
     public const long NsfwKeywordAestheticSeedCount = 302_944_676L;
 
     /// <summary>
-    /// Lazy generator that yields every padded seed for the keyword-backed YAML aesthetics
+    /// Lazy generator that yields every padded seed for the keyword-backed JAML aesthetics
     /// (<see cref="MotelyAesthetic.Gross"/>, <see cref="MotelyAesthetic.Funny"/>,
     /// <see cref="MotelyAesthetic.Balatro"/>, <see cref="MotelyAesthetic.Nsfw"/>). Palindrome and Psychosis
     /// aren't keyword sequences — they live next to their own generators.

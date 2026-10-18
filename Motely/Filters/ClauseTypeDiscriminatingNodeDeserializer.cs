@@ -6,14 +6,14 @@ using YamlDotNet.Serialization.BufferedDeserialization.TypeDiscriminators;
 namespace Motely.Filters;
 
 /// <summary>
-/// Picks a concrete clause type from Nat's YAML discriminator keys, then lets YamlDotNet bind properties.
+/// Picks a concrete clause type from Nat's JAML discriminator keys, then lets YamlDotNet bind properties.
 /// </summary>
 internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializer
 {
     private const int MaxBufferDepth = 128;
     private const int MaxBufferLength = 1_048_576;
 
-    private readonly UniqueKeyTypeDiscriminator _discriminator = new(typeof(IMotelyClause), YamlClauseBinding.ClauseTypeByKey);
+    private readonly UniqueKeyTypeDiscriminator _discriminator = new(typeof(IMotelyClause), JamlClauseBinding.ClauseTypeByKey);
 
     public bool Deserialize(
         IParser reader,

@@ -11,34 +11,48 @@ namespace Motely;
 public static class FilterCheck
 {
     /// <summary>
-    /// A real path (full or relative) is used as given; a bare name is &lt;filters&gt;/&lt;name&gt;.yaml, where
-    /// &lt;filters&gt; is MOTELY_FILTERS_DIR when set and YamlFilters/ otherwise. Aspire sets it: its
-    /// resources run in their own project directory, not the repo root.
+    /// A real path (full or relative) is used as given; a bare name is the first existing of
+    /// &lt;filters&gt;/&lt;name&gt;.yaml, .yml, .jaml, where &lt;filters&gt; is MOTELY_FILTERS_DIR when set and
+    /// JamlFilters/ otherwise. Aspire sets it: its resources run in their own project directory, not the
+    /// repo root.
     /// </summary>
-    public static string ResolvePath(string filter) =>
-        File.Exists(filter) ? filter : Path.Combine(FiltersDirectory, filter + ".yaml");
+    public static string ResolvePath(string filter)
+    {
+        if (File.Exists(filter))
+            return filter;
+        foreach (var extension in FilterExtensions)
+        {
+            var candidate = Path.Combine(FiltersDirectory, filter + extension);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+        return Path.Combine(FiltersDirectory, filter + FilterExtensions[0]);
+    }
+
+    /// <summary>A JAML filter is written .yaml (the default), .yml, or .jaml.</summary>
+    private static readonly string[] FilterExtensions = [".yaml", ".yml", ".jaml"];
 
     private static string FiltersDirectory =>
-        Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is { Length: > 0 } directory ? directory : "YamlFilters";
+        Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is { Length: > 0 } directory ? directory : "JamlFilters";
 
-    /// <summary>A directory stands for every .yaml/.yml file in it; anything else goes through <see cref="ResolvePath"/>.</summary>
+    /// <summary>A directory stands for every .yaml/.yml/.jaml file in it; anything else goes through <see cref="ResolvePath"/>.</summary>
     private static IEnumerable<string> Expand(string filter) =>
         Directory.Exists(filter)
             ? Directory
                 .EnumerateFiles(filter)
-                .Where(static f => f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                .Where(static f => FilterExtensions.Any(e => f.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
                 .Order(StringComparer.OrdinalIgnoreCase)
             : [ResolvePath(filter)];
 
     public static bool TryCheck(
         string text,
-        [NotNullWhen(true)] out YAMLConfig? config,
-        [NotNullWhen(true)] out YAMLSearchPlan? plan,
+        [NotNullWhen(true)] out JamlConfig? config,
+        [NotNullWhen(true)] out JamlSearchPlan? plan,
         [NotNullWhen(false)] out string? error
     )
     {
         plan = null;
-        if (!YamlConfigLoader.TryLoad(text, out config, out var loadError))
+        if (!JamlConfigLoader.TryLoad(text, out config, out var loadError))
         {
             error = loadError ?? "the filter did not load.";
             return false;
@@ -85,7 +99,7 @@ public static class FilterCheck
             }
             if (checkedHere == 0)
             {
-                Console.Error.WriteLine($"{filter}: no .yaml or .yml files");
+                Console.Error.WriteLine($"{filter}: no .yaml, .yml or .jaml files");
                 failed++;
             }
         }

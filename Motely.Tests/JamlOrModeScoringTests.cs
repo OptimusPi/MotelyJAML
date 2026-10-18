@@ -8,15 +8,15 @@ namespace Motely.Tests;
 /// only the best arm (deep shop chunks / multi-window "land on the best one").
 /// Ground truth seed MOTELY77 Red/White ante 1: Polychrome Tag + Tarot Merchant both hit.
 /// </summary>
-public class YAMLOrModeScoringTests
+public class JamlOrModeScoringTests
 {
     private const string Seed = "MOTELY77";
 
     private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
@@ -41,7 +41,7 @@ public class YAMLOrModeScoringTests
     public void OrMode_Omitted_DefaultsToSum()
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 """
                 name: or-mode-default
                 deck: Red
@@ -66,7 +66,7 @@ public class YAMLOrModeScoringTests
     public void OrMode_Max_Parses()
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 """
                 name: or-mode-max-parse
                 deck: Red
@@ -93,7 +93,7 @@ public class YAMLOrModeScoringTests
     public void OrMode_Unknown_HardError()
     {
         Assert.False(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 """
                 name: or-mode-bad
                 deck: Red
@@ -171,7 +171,7 @@ public class YAMLOrModeScoringTests
     public void OrMode_Max_Loads()
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(
+            JamlConfigLoader.TryLoad(
                 """
                 name: or-mode-roundtrip
                 deck: Red
@@ -218,7 +218,7 @@ public class YAMLOrModeScoringTests
             """;
 
         Assert.True(
-            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
             error
         );
 

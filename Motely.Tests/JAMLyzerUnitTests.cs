@@ -2,15 +2,15 @@ using Motely.Analysis;
 
 namespace Motely.Tests;
 
-public sealed class YAMLyzerUnitTests
+public sealed class JAMLyzerUnitTests
 {
-    private static YAMLConfig SeedConfig(
+    private static JamlConfig SeedConfig(
         string seed,
         MotelyDeck deck = MotelyDeck.Red,
         MotelyStake stake = MotelyStake.White
     )
     {
-        var config = YamlConfigLoader.FromYaml("seeds: []");
+        var config = JamlConfigLoader.FromJaml("seeds: []");
         config.Seeds.Add(seed);
         config.Deck = deck;
         config.Stake = stake;
@@ -23,7 +23,7 @@ public sealed class YAMLyzerUnitTests
     [InlineData("1234567")]
     public void Analyze_ReturnsSeedWithNineAntes(string seed)
     {
-        var results = MotelyYAMLyzer.Analyze(SeedConfig(seed));
+        var results = MotelyJamlyzer.Analyze(SeedConfig(seed));
         Assert.Single(results);
         Assert.Equal(seed, results[0].Seed);
         Assert.Equal(9, results[0].Antes.Count);
@@ -32,10 +32,10 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_ScopedAnteZeroEmitsAnteZeroRow()
     {
-        var config = YamlConfigLoader.FromYaml(
+        var config = JamlConfigLoader.FromJaml(
             "must:\n  - legendaryJoker: Perkeo\n    antes: [0, 1]\nseeds: [UNITTEST]"
         );
-        var results = MotelyYAMLyzer.Analyze(config);
+        var results = MotelyJamlyzer.Analyze(config);
         Assert.Single(results);
         Assert.Equal(2, results[0].Antes.Count);
         Assert.Equal(0, results[0].Antes[0].Ante);
@@ -47,7 +47,7 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_AnteOneHasFourPacks()
     {
-        var results = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"));
+        var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
         Assert.Equal(4, results[0].Antes[0].Packs.Count);
         Assert.Equal(4, results[0].Antes[1].Packs.Count);
     }
@@ -55,7 +55,7 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_AnteTwoPlusSixPacks()
     {
-        var results = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"));
+        var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
         for (int i = 2; i < 9; i++)
             Assert.Equal(6, results[0].Antes[i].Packs.Count);
     }
@@ -63,7 +63,7 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_AnteNumbersAreSequential()
     {
-        var results = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"));
+        var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
         for (int i = 0; i < 9; i++)
             Assert.Equal(i, results[0].Antes[i].Ante);
     }
@@ -77,7 +77,7 @@ public sealed class YAMLyzerUnitTests
         // These Red/White seeds each hold one ante-1 Soul at a known pack slot — the same seeds
         // LegendaryPackIndexTests pins the legendaryJoker clause against. The analyser's run-global
         // LegendaryOrder must find exactly that one Soul, at that slot.
-        var order = MotelyYAMLyzer.Analyze(SeedConfig(seed), eventRolls: 1)[0].LegendaryOrder;
+        var order = MotelyJamlyzer.Analyze(SeedConfig(seed), eventRolls: 1)[0].LegendaryOrder;
         var entry = Assert.Single(order);
         Assert.Equal(1, entry.Ante);
         Assert.Equal(expectedSlot, entry.PackSlot);
@@ -91,7 +91,7 @@ public sealed class YAMLyzerUnitTests
     public void Analyze_EventRollsLengthMatchesParameter()
     {
         const int rolls = 5;
-        var results = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: rolls);
+        var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: rolls);
         var events = results[0].Events;
         Assert.Equal(rolls, events.LuckyMoney.Length);
         Assert.Equal(rolls, events.WheelOfFortune.Length);
@@ -113,11 +113,11 @@ public sealed class YAMLyzerUnitTests
     public void Analyze_ResumeFromStateBag_ContinuesExactlyWhereItStopped()
     {
         // One uninterrupted window of 20.
-        var full = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
+        var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
 
         // First 10, then resume from the returned state bag for 10 more.
-        var page1 = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
-        var page2 = MotelyYAMLyzer.Analyze(
+        var page1 = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
+        var page2 = MotelyJamlyzer.Analyze(
             SeedConfig("UNITTEST"),
             page1.StreamStates,
             eventRolls: 10
@@ -233,10 +233,10 @@ public sealed class YAMLyzerUnitTests
     public void Analyze_ChainedResume_ThreeUnequalPagesReconstructFullWindow()
     {
         // 5 + 8 + 7 = 20, three different page sizes chained through the state bag.
-        var full = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
-        var a = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 5)[0];
-        var b = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, eventRolls: 8)[0];
-        var c = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), b.StreamStates, eventRolls: 7)[0];
+        var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 20)[0];
+        var a = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 5)[0];
+        var b = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, eventRolls: 8)[0];
+        var c = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), b.StreamStates, eventRolls: 7)[0];
 
         Assert.Equal(20, full.StreamStates.RollOffset);
         Assert.Equal(5, a.StreamStates.RollOffset);
@@ -265,12 +265,12 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_MultipleSeeds_ReturnsOneResultEach()
     {
-        var config = YamlConfigLoader.FromYaml("seeds: []");
+        var config = JamlConfigLoader.FromJaml("seeds: []");
         config.Seeds.Add("UNITTEST");
         config.Seeds.Add("ALEEB");
         config.Seeds.Add("1234567");
 
-        var results = MotelyYAMLyzer.Analyze(config);
+        var results = MotelyJamlyzer.Analyze(config);
         Assert.Equal(3, results.Count);
         Assert.Equal("UNITTEST", results[0].Seed);
         Assert.Equal("ALEEB", results[1].Seed);
@@ -282,21 +282,21 @@ public sealed class YAMLyzerUnitTests
     {
         string[] seeds = ["UNITTEST", "ALEEB", "1234567"];
 
-        static YAMLConfig Config(string[] seeds)
+        static JamlConfig Config(string[] seeds)
         {
-            var c = YamlConfigLoader.FromYaml("seeds: []");
+            var c = JamlConfigLoader.FromJaml("seeds: []");
             foreach (var s in seeds)
                 c.Seeds.Add(s);
             return c;
         }
 
         // Each seed's uninterrupted 20-roll window, keyed by seed.
-        var full = MotelyYAMLyzer.Analyze(Config(seeds), eventRolls: 20).ToDictionary(r => r.Seed);
+        var full = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 20).ToDictionary(r => r.Seed);
 
         // Page all three seeds together: 10 rolls, then resume each from ITS OWN bag for 10 more.
-        var page1 = MotelyYAMLyzer.Analyze(Config(seeds), eventRolls: 10);
+        var page1 = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 10);
         var resume = page1.ToDictionary(r => r.Seed, r => r.StreamStates);
-        var page2 = MotelyYAMLyzer.Analyze(Config(seeds), resume, eventRolls: 10);
+        var page2 = MotelyJamlyzer.Analyze(Config(seeds), resume, eventRolls: 10);
 
         // Each seed's stitched end-state equals that seed's full-window end-state — bags stay per-seed.
         foreach (var p2 in page2)
@@ -319,19 +319,19 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_MultiSeedResume_SeedAbsentFromMapStartsFresh()
     {
-        var config = YamlConfigLoader.FromYaml("seeds: []");
+        var config = JamlConfigLoader.FromJaml("seeds: []");
         config.Seeds.Add("UNITTEST");
         config.Seeds.Add("ALEEB");
 
         // Map carries only UNITTEST's bag; ALEEB is absent → must start fresh at offset 0, not throw.
-        var seeded = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
-        var fresh = MotelyYAMLyzer.Analyze(SeedConfig("ALEEB"), eventRolls: 10)[0];
+        var seeded = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0];
+        var fresh = MotelyJamlyzer.Analyze(SeedConfig("ALEEB"), eventRolls: 10)[0];
 
-        var resume = new Dictionary<string, MotelyYAMLyzerStreamStates>
+        var resume = new Dictionary<string, MotelyJamlyzerStreamStates>
         {
             [seeded.Seed] = seeded.StreamStates,
         };
-        var results = MotelyYAMLyzer.Analyze(config, resume, eventRolls: 10);
+        var results = MotelyJamlyzer.Analyze(config, resume, eventRolls: 10);
 
         var aleeb = results.Single(r => r.Seed == "ALEEB");
         Assert.Equal(10, aleeb.StreamStates.RollOffset); // fresh window, not resumed
@@ -344,7 +344,7 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_GhostDeck_Runs()
     {
-        var results = MotelyYAMLyzer.Analyze(
+        var results = MotelyJamlyzer.Analyze(
             SeedConfig("KK1XD111", MotelyDeck.Ghost, MotelyStake.Black)
         );
         Assert.Single(results);
@@ -354,17 +354,17 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void ComputeAntes_NoAnteClause_ReturnsZeroThroughEight()
     {
-        var config = YamlConfigLoader.FromYaml("seeds: []");
-        var antes = MotelyYAMLyzer.ComputeAntes(config);
+        var config = JamlConfigLoader.FromJaml("seeds: []");
+        var antes = MotelyJamlyzer.ComputeAntes(config);
         Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8], antes);
     }
 
     [Fact]
     public void Analyze_ShopItems_PagedAndResumed_ReconstructsContinuousStream()
     {
-        var full = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 50)[0];
-        var a = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 25)[0];
-        var b = MotelyYAMLyzer.Analyze(
+        var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 50)[0];
+        var a = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 25)[0];
+        var b = MotelyJamlyzer.Analyze(
             SeedConfig("UNITTEST"),
             a.StreamStates,
             shopSlots: 25
@@ -389,17 +389,17 @@ public sealed class YAMLyzerUnitTests
     {
         Assert.Equal(
             20,
-            MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 20)[0].Antes[1]
+            MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 20)[0].Antes[1]
                 .ShopItems.Count
         );
 
         // eventRolls sizes the roll queues and leaves the shop on its default.
-        var rolls = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 200)[0];
+        var rolls = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 200)[0];
         Assert.Equal(15, rolls.Antes[1].ShopItems.Count);
         Assert.Equal(200, rolls.Antes[1].ShopStreams.ShopTarots.Count);
 
         // ...and shopSlots sizes the shop and leaves the roll queues on theirs.
-        var shop = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 200)[0];
+        var shop = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 200)[0];
         Assert.Equal(200, shop.Antes[1].ShopItems.Count);
         Assert.Equal(20, shop.Antes[1].ShopStreams.ShopTarots.Count);
     }
@@ -413,12 +413,12 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_ResumedShop_DefaultAndExplicitWindowsTileTheQueue()
     {
-        var full = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0, shopSlots: 200)[0];
+        var full = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0, shopSlots: 200)[0];
 
-        var a = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0)[0]; // default depth
-        var b = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, 0)[0]; // default again
-        var c = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), b.StreamStates, 0, 7)[0]; // explicit 7
-        var d = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), c.StreamStates, 0)[0]; // default again
+        var a = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 0)[0]; // default depth
+        var b = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), a.StreamStates, 0)[0]; // default again
+        var c = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), b.StreamStates, 0, 7)[0]; // explicit 7
+        var d = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), c.StreamStates, 0)[0]; // default again
 
         Assert.Equal(9, full.Antes.Count);
         for (int i = 0; i < full.Antes.Count; i++)
@@ -447,48 +447,48 @@ public sealed class YAMLyzerUnitTests
     [Theory]
     [InlineData(-1, 0)]
     [InlineData(int.MinValue, 0)]
-    [InlineData(MotelyYAMLyzer.MaxEventRolls + 1, 0)]
+    [InlineData(MotelyJamlyzer.MaxEventRolls + 1, 0)]
     [InlineData(int.MaxValue, 0)]
     [InlineData(20, -1)]
-    [InlineData(20, MotelyYAMLyzer.MaxShopSlots + 1)]
+    [InlineData(20, MotelyJamlyzer.MaxShopSlots + 1)]
     [InlineData(20, int.MaxValue)]
     public void Analyze_OutOfRangeWindow_ThrowsArgumentOutOfRange(int eventRolls, int shopSlots)
     {
         // JS can pass anything; the call must say what is wrong.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
+            MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
         );
         // Checked up front, so a seedless config is no way around it.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelyYAMLyzer.Analyze(YamlConfigLoader.FromYaml("seeds: []"), eventRolls, shopSlots)
+            MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
         );
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new MotelyYAMLyzerRiderDesc(MotelyYAMLyzer.AllAntes, _ => { }, eventRolls, shopSlots)
+            new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
         );
     }
 
     [Fact]
     public void Analyze_AtTheCaps_IsAccepted()
     {
-        var config = YamlConfigLoader.FromYaml(
+        var config = JamlConfigLoader.FromJaml(
             "must:\n  - voucher: Overstock\n    antes: [1]\nseeds: [UNITTEST]"
         );
-        var r = MotelyYAMLyzer.Analyze(
+        var r = MotelyJamlyzer.Analyze(
             config,
-            MotelyYAMLyzer.MaxEventRolls,
-            MotelyYAMLyzer.MaxShopSlots
+            MotelyJamlyzer.MaxEventRolls,
+            MotelyJamlyzer.MaxShopSlots
         )[0];
         var ante1 = r.Antes.Single(a => a.Ante == 1);
-        Assert.Equal(MotelyYAMLyzer.MaxEventRolls, ante1.Pulls.JudgementJokers.Count);
-        Assert.Equal(MotelyYAMLyzer.MaxShopSlots, ante1.ShopItems.Count);
+        Assert.Equal(MotelyJamlyzer.MaxEventRolls, ante1.Pulls.JudgementJokers.Count);
+        Assert.Equal(MotelyJamlyzer.MaxShopSlots, ante1.ShopItems.Count);
     }
 
-    public static TheoryData<string, Func<MotelyYAMLyzerStreamStates, MotelyYAMLyzerStreamStates>> CorruptBags =>
+    public static TheoryData<string, Func<MotelyJamlyzerStreamStates, MotelyJamlyzerStreamStates>> CorruptBags =>
         new()
         {
             { "negative RollOffset", s => s with { RollOffset = -5 } },
             { "RollOffset int.MaxValue", s => s with { RollOffset = int.MaxValue } },
-            { "RollOffset past the cap", s => s with { RollOffset = MotelyYAMLyzer.MaxEventRolls } },
+            { "RollOffset past the cap", s => s with { RollOffset = MotelyJamlyzer.MaxEventRolls } },
             { "negative ShopOffset", s => s with { ShopOffset = -5 } },
             { "ShopOffset int.MaxValue", s => s with { ShopOffset = int.MaxValue } },
             { "negative ShopDefaultWindows", s => s with { ShopDefaultWindows = -1 } },
@@ -509,12 +509,12 @@ public sealed class YAMLyzerUnitTests
     [MemberData(nameof(CorruptBags))]
     public void Analyze_ResumeFromCorruptBag_ThrowsArgumentOutOfRange(
         string _,
-        Func<MotelyYAMLyzerStreamStates, MotelyYAMLyzerStreamStates> corrupt
+        Func<MotelyJamlyzerStreamStates, MotelyJamlyzerStreamStates> corrupt
     )
     {
-        var good = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
+        var good = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), corrupt(good), eventRolls: 10)
+            MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), corrupt(good), eventRolls: 10)
         );
         Assert.Equal("resumeFrom", ex.ParamName);
     }
@@ -522,24 +522,24 @@ public sealed class YAMLyzerUnitTests
     [Fact]
     public void Analyze_ResumeWithNoSeeds_ReturnsNoRows()
     {
-        var bag = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
+        var bag = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 10)[0].StreamStates;
         // Was ArgumentOutOfRangeException "Index was out of range" from config.Seeds[0].
-        Assert.Empty(MotelyYAMLyzer.Analyze(YamlConfigLoader.FromYaml("seeds: []"), bag, 10));
+        Assert.Empty(MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), bag, 10));
     }
 
     /// <summary>
-    /// YAML antes run to 39, and the YAMLyzer redeems one voucher per ante. From ante 33 on every
+    /// JAML antes run to 39, and the Jamlyzer redeems one voucher per ante. From ante 33 on every
     /// voucher is redeemed, and the voucher resample loop could never land on an unredeemed one:
     /// Analyze spun forever (in the browser, a frozen tab). Balatro's empty pool offers Blank.
     /// </summary>
     [Fact]
     public async Task Analyze_AntesPastTheVoucherPool_FinishesWithBlank()
     {
-        var config = YamlConfigLoader.FromYaml(
+        var config = JamlConfigLoader.FromJaml(
             "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
         );
         // Off the test thread with a deadline: a hang fails here instead of stalling the run.
-        var result = await Task.Run(() => MotelyYAMLyzer.Analyze(config, eventRolls: 3)[0])
+        var result = await Task.Run(() => MotelyJamlyzer.Analyze(config, eventRolls: 3)[0])
             .WaitAsync(TimeSpan.FromSeconds(60));
 
         var antes = result.Antes.Where(a => a.Ante >= 1).ToList();
@@ -558,14 +558,14 @@ public sealed class YAMLyzerUnitTests
     }
 
     /// <summary>
-    /// Same YAML, same answer: repeated calls agree, and a batched multi-seed call (with scoring,
+    /// Same JAML, same answer: repeated calls agree, and a batched multi-seed call (with scoring,
     /// on the Erratic deck) equals the same seeds analyzed one at a time.
     /// </summary>
     [Fact]
     public void Analyze_IsDeterministic_AndBatchedEqualsOneAtATime()
     {
         string[] seeds = ["UNITTEST", "ALEEB", "1234567", "KK1XD111", "11111111", "ZZZZZZZZ"];
-        const string YAML = """
+        const string Jaml = """
             deck: Erratic
             must:
               - joker: []
@@ -577,17 +577,17 @@ public sealed class YAMLyzerUnitTests
                 score: 1
             seeds: []
             """;
-        YAMLConfig Config(params string[] s)
+        JamlConfig Config(params string[] s)
         {
-            var c = YamlConfigLoader.FromYaml(YAML);
+            var c = JamlConfigLoader.FromJaml(Jaml);
             c.Seeds.AddRange(s);
             return c;
         }
 
-        var batched = MotelyYAMLyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
-        var again = MotelyYAMLyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
+        var batched = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
+        var again = MotelyJamlyzer.Analyze(Config(seeds), eventRolls: 6, shopSlots: 9);
         var single = seeds
-            .SelectMany(s => MotelyYAMLyzer.Analyze(Config(s), eventRolls: 6, shopSlots: 9))
+            .SelectMany(s => MotelyJamlyzer.Analyze(Config(s), eventRolls: 6, shopSlots: 9))
             .ToList();
 
         Assert.Equal(seeds, batched.Select(r => r.Seed));
@@ -597,19 +597,19 @@ public sealed class YAMLyzerUnitTests
         Assert.Equal(batched.Select(Fingerprint), single.Select(Fingerprint));
     }
 
-    private static string Fingerprint(MotelyYAMLyzerSeedResult r) =>
+    private static string Fingerprint(MotelyJamlyzerSeedResult r) =>
         System.Text.Json.JsonSerializer.Serialize(r);
 
     /// <summary>A deep ante-1 shop is one call and the items keep coming: the stream never dries up.</summary>
     [Fact]
     public void Analyze_ShopSlots_WalksPastTheAnteOneDefault()
     {
-        var deep = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 500)[0];
+        var deep = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), shopSlots: 500)[0];
         Assert.Equal(500, deep.Antes[1].ShopItems.Count);
 
         // The first 15 are still exactly what the default walk returns -- deepening the walk
         // extends the queue, it does not shift it.
-        var shallow = MotelyYAMLyzer.Analyze(SeedConfig("UNITTEST"))[0];
+        var shallow = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"))[0];
         Assert.Equal<IEnumerable<MotelyItem>>(
             shallow.Antes[1].ShopItems,
             deep.Antes[1].ShopItems.Take(15)

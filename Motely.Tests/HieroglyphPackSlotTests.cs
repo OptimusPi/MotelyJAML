@@ -19,14 +19,14 @@ public class HieroglyphPackSlotTests
 {
     private const string HieroglyphPerkeoSeed = "KHTW99TC";
 
-    private static (long SeedsSearched, long MatchingSeeds) RunSingleSeedYAML(
+    private static (long SeedsSearched, long MatchingSeeds) RunSingleSeedJaml(
         string yaml,
         string seed
     )
     {
         Assert.True(
-            YamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"YAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         var settings = MotelySearchBuilder
@@ -60,7 +60,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [6]
             """;
 
-        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedJaml(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(1, result.MatchingSeeds);
     }
@@ -83,7 +83,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [0, 1, 2, 3, 4, 5, 6, 7]
             """;
 
-        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedJaml(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(1, result.MatchingSeeds);
     }
@@ -108,7 +108,7 @@ public class HieroglyphPackSlotTests
                   boosterPacks: [0, 1, 2, 3]
             """;
 
-        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedJaml(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
         Assert.Equal(0, result.MatchingSeeds);
     }
@@ -132,7 +132,7 @@ public class HieroglyphPackSlotTests
                   earlyAntesMaxPack: 6
             """;
 
-        Assert.False(YamlConfigLoader.TryLoad(yaml, out _, out var error));
+        Assert.False(JamlConfigLoader.TryLoad(yaml, out _, out var error));
         Assert.Contains("earlyAntesMaxPack", error);
     }
 
@@ -155,7 +155,7 @@ public class HieroglyphPackSlotTests
 
         // We don't assert match/no-match here because the seed may or may not have Perkeo in
         // other antes; this test pins that the bare form still parses and runs.
-        var result = RunSingleSeedYAML(yaml, HieroglyphPerkeoSeed);
+        var result = RunSingleSeedJaml(yaml, HieroglyphPerkeoSeed);
         Assert.Equal(1, result.SeedsSearched);
     }
 }

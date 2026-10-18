@@ -5,7 +5,7 @@ required to read it. Lore in the footnotes for the ones who want it.
 
 ## Where the repo is
 
-- Branch: `master`, remote `origin` = github.com/OptimusPi/MotelyJAML
+- Branch: `master`, remote `origin` = github.com/OptimusPi/MotelyJaml
 - HEAD: `ae53d9a1` "Add allistic handoff2.md". E2 and the test-suite fixes below
   are uncommitted on top of it, waiting on a "commit to master".
 - Working tree was wiped on 2026-10-14 (including `.git`) and rebuilt from a
@@ -111,7 +111,7 @@ all older than the tagPacks commit:
 
 - **`soulOrder:` could not load at all.** The plain-loader rewrite (`32276355`)
   replaced the old value-rewriting `ClauseNodeDeserializer` with the
-  `ClauseYamlShape` facades plus `YamlClauseBinding.ClauseTypeByKey`, and left
+  `ClauseJamlShape` facades plus `JamlClauseBinding.ClauseTypeByKey`, and left
   `soulOrder` out of both. The clause has been dead since then. Fixed: added the
   discriminator keys and the `SoulOrder`/`SoulOrders` facade. That rewrite also
   dropped `JamlValidator`, which owned `soulOrder`'s "at least one soul" /

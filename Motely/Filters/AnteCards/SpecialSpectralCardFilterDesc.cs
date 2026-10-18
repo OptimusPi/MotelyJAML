@@ -22,7 +22,7 @@ namespace Motely.Filters;
 /// <see cref="SpectralCardFilterDesc.ResolveSources"/> — on both the narrow and the confirm.
 ///
 /// <b>KEEP — real SIMD, not dead code.</b> Reuses <see cref="SpectralCardClause"/> (no separate
-/// YAML keyword). Live route: <c>spectralCard:</c> → <see cref="Handles"/> true →
+/// JAML keyword). Live route: <c>spectralCard:</c> → <see cref="Handles"/> true →
 /// <see cref="SpectralCardClause.CreateFilterDesc"/> installs this filter instead of
 /// <see cref="SpectralCardFilterDesc"/>. Gate is <see cref="Handles"/> /
 /// <see cref="ClauseScoring.TargetsSpecialSpectral"/> — leave this type on the tree.

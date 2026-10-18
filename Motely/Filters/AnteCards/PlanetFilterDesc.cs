@@ -14,7 +14,7 @@ public sealed partial class PlanetCardClause: IMotelyClause, IAnteScopedClause
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
     public MotelyPlanetCard[] Planets { get; set; } = [];
 
-    // null = no sources: in YAML → filter DefaultSources at CreateFilter/score (not parse).
+    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     // applies. Any explicit block (even partial) is used verbatim — defaults never merge in.
     public PlanetSourceConfig? Sources { get; set; }
 

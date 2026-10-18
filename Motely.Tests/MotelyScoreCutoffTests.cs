@@ -51,7 +51,7 @@ public sealed class MotelyScoreCutoffTests
     }
 
     [Fact]
-    public void TryResolve_YAMLCutoff_ReplacesAuto()
+    public void TryResolve_JamlCutoff_ReplacesAuto()
     {
         Assert.True(MotelyScoreCutoff.TryResolve(null, 12, out var cutoff, out var text, out var err));
         Assert.Null(err);
@@ -61,7 +61,7 @@ public sealed class MotelyScoreCutoffTests
     }
 
     [Fact]
-    public void TryResolve_HostText_WinsOverYAMLCutoff()
+    public void TryResolve_HostText_WinsOverJamlCutoff()
     {
         Assert.True(MotelyScoreCutoff.TryResolve("off", 12, out var off, out var offText, out _));
         Assert.Equal(int.MinValue, off.EngineCutoff);
@@ -84,14 +84,14 @@ public sealed class MotelyScoreCutoffTests
     }
 
     [Fact]
-    public void YAMLCutoff_DropsSeedsBelowItInTheEngine()
+    public void JamlCutoff_DropsSeedsBelowItInTheEngine()
     {
         const string yaml = """
             should:
               - joker: any
                 score: 1
             """;
-        var config = Motely.Filters.YamlConfigLoader.FromYaml(yaml);
+        var config = Motely.Filters.JamlConfigLoader.FromJaml(yaml);
         long Matches(int engineCutoff)
         {
             using var search = Motely.Filters.MotelySearchBuilder

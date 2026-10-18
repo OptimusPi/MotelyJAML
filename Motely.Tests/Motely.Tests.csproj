@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <!-- The browser build's filter naming has no Bootsharp in it, so it is tested here on the
-       normal runtime (YAMLFileNamesTests); the Node tests cover the mounted folder itself. -->
+       normal runtime (JamlFileNamesTests); the Node tests cover the mounted folder itself. -->
   <ItemGroup>
     <Compile Include="../Motely.Wasm/JamlFileNames.cs" Link="Wasm/JamlFileNames.cs" />
   </ItemGroup>
@@ -39,9 +39,9 @@
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Test YAML files travel to the output so data-driven tests can load them by name.
-         Include (not Update): new files in YamlFilters must enter the item list to copy. -->
-    <None Include="YamlFilters/**/*.yaml">
+    <!-- Test JAML files travel to the output so data-driven tests can load them by name.
+         Include (not Update): new files in JamlFilters must enter the item list to copy. -->
+    <None Include="JamlFilters/**/*.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

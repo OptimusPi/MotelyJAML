@@ -327,9 +327,9 @@ public sealed class JokerDescScalarAgreementTests
         AssertAgreeNonEmpty(Simd(clause, MotelyStake.White), Scalar(clause, MotelyStake.White));
     }
 
-    /// <summary>End to end through the YAML pipeline: a must clause on a spawn source finds seeds.</summary>
+    /// <summary>End to end through the JAML pipeline: a must clause on a spawn source finds seeds.</summary>
     [Fact]
-    public void YAML_MustJudgementSource_FindsSeeds()
+    public void Jaml_MustJudgementSource_FindsSeeds()
     {
         var (matching, matched) = ProofSearch.ListMatch(
             """

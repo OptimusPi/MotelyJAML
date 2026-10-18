@@ -7,7 +7,7 @@ namespace Motely.Tests;
 /// </summary>
 public sealed class TagPacksTests
 {
-    private static string Yaml(string tarot, string tagPacks) =>
+    private static string Jaml(string tarot, string tagPacks) =>
         $"""
         name: tag-packs
         deck: Red
@@ -21,21 +21,21 @@ public sealed class TagPacksTests
 
     [Fact]
     public void Magician_InSmallBlindCharm() =>
-        ProofSearch.MustMatchAll(Yaml("TheMagician", "[0]"), "5MHF1111", "KSUCKHKT");
+        ProofSearch.MustMatchAll(Jaml("TheMagician", "[0]"), "5MHF1111", "KSUCKHKT");
 
     [Fact]
     public void Judgement_InSmallBlindCharm() =>
-        ProofSearch.MustMatchAll(Yaml("Judgement", "[0]"), "5MHF1111", "KSUCKHKT", "KVK31111");
+        ProofSearch.MustMatchAll(Jaml("Judgement", "[0]"), "5MHF1111", "KSUCKHKT", "KVK31111");
 
     [Fact]
     public void Judgement_NotInCharm_5NRTBOOB() =>
-        ProofSearch.MustMatchNone(Yaml("Judgement", "[0]"), "5NRTBOOB");
+        ProofSearch.MustMatchNone(Jaml("Judgement", "[0]"), "5NRTBOOB");
 
     [Fact]
     public void Magician_NotInCharm_KVK31111() =>
-        ProofSearch.MustMatchNone(Yaml("TheMagician", "[0]"), "KVK31111");
+        ProofSearch.MustMatchNone(Jaml("TheMagician", "[0]"), "KVK31111");
 
     [Fact]
     public void Judgement_InBigBlindCharm_1BDMSUN1() =>
-        ProofSearch.MustMatchAll(Yaml("Judgement", "[1]"), "1BDMSUN1");
+        ProofSearch.MustMatchAll(Jaml("Judgement", "[1]"), "1BDMSUN1");
 }

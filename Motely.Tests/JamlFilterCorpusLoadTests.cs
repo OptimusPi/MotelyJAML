@@ -3,9 +3,9 @@ namespace Motely.Tests;
 
 /// <summary>
 /// ADR-001 item 9: every test fixture filter loads through the one loader. Reads
-/// Motely.Tests/YamlFilters/ in place, not the copies in bin/, so a file that isn't copied to
+/// Motely.Tests/JamlFilters/ in place, not the copies in bin/, so a file that isn't copied to
 /// output still gets checked. All four extensions the loader accepts: .yaml .yaml .yml .json.
-/// The repo-root YamlFilters/ is the user's own filter folder and is not a test input.
+/// The repo-root JamlFilters/ is the user's own filter folder and is not a test input.
 /// </summary>
 public sealed class MotelyfilterCorpusLoadTests
 {
@@ -17,7 +17,7 @@ public sealed class MotelyfilterCorpusLoadTests
     [Fact]
     public void EveryFilterFile_LoadsFromFile()
     {
-        const string folder = "YamlFilters";
+        const string folder = "JamlFilters";
         var dir = Path.Join(TestsDir, folder);
         Assert.True(Directory.Exists(dir), $"filter folder missing: {dir}");
 
@@ -33,7 +33,7 @@ public sealed class MotelyfilterCorpusLoadTests
         {
             try
             {
-                _ = YamlConfigLoader.FromFile(file);
+                _ = JamlConfigLoader.FromFile(file);
             }
             catch (Exception ex)
             {
