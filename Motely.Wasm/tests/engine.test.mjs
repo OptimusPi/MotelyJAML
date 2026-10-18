@@ -35,8 +35,10 @@ test("a filter that does not load says why, with its line", () => {
   assert.equal(JamlConfigLoader.check(telescope), null);
 });
 
-test("a value the engine cannot run is refused by the clause's place", () => {
-  assert.match(JamlConfigLoader.check("must:\n  - joker: Blueprint\n    min: 0\n"), /must\[0\] \(joker\): min 0/);
+test("a value the engine cannot run is refused at its line", () => {
+  // Was `min: 0`, refused by JamlValidator until 3227635 removed it; the engine runs `min: 0` as
+  // the "at least zero" it says (every seed matches). A number where a name goes is refused.
+  assert.match(JamlConfigLoader.check("must:\n  - joker: 5\n"), /JAML line 2: '5' is not a name/);
 });
 
 test("a seed list is searched once each, with one callback per find", async () => {
