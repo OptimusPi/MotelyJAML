@@ -31,17 +31,17 @@
           bridges to. AGUI.Server 1.0.1 depends on MEAI.Abstractions 10.6.0. -->
     <PackageVersion Include="AGUI.Abstractions" Version="1.0.1" />
     <PackageVersion Include="AGUI.Server" Version="1.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.8.3" />
 
     <!-- Motely.Wasm: Bootsharp. Bootsharp.FileSystem is a sponsor package from the rewaffle feed
          (nuget.config maps it there). -->
     <PackageVersion Include="Bootsharp" Version="0.9.0" />
     <PackageVersion Include="Bootsharp.Inject" Version="0.9.0" />
     <PackageVersion Include="Bootsharp.FileSystem" Version="2026.4.30.1559" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
 
     <!-- Motely.ServiceDefaults: traces and metrics to the Aspire dashboard. -->
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
 
     <!-- Motely.AppHost, and Aspire.Hosting.Testing in Motely.Tests: one Aspire release
          throughout, the same as Motely.AppHost's Aspire.AppHost.Sdk. -->
