@@ -12,7 +12,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
         // KHTW99TC has Negative Perkeo ante 1 slot 6; Min=1 is the real case — Min=2 on antes 1..8
         // may or may not match; use Min=1 with edition to prove prefilter path with edition set.
         const string seed = "KHTW99TC";
-        var jaml = """
+        var yaml = """
             name: leg-ed
             deck: Red
             stake: White
@@ -24,8 +24,8 @@ public sealed class JamlLegendaryEditionPrefilterTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
-        var settings = JamlSearchBuilder
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
             .WithThreadCount(1)
@@ -55,7 +55,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
         };
         config.Must.Add(clause);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(["ALEEB", "MOTELY77", "AAAAAAAA", "11111111"], 4)
             .WithThreadCount(1)
@@ -69,7 +69,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
     public void ExactConfirm_IncludesVoucherTagErratic()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new VoucherClause
                 {
                     Vouchers = [MotelyVoucher.Overstock],
@@ -79,7 +79,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
             )
         );
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new TagClause
                 {
                     Tags = [MotelyTag.RareTag],
@@ -89,11 +89,11 @@ public sealed class JamlLegendaryEditionPrefilterTests
             )
         );
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new ErraticRankClause { Rank = MotelyStandardcardRank.Ace, Antes = [1] }
             )
         );
-        Assert.True(JamlScoring.CanSkipMustReeval(
+        Assert.True(ClauseScoring.CanSkipMustReeval(
             [
                 new VoucherClause
                 {

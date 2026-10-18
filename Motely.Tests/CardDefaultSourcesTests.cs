@@ -1,15 +1,14 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
 public sealed class CardDefaultSourcesTests
 {
-    private static HashSet<string> Run(string jaml, string[] seeds)
+    private static HashSet<string> Run(string yaml, string[] seeds)
     {
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
         var found = new List<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -52,7 +51,7 @@ public sealed class CardDefaultSourcesTests
     [Fact]
     public void StandardCard_ExplicitShopOnly_RedDeck_MatchesNothing()
     {
-        const string jaml = """
+        const string yaml = """
             name: ace-shop-only
             deck: Red
             stake: White
@@ -64,11 +63,11 @@ public sealed class CardDefaultSourcesTests
                   shopItems: [0, 1, 2, 3, 4, 5, 6, 7]
             """;
 
-        Assert.Empty(Run(jaml, AceSeeds));
+        Assert.Empty(Run(yaml, AceSeeds));
 
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
         long hits = 0;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)

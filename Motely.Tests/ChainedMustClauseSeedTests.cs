@@ -1,24 +1,15 @@
-using Motely.Filters.Jaml;
 using Xunit;
 
 namespace Motely.Tests;
 
-// Regression coverage for the additional-filter batch path (Tacodiva/Motely#5 family).
-//
-// Two distinct bugs live here:
-//  1. BatchSeeds' cached-pseudohash copy used a stray vector offset (fixed: source read is [lane]).
-//  2. SearchFilterBatch did not Reset() filterBatch->SeedHashCache between flushes, so every SIMD
-//     batch AFTER the first reused the previous batch's dynamically-cached pseudohashes
-//     (CachePartialHash short-circuits when a key is already present). A vectorized filter (shop/
-//     pack streams) then derived later seeds against stale hashes and silently dropped them —
-//     deterministically "first 8 pass, rest dropped", and thread-count-dependent once concurrent.
-//
-// These tests force multiple SIMD batches (>8 seeds) through a vectorized joker filter and assert
-// nothing is lost, plus the classic single-seed chained repro.
+// The additional-filter batch path. BatchSeeds copies cached pseudohashes per [lane], and
+// SearchFilterBatch resets filterBatch->SeedHashCache between flushes, so every SIMD batch derives
+// its seeds from its own hashes. These tests push multiple SIMD batches (>8 seeds) through a
+// vectorized joker filter and assert nothing is lost, plus a single-seed chained case.
 public sealed class ChainedMustClauseSeedTests
 {
-    // Explicit shop+pack sources: post shop-only defaults, multi-batch vector cache bugs only
-    // fire when the filter actually walks pack streams (dynamic pseudohash keys per batch).
+    // Explicit shop+pack sources: only a filter that walks pack streams caches pseudohash keys
+    // per batch, which is the path these tests cover.
     private static JokerFilterDesc JokerDesc(MotelyJoker joker, int[] antes) =>
         new(
             new JokerClause

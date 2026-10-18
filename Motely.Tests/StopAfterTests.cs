@@ -5,7 +5,7 @@ namespace Motely.Tests;
 
 /// <summary>
 /// <c>StopAfter(n)</c> ends a search once at least n seeds have matched. Proven against a
-/// deliberately permissive filter over a fixed batch slice: the same slice unbounded matches
+/// deliberately permissive filter over a fixed batch range: the same range unbounded matches
 /// thousands of seeds, so a run that returns a handful can only be StopAfter doing its job —
 /// a filter with one natural match would pass whether or not the feature worked at all.
 /// The contract is "at least n", never exactly n: a batch scores all 8 SIMD lanes before anyone
@@ -31,7 +31,7 @@ public class StopAfterTests(ITestOutputHelper output)
         );
 
         int delivered = 0;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -57,7 +57,7 @@ public class StopAfterTests(ITestOutputHelper output)
 
         Assert.True(
             unbounded > 1000,
-            $"control slice should match thousands so early-stop is visible; matched {unbounded}"
+            $"control range should match thousands so early-stop is visible; matched {unbounded}"
         );
         Assert.Equal(unbounded, unboundedDelivered);
 
@@ -68,7 +68,7 @@ public class StopAfterTests(ITestOutputHelper output)
         Assert.True(stoppedDelivered >= 1, "StopAfter(1) delivered no seed at all");
         Assert.Equal(stopped, stoppedDelivered);
 
-        // And it stopped somewhere near the limit rather than running the slice out. One batch of
+        // And it stopped somewhere near the limit rather than running the range out. One batch of
         // 8 lanes per thread is the overshoot the contract allows for.
         Assert.True(
             stopped < unbounded / 10,
@@ -81,7 +81,7 @@ public class StopAfterTests(ITestOutputHelper output)
     {
         Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -109,7 +109,7 @@ public class StopAfterTests(ITestOutputHelper output)
     {
         Assert.True(JamlConfigLoader.TryLoad(PermissiveJaml, out var config, out var error), error);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()
             .WithBatchCharacterCount(batchCharCount)

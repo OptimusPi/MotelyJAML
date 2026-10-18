@@ -1,0 +1,17 @@
+name: TheSun Heart Flush
+author: jammy
+description: TheSun tarotCard with Bloodstone for Heart suit conversion
+deck: Red
+stake: White
+must:
+  - tarotCard: TheSun
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Bloodstone
+    score: 40
+  - commonJoker: LustyJoker
+    score: 30

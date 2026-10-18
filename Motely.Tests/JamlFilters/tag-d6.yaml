@@ -1,0 +1,15 @@
+name: D6 Tag Reroll
+author: jammy
+description: D6 Tag for rerolling shop items
+deck: Red
+stake: White
+must:
+  - tag: D6Tag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - voucher: RerollSurplus
+    score: 40

@@ -1,0 +1,22 @@
+name: Erratic Deck Wee Joker
+author: jammy
+description: Erratic Deck with many 2s for Wee Joker scaling
+deck: Erratic
+stake: White
+must:
+  - rareJoker: WeeJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+  - erraticRank: 2
+    min: 10
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Fibonacci
+    score: 30

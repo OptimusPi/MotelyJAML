@@ -13,7 +13,7 @@ public sealed class JamlSimdPackSupportTests
     {
         var none = VectorMask.NoBitsSet;
         for (int p = 0; p <= MotelyGlobals.EarlyAnteMaxPackSlot; p++)
-            Assert.True(JamlSimdPackSupport.SlotReachableMask(1, p, none).IsAllTrue());
+            Assert.True(SimdPackSupport.SlotReachableMask(1, p, none).IsAllTrue());
     }
 
     [Fact]
@@ -22,8 +22,8 @@ public sealed class JamlSimdPackSupportTests
         var none = VectorMask.NoBitsSet;
         var all = VectorMask.AllBitsSet;
         int late = MotelyGlobals.EarlyAnteMaxPackSlot + 1;
-        Assert.True(JamlSimdPackSupport.SlotReachableMask(1, late, none).IsAllFalse());
-        Assert.True(JamlSimdPackSupport.SlotReachableMask(1, late, all).IsAllTrue());
+        Assert.True(SimdPackSupport.SlotReachableMask(1, late, none).IsAllFalse());
+        Assert.True(SimdPackSupport.SlotReachableMask(1, late, all).IsAllTrue());
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class JamlSimdPackSupportTests
     {
         var none = VectorMask.NoBitsSet;
         Assert.True(
-            JamlSimdPackSupport
+            SimdPackSupport
                 .SlotReachableMask(2, MotelyGlobals.LateAntesMaxPackSlot, none)
                 .IsAllTrue()
         );
@@ -40,13 +40,13 @@ public sealed class JamlSimdPackSupportTests
     [Fact]
     public void NeedsAnte1Extension_OnlyPastEarlyCap()
     {
-        Assert.False(JamlSimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot));
+        Assert.False(SimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot));
         Assert.True(
-            JamlSimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot + 1)
+            SimdPackSupport.NeedsAnte1Extension(MotelyGlobals.EarlyAnteMaxPackSlot + 1)
         );
     }
 
-    private static HashSet<string> RunMust(IJamlClause clause)
+    private static HashSet<string> RunMust(IMotelyClause clause)
     {
         var config = new JamlConfig
         {
@@ -56,7 +56,7 @@ public sealed class JamlSimdPackSupportTests
         };
         config.Must.Add(clause);
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -67,7 +67,7 @@ public sealed class JamlSimdPackSupportTests
         return hits;
     }
 
-    private static HashSet<string> RunShould(IJamlClause clause)
+    private static HashSet<string> RunShould(IMotelyClause clause)
     {
         clause.Score = 1;
         var config = new JamlConfig
@@ -78,7 +78,7 @@ public sealed class JamlSimdPackSupportTests
         };
         config.Should.Add(clause);
         var hits = new HashSet<string>();
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)
@@ -154,9 +154,9 @@ public sealed class JamlSimdPackSupportTests
     [Fact]
     public void HieroglyphSeed_StillMatches_Slot6_Legendary()
     {
-        // Regression: the ante-1 slot clamp must not drop Hieroglyph-extended KHTW99TC.
+        // The ante-1 slot clamp keeps Hieroglyph-extended KHTW99TC.
         const string seed = "KHTW99TC";
-        var jaml = """
+        var yaml = """
             name: HieroglyphPerkeo
             deck: Red
             stake: White
@@ -167,8 +167,8 @@ public sealed class JamlSimdPackSupportTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
-        var settings = JamlSearchBuilder
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)
             .WithThreadCount(1)

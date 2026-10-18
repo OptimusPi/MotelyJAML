@@ -16,7 +16,7 @@ public class JamlMinMaxMustNotTests
 {
     private const string Seed = "MOTELY77";
 
-    /// <summary>First twelve seeds of JamlFilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
+    /// <summary>First twelve seeds of JamlFilters/Zerkeo.yaml: Anaglyph/White, Hieroglyph in
     /// ante 1, Negative Perkeo in an ante-0 pack.</summary>
     private static readonly string[] ZerkeoSeeds =
     [
@@ -24,16 +24,16 @@ public class JamlMinMaxMustNotTests
         "4E1MRX11", "KWR8OX11", "BB3BOX11", "K4GBQX11", "B5BCQX11", "6E5RVX11",
     ];
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)
@@ -49,15 +49,15 @@ public class JamlMinMaxMustNotTests
         return (search.MatchingSeeds, score, tally);
     }
 
-    private static HashSet<string> RunSeedList(string jaml, string[] seeds)
+    private static HashSet<string> RunSeedList(string yaml, string[] seeds)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         var hits = new HashSet<string>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedList(seeds)
             .WithThreadCount(1)
@@ -289,12 +289,12 @@ public class JamlMinMaxMustNotTests
     public void Builder_SplitsMustNotByExactConfirm()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new VoucherClause { Vouchers = [MotelyVoucher.Hieroglyph], Antes = [1] }
             )
         );
         Assert.False(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new LegendaryJokerClause { Jokers = [MotelyJoker.Perkeo], Antes = [0] }
             )
         );

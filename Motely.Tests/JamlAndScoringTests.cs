@@ -13,16 +13,16 @@ public class JamlAndScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)

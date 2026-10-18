@@ -1,0 +1,17 @@
+name: Zodiac Deck tarotCard Engine
+author: jammy
+description: Zodiac Deck with Fortune Teller to capitalize on free TarotMerchant voucher
+deck: Zodiac
+stake: White
+must:
+  - commonJoker: FortuneTeller
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Constellation
+    score: 35
+  - uncommonJoker: Satellite
+    score: 25

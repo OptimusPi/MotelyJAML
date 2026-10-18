@@ -8,7 +8,7 @@ public sealed class JamlMustPathCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "UNITTEST"];
 
-    private static void RunMust(IJamlClause clause, MotelyDeck deck = MotelyDeck.Red)
+    private static void RunMust(IMotelyClause clause, MotelyDeck deck = MotelyDeck.Red)
     {
         var config = new JamlConfig
         {
@@ -18,7 +18,7 @@ public sealed class JamlMustPathCoverageTests
         };
         config.Must.Add(clause);
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(Seeds, Seeds.Length)
             .WithThreadCount(1)

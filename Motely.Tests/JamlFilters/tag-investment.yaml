@@ -1,0 +1,17 @@
+name: Investment Tag Economy
+author: jammy
+description: Investment Tag for $25 after defeating next Boss Blind
+deck: Red
+stake: White
+must:
+  - tag: InvestmentTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: ToTheMoon
+    score: 40
+  - uncommonJoker: Bull
+    score: 35

@@ -1,0 +1,15 @@
+name: TheHouse Boss Blind
+author: jammy
+description: TheHouse boss blind disables first hand played
+deck: Red
+stake: White
+must:
+  - boss: TheHouse
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Burglar
+    score: 40

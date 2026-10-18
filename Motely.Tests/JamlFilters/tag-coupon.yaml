@@ -1,0 +1,15 @@
+name: Coupon Tag Shop Discount
+author: jammy
+description: Coupon Tag for first card/pack free in next shop
+deck: Red
+stake: White
+must:
+  - tag: CouponTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - voucher: Overstock
+    score: 40

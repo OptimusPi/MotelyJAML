@@ -1,0 +1,15 @@
+name: Holographic Tag Early
+author: jammy
+description: Holographic Tag for free Holographic edition joker
+deck: Red
+stake: White
+must:
+  - tag: HolographicTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 40

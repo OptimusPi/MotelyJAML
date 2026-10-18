@@ -64,7 +64,7 @@ public sealed class PokerHandRollAdvanceTests
         Assert.Equal((long)Seeds.Length, search.MatchingSeeds);
     }
 
-    // Regression pin: adding `advance` must not move any existing caller. advance:0 IS the old call.
+    // advance:0 draws exactly what the call without advance draws.
     [Fact]
     public void AdvanceZero_IsIdenticalToTheNoAdvanceCall()
     {
@@ -82,7 +82,7 @@ public sealed class PokerHandRollAdvanceTests
         Assert.Equal(Seeds.Length * 3, checkedSeeds);
     }
 
-    // The actual new capability: blinds 2 and 3 of an ante were previously unreachable.
+    // Each blind of an ante, 2 and 3 included, draws its own hand.
     [Fact]
     public void EachBlindOfAnAnte_DrawsADifferentHandFromTheSameAnteStream()
     {

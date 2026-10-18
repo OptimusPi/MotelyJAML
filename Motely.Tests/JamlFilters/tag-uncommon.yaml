@@ -1,0 +1,17 @@
+name: Uncommon Tag Free Joker
+author: jammy
+description: Uncommon Tag for free uncommon joker in next shop
+deck: Red
+stake: White
+must:
+  - tag: UncommonTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Mime
+    score: 50
+  - commonJoker: Banner
+    score: 40

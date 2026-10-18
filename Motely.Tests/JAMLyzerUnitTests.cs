@@ -1,5 +1,4 @@
 using Motely.Analysis;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -67,6 +66,25 @@ public sealed class JAMLyzerUnitTests
         var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
         for (int i = 0; i < 9; i++)
             Assert.Equal(i, results[0].Antes[i].Ante);
+    }
+
+    [Theory]
+    [InlineData("C3DW94B8", 1)]
+    [InlineData("3MLDLU2W", 2)]
+    [InlineData("9KIXS1TL", 3)]
+    public void Analyze_LegendaryOrder_ReadsTheSameSoulTheScorerFinds(string seed, int expectedSlot)
+    {
+        // These Red/White seeds each hold one ante-1 Soul at a known pack slot — the same seeds
+        // LegendaryPackIndexTests pins the legendaryJoker clause against. The analyser's run-global
+        // LegendaryOrder must find exactly that one Soul, at that slot.
+        var order = MotelyJamlyzer.Analyze(SeedConfig(seed), eventRolls: 1)[0].LegendaryOrder;
+        var entry = Assert.Single(order);
+        Assert.Equal(1, entry.Ante);
+        Assert.Equal(expectedSlot, entry.PackSlot);
+
+        var legendaries = MotelyEnum<MotelyJokerLegendary>
+            .Values.Select(l => (MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)l));
+        Assert.Contains(entry.Joker, legendaries);
     }
 
     [Fact]
@@ -169,10 +187,6 @@ public sealed class JAMLyzerUnitTests
                 fa.Pulls.UncommonTagJokers,
                 p1.Pulls.UncommonTagJokers.Concat(p2.Pulls.UncommonTagJokers)
             );
-            Assert.Equal<IEnumerable<MotelyItem>>(
-                fa.Pulls.LegendaryJokers,
-                p1.Pulls.LegendaryJokers.Concat(p2.Pulls.LegendaryJokers)
-            );
             Assert.Equal<IEnumerable<MotelyVoucher>>(
                 fa.Pulls.VoucherSequence,
                 p1.Pulls.VoucherSequence.Concat(p2.Pulls.VoucherSequence)
@@ -208,6 +222,11 @@ public sealed class JAMLyzerUnitTests
                 p1.ShopStreams.ShopSpectrals.Concat(p2.ShopStreams.ShopSpectrals)
             );
         }
+
+        // The legendary order is run-global (one Joker4 walk per seed), so every page reports the
+        // whole sequence identically -- it is not sliced by the window like the per-ante queues.
+        Assert.Equal(full.LegendaryOrder, page1.LegendaryOrder);
+        Assert.Equal(full.LegendaryOrder, page2.LegendaryOrder);
     }
 
     [Fact]
@@ -362,10 +381,8 @@ public sealed class JAMLyzerUnitTests
     }
 
     /// <summary>
-    /// Shop depth is its own dial. It used to ride <c>eventRolls</c> behind a
-    /// <c>!= 20</c> guard, which made 20 a dead value -- asking for exactly 20 shop slots
-    /// silently returned the ante-1 default of 15 -- and made a deep shop allocate an equally
-    /// deep array for all eighteen pull and shop-source queues.
+    /// Shop depth is its own dial, independent of <c>eventRolls</c>: exactly 20 shop slots
+    /// gives 20, and a deep shop does not deepen the pull and shop-source queues.
     /// </summary>
     [Fact]
     public void Analyze_ShopSlots_IsIndependentOfEventRolls()
@@ -437,8 +454,7 @@ public sealed class JAMLyzerUnitTests
     [InlineData(20, int.MaxValue)]
     public void Analyze_OutOfRangeWindow_ThrowsArgumentOutOfRange(int eventRolls, int shopSlots)
     {
-        // These used to surface as OverflowException / OutOfMemoryException from an array
-        // allocation, or walk for minutes. JS can pass anything; the call must say what is wrong.
+        // JS can pass anything; the call must say what is wrong.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
         );
@@ -446,7 +462,6 @@ public sealed class JAMLyzerUnitTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
         );
-        // Search.withAnalysis(eventRolls) builds the rider straight from the JS argument.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
         );
@@ -523,7 +538,7 @@ public sealed class JAMLyzerUnitTests
         var config = JamlConfigLoader.FromJaml(
             "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
         );
-        // Off the test thread with a deadline: a regression fails here instead of hanging the run.
+        // Off the test thread with a deadline: a hang fails here instead of stalling the run.
         var result = await Task.Run(() => MotelyJamlyzer.Analyze(config, eventRolls: 3)[0])
             .WaitAsync(TimeSpan.FromSeconds(60));
 

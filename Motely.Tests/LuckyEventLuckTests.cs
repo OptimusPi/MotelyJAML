@@ -12,16 +12,16 @@ public class LuckyEventLuckTests
         long MatchingSeeds,
         int? Score,
         int? Tally
-    ) RunSingleSeedJaml(string jaml)
+    ) RunSingleSeedJaml(string yaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([DifferentialSeed], 1)
             .WithThreadCount(1)
@@ -85,7 +85,7 @@ public class LuckyEventLuckTests
     [Fact]
     public void LuckyMult_LoadsWithLuck()
     {
-        var jaml = """
+        var yaml = """
             name: LuckyMultLuck5
             deck: Red
             stake: White
@@ -102,8 +102,8 @@ public class LuckyEventLuckTests
             """;
 
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         var must = Assert.IsType<LuckyMultClause>(config!.Must[0]);
@@ -117,7 +117,7 @@ public class LuckyEventLuckTests
     [Fact]
     public void GrosMichelExtinct_LoadsWithLuck()
     {
-        var jaml = """
+        var yaml = """
             name: GrosMichelExtinctLuck5
             deck: Red
             stake: White
@@ -128,8 +128,8 @@ public class LuckyEventLuckTests
             """;
 
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         var clause = Assert.IsType<GrosMichelExtinctClause>(config!.Must[0]);
@@ -175,15 +175,15 @@ public class LuckyEventLuckTests
         Assert.Subset(luck5Matches, defaultMatches);
     }
 
-    private static HashSet<string> CollectMatchingSeedsFromList(string jaml, string[] seeds)
+    private static HashSet<string> CollectMatchingSeedsFromList(string yaml, string[] seeds)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         var matches = new HashSet<string>(StringComparer.Ordinal);
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)

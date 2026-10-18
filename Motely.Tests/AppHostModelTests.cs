@@ -1,100 +1,100 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace Motely.Tests;
 
-public class AppHostModelTests
+/// <summary>
+/// The Aspire composition in <c>Motely.AppHost</c>, read from the model it builds and never
+/// started: no DCP, no ports. What is pinned is what the AppHost's header comment promises: which
+/// resources exist, what each runs, where filters come from, and which one waits for a person.
+/// </summary>
+public sealed class AppHostModelTests
 {
-    private static async Task<DistributedApplication> BuildAppHostAsync()
-    {
-        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Motely_AppHost>();
-        return await appHost.BuildAsync();
-    }
+    private static Task<IDistributedApplicationTestingBuilder> CreateAsync() =>
+        DistributedApplicationTestingBuilder.CreateAsync<Projects.Motely_AppHost>();
 
-    private static DistributedApplicationModel Model(DistributedApplication app) =>
-        app.Services.GetRequiredService<DistributedApplicationModel>();
-
-    private static async Task<IExecutionConfigurationResult> LaunchConfigOf(DistributedApplication app, IResource resource)
-    {
-        var context = app.Services.GetRequiredService<DistributedApplicationExecutionContext>();
-        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(AppHostModelTests));
-        var result = await ExecutionConfigurationBuilder.Create(resource)
-            .WithEnvironmentVariablesConfig()
-            .WithArgumentsConfig()
-            .BuildAsync(context, logger, CancellationToken.None);
-        Assert.Null(result.Exception);
-        return result;
-    }
-
-    private static string RepoRoot()
+    private static string RepoFilters()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Motely.slnx")))
             dir = dir.Parent;
-        return dir?.FullName ?? throw new InvalidOperationException("Motely.slnx not found above the test output.");
+        return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("Motely.slnx not found above the test output."), "JamlFilters");
+    }
+
+    /// <summary>The arguments as the AppHost declared them: strings, parameters and endpoint expressions, unresolved.</summary>
+    private static async Task<List<object>> ArgsOf(IResource resource)
+    {
+        List<object> args = [];
+        var context = new CommandLineArgsCallbackContext(args, resource);
+        foreach (var annotation in resource.Annotations.OfType<CommandLineArgsCallbackAnnotation>())
+            await annotation.Callback(context);
+        return args;
+    }
+
+    /// <summary>A value the AppHost set as a plain environment variable (not one Aspire computes).</summary>
+    private static async Task<object?> EnvOf(IResource resource, string name)
+    {
+        Dictionary<string, object> env = [];
+        var context = new EnvironmentCallbackContext(new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run), resource, env);
+        foreach (var annotation in resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        {
+            try
+            {
+                await annotation.Callback(context);
+            }
+            // Aspire's own callbacks (OTLP, service discovery) want a running app's services.
+            catch (Exception ex) when (ex is InvalidOperationException or NullReferenceException) { }
+        }
+        return env.GetValueOrDefault(name);
     }
 
     [Fact]
-    public async Task Composes_helper_api_and_worker()
+    public async Task Composes_check_and_search_from_the_cli()
     {
-        await using var app = await BuildAppHostAsync();
-        var names = Model(app).Resources.Select(r => r.Name).ToHashSet();
+        await using var appHost = await CreateAsync();
+        var projects = appHost.Resources.OfType<ProjectResource>().Select(static r => r.Name).Order().ToArray();
 
-        Assert.Contains("helper-api", names);
-        Assert.Contains("distributed-worker", names);
-        Assert.DoesNotContain("postgres", names);
+        Assert.Equal(["check", "search"], projects);
+        Assert.Contains(appHost.Resources, static r => r is ParameterResource { Name: "filter" });
     }
 
     [Fact]
-    public async Task Helper_api_gets_repo_paths_an_idle_pool_and_a_health_check()
+    public async Task Check_runs_motely_check_over_the_repo_filters_at_startup()
     {
-        await using var app = await BuildAppHostAsync();
-        var api = Model(app).Resources.OfType<ProjectResource>().Single(r => r.Name == "helper-api");
+        await using var appHost = await CreateAsync();
+        var check = appHost.Resources.Single(static r => r.Name == "check");
 
-        var env = (await LaunchConfigOf(app, api)).EnvironmentVariables.ToDictionary(kv => kv.Key, kv => kv.Value);
-        Assert.Equal("", env["Pool__Url"]);
-        Assert.Equal(Path.Combine(RepoRoot(), "JamlFilters"), env["MOTELY_FILTERS_DIR"]);
-        Assert.Equal(Path.Combine(RepoRoot(), "Seeds"), env["Pool__LocalDbPath"]);
-        Assert.True(Directory.Exists(env["MOTELY_FILTERS_DIR"]), "MOTELY_FILTERS_DIR must point at the repo's JamlFilters/");
-
-        Assert.NotEmpty(api.Annotations.OfType<HealthCheckAnnotation>());
-        var http = Assert.Single(api.Annotations.OfType<EndpointAnnotation>(), e => e.Name == "http");
-        Assert.Equal(3141, http.Port);
+        Assert.Equal(["check", RepoFilters()], await ArgsOf(check));
+        Assert.True(Directory.Exists(RepoFilters()));
+        Assert.Empty(check.Annotations.OfType<ExplicitStartupAnnotation>());
     }
 
     [Fact]
-    public async Task Worker_is_explicit_start_in_party_mode_and_not_wired_to_helper_api()
+    public async Task Search_waits_to_be_started_and_runs_the_filter_parameter_quietly()
     {
-        await using var app = await BuildAppHostAsync();
-        var worker = Model(app).Resources.OfType<ProjectResource>().Single(r => r.Name == "distributed-worker");
+        await using var appHost = await CreateAsync();
+        var search = appHost.Resources.Single(static r => r.Name == "search");
 
-        Assert.NotEmpty(worker.Annotations.OfType<ExplicitStartupAnnotation>());
-
-        var args = (await LaunchConfigOf(app, worker)).Arguments.Select(a => a.Value).ToList();
-        Assert.Equal("--party", args[0]);
-        Assert.Contains("--server", args);
-        Assert.Contains("https://www.seedfinder.app", args);
-        Assert.Contains(Path.Combine(RepoRoot(), "Seeds"), args);
-        Assert.DoesNotContain("--pool", args);
-        Assert.DoesNotContain(worker.Annotations.OfType<ResourceRelationshipAnnotation>(), r => r.Resource.Name == "helper-api");
+        Assert.NotEmpty(search.Annotations.OfType<ExplicitStartupAnnotation>());
+        var args = await ArgsOf(search);
+        Assert.Equal(3, args.Count);
+        Assert.Equal("--jaml", args[0]);
+        // WithArgs keeps the builder it was given; the parameter is inside it.
+        Assert.Equal("filter", Assert.IsAssignableFrom<IResourceBuilder<ParameterResource>>(args[1]).Resource.Name);
+        Assert.Equal("--quiet", args[2]);
+        Assert.Equal(RepoFilters(), await EnvOf(search, "MOTELY_FILTERS_DIR"));
     }
 
     [Fact]
-    public async Task Jaml_ui_is_present_exactly_when_the_sibling_checkout_is()
+    public async Task The_default_filter_parameter_names_a_filter_that_loads()
     {
-        await using var app = await BuildAppHostAsync();
-        var present = Model(app).Resources.Any(r => r.Name == "jaml-ui");
-        var sibling = Path.GetFullPath(Path.Combine(RepoRoot(), "..", "jaml-ui"));
+        await using var appHost = await CreateAsync();
+        var name = appHost.Configuration["Parameters:filter"];
 
-        Assert.Equal(Directory.Exists(sibling), present);
-        if (!present) return;
-
-        var ui = Model(app).Resources.Single(r => r.Name == "jaml-ui");
-        var endpoint = Assert.Single(ui.Annotations.OfType<EndpointAnnotation>());
-        Assert.Equal(6006, endpoint.Port);
-        Assert.False(endpoint.IsProxied);
+        Assert.False(string.IsNullOrWhiteSpace(name));
+        var path = Path.Combine(RepoFilters(), name + ".yaml");
+        Assert.True(Filters.JamlConfigLoader.TryLoad(File.ReadAllText(path), out _, out var error), error);
     }
 }

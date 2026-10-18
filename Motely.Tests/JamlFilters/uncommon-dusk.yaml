@@ -1,0 +1,17 @@
+name: Dusk Retrigger Final Hand
+author: jammy
+description: Dusk uncommon with Glass Joker for final hand retrigger
+deck: Red
+stake: White
+must:
+  - uncommonJoker: Dusk
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: GlassJoker
+    score: 50
+  - tarotCard: Justice
+    score: 40

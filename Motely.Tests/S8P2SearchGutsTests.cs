@@ -1,14 +1,12 @@
 using System.ComponentModel;
 using System.Runtime.Intrinsics;
 using Motely.Filters;
-using Motely.Filters.Jaml;
-using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
 /// <summary>
 /// S8.P2 — MotelySearch / settings / filter-creation-context guts. Every search here is a
-/// bounded list or a fixed sequential slice (the StopAfterTests recipe); assertions observe
+/// bounded list or a fixed sequential range (the StopAfterTests recipe); assertions observe
 /// engine counters, delivered seeds, or PRNG-derived state — never load-and-stop.
 /// </summary>
 public sealed class S8P2SearchGutsTests
@@ -92,7 +90,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void SearchCannotBeStartedTwice()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
             .WithThreadCount(1)
@@ -100,6 +98,23 @@ public sealed class S8P2SearchGutsTests
             .CreateSearch();
         search.Start();
         Assert.Throws<InvalidOperationException>(() => search.Start());
+        search.AwaitCompletion();
+    }
+
+    [Fact]
+    public void WaitingOnASearchThatWasNeverStarted_Throws_InsteadOfHanging()
+    {
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
+            .WithThreadCount(1)
+            .CreateSearch();
+        Assert.Throws<InvalidOperationException>(() => search.AwaitCompletion());
+        // Thrown on the call itself, not through the task.
+        Assert.Throws<InvalidOperationException>(() => { _ = search.WaitForCompletionAsync(); });
+
+        // Disposed without a start, it is settled, and waiting returns.
+        search.Dispose();
         search.AwaitCompletion();
     }
 
@@ -113,7 +128,7 @@ public sealed class S8P2SearchGutsTests
     public void Start_IsNonBlocking_IsCompletedFalseUntilWorkersFinish()
     {
         using var gate = new ManualResetEventSlim(false);
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(2)
@@ -141,9 +156,7 @@ public sealed class S8P2SearchGutsTests
     }
 
     /// <summary>
-    /// The ETA counts only the batches the run was asked for. It used to count to the end of the
-    /// whole space, so a bounded run quoted the time to sweep everything after it: a one-batch
-    /// range that finished in twelve seconds reported 148 days.
+    /// The ETA counts only the batches the run was asked for, not the rest of the space.
     /// <para>
     /// Both assertions are exact rather than timing-tolerant, because the ratio is exact. Two
     /// batches requested: at the first report half the run is done, so the time left equals the
@@ -155,7 +168,7 @@ public sealed class S8P2SearchGutsTests
     public async Task SequentialSlice_EtaCountsOnlyTheBatchesTheRunAskedFor()
     {
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3) // 35³ = 42,875 batches exist; this run wants two of them
@@ -190,13 +203,13 @@ public sealed class S8P2SearchGutsTests
         Assert.Equal(12L, search.CompletedBatchCount);
     }
 
-    // ── Sequential slice: progress, counters, async completion ─────────────
+    // ── Sequential range: progress, counters, async completion ─────────────
 
     [Fact]
     public async Task SequentialSlice_ProgressCountersAndAsyncCompletion()
     {
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSequentialSearch()
             .WithBatchCharacterCount(3)
@@ -219,7 +232,7 @@ public sealed class S8P2SearchGutsTests
         // Two full batches of 35^3 seeds each, and both booked as completed.
         Assert.Equal(2L * 35 * 35 * 35, search.TotalSeedsSearched);
         Assert.Equal(2L, search.CompletedBatchCount);
-        Assert.True(search.MatchingSeeds > 0, "permissive filter found nothing in the slice");
+        Assert.True(search.MatchingSeeds > 0, "permissive filter found nothing in the range");
         Assert.Equal(search.TotalSeedsSearched - search.MatchingSeeds, search.FilteredSeeds);
         Assert.True(search.ElapsedMs >= 0);
 
@@ -242,7 +255,7 @@ public sealed class S8P2SearchGutsTests
             "Z", "88", "AAAAAAAA", "MOTELY", "474", "3X3", "GHG", "4C4",
         ];
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -270,7 +283,7 @@ public sealed class S8P2SearchGutsTests
             "Z", "88", "AAAAAAAA", "MOTELY", "474", "3X3", "GHG", "4C4",
         ];
         var progress = new List<MotelyProgress>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithSeedGenerator(seeds, seeds.Length)
             .WithProviderBatchSeedCount(MotelyGlobals.MaxVectorWidth)
@@ -416,7 +429,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void RandomSearch_SearchesExactlyTheRequestedCount()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
             .WithRandomSearch(40)
             .WithThreadCount(1)
@@ -429,9 +442,9 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void AestheticSearch_StopsOnFirstMatch()
     {
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(Permissive())
-            .WithAestheticSearch(JamlAesthetic.Palindrome)
+            .WithAestheticSearch(MotelyAesthetic.Palindrome)
             .WithThreadCount(1)
             .WithQuietMode(true)
             .StopAfter(1)
@@ -442,16 +455,13 @@ public sealed class S8P2SearchGutsTests
     }
 
     [Fact]
-    public void SearchIntent_AppliesBoundedAestheticSearchThroughSettings()
+    public void FluentChain_AppliesBoundedAestheticSearchThroughSettings()
     {
-        var intent = new MotelySearchIntent(
-            Mode: MotelySearchInputMode.Aesthetic,
-            Aesthetic: JamlAesthetic.Palindrome,
-            ThreadCount: 1,
-            StopAfterMatches: 1
-        );
-
-        using var search = intent.ApplyTo(JamlSearchBuilder.CreateSettings(Permissive()))
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithAestheticSearch(MotelyAesthetic.Palindrome)
+            .WithThreadCount(1)
+            .StopAfter(1)
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();
@@ -461,17 +471,13 @@ public sealed class S8P2SearchGutsTests
     }
 
     [Fact]
-    public void SearchIntent_AppliesBoundedKeywordSearchThroughSettings()
+    public void FluentChain_AppliesBoundedKeywordSearchThroughSettings()
     {
-        var intent = new MotelySearchIntent(
-            Mode: MotelySearchInputMode.Keyword,
-            Keywords: ["ALEEB"],
-            PaddingAlphabet: "1",
-            ThreadCount: 1,
-            StopAfterMatches: 1
-        );
-
-        using var search = intent.ApplyTo(JamlSearchBuilder.CreateSettings(Permissive()))
+        using var search = MotelySearchBuilder
+            .CreateSettings(Permissive())
+            .WithKeywordSearch(["ALEEB"], ['1'])
+            .WithThreadCount(1)
+            .StopAfter(1)
             .WithQuietMode(true)
             .Start();
         search.AwaitCompletion();
@@ -485,7 +491,7 @@ public sealed class S8P2SearchGutsTests
     [Fact]
     public void AutoScoreCutoff_ReportsCandidatesWhileDisengaged()
     {
-        const string jaml = """
+        const string yaml = """
             name: s8p2-should
             deck: Red
             stake: White
@@ -497,8 +503,8 @@ public sealed class S8P2SearchGutsTests
                 antes: [1]
             """;
         var scored = new List<MotelyScoredSeedResult>();
-        using var search = JamlSearchBuilder
-            .CreateSettings(ProofSearch.LoadOrThrow(jaml))
+        using var search = MotelySearchBuilder
+            .CreateSettings(ProofSearch.LoadOrThrow(yaml))
             .WithSeedGenerator(FixtureSeeds, FixtureSeeds.Length)
             .WithThreadCount(1)
             .WithQuietMode(true)

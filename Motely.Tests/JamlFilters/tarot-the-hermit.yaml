@@ -1,0 +1,17 @@
+name: TheHermit Economy Boost
+author: jammy
+description: TheHermit tarotCard for early economy doubling
+deck: Red
+stake: White
+must:
+  - tarotCard: TheHermit
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Bull
+    score: 35
+  - uncommonJoker: ToTheMoon
+    score: 30

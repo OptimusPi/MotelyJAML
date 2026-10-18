@@ -40,31 +40,6 @@ public sealed class AnalyzerUnitTests
         return MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake)).ToString();
     }
 
-    private void AssertOutputsMatch(string expected, string actual, string seed)
-    {
-        expected = expected.Replace("\r\n", "\n").Trim();
-        actual = actual.Replace("\r\n", "\n").Trim();
-
-        var expectedLines = expected.Split('\n');
-        var actualLines = actual.Split('\n');
-
-        Assert.Equal(expectedLines.Length, actualLines.Length);
-
-        for (int i = 0; i < expectedLines.Length; i++)
-        {
-            var expectedLine = expectedLines[i].TrimEnd();
-            var actualLine = actualLines[i].TrimEnd();
-
-            if (expectedLine != actualLine)
-            {
-                var message = $"Seed {seed} - Line {i + 1} mismatch:\n" +
-                              $"Expected: {expectedLine}\n" +
-                              $"Actual:   {actualLine}";
-                Assert.Fail(message);
-            }
-        }
-    }
-
     [Fact]
     public void TestAnalyzer_PackContentsFormat()
     {
@@ -100,18 +75,21 @@ public sealed class AnalyzerUnitTests
             {
                 break;
             }
-            else if (inAnte1 && line.Trim().StartsWith("Buffoon Pack") ||
-                     line.Trim().StartsWith("Arcana Pack") ||
-                     line.Trim().StartsWith("Celestial Pack") ||
-                     line.Trim().StartsWith("Spectral Pack") ||
-                     line.Trim().StartsWith("Standard Pack") ||
-                     line.Trim().StartsWith("Jumbo") ||
-                     line.Trim().StartsWith("Mega"))
+            else if (inAnte1 && IsPackLine(line.Trim()))
             {
                 packCount++;
             }
         }
 
         Assert.Equal(4, packCount);
+
+        static bool IsPackLine(string line) =>
+            line.StartsWith("Buffoon Pack")
+            || line.StartsWith("Arcana Pack")
+            || line.StartsWith("Celestial Pack")
+            || line.StartsWith("Spectral Pack")
+            || line.StartsWith("Standard Pack")
+            || line.StartsWith("Jumbo")
+            || line.StartsWith("Mega");
     }
 }

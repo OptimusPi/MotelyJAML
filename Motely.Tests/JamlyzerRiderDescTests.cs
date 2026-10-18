@@ -1,7 +1,5 @@
 using Motely.Analysis;
 using Motely.Filters;
-using Motely.Filters.Jaml;
-using Motely.Filters.Native;
 
 namespace Motely.Tests;
 
@@ -44,7 +42,7 @@ public sealed class JamlyzerRiderDescTests
         // which would narrow the rider to 1..8 while Analyze(config) walks 0..8.
         var desc = MotelyJamlyzer.CreateRiderDesc(config, analyzed.Add, eventRolls: 5);
 
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedAnalyzeProvider(desc)
             .WithScoredResultCallback(row => scored.Add(new(row.Seed, row.Score, row.Tallies)))
@@ -181,6 +179,7 @@ public sealed class JamlyzerRiderDescTests
             actual.Events.WheelOfFortune
         );
         Assert.Equal(expected.StreamStates, actual.StreamStates);
+        Assert.Equal(expected.LegendaryOrder, actual.LegendaryOrder);
         Assert.Equal(expected.ErraticDeck, actual.ErraticDeck);
     }
 

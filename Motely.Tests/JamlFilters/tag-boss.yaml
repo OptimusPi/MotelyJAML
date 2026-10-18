@@ -1,0 +1,15 @@
+name: Boss Tag Reroll
+author: jammy
+description: Boss Tag to reroll Boss Blind
+deck: Red
+stake: White
+must:
+  - tag: BossTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - legendaryJoker: Chicot
+    score: 40

@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -84,7 +83,7 @@ public class SpecialSpectralRoutingTests
         string[] seeds = ["PIROCKS", "ALEEB", "LOVEYAHB"];
         var found = new List<string>();
 
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)

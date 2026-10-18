@@ -1,0 +1,15 @@
+name: TheWheel Boss Blind
+author: jammy
+description: TheWheel boss blind has 1 in 7 chance to destroy random joker after each hand
+deck: Red
+stake: White
+must:
+  - boss: TheWheel
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: CeremonialDagger
+    score: 40

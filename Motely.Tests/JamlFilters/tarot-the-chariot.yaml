@@ -1,0 +1,17 @@
+name: TheChariot Steel Baron
+author: jammy
+description: TheChariot tarotCard with Baron for Steel enhancement synergy
+deck: Red
+stake: White
+must:
+  - tarotCard: TheChariot
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Baron
+    score: 60
+  - uncommonJoker: Mime
+    score: 50

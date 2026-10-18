@@ -1,0 +1,15 @@
+name: Buffoon Tag Free Pack
+author: jammy
+description: Buffoon Tag for free Buffoon Pack in next shop
+deck: Red
+stake: White
+must:
+  - tag: BuffoonTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 40

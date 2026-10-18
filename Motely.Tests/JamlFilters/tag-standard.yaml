@@ -1,0 +1,15 @@
+name: Standard Tag Free Pack
+author: jammy
+description: Standard Tag for free Standard Pack in next shop
+deck: Red
+stake: White
+must:
+  - tag: StandardTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: TheIdol
+    score: 40

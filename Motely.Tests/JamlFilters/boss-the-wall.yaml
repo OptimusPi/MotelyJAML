@@ -1,0 +1,17 @@
+name: TheWall Boss Blind
+author: jammy
+description: TheWall boss blind has extra large chip requirement
+deck: Plasma
+stake: White
+must:
+  - boss: TheWall
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: StoneJoker
+    score: 40
+  - uncommonJoker: Hiker
+    score: 35

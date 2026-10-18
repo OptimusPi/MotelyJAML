@@ -1,5 +1,4 @@
 using Motely.Filters;
-using Motely.Filters.Jaml;
 using Xunit;
 
 namespace Motely.Tests;
@@ -16,11 +15,11 @@ public class JamlNegFreeOopsAndTests
     private static readonly int[] NegScope = [2, 3, 4, 5, 6, 7, 8];
     private static readonly int[] AllAntes = [1, 2, 3, 4, 5, 6, 7, 8];
 
-    private static (long Matching, int? Score) Run(string jaml)
+    private static (long Matching, int? Score) Run(string yaml)
     {
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
         int? score = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)

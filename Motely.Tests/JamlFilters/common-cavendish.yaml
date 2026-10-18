@@ -1,0 +1,17 @@
+name: Cavendish X3 Mult
+author: jammy
+description: Cavendish common joker for X3 Mult scaling
+deck: Red
+stake: White
+must:
+  - commonJoker: Cavendish
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 50
+  - spectralCard: Hex
+    score: 40

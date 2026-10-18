@@ -1,0 +1,17 @@
+name: Pareidolia All Face Cards
+author: jammy
+description: Pareidolia uncommon makes all cards count as face cards
+deck: Red
+stake: White
+must:
+  - uncommonJoker: Pareidolia
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - commonJoker: Photograph
+    score: 50
+  - uncommonJoker: SockAndBuskin
+    score: 45

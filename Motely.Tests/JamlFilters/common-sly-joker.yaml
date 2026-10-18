@@ -1,0 +1,15 @@
+name: Sly Joker Pair
+author: jammy
+description: Sly Joker common for +50 Chips if played hand contains a Pair
+deck: Red
+stake: White
+must:
+  - commonJoker: SlyJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: TheDuo
+    score: 40

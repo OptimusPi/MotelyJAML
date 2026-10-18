@@ -55,7 +55,7 @@ public static class MotelySeedKeywordSequences
     // All keywords must be 4–8 chars, using only 1-9A-Z (no zero), and unique within their list.
 
     /// <summary>
-    /// Baked padded-seed totals for JAML keyword aesthetics (<see cref="JamlAesthetics.GetSeedCount"/>).
+    /// Baked padded-seed totals for JAML keyword aesthetics (<see cref="MotelyAesthetics.GetSeedCount"/>).
     /// Must match <see cref="MotelyGlobals.GetPaddedSeedCountForKeywordsLong"/> for the paired <c>*Keywords</c> array;
     /// recompute with a one-off console if those tables change (see <c>Motely.Tests</c> guard test).
     /// </summary>
@@ -73,8 +73,8 @@ public static class MotelySeedKeywordSequences
 
     /// <summary>
     /// Lazy generator that yields every padded seed for the keyword-backed JAML aesthetics
-    /// (<see cref="JamlAesthetic.Gross"/>, <see cref="JamlAesthetic.Funny"/>,
-    /// <see cref="JamlAesthetic.Balatro"/>, <see cref="JamlAesthetic.Nsfw"/>). Palindrome and Psychosis
+    /// (<see cref="MotelyAesthetic.Gross"/>, <see cref="MotelyAesthetic.Funny"/>,
+    /// <see cref="MotelyAesthetic.Balatro"/>, <see cref="MotelyAesthetic.Nsfw"/>). Palindrome and Psychosis
     /// aren't keyword sequences — they live next to their own generators.
     /// </summary>
     /// <param name="paddingAlphabet">
@@ -82,7 +82,7 @@ public static class MotelySeedKeywordSequences
     /// Digits-only pad keeps the keyword letters readable and collapses the stream.
     /// </param>
     public static IEnumerable<string> EnumerateAestheticSeeds(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet = null
     )
     {
@@ -100,7 +100,7 @@ public static class MotelySeedKeywordSequences
     /// any explicit pad is counted live via <see cref="MotelyGlobals.GetPaddedSeedCountForKeywordsLong"/>.
     /// </summary>
     public static long GetAestheticSeedCount(
-        JamlAesthetic aesthetic,
+        MotelyAesthetic aesthetic,
         char[]? paddingAlphabet = null
     )
     {
@@ -112,11 +112,11 @@ public static class MotelySeedKeywordSequences
 
         return aesthetic switch
         {
-            JamlAesthetic.Gross => GrossKeywordAestheticSeedCount,
-            JamlAesthetic.Funny => FunnyKeywordAestheticSeedCount,
-            JamlAesthetic.Balatro => BalatroKeywordAestheticSeedCount,
-            JamlAesthetic.Leet => LeetKeywordAestheticSeedCount,
-            JamlAesthetic.Nsfw => NsfwKeywordAestheticSeedCount,
+            MotelyAesthetic.Gross => GrossKeywordAestheticSeedCount,
+            MotelyAesthetic.Funny => FunnyKeywordAestheticSeedCount,
+            MotelyAesthetic.Balatro => BalatroKeywordAestheticSeedCount,
+            MotelyAesthetic.Leet => LeetKeywordAestheticSeedCount,
+            MotelyAesthetic.Nsfw => NsfwKeywordAestheticSeedCount,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(aesthetic),
                 aesthetic,
@@ -125,14 +125,14 @@ public static class MotelySeedKeywordSequences
         };
     }
 
-    private static string[] KeywordsFor(JamlAesthetic aesthetic) =>
+    private static string[] KeywordsFor(MotelyAesthetic aesthetic) =>
         aesthetic switch
         {
-            JamlAesthetic.Gross => GrossKeywords,
-            JamlAesthetic.Funny => FunnyKeywords,
-            JamlAesthetic.Balatro => BalatroKeywords,
-            JamlAesthetic.Leet => LeetKeywords,
-            JamlAesthetic.Nsfw => NsfwKeywords,
+            MotelyAesthetic.Gross => GrossKeywords,
+            MotelyAesthetic.Funny => FunnyKeywords,
+            MotelyAesthetic.Balatro => BalatroKeywords,
+            MotelyAesthetic.Leet => LeetKeywords,
+            MotelyAesthetic.Nsfw => NsfwKeywords,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(aesthetic),
                 aesthetic,

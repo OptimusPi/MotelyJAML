@@ -1,0 +1,15 @@
+name: Meteor Tag Mega Pack
+author: jammy
+description: Meteor Tag for free Mega Celestial Pack in next shop
+deck: Nebula
+stake: White
+must:
+  - tag: MeteorTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Constellation
+    score: 50

@@ -103,7 +103,7 @@ public sealed class SeedProviderTests
     [Fact]
     public void PalindromeSeedProvider_YieldsFirstPalindromes()
     {
-        var provider = new MotelyPalindromeSeedProvider();
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Palindrome);
         Assert.Equal(3_089_520, provider.SeedCount);
 
         Assert.Equal("1", provider.NextSeed().ToString());
@@ -118,7 +118,7 @@ public sealed class SeedProviderTests
     [Fact]
     public void PsychosisSeedProvider_YieldsFirstPsychosisSeeds()
     {
-        var provider = new MotelyPsychosisSeedProvider();
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Psychosis);
         Assert.Equal(1_014_422_500, provider.SeedCount);
 
         Assert.Equal("AAA1A111", provider.NextSeed().ToString());
@@ -132,7 +132,7 @@ public sealed class SeedProviderTests
     [Fact]
     public void AestheticSeedProvider_GrossYieldsKeywordSeeds()
     {
-        var provider = new MotelyAestheticSeedProvider(JamlAesthetic.Gross);
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Gross);
         Assert.Equal(MotelySeedKeywordSequences.GrossKeywordAestheticSeedCount, provider.SeedCount);
 
         var first = provider.NextSeed().ToString();
@@ -147,18 +147,18 @@ public sealed class SeedProviderTests
     [Fact]
     public void AestheticQuickPadding_CollapsesFreeSlotsToDigits()
     {
-        char[] pad = JamlAesthetics.QuickPaddingChars;
+        char[] pad = MotelyAesthetics.QuickPaddingChars;
 
         // Digit free slots: psychosis free^4 only, letter skeleton A–Z stays.
-        Assert.Equal(26L * 26L * (long)Math.Pow(9, 4), JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis, pad));
-        Assert.Equal(14_760, JamlAesthetics.GetSeedCount(JamlAesthetic.Palindrome, pad));
-        Assert.Equal(81, JamlAesthetics.GetSeedCount(JamlAesthetic.Step, pad));
+        Assert.Equal(26L * 26L * (long)Math.Pow(9, 4), MotelyAesthetics.GetSeedCount(MotelyAesthetic.Psychosis, pad));
+        Assert.Equal(14_760, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Palindrome, pad));
+        Assert.Equal(81, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Step, pad));
 
         // Full alphabet still matches historical baked sizes when pad is null.
-        Assert.Equal(1_014_422_500, JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis));
+        Assert.Equal(1_014_422_500, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Psychosis));
 
-        var provider = new MotelyAestheticSeedProvider(JamlAesthetic.Psychosis, pad);
-        Assert.Equal(JamlAesthetics.GetSeedCount(JamlAesthetic.Psychosis, pad), provider.SeedCount);
+        var provider = new MotelyAestheticSeedProvider(MotelyAesthetic.Psychosis, pad);
+        Assert.Equal(MotelyAesthetics.GetSeedCount(MotelyAesthetic.Psychosis, pad), provider.SeedCount);
         var first = provider.NextSeed().ToString();
         Assert.Equal(8, first.Length);
         // Free slots (indices 3,5,6,7) are digits only under quick pad.
@@ -170,8 +170,8 @@ public sealed class SeedProviderTests
     public void RepeaterProvider_MatchesTheCanonicalAestheticOrder()
     {
         char[] smallAlphabet = "123".ToCharArray();
-        var expected = JamlAesthetics
-            .EnumerateSeeds(JamlAesthetic.Repeater, smallAlphabet)
+        var expected = MotelyAesthetics
+            .EnumerateSeeds(MotelyAesthetic.Repeater, smallAlphabet)
             .ToArray();
         var provider = new MotelyRepeaterSeedProvider(smallAlphabet);
         var actual = new string[expected.Length];
@@ -179,7 +179,7 @@ public sealed class SeedProviderTests
         Assert.Equal(actual.Length, provider.NextSeeds(actual));
         Assert.Equal(expected, actual);
         Assert.Equal(
-            JamlAesthetics.GetSeedCount(JamlAesthetic.Repeater, smallAlphabet),
+            MotelyAesthetics.GetSeedCount(MotelyAesthetic.Repeater, smallAlphabet),
             provider.SeedCount
         );
 
@@ -190,13 +190,74 @@ public sealed class SeedProviderTests
     }
 
     [Fact]
+    public void PiAesthetic_SlidesAcrossPisDigits_WithOForZero()
+    {
+        var seeds = MotelyAesthetics.EnumerateSeeds(MotelyAesthetic.Pi).ToArray();
+
+        Assert.Equal(9_993, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Pi));
+        Assert.Equal(9_993, seeds.Length);
+        Assert.Equal(["31415926", "14159265", "41592653"], seeds[..3]);
+        // π's first 0 is decimal 32; the alphabet has no 0, so O plays it.
+        Assert.Equal("3832795O", seeds[25]);
+        // The Feynman point: six 9s from decimal 762.
+        Assert.Contains(seeds, static s => s.Contains("999999"));
+        Assert.All(seeds, static s => Assert.DoesNotContain('0', s));
+    }
+
+    [Fact]
+    public void SpinAesthetic_ReadsTheSameUpsideDown()
+    {
+        const string turnable = "689HIMNOSWXZ";
+        const string turned = "986HIWNOSMXZ";
+        static string UpsideDown(string s) =>
+            new([.. s.Reverse().Select(c => turned[turnable.IndexOf(c)])]);
+
+        var seeds = MotelyAesthetics.EnumerateSeeds(MotelyAesthetic.Spin).ToArray();
+
+        Assert.Equal(37_700, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Spin));
+        Assert.Equal(37_700, seeds.Length);
+        Assert.Equal(seeds.Length, seeds.Distinct().Count());
+        Assert.All(seeds, s => Assert.Equal(s, UpsideDown(s)));
+        Assert.Subset(seeds.ToHashSet(), new HashSet<string> { "SWIMS", "MOW", "NOON", "SOS", "69" });
+        Assert.DoesNotContain("SWIM", seeds);
+    }
+
+    [Fact]
+    public void FibonacciAesthetic_EachCharIsTheSumOfTheTwoBefore()
+    {
+        char[] pad = MotelyAesthetics.QuickPaddingChars;
+        var seeds = MotelyAesthetics.EnumerateSeeds(MotelyAesthetic.Fibonacci, pad).ToArray();
+
+        Assert.Equal(81, MotelyAesthetics.GetSeedCount(MotelyAesthetic.Fibonacci, pad));
+        Assert.Equal(81, seeds.Length);
+        // Positions 0,1,1,2,3,5,8,13 mod 9 = 4, over "123456789".
+        Assert.Equal("12234695", seeds[1]);
+        Assert.All(seeds, static s =>
+        {
+            for (int i = 2; i < s.Length; i++)
+                Assert.Equal((s[i - 1] - '1' + s[i - 2] - '1') % 9, s[i] - '1');
+        });
+    }
+
+    [Theory]
+    [InlineData("pi", MotelyAesthetic.Pi)]
+    [InlineData("spin", MotelyAesthetic.Spin)]
+    [InlineData("fibonacci", MotelyAesthetic.Fibonacci)]
+    public void NewAestheticsParseAndJoinAll(string name, MotelyAesthetic aesthetic)
+    {
+        Assert.True(MotelyAestheticParser.TryParse(name, out var parsed));
+        Assert.Equal(aesthetic, parsed);
+        Assert.Contains(aesthetic, MotelyAestheticParser.AllAesthetics());
+    }
+
+    [Fact]
     public void RunsAesthetic_GeneratesFourCharacterChunksAtEveryOffset()
     {
         char[] pad = "12".ToCharArray();
-        var seeds = JamlAesthetics.EnumerateSeeds(JamlAesthetic.Runs, pad).ToArray();
+        var seeds = MotelyAesthetics.EnumerateSeeds(MotelyAesthetic.Runs, pad).ToArray();
 
         Assert.Equal(
-            JamlAesthetics.GetSeedCount(JamlAesthetic.Runs, pad),
+            MotelyAesthetics.GetSeedCount(MotelyAesthetic.Runs, pad),
             seeds.LongLength
         );
         Assert.Contains("11111111", seeds);
@@ -281,5 +342,35 @@ public sealed class SeedProviderTests
             yield return "B1";
             yield return "B2";
         }
+    }
+
+    private const string PermissiveJaml = "name: p\nmust: []\nshould: []\n";
+
+    [Fact]
+    public void ProviderSearch_AllInvalidFirstPack_KeepsSearchingTheRest()
+    {
+        // Eight seeds with '0' (not in the alphabet) fill the first SIMD pack on their own.
+        string[] seeds = ["10", "20", "30", "40", "50", "60", "70", "80", "AAAAAAAA"];
+        var (matching, matched) = ProofSearch.ListMatch(PermissiveJaml, seeds);
+        Assert.Equal(1L, matching);
+        Assert.Equal(["AAAAAAAA"], matched);
+    }
+
+    [Fact]
+    public void ProviderSearch_AllInvalidPackMidList_KeepsTrailingSeeds()
+    {
+        var seeds = new List<string> { "AAAAAAAA" };
+        for (int i = 0; i < 8; i++)
+            seeds.Add("0000000" + i);
+        seeds.Add("BBBBBBBB");
+        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, [.. seeds]);
+        Assert.Equal(2L, matching);
+    }
+
+    [Fact]
+    public void ProviderSearch_OnlyInvalidSeeds_CompletesWithNothingSearched()
+    {
+        var (matching, _) = ProofSearch.ListMatch(PermissiveJaml, ["10", "20", "30"]);
+        Assert.Equal(0L, matching);
     }
 }

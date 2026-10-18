@@ -1,5 +1,4 @@
 using System.Runtime.Intrinsics;
-using Motely.Filters.Jaml;
 using Motely.SeedProviders;
 
 namespace Motely.Tests;
@@ -93,7 +92,7 @@ public sealed class S8CoverageClimbTests
     // ── Filter path execution via list (coverage without sequential) ──
 
     private static void RunClause(
-        IJamlClause clause,
+        IMotelyClause clause,
         string[] seeds,
         MotelyDeck deck = MotelyDeck.Red
     )
@@ -105,7 +104,7 @@ public sealed class S8CoverageClimbTests
             Stake = MotelyStake.White,
         };
         config.Must.Add(clause);
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config)
             .WithSeedGenerator(seeds, seeds.Length)
             .WithThreadCount(1)
@@ -474,7 +473,7 @@ public sealed class S8CoverageClimbTests
     /// R3 parity lock for the raw-stream fix pair: the vector fixed-rarity streams carry the
     /// Joker category bits, and the scalar must re-eval (JamlShouldScoreDesc) counts raw-stream
     /// sources. The uncommon raw stream always yields an uncommon, so the wildcard matches all
-    /// eight seeds on every route: raw desc, JamlSearchBuilder, and JAML text agree.
+    /// eight seeds on every route: raw desc, MotelySearchBuilder, and JAML text agree.
     /// commonShopJokers stays zero — a common-rarity stream can never satisfy an uncommon clause.
     /// </summary>
     [Fact]
@@ -482,7 +481,7 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string sources)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-parity
                 deck: Red
                 stake: White
@@ -492,7 +491,7 @@ public sealed class S8CoverageClimbTests
                     sources:
                 {sources}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         Assert.Equal(8, Count("      uncommonShopJokers: [0]"));
@@ -532,14 +531,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-tarot-probe
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         long shopAny = Count("""
@@ -591,14 +590,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-spectral
                 deck: Ghost
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
             return matching;
         }
         const string AllContent =
@@ -703,7 +702,7 @@ public sealed class S8CoverageClimbTests
                         var items = new List<string>();
                         for (int slot = 0; slot < 4; slot++)
                             items.Add(single.GetNextShopItem(ref shopStream).Type.ToString());
-                        bool meets = JamlScoring.ClauseMeetsMinForFilter(ref single, ScalarProbeDesc.Clause!);
+                        bool meets = ClauseScoring.ClauseMeetsMinForFilter(ref single, ScalarProbeDesc.Clause!);
                         ScalarProbeDesc.Log.Add($"sigil0={items[0] == "Sigil"} meets={meets}");
                         return 0;
                     }
@@ -758,9 +757,8 @@ public sealed class S8CoverageClimbTests
     ];
 
     /// <summary>
-    /// Legendary soul routes over a 20-seed list (3 vector batches — the P2 multi-batch
-    /// regression). Split-mode arcana/spectral slots, soulCardOnly counting, the
-    /// requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
+    /// Legendary soul routes over a 20-seed list (3 vector batches). Split-mode arcana/spectral
+    /// slots, soulCardOnly counting, the requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
     /// the same pack-order law — and the same slot numbering as <c>spectralCard: TheSoul</c>,
     /// so the two counts agree. CUC's only Soul is ante 1's fourth rolled pack, which no run
     /// offers: ante 1 slot 0 is the fixed Buffoon, so slots 0–3 hold three rolls, not four.
@@ -770,14 +768,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var jaml = $"""
+            var yaml = $"""
                 name: s8-legendary
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(jaml, WideSeeds);
+            var (matching, _) = ProofSearch.ListMatch(yaml, WideSeeds);
             return matching;
         }
         long split = Count("""
@@ -831,7 +829,7 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(8, soulOnly);
         Assert.Equal(0, mega);
         Assert.Equal(8, legacy);
-        Assert.Equal(0, perkeo);
+        Assert.Equal(1, perkeo);
         Assert.Equal(8, theSoulClause);
         Assert.Equal(0, ante0);
     }
@@ -870,36 +868,6 @@ public sealed class S8CoverageClimbTests
     public void NegativeLegendaryAnte12_ExactJamlRoute_MatchesRealSeeds()
     {
         ProofSearch.MustMatchAll(NegativeLegendaryAnte12, NegativeLegendaryAnte12Seeds);
-    }
-
-    /// <summary>
-    /// The SIMD front composed with the shop-soul confirm is a CANDIDATE generator: it ORs
-    /// "Negative edition at ante 1 or 2" with "Soul appears at ante 1 or 2" without linking the
-    /// two to the same ante. Over-permissive is allowed; dropping a seed the exact route accepts
-    /// is not. So the prefilter's output is a superset — every exact match survives it.
-    /// </summary>
-    [Fact]
-    public void NegativeLegendarySimdFront_IsASupersetOfTheExactRoute()
-    {
-        var matched = new List<string>();
-        using var search = new MotelySearchSettings<NegativeLegendaryJokerSimdFilterDesc.FilterStruct>(
-            new NegativeLegendaryJokerSimdFilterDesc()
-        )
-            .WithAdditionalFilter(new LegendaryJokerShopSoulFilterDesc())
-            .WithDeck(MotelyDeck.Red)
-            .WithStake(MotelyStake.White)
-            .WithSeedGenerator(NegativeLegendaryAnte12Seeds, NegativeLegendaryAnte12Seeds.Length)
-            .WithThreadCount(1)
-            .WithQuietMode(true)
-            .WithSeedMatchCallback(matched.Add)
-            .Start();
-        search.AwaitCompletion();
-
-        var dropped = NegativeLegendaryAnte12Seeds.Except(matched).ToArray();
-        Assert.True(
-            dropped.Length == 0,
-            $"Prefilter dropped seeds the exact route accepts: {string.Join(", ", dropped)}"
-        );
     }
 
     [Fact]

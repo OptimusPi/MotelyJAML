@@ -1,0 +1,17 @@
+name: Mime Steel Baron
+author: jammy
+description: Mime uncommon with Baron and Steel cards for held-card retrigger
+deck: Red
+stake: White
+must:
+  - uncommonJoker: Mime
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Baron
+    score: 60
+  - tarotCard: TheChariot
+    score: 50

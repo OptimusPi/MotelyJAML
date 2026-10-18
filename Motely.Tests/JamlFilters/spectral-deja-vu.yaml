@@ -1,0 +1,17 @@
+name: DejaVu Red Seal
+author: jammy
+description: DejaVu spectralCard with Glass Joker for Red Seal retrigger synergy
+deck: Red
+stake: White
+must:
+  - spectralCard: DejaVu
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: GlassJoker
+    score: 50
+  - commonJoker: Photograph
+    score: 45

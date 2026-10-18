@@ -1,0 +1,17 @@
+name: Crazy Joker Straight
+author: jammy
+description: Crazy Joker common for +12 Mult if played hand contains a Straight
+deck: Red
+stake: White
+must:
+  - commonJoker: CrazyJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Shortcut
+    score: 40
+  - rareJoker: Stuntman
+    score: 35

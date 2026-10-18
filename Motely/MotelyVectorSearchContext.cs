@@ -34,7 +34,7 @@ public struct MotelyVectorResampleStream(MotelyVectorPrngStream initialPrngStrea
     public MotelyResampleStreams ResamplePrngStreams;
     public int ResamplePrngStreamInitCount;
 
-    // StrongBox keeps resample streams as a typed heap cell — no object-box churn.
+    /// <summary>Resamples past the inline array, indexed from <see cref="StackResampleCount"/>.</summary>
     public List<StrongBox<MotelyVectorPrngStream>>? HighResamplePrngStreams;
     public bool IsCached = isCached;
     public readonly bool IsInvalid => InitialPrngStream.IsInvalid;
@@ -51,21 +51,13 @@ public struct MotelyVectorResampleStream(MotelyVectorPrngStream initialPrngStrea
         };
 
         for (int i = 0; i < ResamplePrngStreamInitCount; i++)
-        {
             stream.ResamplePrngStreams[i] = ResamplePrngStreams[i].CreateSingleStream(lane);
-        }
 
-        if (HighResamplePrngStreams != null)
+        if (HighResamplePrngStreams is { } high)
         {
-            stream.HighResamplePrngStreams = new List<object>(HighResamplePrngStreams.Count);
-
-            for (int i = 0; i < HighResamplePrngStreams.Count; i++)
-            {
-                // StrongBox.Value — typed path, no unbox.
-                stream.HighResamplePrngStreams.Add(
-                    HighResamplePrngStreams[i].Value.CreateSingleStream(lane)
-                );
-            }
+            stream.HighResamplePrngStreams = new(high.Count);
+            foreach (var box in high)
+                stream.HighResamplePrngStreams.Add(new(box.Value.CreateSingleStream(lane)));
         }
 
         return stream;
@@ -262,10 +254,12 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
     {
         Vector512<double> partialHash;
 
-        // bugged ???????????????????????????????
-        //if ((isCached && !IsAdditionalFilter) || SeedHashCache->HasPartialHash(key.Length))
-        //fixed?
-        if (!IsAdditionalFilter && (isCached || SeedHashCache->HasPartialHash(key.Length)))
+        // An additional-filter context never trusts the length-keyed cache: it was filled for the
+        // base filter's key set. Same law as the scalar context. isCached is only a hint: the
+        // cache is always asked, so a key the desc forgot to register (or one too long to cache)
+        // computes its hash instead of dereferencing an empty native slot.
+        _ = isCached;
+        if (!IsAdditionalFilter && SeedHashCache->HasPartialHash(key.Length))
         {
             partialHash = SeedHashCache->GetPartialHashVector(key.Length);
         }
@@ -332,12 +326,9 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         return partialHash;
     }
 
-    // Hot path constants for PRNG iteration
-    private static readonly double InvPrec = Math.Pow(10.0, 13);
-    private static readonly double TwoInvPrec = Math.Pow(2.0, 13);
-    private static readonly double FiveInvPrec = Math.Pow(5.0, 13);
-
-    // Mukundan314's fix: Use FMA with magic number for accurate rounding matching LuaJIT
+    // Balatro's pseudoseed step, LuaJIT-exact (Mukundan314): multiply, add, take the fraction,
+    // then round to 13 decimals with one FMA against 2^52 so the tie-breaking matches the Lua
+    // runtime's %.13f. MotelySingleSearchContext.IteratePRNG is the scalar twin, step for step.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector512<double> IteratePRNG(Vector512<double> state)
     {
@@ -347,8 +338,6 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
         Vector512<double> intPart = Vector512.Floor(state);
         state = Vector512.Subtract(state, intPart);
 
-        // Round to 13 decimals using FMA + magic number for exact tie-breaking
-        // FMA(state, 1e13, 2^52) maintains infinite precision, avoiding intermediate rounding
         state = Vector512.FusedMultiplyAdd(
             state,
             MotelyVectorConstants.PrngRoundingFactor,
@@ -500,26 +489,18 @@ public readonly unsafe ref partial struct MotelyVectorSearchContext
             return ref prngStream;
         }
 
-        {
-            if (resample == MotelyVectorResampleStream.StackResampleCount)
-            {
-                resampleStream.HighResamplePrngStreams = [];
-            }
+        // Past the inline array the streams live on the heap, kept for the stream's whole life:
+        // Balatro re-reads a resample stream it has seen before rather than re-seeding it.
+        var high = resampleStream.HighResamplePrngStreams ??= [];
+        int index = resample - MotelyVectorResampleStream.StackResampleCount;
+        if (index < high.Count)
+            return ref high[index].Value;
 
-            Debug.Assert(resampleStream.HighResamplePrngStreams != null);
-
-            // StrongBox — typed heap cell for the stream.
-            if (resample < resampleStream.HighResamplePrngStreams.Count)
-            {
-                return ref resampleStream.HighResamplePrngStreams[resample].Value;
-            }
-
-            var prngStreamBox = new StrongBox<MotelyVectorPrngStream>();
-            resampleStream.HighResamplePrngStreams.Add(prngStreamBox);
-
-            prngStreamBox.Value = CreateResamplePrngStream(key, resample, resampleStream.IsCached);
-
-            return ref prngStreamBox.Value;
-        }
+        Debug.Assert(index == high.Count, "Resample streams are created in order.");
+        var box = new StrongBox<MotelyVectorPrngStream>(
+            CreateResamplePrngStream(key, resample, resampleStream.IsCached)
+        );
+        high.Add(box);
+        return ref box.Value;
     }
 }

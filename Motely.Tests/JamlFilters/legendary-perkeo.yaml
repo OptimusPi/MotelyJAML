@@ -1,0 +1,17 @@
+name: Perkeo Consumable Engine
+author: jammy
+description: Perkeo legendary joker with BlackHole for infinite hand level scaling
+deck: Red
+stake: White
+must:
+  - legendaryJoker: Perkeo
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - spectralCard: BlackHole
+    score: 80
+  - uncommonJoker: Constellation
+    score: 60

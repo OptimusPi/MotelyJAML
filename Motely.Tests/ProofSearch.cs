@@ -1,4 +1,3 @@
-using Motely.Filters.Jaml;
 
 namespace Motely.Tests;
 
@@ -8,23 +7,23 @@ namespace Motely.Tests;
 /// </summary>
 public static class ProofSearch
 {
-    public static JamlConfig LoadOrThrow(string jaml)
+    public static JamlConfig LoadOrThrow(string yaml)
     {
-        if (!JamlConfigLoader.TryLoad(jaml, out var config, out var error) || config is null)
+        if (!JamlConfigLoader.TryLoad(yaml, out var config, out var error) || config is null)
             throw new InvalidOperationException($"JAML load failed: {error}");
         return config;
     }
 
     public static (long Matching, List<string> Matched) ListMatch(
-        string jaml,
+        string yaml,
         string[] seeds,
         int threads = 1,
         int cutoff = 0
     )
     {
-        var config = LoadOrThrow(jaml);
+        var config = LoadOrThrow(yaml);
         var matched = new List<string>();
-        using var search = JamlSearchBuilder
+        using var search = MotelySearchBuilder
             .CreateSettings(config, cutoff)
             .WithAutoScoreCutoff(false)
             .WithSeedGenerator(seeds, seeds.Length)
@@ -36,9 +35,9 @@ public static class ProofSearch
         return (search.MatchingSeeds, matched);
     }
 
-    public static void MustMatchAll(string jaml, params string[] seeds)
+    public static void MustMatchAll(string yaml, params string[] seeds)
     {
-        var (matching, matched) = ListMatch(jaml, seeds);
+        var (matching, matched) = ListMatch(yaml, seeds);
         Assert.Equal(seeds.Length, (int)matching);
         Assert.Equal(
             seeds.OrderBy(static s => s, StringComparer.Ordinal).ToArray(),
@@ -46,9 +45,9 @@ public static class ProofSearch
         );
     }
 
-    public static void MustMatchNone(string jaml, params string[] seeds)
+    public static void MustMatchNone(string yaml, params string[] seeds)
     {
-        var (matching, _) = ListMatch(jaml, seeds);
+        var (matching, _) = ListMatch(yaml, seeds);
         Assert.Equal(0L, matching);
     }
 }

@@ -1,0 +1,17 @@
+name: Cryptid Card Clone
+author: jammy
+description: Cryptid spectralCard with The Idol for card duplication strategy
+deck: Red
+stake: White
+must:
+  - spectralCard: Cryptid
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: TheIdol
+    score: 60
+  - rareJoker: DNA
+    score: 40

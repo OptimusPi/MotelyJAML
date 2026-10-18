@@ -1,0 +1,17 @@
+name: Strength Baron Build
+author: jammy
+description: Strength tarotCard to convert Queens to Kings for Baron
+deck: Red
+stake: White
+must:
+  - tarotCard: Strength
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Baron
+    score: 60
+  - legendaryJoker: Triboulet
+    score: 50

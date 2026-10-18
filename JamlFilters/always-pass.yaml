@@ -1,8 +1,0 @@
-name: always-pass-yaml
-deck: Red
-stake: White
-must:
-  - joker:
-should:
-  - joker:
-    score: 1

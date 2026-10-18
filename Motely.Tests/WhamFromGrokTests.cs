@@ -36,7 +36,7 @@ public sealed class WhamFromGrokTests
         var failures = new List<string>();
         foreach (
             var file in Directory
-                .GetFiles(golden, "*.jaml", SearchOption.TopDirectoryOnly)
+                .GetFiles(golden, "*.yaml", SearchOption.TopDirectoryOnly)
                 .OrderBy(static f => f, StringComparer.OrdinalIgnoreCase)
         )
         {

@@ -4,8 +4,7 @@ namespace Motely.Analysis;
 
 /// <summary>
 /// The window the Jamlyzer reads for one seed: which antes (the JAML's ante scope, see
-/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream. One value, shared by
-/// the standalone filter and the analyze provider, so both walk exactly the same ground.
+/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream.
 /// </summary>
 internal readonly struct MotelyJamlyzerWindow
 {
@@ -35,9 +34,8 @@ internal readonly struct MotelyJamlyzerWindow
     public static int DefaultShopSlots(int ante) => ante <= 1 ? 15 : 50;
 
     /// <summary>
-    /// Both dials arrive from JS unchecked. A negative count used to surface as an
-    /// OverflowException from an array allocation, and a huge one allocated gigabytes or walked
-    /// for minutes on the browser's only thread. Name the argument and the limit instead.
+    /// Both dials arrive from JS unchecked. An out-of-range one throws naming the argument and
+    /// the limit.
     /// </summary>
     public static void ThrowIfOutOfRange(int eventRolls, int shopSlots)
     {
@@ -49,12 +47,11 @@ internal readonly struct MotelyJamlyzerWindow
 }
 
 /// <summary>
-/// JAMLyzer's filter: walks every ante's boss/voucher/tags/shop/packs and every relevant PRNG
+/// Jamlyzer's filter: walks every ante's boss/voucher/tags/shop/packs and every relevant PRNG
 /// stream for one seed, answering "what does this seed actually contain?". The walk itself is
 /// <see cref="MotelyJamlyzerSeedWalk"/>; this desc is how
-/// <see cref="MotelyJamlyzer.Analyze(Motely.Filters.Jaml.JamlConfig, int)"/> runs it standalone,
-/// one seed per search, with a resume bag. To run the same walk on a search's own finds instead,
-/// see <see cref="MotelyJamlyzerRiderDesc"/>. Unrelated to the CLI's legacy <c>--analyze</c>
+/// <see cref="MotelyJamlyzer.Analyze(Motely.Filters.JamlConfig, int)"/> runs it standalone,
+/// one seed per search, with a resume bag. Unrelated to the CLI's legacy <c>--analyze</c>
 /// flag (<see cref="MotelyUnitTestAnalyzer"/>).
 /// </summary>
 public sealed class MotelyJamlyzerFilterDesc(
@@ -143,6 +140,13 @@ internal static class MotelyJamlyzerSeedWalk
 
         var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - startAnte + 1];
 
+        // The legendary face pool (Joker4) is run-global -- keyed with no ante -- so the Nth Soul the
+        // player opens gets draw N however the antes fall. One stream carried across the whole walk
+        // records that order once per seed. (The old per-ante LegendaryJokers queues restarted it on
+        // every ante, so each ante showed the same global prefix; they are gone.)
+        MotelySingleLegendaryJokerStream legendaryFaces = ctx.CreateRunLegendaryJokerStream();
+        List<MotelyJamlyzerLegendary> legendaryOrder = [];
+
         for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
             // Ante 0 is the pre-run shop, reached by ante reduction (Hieroglyph / Petroglyph):
@@ -194,11 +198,77 @@ internal static class MotelyJamlyzerSeedWalk
             var packStream = ctx.CreateBoosterPackStream(ante);
             int maxPacks = ante <= 1 ? 4 : 6;
             MotelyJamlyzerPack[] packs = new MotelyJamlyzerPack[maxPacks];
+
+            // Soul detection rides its own per-ante streams, so the content stream above is untouched:
+            // the same arcana/Spectral soul-only streams LegendarySoulMatcher walks, in the same slot
+            // order, so a Soul found here is a Soul the scorer finds. The edition is the ante's own
+            // edisou{ante}; the face comes from the run-global stream declared before the ante loop.
+            MotelySingleTarotStream soulTarotStream = default;
+            MotelySingleSpectralStream soulSpectralStream = default;
+            bool soulTarotInit = false;
+            bool soulSpectralInit = false;
+            MotelySingleJokerFixedRarityStream soulEditionStream = default;
+            bool soulEditionInit = false;
+
             for (int i = 0; i < maxPacks; i++)
             {
                 MotelyBoosterPack pack = ctx.GetNextBoosterPack(ref packStream);
                 MotelyItem[] contents = GetPackContents(ref ctx, ante, pack, ref state).AsArray();
                 packs[i] = new(pack, contents);
+
+                bool hasSoul;
+                if (pack.GetPackType() == MotelyBoosterPackType.Arcana)
+                {
+                    if (!soulTarotInit)
+                    {
+                        soulTarotInit = true;
+                        soulTarotStream = ctx.CreateArcanaPackTarotStream(ante, true);
+                    }
+
+                    hasSoul = ctx.GetNextArcanaPackHasTheSoul(
+                        ref soulTarotStream,
+                        pack.GetPackSize()
+                    );
+                }
+                else if (pack.GetPackType() == MotelyBoosterPackType.Spectral)
+                {
+                    if (!soulSpectralInit)
+                    {
+                        soulSpectralInit = true;
+                        // PerkeoObservatory: ante 1 Spectral uses soulOnly false; ante 2+ uses true.
+                        soulSpectralStream = ctx.CreateSpectralPackSpectralStream(
+                            ante,
+                            soulOnly: ante != 1
+                        );
+                    }
+
+                    hasSoul = ctx.GetNextSpectralPackHasTheSoul(
+                        ref soulSpectralStream,
+                        pack.GetPackSize()
+                    );
+                }
+                else
+                    continue;
+
+                if (!hasSoul)
+                    continue;
+
+                MotelyJoker face = ctx.GetNextLegendaryJoker(
+                    ref legendaryFaces,
+                    ReadOnlySpan<MotelyJoker>.Empty,
+                    showmanActive: false
+                );
+                if (!soulEditionInit)
+                {
+                    soulEditionInit = true;
+                    soulEditionStream = ctx.CreateLegendaryJokerStream(
+                        ante,
+                        MotelyJokerFixedRarityStreamFlags.ExcludeJokerType
+                    );
+                }
+
+                MotelyItemEdition edition = ctx.GetNextJoker(ref soulEditionStream).Edition;
+                legendaryOrder.Add(new(ante, i, face, edition));
             }
 
             // pulls streams — card/joker-activated streams beyond shops/packs.
@@ -247,7 +317,7 @@ internal static class MotelyJamlyzerSeedWalk
                 erraticDeck[i] = ctx.GetNextErraticDeckCard(ref deckStream);
         }
 
-        return new(ctx.GetSeed(), 0, antes, events, streamStates, erraticDeck);
+        return new(ctx.GetSeed(), 0, antes, events, streamStates, legendaryOrder, erraticDeck);
     }
 
     private static MotelyJamlyzerPulls CollectPulls(
@@ -262,7 +332,7 @@ internal static class MotelyJamlyzerSeedWalk
         // resumed window would replay `offset` rolls of each, to then read none of them.
         // `eventRolls: 0` is sold as the cheap shape, so make it cheap.
         if (n == 0)
-            return new([], [], [], [], [], [], [], [], [], [], []);
+            return new([], [], [], [], [], [], [], [], [], []);
 
         // Joker streams
         var judgementStream = ctx.CreateJudgementJokerStream(ante);
@@ -270,7 +340,6 @@ internal static class MotelyJamlyzerSeedWalk
         var riffRaffStream = ctx.CreateRiffRaffJokerStream(ante);
         var rareTagStream = ctx.CreateRareTagJokerStream(ante);
         var uncommonTagStream = ctx.CreateUncommonTagJokerStream(ante);
-        var legendaryStream = ctx.CreateLegendaryJokerStream(ante);
 
         // Tarot streams
         var emperorStream = ctx.CreateEmperorTarotStream(ante);
@@ -288,7 +357,6 @@ internal static class MotelyJamlyzerSeedWalk
         MotelyItem[] riffRaff = new MotelyItem[n];
         MotelyItem[] rareTag = new MotelyItem[n];
         MotelyItem[] uncommonTag = new MotelyItem[n];
-        MotelyItem[] legendary = new MotelyItem[n];
         MotelyItem[] emperor = new MotelyItem[n * 2]; // 2 tarots per use
         MotelyItem[] purpleSeal = new MotelyItem[n];
         MotelyItem[] sixthSense = new MotelyItem[n];
@@ -304,7 +372,6 @@ internal static class MotelyJamlyzerSeedWalk
             var rr = ctx.GetNextJoker(ref riffRaffStream);
             var rt = ctx.GetNextJoker(ref rareTagStream);
             var ut = ctx.GetNextJoker(ref uncommonTagStream);
-            var lg = ctx.GetNextJoker(ref legendaryStream);
 
             var e0 = ctx.GetNextTarot(ref emperorStream);
             var e1 = ctx.GetNextTarot(ref emperorStream, new(e0));
@@ -323,7 +390,6 @@ internal static class MotelyJamlyzerSeedWalk
             riffRaff[w] = rr;
             rareTag[w] = rt;
             uncommonTag[w] = ut;
-            legendary[w] = lg;
             emperor[w * 2] = e0;
             emperor[w * 2 + 1] = e1;
             purpleSeal[w] = ps;
@@ -342,7 +408,6 @@ internal static class MotelyJamlyzerSeedWalk
             riffRaff,
             rareTag,
             uncommonTag,
-            legendary,
             vouchers
         );
     }

@@ -1,27 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Motely.MCP: the MCP server (Streamable HTTP) and the AG-UI endpoint, behind one ASP.NET
+       Core host. A long-running service, so no NativeAOT (unlike Motely.CLI): the JIT picks the
+       host ISA by itself, and ASP.NET Core + AOT is a poor fit. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>MotelyMCP</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsPublishable>false</IsPublishable>
+    <RootNamespace>Motely.MCP</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="AGUI.Server" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Motely\Motely.csproj" />
-    <!-- Party workers are Motely.CLI processes: build it first, then ship it in cli/. -->
-    <ProjectReference Include="..\Motely.CLI\Motely.CLI.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Motely.ServiceDefaults\Motely.ServiceDefaults.csproj" />
   </ItemGroup>
-
-  <Target Name="CopyMotelyCli" AfterTargets="Build">
-    <ItemGroup>
-      <MotelyCliFiles Include="..\Motely.CLI\bin\$(Configuration)\$(TargetFramework)\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(MotelyCliFiles)" DestinationFolder="$(OutDir)cli" SkipUnchangedFiles="true" />
-  </Target>
 </Project>

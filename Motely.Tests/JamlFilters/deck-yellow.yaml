@@ -1,0 +1,17 @@
+name: Yellow Deck Interest Engine
+author: jammy
+description: Yellow Deck with To TheMoon for maximum interest scaling
+deck: Yellow
+stake: White
+must:
+  - uncommonJoker: ToTheMoon
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - voucher: SeedMoney
+    score: 30
+  - uncommonJoker: Bull
+    score: 25

@@ -1,0 +1,17 @@
+name: Invisible Joker Sell Duplicate
+author: jammy
+description: Invisible Joker rare duplicates a random joker after 4 rounds
+deck: Red
+stake: White
+must:
+  - rareJoker: InvisibleJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 50
+  - rareJoker: Baron
+    score: 45

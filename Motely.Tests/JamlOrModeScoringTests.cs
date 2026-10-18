@@ -12,16 +12,16 @@ public class JamlOrModeScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{jaml}"
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{yaml}"
         );
 
         int? score = null;
         int? tally = null;
-        var settings = JamlSearchBuilder
+        var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([Seed], 1)
             .WithThreadCount(1)
@@ -59,7 +59,7 @@ public class JamlOrModeScoringTests
             error
         );
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Sum, or.Mode);
+        Assert.Equal(LogicScoreMode.Sum, or.Mode);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class JamlOrModeScoringTests
             error
         );
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class JamlOrModeScoringTests
                 out var error
             )
         );
-        Assert.Contains("mode", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("average", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class JamlOrModeScoringTests
         );
 
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
     }
 
     /// <summary>
@@ -200,7 +200,7 @@ public class JamlOrModeScoringTests
     [Fact]
     public void Or_ArmsWriteTheirOwnAntes_LoadAndScore_MOTELY77()
     {
-        const string jaml = """
+        const string yaml = """
             name: or-arm-antes
             deck: Red
             stake: White
@@ -218,12 +218,12 @@ public class JamlOrModeScoringTests
             """;
 
         Assert.True(
-            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
             error
         );
 
         var or = Assert.IsType<OrClause>(Assert.Single(config!.Should));
-        Assert.Equal(JamlLogicScoreMode.Max, or.Mode);
+        Assert.Equal(LogicScoreMode.Max, or.Mode);
         Assert.Equal(2, or.Clauses.Length);
 
         var tag = Assert.IsAssignableFrom<IAnteScopedClause>(or.Clauses[0]);
@@ -231,7 +231,7 @@ public class JamlOrModeScoringTests
         Assert.Equal([1], tag.Antes);
         Assert.Equal([1], voucher.Antes);
 
-        var (matching, score, tally) = RunSingleSeed(jaml);
+        var (matching, score, tally) = RunSingleSeed(yaml);
         Assert.Equal(1, matching);
         Assert.Equal(5, score); // max(3, 5) via ante-1 hits only
         Assert.Equal(1, tally);

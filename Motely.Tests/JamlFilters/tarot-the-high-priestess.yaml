@@ -1,0 +1,17 @@
+name: TheHighPriestess planetCard Engine
+author: jammy
+description: TheHighPriestess creates 2 Planets for Constellation scaling
+deck: Red
+stake: White
+must:
+  - tarotCard: TheHighPriestess
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Constellation
+    score: 50
+  - uncommonJoker: Satellite
+    score: 30

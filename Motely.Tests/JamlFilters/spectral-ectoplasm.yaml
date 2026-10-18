@@ -1,0 +1,17 @@
+name: Ectoplasm Negative Joker
+author: jammy
+description: Ectoplasm spectralCard with Joker Stencil for Negative edition synergy
+deck: Red
+stake: White
+must:
+  - spectralCard: Ectoplasm
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: JokerStencil
+    score: 60
+  - rareJoker: Blueprint
+    score: 50

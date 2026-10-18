@@ -1,0 +1,15 @@
+name: Foil Tag Early
+author: jammy
+description: Foil Tag for free Foil edition joker
+deck: Red
+stake: White
+must:
+  - tag: FoilTag
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - rareJoker: Blueprint
+    score: 40

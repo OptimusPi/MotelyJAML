@@ -31,14 +31,14 @@ public sealed class JamlMaxAndOmenGlobeTests
             Min = min,
             Max = max,
         };
-        Assert.Equal(expected, JamlScoring.MeetsOccurrenceBounds(raw, clause));
+        Assert.Equal(expected, ClauseScoring.MeetsOccurrenceBounds(raw, clause));
     }
 
     [Fact]
     public void OmenGlobe_IsExactFilterConfirm()
     {
         Assert.True(
-            JamlScoring.IsExactFilterConfirm(
+            ClauseScoring.IsExactFilterConfirm(
                 new SpectralCardClause
                 {
                     Spectrals = [MotelySpectralCard.Immolate],
@@ -80,7 +80,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                 config.Should.Add(clause);
 
             var hits = new HashSet<string>();
-            var settings = JamlSearchBuilder
+            var settings = MotelySearchBuilder
                 .CreateSettings(config)
                 .WithSeedGenerator(seeds, seeds.Length)
                 .WithThreadCount(1)
@@ -105,7 +105,7 @@ public sealed class JamlMaxAndOmenGlobeTests
     [Fact]
     public void OmenGlobe_LoaderAcceptsSourceKey()
     {
-        const string jaml = """
+        const string yaml = """
             name: omen
             deck: Red
             stake: White
@@ -115,7 +115,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                   omenGlobe: true
                   boosterPacks: [0, 1, 2, 3]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         var sc = Assert.IsType<SpectralCardClause>(config!.Must[0]);
         Assert.NotNull(sc.Sources);
         Assert.True(sc.Sources!.OmenGlobe);
@@ -126,7 +126,7 @@ public sealed class JamlMaxAndOmenGlobeTests
     {
         // Boss exact path: Min=1 Max=0 invalid is loader-side; Max=1 with multi-ante can overshoot.
         // MeetsOccurrenceBounds is the gate — covered by theory above; this pins end-to-end load.
-        const string jaml = """
+        const string yaml = """
             name: max-must
             deck: Red
             stake: White
@@ -136,7 +136,7 @@ public sealed class JamlMaxAndOmenGlobeTests
                 min: 1
                 max: 1
             """;
-        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         Assert.Equal(1, config!.Must[0].Min);
         Assert.Equal(1, config.Must[0].Max);
     }

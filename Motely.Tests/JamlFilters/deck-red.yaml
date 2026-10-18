@@ -1,0 +1,17 @@
+name: Red Deck Early Economy
+author: jammy
+description: Red Deck with early economy jokers to capitalize on the extra hand per round
+deck: Red
+stake: White
+must:
+  - commonJoker: GoldenJoker
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: Bull
+    score: 30
+  - voucher: SeedMoney
+    score: 20

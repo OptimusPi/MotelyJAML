@@ -1,0 +1,17 @@
+name: Ghost Deck spectralCard Spam
+author: jammy
+description: Ghost Deck with Oops All 6s to double spectralCard generation rate
+deck: Ghost
+stake: White
+must:
+  - uncommonJoker: OopsAll6s
+    antes:
+      - 1
+      - 2
+      - 3
+      - 4
+should:
+  - uncommonJoker: SixthSense
+    score: 30
+  - spectralCard: BlackHole
+    score: 40
