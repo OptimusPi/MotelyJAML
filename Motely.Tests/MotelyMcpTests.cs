@@ -24,6 +24,12 @@ public sealed class MotelyMcpTests
         );
     }
 
+    static MotelyMcpTests()
+    {
+        // The runner resolves filters through MOTELY_FILTERS_DIR; point it at the repo's.
+        Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", RepoFilters());
+    }
+
     [Fact]
     public async Task SearchRunner_replays_a_filter_deterministically()
     {
@@ -66,9 +72,16 @@ public sealed class MotelyMcpTests
     }
 
     [Fact]
-    public async Task Agent_asks_which_filter_when_none_is_named()
+    public async Task Agent_reports_a_missing_filter()
     {
-        var output = await RunAgentAsync("hello");
+        var output = await RunAgentAsync("search no-such-filter-xyz");
+        Assert.Contains("no filter", output);
+    }
+
+    [Fact]
+    public async Task Agent_asks_which_filter_when_the_message_is_empty()
+    {
+        var output = await RunAgentAsync("");
         Assert.Contains("Tell me which JAML filter", output);
     }
 
