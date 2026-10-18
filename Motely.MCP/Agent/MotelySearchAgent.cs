@@ -114,8 +114,20 @@ public sealed class MotelySearchAgent : IChatClient
         if (parts.Length == 0)
             return (null, null, null);
 
+        // A leading command word ("search", "run", "find") is skipped: both "Zerkeo_Pure" and
+        // "search Zerkeo_Pure" name the filter.
+        int start = 0;
+        if (
+            parts[0].Equals("search", StringComparison.OrdinalIgnoreCase)
+            || parts[0].Equals("run", StringComparison.OrdinalIgnoreCase)
+            || parts[0].Equals("find", StringComparison.OrdinalIgnoreCase)
+        )
+            start = 1;
+        if (start >= parts.Length)
+            return (null, null, null);
+
         string? mode = null;
-        for (int i = 1; i < parts.Length; i++)
+        for (int i = start + 1; i < parts.Length; i++)
         {
             if (parts[i].Equals("keyword", StringComparison.OrdinalIgnoreCase) && i + 1 < parts.Length)
                 mode = "keyword " + parts[i + 1];
@@ -127,7 +139,7 @@ public sealed class MotelySearchAgent : IChatClient
                 mode = "sequential";
         }
 
-        return (parts[0], mode, null);
+        return (parts[start], mode, null);
     }
 
     private static string FormatDuration(TimeSpan span) =>

@@ -51,10 +51,6 @@ public sealed class SearchRunner
         var path = FilterCheck.ResolvePath(filter);
         if (!File.Exists(path))
         {
-            File.AppendAllText(
-                @"C:\Users\pifre\AppData\Local\Temp\opencode\runnerdiag.txt",
-                $"path={path} | dir={Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR")} | exists={File.Exists(path)} | cwd={Environment.CurrentDirectory}\n"
-            );
             yield return new SearchEvent.Error($"no filter at {path}");
             yield break;
         }

@@ -34,23 +34,12 @@ public sealed class MotelyMcpTests
     [Fact]
     public async Task SearchRunner_replays_a_filter_deterministically()
     {
-        var (matched1, searched1) = await RunAsync("longCola", "replay");
-        var (matched2, searched2) = await RunAsync("longCola", "replay");
+        var (matched1, searched1) = await RunAsync("Zerkeo_Pure", "replay");
+        var (matched2, searched2) = await RunAsync("Zerkeo_Pure", "replay");
 
         Assert.True(searched1 > 0);
         Assert.Equal(searched1, searched2);
         Assert.Equal(matched1, matched2);
-    }
-
-    [Fact]
-    public void Diagnostic_full()
-    {
-        var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR");
-        var combined = Path.Combine(filtersDir ?? "JamlFilters", "longCola.yaml");
-        File.AppendAllText(
-            @"C:\Users\pifre\AppData\Local\Temp\opencode\mcpdiag.txt",
-            $"filtersDir={filtersDir} | combined={combined} | exists={File.Exists(combined)} | cwd={Environment.CurrentDirectory} | base={AppContext.BaseDirectory}\n"
-        );
     }
 
     [Fact]
@@ -68,18 +57,17 @@ public sealed class MotelyMcpTests
     [Fact]
     public async Task Search_tool_reports_matches()
     {
-        var result = await MotelyTools.Search(null!, "longCola", "replay", null);
-        File.WriteAllText(@"C:\Users\pifre\AppData\Local\Temp\opencode\result.txt", result);
+        var result = await MotelyTools.Search(null!, "Zerkeo_Pure", "replay", null);
         Assert.Contains("matched", result);
     }
 
     [Fact]
     public async Task Agent_streams_a_deterministic_run()
     {
-        var first = await RunAgentAsync("search longCola");
-        var second = await RunAgentAsync("search longCola");
+        var first = await RunAgentAsync("search Zerkeo_Pure");
+        var second = await RunAgentAsync("search Zerkeo_Pure");
 
-        Assert.Contains("Searching longCola", first);
+        Assert.Contains("Searching Zerkeo_Pure", first);
         Assert.Contains("matched", first);
         Assert.Equal(first, second);
     }
