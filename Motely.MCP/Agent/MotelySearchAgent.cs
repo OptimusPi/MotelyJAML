@@ -67,10 +67,25 @@ public sealed class MotelySearchAgent : IChatClient
                     break;
 
                 case SearchEvent.Done d:
-                    yield return Text(
-                        $"Found {d.Matched:N0} matching seeds out of {d.TotalSearched:N0} searched "
-                            + $"in {FormatDuration(d.Elapsed)} ({d.Rate:N0} seeds/s)."
-                    );
+                    // Timing goes in the final state snapshot, not the text, so the text of a run
+                    // stays the same every time it is replayed.
+                    yield return new ChatResponseUpdate
+                    {
+                        RawRepresentation = new StateSnapshotEvent
+                        {
+                            Snapshot = JsonSerializer.SerializeToElement(
+                                new
+                                {
+                                    percent = 100,
+                                    searched = d.TotalSearched,
+                                    matched = d.Matched,
+                                    rate = d.Rate,
+                                    elapsed = FormatDuration(d.Elapsed),
+                                }
+                            ),
+                        },
+                    };
+                    yield return Text($"{d.Matched:N0} matched / {d.TotalSearched:N0} searched.");
                     break;
 
                 case SearchEvent.Error e:
@@ -105,7 +120,8 @@ public sealed class MotelySearchAgent : IChatClient
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
-    private static ChatResponseUpdate Text(string text) => new() { Contents = [new TextContent(text)] };
+    /// <summary>One line of the run: each update ends in a newline, so streamed seeds don't run together.</summary>
+    private static ChatResponseUpdate Text(string text) => new() { Contents = [new TextContent(text + "\n")] };
 
     /// <summary>Pulls a filter name and an optional mode out of the user's message.</summary>
     private static (string? filter, string? mode, string? error) ParseMessage(string text)
