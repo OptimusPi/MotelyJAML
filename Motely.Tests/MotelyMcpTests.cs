@@ -69,6 +69,7 @@ public sealed class MotelyMcpTests
     public async Task Search_tool_reports_matches()
     {
         var result = await MotelyTools.Search(null!, "longCola", "replay", null);
+        File.WriteAllText(@"C:\Users\pifre\AppData\Local\Temp\opencode\result.txt", result);
         Assert.Contains("matched", result);
     }
 
