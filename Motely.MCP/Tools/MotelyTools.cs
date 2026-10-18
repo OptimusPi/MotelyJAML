@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.Security.Claims;
 using System.Text;
+using ModelContextProtocol.Extensions.Apps;
 using ModelContextProtocol.Server;
 using Motely.MCP.Search;
 
@@ -29,9 +31,11 @@ public static class MotelyTools
     }
 
     [McpServerTool, Description("Run a search over a JAML filter and return matching seeds. Modes: replay (default), keyword <kw>, random <n>, sequential. Caps via collect.")]
-    public static async Task<string> Search(string filter, string? mode = null, int? collect = null)
+    [McpAppUi(ResourceUri = "ui://motely/search")]
+    public static async Task<string> Search(ClaimsPrincipal? user, string filter, string? mode = null, int? collect = null)
     {
         var runner = new SearchRunner();
+        var who = user?.Identity?.Name ?? "anonymous";
         var matches = new List<string>();
         long total = 0;
         long matched = 0;
@@ -58,7 +62,7 @@ public static class MotelyTools
 
         var sb = new StringBuilder();
         sb.AppendLine(
-            $"{filter}: {matched:N0} matched / {total:N0} searched in {FormatDuration(elapsed)} ({rate:N0} seeds/s)."
+            $"{filter}: {matched:N0} matched / {total:N0} searched in {FormatDuration(elapsed)} ({rate:N0} seeds/s) by {who}."
         );
         if (matches.Count > 0)
         {
