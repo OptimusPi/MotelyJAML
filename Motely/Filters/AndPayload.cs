@@ -4,7 +4,7 @@ using YamlDotNet.Serialization;
 
 namespace Motely.Filters;
 
-/// <summary><c>and:</c> as a child list or as <c>{ mode, clauses }</c> under the same YAML key.</summary>
+/// <summary><c>and:</c> as a child list or as <c>{ mode, clauses }</c> under the same JAML key.</summary>
 [YamlSerializable]
 public sealed class AndPayload
 {

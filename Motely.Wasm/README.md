@@ -83,6 +83,6 @@ dotnet publish -c Release -p:MotelyFileSystem=false
 `JamlFiles` keeps the same exports there: `isSupported()` is false, `list()` is empty, and the
 file calls reject.
 
-The engine's YAML loader is YamlDotNet's static (source-generated) deserializer through the
+The engine's JAML loader is YamlDotNet's static (source-generated) deserializer through the
 Vecc generator (`Vecc.YamlDotNet.Analyzers.StaticGenerator`): no reflection, so NativeAOT
 trims it cleanly.

@@ -1,5 +1,11 @@
 # Motely.Wasm / Bootsharp audit: next steps
 
+> **Update 2026-10-16 — the naming regression in M1/N1 was resolved the other way.** The dialect
+> is JAML again: `Motely.Wasm/README.md` and the JS exports are `JamlConfigLoader.fromJaml`,
+> `JamlSearchBuilder`, `MotelyJamlyzer`, `JamlFiles`, `JamlConfig`, and `JamlFiles.cs` /
+> `JamlFileNames.cs` hold `IJamlFiles` / `JamlFilesModule` / `JamlFileNames`. Read M1's fix
+> direction as JAML, and N1 as done. The rest of this audit stands as of its date.
+
 Audit date 2026-10-15. Read-only. `dotnet build D:\MotelyJAML\Motely.Wasm` (Debug): 0 warnings, 0 errors.
 No Release publish was run, so nothing below about LLVM output (SIMD, Binaryen) was observed on a real artifact.
 

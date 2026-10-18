@@ -4,8 +4,8 @@ using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 namespace Motely.Filters;
 
-/// <summary>YAML clause discriminators, scalar-or-list converters, and logic-clause payloads.</summary>
-internal static class YamlClauseBinding
+/// <summary>JAML clause discriminators, scalar-or-list converters, and logic-clause payloads.</summary>
+internal static class JamlClauseBinding
 {
     internal static IReadOnlyCollection<string> ClauseKeys => DiscriminatorKeys;
 
@@ -24,10 +24,10 @@ internal static class YamlClauseBinding
         new ScalarOrSequenceConverter<MotelyBossBlind>(),
         new ScalarOrSequenceConverter<MotelyBoosterPack>(),
         new ScalarOrSequenceConverter<MotelyPokerHand>(),
-        new YamlEventRolls.Converter(),
+        new JamlEventRolls.Converter(),
         new OrPayloadConverter(),
         new AndPayloadConverter(),
-        new YamlStandardCardSlotConverter(),
+        new JamlStandardCardSlotConverter(),
     ];
 
     internal static readonly Dictionary<string, Type> ClauseTypeByKey = new(StringComparer.OrdinalIgnoreCase)
@@ -88,7 +88,7 @@ internal static class YamlClauseBinding
     private static readonly FrozenSet<string> DiscriminatorKeys =
         ClauseTypeByKey.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Scalar, empty, <c>any</c>, or sequence → array (Nat's YAML filter clauses).</summary>
+    /// <summary>Scalar, empty, <c>any</c>, or sequence → array (Nat's JAML filter clauses).</summary>
     internal sealed class ScalarOrSequenceConverter<T> : IYamlTypeConverter
     {
         private readonly Type _arrayType = typeof(T[]);

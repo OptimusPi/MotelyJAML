@@ -24,7 +24,7 @@ public sealed class S8P2SpecialtyJokerSourceTests
     private static readonly int[] Antes = [1, 2];
     private const int Rolls = 2;
 
-    private const string SpecialtyYAML = """
+    private const string SpecialtyJaml = """
         name: s8p2-specialty
         deck: Red
         stake: White
@@ -90,7 +90,7 @@ public sealed class S8P2SpecialtyJokerSourceTests
 
     private static SortedDictionary<string, int> RunScores()
     {
-        var config = ProofSearch.LoadOrThrow(SpecialtyYAML);
+        var config = ProofSearch.LoadOrThrow(SpecialtyJaml);
         var scores = new SortedDictionary<string, int>(StringComparer.Ordinal);
         using var search = MotelySearchBuilder
             .CreateSettings(config)

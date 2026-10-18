@@ -6,14 +6,14 @@ namespace Motely.Tests;
 /// Block scalars follow YAML: '|' keeps the line breaks an author typed, '>' folds them into
 /// spaces, and the chomping indicators ('-' strip, '+' keep) decide the trailing newline.
 /// </summary>
-public sealed class YAMLBlockScalarTests
+public sealed class JamlBlockScalarTests
 {
     private static string Doc(string indicator) =>
         $"name: probe\ndescription: {indicator}\n  line one\n  line two\nstake: White\n";
 
     private static string Description(string indicator)
     {
-        Assert.True(YamlConfigLoader.TryLoad(Doc(indicator), out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(Doc(indicator), out var config, out var error), error);
         return config!.Description!;
     }
 
@@ -29,7 +29,7 @@ public sealed class YAMLBlockScalarTests
     public void BlockText_LineEndingInColon_IsKeptAsTyped()
     {
         const string doc = "name: probe\ndescription: |\n  Options:\n  more text\nstake: White\n";
-        Assert.True(YamlConfigLoader.TryLoad(doc, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(doc, out var config, out var error), error);
         Assert.Equal("Options:\nmore text\n", config!.Description);
     }
 }

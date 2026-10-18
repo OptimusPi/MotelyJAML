@@ -4,7 +4,7 @@ namespace Motely.Tests;
 /// Pins exact-SIMD must re-eval skip: families that confirm via ClauseMeetsMinForFilter
 /// (or full vector event counts) may skip scoring's must re-count; coarse prefilters may not.
 /// </summary>
-public sealed class YAMLExactMustReevalTests
+public sealed class JamlExactMustReevalTests
 {
     [Fact]
     public void ExactFamilies_CanSkipMustReeval()
@@ -100,7 +100,7 @@ public sealed class YAMLExactMustReevalTests
     public void ExactMustOnly_StillFindsSeed()
     {
         // Boss must-only: skip re-eval path must still emit seed matches.
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "exact-must",
             Deck = MotelyDeck.Red,

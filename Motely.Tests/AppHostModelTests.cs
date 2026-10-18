@@ -20,7 +20,7 @@ public sealed class AppHostModelTests
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Motely.slnx")))
             dir = dir.Parent;
-        return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("Motely.slnx not found above the test output."), "YamlFilters");
+        return Path.Combine(dir?.FullName ?? throw new InvalidOperationException("Motely.slnx not found above the test output."), "JamlFilters");
     }
 
     /// <summary>The arguments as the AppHost declared them: strings, parameters and endpoint expressions, unresolved.</summary>
@@ -80,7 +80,7 @@ public sealed class AppHostModelTests
         Assert.NotEmpty(search.Annotations.OfType<ExplicitStartupAnnotation>());
         var args = await ArgsOf(search);
         Assert.Equal(3, args.Count);
-        Assert.Equal("--yaml", args[0]);
+        Assert.Equal("--jaml", args[0]);
         // WithArgs keeps the builder it was given; the parameter is inside it.
         Assert.Equal("filter", Assert.IsAssignableFrom<IResourceBuilder<ParameterResource>>(args[1]).Resource.Name);
         Assert.Equal("--quiet", args[2]);
@@ -95,6 +95,6 @@ public sealed class AppHostModelTests
 
         Assert.False(string.IsNullOrWhiteSpace(name));
         var path = Path.Combine(RepoFilters(), name + ".yaml");
-        Assert.True(Filters.YamlConfigLoader.TryLoad(File.ReadAllText(path), out _, out var error), error);
+        Assert.True(Filters.JamlConfigLoader.TryLoad(File.ReadAllText(path), out _, out var error), error);
     }
 }

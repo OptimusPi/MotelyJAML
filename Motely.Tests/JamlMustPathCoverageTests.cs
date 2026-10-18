@@ -4,13 +4,13 @@ namespace Motely.Tests;
 /// Smoke: SIMD Must paths (named targets, editions, source combos) through the real search
 /// pipeline. Asserts the list batch ran. Does not pin MatchingSeeds — find-proof is golden tests.
 /// </summary>
-public sealed class YAMLMustPathCoverageTests
+public sealed class JamlMustPathCoverageTests
 {
     private static readonly string[] Seeds = ["ALEEB", "MOTELY77", "UNITTEST"];
 
     private static void RunMust(IMotelyClause clause, MotelyDeck deck = MotelyDeck.Red)
     {
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "must-cov",
             Deck = deck,

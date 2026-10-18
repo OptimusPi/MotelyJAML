@@ -4,7 +4,7 @@ namespace Motely.Tests;
 /// Pins P3: Max is a match upper bound for must/exact confirm (not only score cap), and
 /// spectralCard sources.omenGlobe routes to the single match core with Arcana substitution.
 /// </summary>
-public sealed class YAMLMaxAndOmenGlobeTests
+public sealed class JamlMaxAndOmenGlobeTests
 {
     [Theory]
     [InlineData(0, 1, null, false)]
@@ -68,7 +68,7 @@ public sealed class YAMLMaxAndOmenGlobeTests
                     BoosterPacks = [0, 1, 2, 3, 4, 5],
                 },
             };
-            var config = new YAMLConfig
+            var config = new JamlConfig
             {
                 Id = must ? "omen-must" : "omen-should",
                 Deck = MotelyDeck.Red,
@@ -115,7 +115,7 @@ public sealed class YAMLMaxAndOmenGlobeTests
                   omenGlobe: true
                   boosterPacks: [0, 1, 2, 3]
             """;
-        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         var sc = Assert.IsType<SpectralCardClause>(config!.Must[0]);
         Assert.NotNull(sc.Sources);
         Assert.True(sc.Sources!.OmenGlobe);
@@ -136,7 +136,7 @@ public sealed class YAMLMaxAndOmenGlobeTests
                 min: 1
                 max: 1
             """;
-        Assert.True(YamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
         Assert.Equal(1, config!.Must[0].Min);
         Assert.Equal(1, config.Must[0].Max);
     }

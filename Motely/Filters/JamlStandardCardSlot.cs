@@ -8,7 +8,7 @@ namespace Motely.Filters;
 /// <c>standardCard:</c> as a whole card scalar, <c>any</c>, or a nested <c>{ rank, suit, … }</c> block.
 /// </summary>
 [YamlSerializable]
-public sealed class YamlStandardCardSlot
+public sealed class JamlStandardCardSlot
 {
     public MotelyStandardCard? Card { get; set; }
     public MotelyStandardcardRank? Rank { get; set; }
@@ -19,7 +19,7 @@ public sealed class YamlStandardCardSlot
 }
 
 [YamlSerializable]
-internal sealed class YamlStandardCardSlotMapping
+internal sealed class JamlStandardCardSlotMapping
 {
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
@@ -28,9 +28,9 @@ internal sealed class YamlStandardCardSlotMapping
     public MotelyItemEdition? Edition { get; set; }
 }
 
-internal sealed class YamlStandardCardSlotConverter : IYamlTypeConverter
+internal sealed class JamlStandardCardSlotConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(YamlStandardCardSlot);
+    public bool Accepts(Type type) => type == typeof(JamlStandardCardSlot);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer nested)
     {
@@ -38,15 +38,15 @@ internal sealed class YamlStandardCardSlotConverter : IYamlTypeConverter
         {
             parser.Consume<Scalar>();
             if (IsCategoryAny(scalar))
-                return new YamlStandardCardSlot();
-            return new YamlStandardCardSlot
+                return new JamlStandardCardSlot();
+            return new JamlStandardCardSlot
             {
                 Card = Enum.Parse<MotelyStandardCard>(scalar.Value, ignoreCase: true),
             };
         }
 
-        var mapped = (YamlStandardCardSlotMapping)nested(typeof(YamlStandardCardSlotMapping))!;
-        return new YamlStandardCardSlot
+        var mapped = (JamlStandardCardSlotMapping)nested(typeof(JamlStandardCardSlotMapping))!;
+        return new JamlStandardCardSlot
         {
             Rank = mapped.Rank,
             Suit = mapped.Suit,

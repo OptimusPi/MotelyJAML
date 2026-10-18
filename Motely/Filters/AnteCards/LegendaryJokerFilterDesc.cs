@@ -131,7 +131,7 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
             Debug.Assert(_clause.Min > 0, "LegendaryJokerClause.Min must be > 0 — loader bug.");
 
             // Pure SIMD additional-filter link only. Never SearchIndividualSeeds here —
-            // pack/Soul/face exact law runs last in YAMLShouldScoreDesc must re-eval.
+            // pack/Soul/face exact law runs last in JamlShouldScoreDesc must re-eval.
             //
             // Stage 1: soul edition stream (when edition: is set). Negative ~0.3% — rejects almost
             // every lane before score. No edition → all valid lanes; scoring does the full walk.

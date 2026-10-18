@@ -1,7 +1,7 @@
-// The filter-name half of YAMLFiles, with no Bootsharp in it: the part a normal .NET test can run.
+// The filter-name half of JamlFiles, with no Bootsharp in it: the part a normal .NET test can run.
 
 /// <summary>What happened to an entry under the mounted folder, as Bootsharp.FileSystem reports it.</summary>
-public enum YAMLFileEvent
+public enum JamlFileEvent
 {
     Added,
     Removed,
@@ -10,12 +10,13 @@ public enum YAMLFileEvent
 }
 
 /// <summary>
-/// Filter names as <see cref="IYAMLFiles"/> lists them: <c>sub/filter</c> for <c>/sub/filter.yaml</c>,
-/// while a <c>.yml</c> keeps its extension. Any other file under the folder is not a filter.
+/// Filter names as <see cref="IJamlFiles"/> lists them: <c>sub/filter</c> for <c>/sub/filter.yaml</c>,
+/// while a <c>.yml</c> or <c>.jaml</c> keeps its extension. Any other file under the folder is not a filter.
 /// </summary>
-public static class YAMLFileNames
+public static class JamlFileNames
 {
-    public static readonly string[] Extensions = [".yaml", ".yml"];
+    /// <summary>A JAML filter is written <c>.yaml</c> (the default), <c>.yml</c>, or <c>.jaml</c>.</summary>
+    public static readonly string[] Extensions = [".yaml", ".yml", ".jaml"];
 
     public static bool IsFilter(string path) =>
         Extensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase));
@@ -27,7 +28,7 @@ public static class YAMLFileNames
         return "/" + (IsFilter(path) ? path : path + ".yaml");
     }
 
-    /// <summary>"/sub/filter.yaml" is "sub/filter"; null for a file that is not a filter.</summary>
+    /// <summary>"/sub/filter.yaml" is "sub/filter" (a <c>.yml</c>/<c>.jaml</c> name keeps it); null for a file that is not a filter.</summary>
     public static string? ToName(string uri)
     {
         string path = uri.TrimStart('/');
@@ -40,7 +41,7 @@ public static class YAMLFileNames
     /// A folder change as the filter list sees it, or null when it touches no filter. A file moved
     /// to a non-filter name is removed; one moved in from a non-filter name is added.
     /// </summary>
-    public static YAMLFileChange? Change(YAMLFileEvent type, string uri, string? fromUri)
+    public static JamlFileChange? Change(JamlFileEvent type, string uri, string? fromUri)
     {
         string? name = ToName(uri);
         string? from = fromUri is null ? null : ToName(fromUri);
@@ -48,19 +49,19 @@ public static class YAMLFileNames
             return null;
         string kind = type switch
         {
-            YAMLFileEvent.Moved when name is null => "removed",
-            YAMLFileEvent.Moved when from is null => "added",
-            YAMLFileEvent.Moved => "moved",
-            YAMLFileEvent.Added => "added",
-            YAMLFileEvent.Removed => "removed",
+            JamlFileEvent.Moved when name is null => "removed",
+            JamlFileEvent.Moved when from is null => "added",
+            JamlFileEvent.Moved => "moved",
+            JamlFileEvent.Added => "added",
+            JamlFileEvent.Removed => "removed",
             _ => "modified",
         };
-        return new YAMLFileChange(kind, name ?? from!, kind == "moved" ? from : null);
+        return new JamlFileChange(kind, name ?? from!, kind == "moved" ? from : null);
     }
 }
 
 /// <summary>One change to the folder's filter list.</summary>
 /// <param name="Kind">added, removed, modified or moved.</param>
-/// <param name="Name">The filter's name, as <see cref="IYAMLFiles.Load"/> takes it.</param>
+/// <param name="Name">The filter's name, as <see cref="IJamlFiles.Load"/> takes it.</param>
 /// <param name="FromName">The previous name when Kind is moved, otherwise null.</param>
-public readonly record struct YAMLFileChange(string Kind, string Name, string? FromName);
+public readonly record struct JamlFileChange(string Kind, string Name, string? FromName);

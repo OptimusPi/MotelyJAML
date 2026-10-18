@@ -89,7 +89,7 @@ public sealed class MotelyScoreCutoff
     /// </summary>
     public static bool TryResolve(
         string? hostText,
-        int? yamlCutoff,
+        int? jamlCutoff,
         out MotelyScoreCutoff cutoff,
         out string description,
         out string? error
@@ -102,7 +102,7 @@ public sealed class MotelyScoreCutoff
         }
 
         error = null;
-        if (yamlCutoff is { } floor)
+        if (jamlCutoff is { } floor)
         {
             cutoff = Fixed(floor);
             description = $"{floor} (yaml)";

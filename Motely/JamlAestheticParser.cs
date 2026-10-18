@@ -10,9 +10,9 @@ namespace Motely;
 public static class MotelyAestheticParser
 {
     /// <summary>
-    /// Canonical YAML spellings (lowercase). Single source for <see cref="TryParse"/> and JSON schema (<c>definitions/MotelyAesthetic</c>).
+    /// Canonical JAML spellings (lowercase). Single source for <see cref="TryParse"/> and JSON schema (<c>definitions/MotelyAesthetic</c>).
     /// </summary>
-    private static readonly (string YAML, MotelyAesthetic Value)[] Known =
+    private static readonly (string Jaml, MotelyAesthetic Value)[] Known =
     [
         ("balatro", MotelyAesthetic.Balatro),
         ("gross", MotelyAesthetic.Gross),
@@ -34,11 +34,11 @@ public static class MotelyAestheticParser
     public const string AllToken = "all";
 
     /// <summary>Strings for <c>enum</c> in the generated schema; order matches <see cref="Known"/> (no <c>all</c>).</summary>
-    public static string[] KnownYAMLStringsForSchema() => [.. Known.Select(static e => e.YAML)];
+    public static string[] KnownJamlStringsForSchema() => [.. Known.Select(static e => e.Jaml)];
 
     /// <summary>Comma-separated list for load errors / help (includes <c>all</c>).</summary>
-    public static string KnownYAMLStringsDescription() =>
-        string.Join(", ", Known.Select(static e => e.YAML)) + ", " + AllToken;
+    public static string KnownJamlStringsDescription() =>
+        string.Join(", ", Known.Select(static e => e.Jaml)) + ", " + AllToken;
 
     /// <summary>Every aesthetic family in canonical order (for <c>--aesthetic all</c> concat providers).</summary>
     public static MotelyAesthetic[] AllAesthetics() => [.. Known.Select(static e => e.Value)];

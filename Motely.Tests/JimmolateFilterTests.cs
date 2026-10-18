@@ -3,7 +3,7 @@ namespace Motely.Tests;
 // Jimmolate is a per-seed PREDICATE, chained on like a normal filter (the OG Immolate
 // `filter(inst) => keep?` mental model, in C#). These tests prove the predicate's bool
 // actually drives filtering and that it receives a live, drivable MotelySingleSearchContext
-// — the same single-seed instance scoring/the analyzer/YAMLyzer run on, not a seed string.
+// — the same single-seed instance scoring/the analyzer/Jamlyzer run on, not a seed string.
 // The instance is the unit of introspection; via Bootsharp the predicate can be authored
 // host-side (incl. JS) and loaded into the compiled Motely core, where it runs against that
 // live context — exactly as Immolate compiles a .cl filter into the kernel. The predicate

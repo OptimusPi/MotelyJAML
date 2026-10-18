@@ -13,7 +13,7 @@ namespace Motely.Tests;
 /// </summary>
 public class VoucherOrFilterTests
 {
-    // First forty entries of YamlFilters/Zerkeo.yaml's seeds block.
+    // First forty entries of JamlFilters/Zerkeo.yaml's seeds block.
     private static readonly string[] Seeds =
     [
         "F2U88X11", "JX8C8X11", "L8FJ8X11", "A68EBX11", "M2TCJX11", "BC36RX11", "4E1MRX11",
@@ -27,7 +27,7 @@ public class VoucherOrFilterTests
     private static VoucherClause Clause(int[] antes, params MotelyVoucher[] vouchers) =>
         new() { Vouchers = vouchers, Antes = antes, Rolls = [0] };
 
-    private static YAMLConfig Config(string id) =>
+    private static JamlConfig Config(string id) =>
         new() { Id = id, Deck = MotelyDeck.Red, Stake = MotelyStake.White };
 
     /// <summary>SIMD must path: VoucherClause is an exact filter confirm, so no scalar re-eval.</summary>

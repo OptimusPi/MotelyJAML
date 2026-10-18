@@ -7,12 +7,12 @@ namespace Motely.Tests;
 /// every property from <c>default(T)</c>, so an omitted key wipes the class initializer, and it
 /// skips unknown keys, so a typo loads as nothing.
 /// </summary>
-public class YAMLLoaderKeyTests
+public class JamlLoaderKeyTests
 {
     [Fact]
     public void OmittedClauseKeys_KeepTheirInitializers()
     {
-        var config = YamlConfigLoader.FromYaml("""
+        var config = JamlConfigLoader.FromJaml("""
             must:
               - joker: Blueprint
               - smallBlindTag: NegativeTag
@@ -33,7 +33,7 @@ public class YAMLLoaderKeyTests
     [Fact]
     public void OmittedDocumentKeys_KeepTheirInitializers()
     {
-        var config = YamlConfigLoader.FromYaml("name: only a name");
+        var config = JamlConfigLoader.FromJaml("name: only a name");
 
         Assert.NotNull(config.Must);
         Assert.Empty(config.Must);
@@ -50,7 +50,7 @@ public class YAMLLoaderKeyTests
     [Fact]
     public void UnknownClauseKey_IsRejectedOnItsLine()
     {
-        var ok = YamlConfigLoader.TryLoad("""
+        var ok = JamlConfigLoader.TryLoad("""
             name: typo
             must:
               - joker: Blueprint
@@ -60,14 +60,14 @@ public class YAMLLoaderKeyTests
             """, out _, out var error);
 
         Assert.False(ok);
-        Assert.Contains("YAML line 6", error);
+        Assert.Contains("JAML line 6", error);
         Assert.Contains("'antse'", error);
     }
 
     [Fact]
     public void UnknownSourcesKey_IsRejectedOnItsLine()
     {
-        var ok = YamlConfigLoader.TryLoad("""
+        var ok = JamlConfigLoader.TryLoad("""
             must:
               - joker: Blueprint
                 sources:
@@ -75,16 +75,16 @@ public class YAMLLoaderKeyTests
             """, out _, out var error);
 
         Assert.False(ok);
-        Assert.Contains("YAML line 4", error);
+        Assert.Contains("JAML line 4", error);
         Assert.Contains("'shopItem'", error);
     }
 
     [Fact]
     public void RootCutoff_LoadsAsNullableInt()
     {
-        Assert.Equal(12, YamlConfigLoader.FromYaml("name: x\ncutoff: 12").Cutoff);
-        Assert.Equal(0, YamlConfigLoader.FromYaml("name: x\ncutoff: 0").Cutoff);
-        Assert.Null(YamlConfigLoader.FromYaml("name: x").Cutoff);
+        Assert.Equal(12, JamlConfigLoader.FromJaml("name: x\ncutoff: 12").Cutoff);
+        Assert.Equal(0, JamlConfigLoader.FromJaml("name: x\ncutoff: 0").Cutoff);
+        Assert.Null(JamlConfigLoader.FromJaml("name: x").Cutoff);
     }
 
     [Fact]
@@ -97,6 +97,6 @@ public class YAMLLoaderKeyTests
               - joker: any
             """;
         Assert.True(MotelyTopSeedSink.TryRewriteAndValidate(text, ["MOTELY77"], out var updated, out var error), error);
-        Assert.Equal(5, YamlConfigLoader.FromYaml(updated).Cutoff);
+        Assert.Equal(5, JamlConfigLoader.FromJaml(updated).Cutoff);
     }
 }

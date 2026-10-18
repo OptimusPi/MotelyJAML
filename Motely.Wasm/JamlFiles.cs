@@ -10,10 +10,10 @@ using Bootsharp.FileSystem;
 
 /// <summary>.yaml and .yml filter files in a folder the user picks. Needs the Bootsharp.FileSystem
 /// build; without it <see cref="IsSupported"/> is false and every file call rejects.</summary>
-public interface IYAMLFiles
+public interface IJamlFiles
 {
     /// <summary>A filter file joined, left, changed or moved within the folder's filter list.</summary>
-    event Action<YAMLFileChange> OnChange;
+    event Action<JamlFileChange> OnChange;
 
     /// <summary>True when this build has Bootsharp.FileSystem and can mount a folder.</summary>
     bool IsSupported();
@@ -50,18 +50,18 @@ public interface IYAMLFiles
 }
 
 #if MOTELY_FILESYSTEM
-/// <summary>YAMLFiles over Bootsharp.FileSystem. JS calls <c>fs.init(IFileMounter)</c> from
+/// <summary>JamlFiles over Bootsharp.FileSystem. JS calls <c>fs.init(IFileMounter)</c> from
 /// <c>@rewaffle/bootsharp-file-system</c> before <c>boot()</c>. Every call that can fail runs
 /// through <see cref="Guard"/>, so its reason reaches <c>Errors.last()</c>.</summary>
 /// <param name="mounter">Bootsharp.FileSystem's mounter, injected by AddBootsharp.</param>
-public sealed class YAMLFilesModule(IFileMounter mounter) : IYAMLFiles, IFileWatcher
+public sealed class JamlFilesModule(IFileMounter mounter) : IJamlFiles, IFileWatcher
 {
     private readonly SortedSet<string> _names = new(StringComparer.OrdinalIgnoreCase);
     private string? _root;
     private IFileSystem? _fs;
 
     /// <inheritdoc/>
-    public event Action<YAMLFileChange>? OnChange;
+    public event Action<JamlFileChange>? OnChange;
 
     /// <inheritdoc/>
     public bool IsSupported() => true;
@@ -102,18 +102,18 @@ public sealed class YAMLFilesModule(IFileMounter mounter) : IYAMLFiles, IFileWat
 
     /// <inheritdoc/>
     public Task<string> Load(string name) =>
-        Guard.RunAsync(async () => Encoding.UTF8.GetString(await Fs.ReadFile(YAMLFileNames.ToUri(name))));
+        Guard.RunAsync(async () => Encoding.UTF8.GetString(await Fs.ReadFile(JamlFileNames.ToUri(name))));
 
     /// <inheritdoc/>
     public Task Save(string name, string yaml) =>
-        Guard.RunAsync(() => Fs.WriteFile(YAMLFileNames.ToUri(name), Encoding.UTF8.GetBytes(yaml)));
+        Guard.RunAsync(() => Fs.WriteFile(JamlFileNames.ToUri(name), Encoding.UTF8.GetBytes(yaml)));
 
     /// <inheritdoc/>
-    public Task Remove(string name) => Guard.RunAsync(() => Fs.DeleteFile(YAMLFileNames.ToUri(name)));
+    public Task Remove(string name) => Guard.RunAsync(() => Fs.DeleteFile(JamlFileNames.ToUri(name)));
 
     /// <inheritdoc/>
     public Task Rename(string fromName, string toName) =>
-        Guard.RunAsync(() => Fs.MoveFile(YAMLFileNames.ToUri(fromName), YAMLFileNames.ToUri(toName)));
+        Guard.RunAsync(() => Fs.MoveFile(JamlFileNames.ToUri(fromName), JamlFileNames.ToUri(toName)));
 
     /// <summary>Keeps <see cref="List"/> in step with the folder and raises <see cref="OnChange"/>.</summary>
     /// <param name="changes">The folder's changes, from Bootsharp.FileSystem.</param>
@@ -126,12 +126,12 @@ public sealed class YAMLFilesModule(IFileMounter mounter) : IYAMLFiles, IFileWat
                 continue;
             var type = change.Type switch
             {
-                ChangeType.Added => YAMLFileEvent.Added,
-                ChangeType.Removed => YAMLFileEvent.Removed,
-                ChangeType.Moved => YAMLFileEvent.Moved,
-                _ => YAMLFileEvent.Modified,
+                ChangeType.Added => JamlFileEvent.Added,
+                ChangeType.Removed => JamlFileEvent.Removed,
+                ChangeType.Moved => JamlFileEvent.Moved,
+                _ => JamlFileEvent.Modified,
             };
-            if (YAMLFileNames.Change(type, change.Entry.Uri, change.Moved ? change.FromUri : null) is not { } seen)
+            if (JamlFileNames.Change(type, change.Entry.Uri, change.Moved ? change.FromUri : null) is not { } seen)
                 continue;
             if (seen.Kind == "removed")
                 _names.Remove(seen.Name);
@@ -147,15 +147,15 @@ public sealed class YAMLFilesModule(IFileMounter mounter) : IYAMLFiles, IFileWat
     }
 
     private IFileSystem Fs =>
-        _fs ?? throw new InvalidOperationException("No folder is mounted: call YAMLFiles.pickFolder() first.");
+        _fs ?? throw new InvalidOperationException("No folder is mounted: call JamlFiles.pickFolder() first.");
 }
 #else
 /// <summary>The build without Bootsharp.FileSystem: the same surface, and nothing can mount.</summary>
-public sealed class YAMLFilesModule : IYAMLFiles
+public sealed class JamlFilesModule : IJamlFiles
 {
 #pragma warning disable CS0067 // never raised here; declared so both builds export it
     /// <inheritdoc/>
-    public event Action<YAMLFileChange>? OnChange;
+    public event Action<JamlFileChange>? OnChange;
 #pragma warning restore CS0067
 
     /// <inheritdoc/>

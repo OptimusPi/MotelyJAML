@@ -6,7 +6,7 @@ namespace Motely.Filters;
 
 /// <summary>Event-clause roll shorthand: <c>luckyMoney: 1</c>, <c>luckyMoney: []</c>, or a list.</summary>
 [YamlSerializable]
-public sealed class YamlEventRolls
+public sealed class JamlEventRolls
 {
     public int[] Rolls { get; set; } = [];
 
@@ -14,25 +14,25 @@ public sealed class YamlEventRolls
 
     internal sealed class Converter : IYamlTypeConverter
     {
-        public bool Accepts(Type type) => type == typeof(YamlEventRolls);
+        public bool Accepts(Type type) => type == typeof(JamlEventRolls);
 
         public object ReadYaml(IParser parser, Type type, ObjectDeserializer nested)
         {
             if (parser.Current is SequenceStart)
-                return new YamlEventRolls { Rolls = ReadIntSequence(parser) };
+                return new JamlEventRolls { Rolls = ReadIntSequence(parser) };
 
             if (parser.Current is Scalar scalar)
             {
                 parser.Consume<Scalar>();
                 if (IsEmpty(scalar))
-                    return new YamlEventRolls { Rolls = [] };
-                return new YamlEventRolls
+                    return new JamlEventRolls { Rolls = [] };
+                return new JamlEventRolls
                 {
                     Rolls = [int.Parse(scalar.Value, System.Globalization.CultureInfo.InvariantCulture)],
                 };
             }
 
-            return new YamlEventRolls { Rolls = [] };
+            return new JamlEventRolls { Rolls = [] };
         }
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer nested) =>

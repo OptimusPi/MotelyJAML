@@ -6,7 +6,7 @@ namespace Motely.Filters;
 /// assigns keys the document actually wrote.
 /// </summary>
 [YamlDotNet.Serialization.YamlSerializable]
-public sealed partial record YAMLConfig
+public sealed partial record JamlConfig
 {
     public string Id { get; set; } = "";
     public string? Name { get; set; }

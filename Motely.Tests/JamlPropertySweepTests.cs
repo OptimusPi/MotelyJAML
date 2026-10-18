@@ -7,7 +7,7 @@ namespace Motely.Tests;
 /// Property sweep: random clause configs over a fixed random seed list, engine result vs the
 /// scalar law (passthrough + scoring pass with must re-eval forced and every mustNot scored).
 /// </summary>
-public sealed class YAMLPropertySweepTests(ITestOutputHelper output)
+public sealed class JamlPropertySweepTests(ITestOutputHelper output)
 {
     private static string[] RandomSeeds(int count, int rngSeed)
     {
@@ -393,9 +393,9 @@ public sealed class YAMLPropertySweepTests(ITestOutputHelper output)
         return RandomLeaf(r);
     }
 
-    private static YAMLConfig RandomConfig(Random r, int index)
+    private static JamlConfig RandomConfig(Random r, int index)
     {
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = $"sweep-{index}",
             Deck = Pick(r, new[] { MotelyDeck.Red, MotelyDeck.Ghost, MotelyDeck.Erratic, MotelyDeck.Anaglyph, MotelyDeck.Magic, MotelyDeck.Plasma }),
@@ -419,7 +419,7 @@ public sealed class YAMLPropertySweepTests(ITestOutputHelper output)
 
     internal sealed record Row(int Score, int[] Tallies);
 
-    private static Dictionary<string, Row> RunEngine(YAMLConfig config, string[] seeds, int threads)
+    private static Dictionary<string, Row> RunEngine(JamlConfig config, string[] seeds, int threads)
     {
         var rows = new ConcurrentDictionary<string, Row>();
         var matched = new ConcurrentBag<string>();
@@ -439,17 +439,17 @@ public sealed class YAMLPropertySweepTests(ITestOutputHelper output)
     }
 
     /// <summary>The scalar law: every seed scored with must re-eval forced and every mustNot scored.</summary>
-    private sealed class OracleScoreDesc(YAMLConfig config)
-        : IMotelySeedScoreDesc<YAMLShouldScoreDesc.YAMLShouldScoreProvider>
+    private sealed class OracleScoreDesc(JamlConfig config)
+        : IMotelySeedScoreDesc<JamlShouldScoreDesc.JamlShouldScoreProvider>
     {
-        public YAMLShouldScoreDesc.YAMLShouldScoreProvider CreateScoreProvider(ref MotelyFilterCreationContext ctx) =>
+        public JamlShouldScoreDesc.JamlShouldScoreProvider CreateScoreProvider(ref MotelyFilterCreationContext ctx) =>
             new([.. config.Must], [.. config.Should], null, 0, skipMustReeval: false, [.. config.MustNot]);
 
         IMotelySeedScoreProvider IMotelySeedScoreDesc.CreateScoreProvider(ref MotelyFilterCreationContext ctx) =>
             CreateScoreProvider(ref ctx);
     }
 
-    private static Dictionary<string, Row> RunOracle(YAMLConfig config, string[] seeds)
+    private static Dictionary<string, Row> RunOracle(JamlConfig config, string[] seeds)
     {
         var rows = new ConcurrentDictionary<string, Row>();
         var settings = new MotelySearchSettings<PassthroughFilterDesc.PassthroughFilter>(new PassthroughFilterDesc())
@@ -482,7 +482,7 @@ public sealed class YAMLPropertySweepTests(ITestOutputHelper output)
         _ => v.ToString() ?? "",
     };
 
-    private static string DescribeConfig(YAMLConfig c) =>
+    private static string DescribeConfig(JamlConfig c) =>
         $"deck={c.Deck} stake={c.Stake}\n  must: {string.Join("\n        ", c.Must.Select(Describe))}\n  should: {string.Join("\n          ", c.Should.Select(Describe))}\n  mustNot: {string.Join("\n           ", c.MustNot.Select(Describe))}";
 
     [Fact]

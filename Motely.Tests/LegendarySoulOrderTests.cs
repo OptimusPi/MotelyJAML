@@ -10,7 +10,7 @@ namespace Motely.Tests;
 /// </summary>
 public sealed class LegendarySoulOrderTests
 {
-    private static string SoulOrderYaml(string[] legendaries, bool showman, int maxAnte = 8)
+    private static string SoulOrderJaml(string[] legendaries, bool showman, int maxAnte = 8)
     {
         var sb = new StringBuilder();
         sb.AppendLine("name: soul-order");
@@ -54,7 +54,7 @@ public sealed class LegendarySoulOrderTests
     [Fact]
     public void SoulOrder_RejectsNonLegendary()
     {
-        var ok = YamlConfigLoader.TryLoad(
+        var ok = JamlConfigLoader.TryLoad(
             """
             name: bad
             must:
@@ -72,7 +72,7 @@ public sealed class LegendarySoulOrderTests
     [Fact]
     public void SoulOrder_RejectsEmptyList()
     {
-        var ok = YamlConfigLoader.TryLoad(
+        var ok = JamlConfigLoader.TryLoad(
             """
             name: empty
             must:
@@ -91,7 +91,7 @@ public sealed class LegendarySoulOrderTests
     public void SoulOrder_RawSequence_MatchesRunWideOrder()
     {
         ProofSearch.MustMatchAll(
-            SoulOrderYaml(["Perkeo", "Yorick", "Yorick", "Yorick"], showman: true),
+            SoulOrderJaml(["Perkeo", "Yorick", "Yorick", "Yorick"], showman: true),
             "43GS2F56"
         );
     }
@@ -99,7 +99,7 @@ public sealed class LegendarySoulOrderTests
     [Fact]
     public void SoulOrder_OrderIsEnforced()
     {
-        ProofSearch.MustMatchNone(SoulOrderYaml(["Yorick", "Perkeo"], showman: true), "43GS2F56");
+        ProofSearch.MustMatchNone(SoulOrderJaml(["Yorick", "Perkeo"], showman: true), "43GS2F56");
     }
 
     // KSUCKHKT raw Joker4 = Perkeo, Perkeo, Chicot (E3 acceptance).
@@ -107,7 +107,7 @@ public sealed class LegendarySoulOrderTests
     public void SoulOrder_Showman_KeepsRawDuplicate()
     {
         ProofSearch.MustMatchAll(
-            SoulOrderYaml(["Perkeo", "Perkeo"], showman: true),
+            SoulOrderJaml(["Perkeo", "Perkeo"], showman: true),
             "KSUCKHKT"
         );
     }
@@ -117,7 +117,7 @@ public sealed class LegendarySoulOrderTests
     [Fact]
     public void SoulOrder_Default_ResamplesDuplicate()
     {
-        ProofSearch.MustMatchNone(SoulOrderYaml(["Perkeo", "Perkeo"], showman: false), "KSUCKHKT");
+        ProofSearch.MustMatchNone(SoulOrderJaml(["Perkeo", "Perkeo"], showman: false), "KSUCKHKT");
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class LegendarySoulOrderTests
     {
         // Perkeo must be the first Soul; requiring it in an impossible ante must not match.
         ProofSearch.MustMatchNone(
-            SoulOrderYaml(["Yorick", "Perkeo"], showman: true, maxAnte: 1),
+            SoulOrderJaml(["Yorick", "Perkeo"], showman: true, maxAnte: 1),
             "43GS2F56"
         );
     }

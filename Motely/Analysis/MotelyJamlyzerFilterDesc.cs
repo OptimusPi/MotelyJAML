@@ -3,12 +3,12 @@ using System.ComponentModel;
 namespace Motely.Analysis;
 
 /// <summary>
-/// The window the YAMLyzer reads for one seed: which antes (the YAML's ante scope, see
-/// <see cref="MotelyYAMLyzer.ComputeAntes"/>) and how many rolls per stream.
+/// The window the Jamlyzer reads for one seed: which antes (the JAML's ante scope, see
+/// <see cref="MotelyJamlyzer.ComputeAntes"/>) and how many rolls per stream.
 /// </summary>
-internal readonly struct MotelyYAMLyzerWindow
+internal readonly struct MotelyJamlyzerWindow
 {
-    public MotelyYAMLyzerWindow(int[] antesToAnalyze, int eventRolls, int shopSlots = 0)
+    public MotelyJamlyzerWindow(int[] antesToAnalyze, int eventRolls, int shopSlots = 0)
     {
         ThrowIfOutOfRange(eventRolls, shopSlots);
         StartAnte = antesToAnalyze.Length > 0 && antesToAnalyze[0] == 0 ? 0 : 1;
@@ -17,7 +17,7 @@ internal readonly struct MotelyYAMLyzerWindow
         ShopSlots = shopSlots;
     }
 
-    // Ante 0 (the pre-run shop a YAML clause can target with `antes: [0]`) is real data
+    // Ante 0 (the pre-run shop a JAML clause can target with `antes: [0]`) is real data
     // the search already matches on — emit it when scoped instead of silently dropping it.
     public readonly int StartAnte;
     public readonly int MaxAnte;
@@ -40,43 +40,43 @@ internal readonly struct MotelyYAMLyzerWindow
     public static void ThrowIfOutOfRange(int eventRolls, int shopSlots)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(eventRolls);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(eventRolls, MotelyYAMLyzer.MaxEventRolls);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(eventRolls, MotelyJamlyzer.MaxEventRolls);
         ArgumentOutOfRangeException.ThrowIfNegative(shopSlots);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(shopSlots, MotelyYAMLyzer.MaxShopSlots);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(shopSlots, MotelyJamlyzer.MaxShopSlots);
     }
 }
 
 /// <summary>
-/// YAMLyzer's filter: walks every ante's boss/voucher/tags/shop/packs and every relevant PRNG
+/// Jamlyzer's filter: walks every ante's boss/voucher/tags/shop/packs and every relevant PRNG
 /// stream for one seed, answering "what does this seed actually contain?". The walk itself is
-/// <see cref="MotelyYAMLyzerSeedWalk"/>; this desc is how
-/// <see cref="MotelyYAMLyzer.Analyze(Motely.Filters.YAML.YAMLConfig, int)"/> runs it standalone,
+/// <see cref="MotelyJamlyzerSeedWalk"/>; this desc is how
+/// <see cref="MotelyJamlyzer.Analyze(Motely.Filters.JamlConfig, int)"/> runs it standalone,
 /// one seed per search, with a resume bag. Unrelated to the CLI's legacy <c>--analyze</c>
 /// flag (<see cref="MotelyUnitTestAnalyzer"/>).
 /// </summary>
-public sealed class MotelyYAMLyzerFilterDesc(
+public sealed class MotelyJamlyzerFilterDesc(
     int[] antesToAnalyze,
     int eventRolls = 20,
-    MotelyYAMLyzerStreamStates? resumeFrom = null,
+    MotelyJamlyzerStreamStates? resumeFrom = null,
     int shopSlots = 0
-) : IMotelySeedFilterDesc<MotelyYAMLyzerFilterDesc.YAMLyzerFilter>
+) : IMotelySeedFilterDesc<MotelyJamlyzerFilterDesc.JamlyzerFilter>
 {
     /// <summary>
     /// The last walked seed's breakdown, Score 0 and Tally null (the caller scores). Null until
     /// the filter has run — a seed the engine never handed over (invalid) leaves it null.
     /// </summary>
-    public MotelyYAMLyzerSeedResult? Result { get; private set; }
+    public MotelyJamlyzerSeedResult? Result { get; private set; }
 
-    public YAMLyzerFilter CreateFilter(ref MotelyFilterCreationContext ctx) => new(this);
+    public JamlyzerFilter CreateFilter(ref MotelyFilterCreationContext ctx) => new(this);
 
-    public readonly struct YAMLyzerFilter(MotelyYAMLyzerFilterDesc filterDesc) : IMotelySeedFilter
+    public readonly struct JamlyzerFilter(MotelyJamlyzerFilterDesc filterDesc) : IMotelySeedFilter
     {
         public readonly VectorMask Filter(ref MotelyVectorSearchContext ctx) =>
             ctx.SearchIndividualSeeds(CheckSeed);
 
         public readonly int CheckSeed(MotelySingleSearchContext ctx)
         {
-            filterDesc.Result = MotelyYAMLyzerSeedWalk.Walk(
+            filterDesc.Result = MotelyJamlyzerSeedWalk.Walk(
                 ref ctx,
                 in filterDesc._window,
                 filterDesc._resumeFrom
@@ -85,18 +85,18 @@ public sealed class MotelyYAMLyzerFilterDesc(
         }
     }
 
-    private readonly MotelyYAMLyzerWindow _window = new(antesToAnalyze, eventRolls, shopSlots);
-    private readonly MotelyYAMLyzerStreamStates? _resumeFrom = resumeFrom;
+    private readonly MotelyJamlyzerWindow _window = new(antesToAnalyze, eventRolls, shopSlots);
+    private readonly MotelyJamlyzerStreamStates? _resumeFrom = resumeFrom;
 }
 
 /// <summary>
-/// The YAMLyzer's seed walk: one live seed context in, that seed's whole breakdown out. Pure —
+/// The Jamlyzer's seed walk: one live seed context in, that seed's whole breakdown out. Pure —
 /// every call builds a fresh result and touches no shared state, so it is safe from any worker
 /// thread and any SIMD lane. Score is left 0 and Tally null because the caller already knows what
-/// the seed scored: the standalone YAMLyzer scores it in the same search, and the analyze
+/// the seed scored: the standalone Jamlyzer scores it in the same search, and the analyze
 /// provider copies the search's own scored row.
 /// </summary>
-internal static class MotelyYAMLyzerSeedWalk
+internal static class MotelyJamlyzerSeedWalk
 {
     private ref struct AnteAnalysisState
     {
@@ -112,10 +112,10 @@ internal static class MotelyYAMLyzerSeedWalk
         public readonly bool HasBuffoonStream => !BuffoonStream.IsNull;
     }
 
-    internal static MotelyYAMLyzerSeedResult Walk(
+    internal static MotelyJamlyzerSeedResult Walk(
         ref MotelySingleSearchContext ctx,
-        in MotelyYAMLyzerWindow window,
-        MotelyYAMLyzerStreamStates? resumeFrom
+        in MotelyJamlyzerWindow window,
+        MotelyJamlyzerStreamStates? resumeFrom
     )
     {
         int n = window.EventRolls;
@@ -138,19 +138,19 @@ internal static class MotelyYAMLyzerSeedWalk
             && ctx.GetAnteFirstVoucher(1, new MotelyRunState()) is MotelyVoucher.Hieroglyph or MotelyVoucher.Petroglyph)
             startAnte = 0;
 
-        var antes = new MotelyYAMLyzerAnteResult[window.MaxAnte - startAnte + 1];
+        var antes = new MotelyJamlyzerAnteResult[window.MaxAnte - startAnte + 1];
 
         // The legendary face pool (Joker4) is run-global -- keyed with no ante -- so the Nth Soul the
         // player opens gets draw N however the antes fall. One stream carried across the whole walk
         // records that order once per seed. (The old per-ante LegendaryJokers queues restarted it on
         // every ante, so each ante showed the same global prefix; they are gone.)
         MotelySingleLegendaryJokerStream legendaryFaces = ctx.CreateRunLegendaryJokerStream();
-        List<MotelyYAMLyzerLegendary> legendaryOrder = [];
+        List<MotelyJamlyzerLegendary> legendaryOrder = [];
 
         for (int ante = startAnte; ante <= window.MaxAnte; ante++)
         {
             // Ante 0 is the pre-run shop, reached by ante reduction (Hieroglyph / Petroglyph):
-            // its shop, packs and tags are exactly what a YAML `antes: [0]` clause searches.
+            // its shop, packs and tags are exactly what a JAML `antes: [0]` clause searches.
             // Its boss reads off an isolated stream + run state, because the run state the
             // search chains (voucher tiers, seen-boss pool) opens at ante 1 — sharing it here
             // would shift every ante 1..8 boss and upgrade ante 1's voucher.
@@ -183,7 +183,7 @@ internal static class MotelyYAMLyzerSeedWalk
 
             // Shop
             MotelySingleShopItemStream shopStream = ctx.CreateShopItemStream(ante);
-            int defaultSlots = MotelyYAMLyzerWindow.DefaultShopSlots(ante);
+            int defaultSlots = MotelyJamlyzerWindow.DefaultShopSlots(ante);
             int maxSlots = window.ShopSlots > 0 ? window.ShopSlots : defaultSlots;
             int shopSkip = shopOffset + shopDefaultWindows * defaultSlots;
             MotelyItem[] shopItems = new MotelyItem[maxSlots];
@@ -197,7 +197,7 @@ internal static class MotelyYAMLyzerSeedWalk
             // Packs
             var packStream = ctx.CreateBoosterPackStream(ante);
             int maxPacks = ante <= 1 ? 4 : 6;
-            MotelyYAMLyzerPack[] packs = new MotelyYAMLyzerPack[maxPacks];
+            MotelyJamlyzerPack[] packs = new MotelyJamlyzerPack[maxPacks];
 
             // Soul detection rides its own per-ante streams, so the content stream above is untouched:
             // the same arcana/Spectral soul-only streams LegendarySoulMatcher walks, in the same slot
@@ -320,7 +320,7 @@ internal static class MotelyYAMLyzerSeedWalk
         return new(ctx.GetSeed(), 0, antes, events, streamStates, legendaryOrder, erraticDeck);
     }
 
-    private static MotelyYAMLyzerPulls CollectPulls(
+    private static MotelyJamlyzerPulls CollectPulls(
         ref MotelySingleSearchContext ctx,
         int ante,
         MotelyRunState voucherState,
@@ -412,7 +412,7 @@ internal static class MotelyYAMLyzerSeedWalk
         );
     }
 
-    private static MotelyYAMLyzerShopStreams CollectShopStreams(
+    private static MotelyJamlyzerShopStreams CollectShopStreams(
         ref MotelySingleSearchContext ctx,
         int ante,
         int n,
@@ -478,11 +478,11 @@ internal static class MotelyYAMLyzerSeedWalk
         );
     }
 
-    private static (MotelyYAMLyzerEvents, MotelyYAMLyzerStreamStates) CollectEvents(
+    private static (MotelyJamlyzerEvents, MotelyJamlyzerStreamStates) CollectEvents(
         ref MotelySingleSearchContext ctx,
         int N,
         int shopSlots,
-        MotelyYAMLyzerStreamStates? resume
+        MotelyJamlyzerStreamStates? resume
     )
     {
         // No resume bag -> each stream starts at the seed's natural start.
@@ -564,7 +564,7 @@ internal static class MotelyYAMLyzerSeedWalk
             misprintRolls[i] = ctx.GetNextMisprintMult(ref misprint);
         }
 
-        var events = new MotelyYAMLyzerEvents(
+        var events = new MotelyJamlyzerEvents(
             luckyMoneyRolls,
             luckyMultRolls,
             wheelRolls,
@@ -585,7 +585,7 @@ internal static class MotelyYAMLyzerSeedWalk
         // window's N so composite (pulls/shop) replay lands on the next window; the doubles let
         // the event streams resume exactly without re-rolling. The shop advances by ShopSlots, or
         // by one default-depth window when the caller left shopSlots at 0.
-        var states = new MotelyYAMLyzerStreamStates(
+        var states = new MotelyJamlyzerStreamStates(
             (resume?.RollOffset ?? 0) + N,
             (resume?.ShopOffset ?? 0) + shopSlots,
             luckyMoney.State,

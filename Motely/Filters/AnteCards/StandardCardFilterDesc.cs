@@ -31,7 +31,7 @@ public sealed partial class StandardCardClause: IMotelyClause, IAnteScopedClause
     public MotelyItemSeal? Seal { get; set; }
     public MotelyItemEdition? Edition { get; set; }
 
-    // null = no sources: in YAML → filter DefaultSources at CreateFilter/score (not parse).
+    // null = no sources: in JAML → filter DefaultSources at CreateFilter/score (not parse).
     public StandardCardSourceConfig? Sources { get; set; }
 
     public IMotelySeedFilterDesc CreateFilterDesc() => new StandardCardFilterDesc(this);
@@ -45,7 +45,7 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     /// <summary>
     /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.
     /// The shop is left out because its playing-card weight is the Magic Trick weight and no deck
-    /// starts with that voucher (<see cref="YAMLRarityContext.ShopStandardCardRate"/>), so a
+    /// starts with that voucher (<see cref="JamlRarityContext.ShopStandardCardRate"/>), so a
     /// shop-only default matched nothing on every deck. Shop slots need an explicit
     /// <c>sources:</c>. Slot range is the engine's
     /// <see cref="MotelyGlobals.LateAntesMaxPackSlot"/>; scoring clamps ante 1 to its four.

@@ -1,6 +1,6 @@
 # The engine's gate: every push to master, every PR, and every release (release.yml calls this).
 # `test` builds Motely.slnx (Motely.Wasm included) and runs the whole xunit suite in Release.
-# `aot` NativeAOT-publishes Motely.CLI (the trim/AOT gate) and runs the binary on YamlFilters/.
+# `aot` NativeAOT-publishes Motely.CLI (the trim/AOT gate) and runs the binary on JamlFilters/.
 # `wasm` publishes Motely.Wasm with NativeAOT-LLVM and runs its node:test suite.
 # `web` builds Motely.Web against that package.
 # REWAFFLE_TOKEN: read:packages on rewaffle's GitHub Packages (NuGet and npm). A PR from a fork
@@ -46,8 +46,8 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet publish Motely.CLI -c Release -r linux-x64 -o out/motely
-      - run: out/motely/Motely.CLI check YamlFilters/
-      - run: out/motely/Motely.CLI --yaml legendary-perkeo --seeds ALEEB,PIROCKS --quiet
+      - run: out/motely/Motely.CLI check JamlFilters/
+      - run: out/motely/Motely.CLI --jaml legendary-perkeo --seeds ALEEB,PIROCKS --quiet
       - uses: actions/upload-artifact@v5
         with:
           name: motely-linux-x64

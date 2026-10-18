@@ -55,7 +55,7 @@ public sealed class ChainedMustClauseSeedTests
         "1MZ7NUKL", "1QATUAZK", "1R2TE2Y5", "1SFMNC35", "1TQXZ6SI", "1VAFOD25", "1VR8E42O", "1WK7LIZF",
     ];
 
-    // Passthrough base + Showman as an ADDITIONAL filter — the YAML/CLI shape. This is essential:
+    // Passthrough base + Showman as an ADDITIONAL filter — the JAML/CLI shape. This is essential:
     // when the shop-using filter is the BASE, its pseudohash keys are pre-registered and never hit
     // the dynamic cache, so the stale-cache bug can't fire. Behind a passthrough it caches keys
     // dynamically per batch, which is exactly what must be Reset() between batches.

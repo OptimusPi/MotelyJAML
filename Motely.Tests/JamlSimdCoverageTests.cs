@@ -6,14 +6,14 @@ namespace Motely.Tests;
 /// Smoke: every FilterDesc family through Must (SIMD) and Should (scalar) with C# objects.
 /// Asserts the list batch ran and Should delivers a scored callback. Find-proof is golden tests.
 /// </summary>
-public class YAMLSimdCoverageTests
+public class JamlSimdCoverageTests
 {
     private static readonly string[] Seeds = ["MOTELY77"];
 
     /// <summary>SIMD Must path: batch must run (no MatchingSeeds pin).</summary>
     private static void RunMust(IMotelyClause clause)
     {
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "cov-must",
             Deck = MotelyDeck.Red,
@@ -36,7 +36,7 @@ public class YAMLSimdCoverageTests
     private static void RunShould(IMotelyClause clause)
     {
         clause.Score = 1;
-        var config = new YAMLConfig
+        var config = new JamlConfig
         {
             Id = "cov-should",
             Deck = MotelyDeck.Red,

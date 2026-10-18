@@ -13,7 +13,7 @@
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
   </PropertyGroup>
 
-  <!-- YAMLFiles (folder access) uses Bootsharp.FileSystem, on by default.
+  <!-- JamlFiles (folder access) uses Bootsharp.FileSystem, on by default.
        -p:MotelyFileSystem=false builds without it: same exports, isSupported() is false. -->
   <PropertyGroup>
     <MotelyFileSystem Condition="'$(MotelyFileSystem)' == ''">true</MotelyFileSystem>
