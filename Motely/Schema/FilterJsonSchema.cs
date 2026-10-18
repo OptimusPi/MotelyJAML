@@ -171,9 +171,10 @@ public static class FilterJsonSchema
     /// <summary>
     /// One shared definition per enum type under <c>definitions/enums</c>: the exact-name list
     /// (what editors complete from), the same names as a case-insensitive pattern, and the
-    /// numeric form — <c>Enum.Parse</c> takes all three, so the loader does
-    /// (<c>erraticRank: 2</c> is rank <c>Two</c>). Referenced by $ref so the names are stored
-    /// once instead of per property.
+    /// numeric form — <c>Enum.Parse</c> takes all three, so the loader does. The number is the
+    /// enum's value, not a card's face: <c>erraticRank: 2</c> is <c>Four</c> (Two is 0), and
+    /// <c>rank: "10"</c> is <c>Queen</c>. Referenced by $ref so the names are stored once instead
+    /// of per property.
     /// </summary>
     private static JsonObject EnumValue(JsonObject defs, Type enumType)
     {
