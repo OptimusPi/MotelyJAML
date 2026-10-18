@@ -21,6 +21,18 @@ The engine hands JavaScript what a UI draws, so consumers stop translating.
   walks, so a UI can lay out an ante before it has a result. Pack indices in `sources:` count
   these packs.
 
+## Fixed
+
+- **Souls and Black Holes in Spectral packs follow the game** (9d3e5d6, which landed after 30.0.0
+  was published). Balatro's `create_card` makes the Soul check and then the Black Hole check for
+  every Spectral card, both on the ante's `soul_Spectral{ante}` stream, and the Black Hole check
+  wins. 30 returned The Soul as soon as its check passed: it kept Souls the game turns into Black
+  Holes, and every later check in the ante read the stream one roll early. A seed whose Soul was
+  one of those no longer matches a `legendaryJoker:` clause: HGX11111 (Ghost, White) has an ante-1
+  Spectral pack of Black Hole and Immolate, not The Soul and Black Hole, so 1 of the 460 seeds in
+  sequential batch 0 (batchChars 3) with an ante-1 legendary is gone. `SpectralSoulBlackHoleTests`
+  pins the game's cards.
+
 ## Changed
 
 - `MotelyJamlyzerLegendary` gains the `item` field (record order: ante, packSlot, joker, edition,
