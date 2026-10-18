@@ -24,11 +24,23 @@ public sealed class MotelyMcpTests
         );
     }
 
-    static MotelyMcpTests()
+    [Fact]
+    public void Diagnostic_paths()
     {
-        // The runner resolves filters through MOTELY_FILTERS_DIR; point it at the repo's.
-        Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", RepoFilters());
+        var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR");
+        var combined = Path.Combine(filtersDir ?? "JamlFilters", "longCola.yaml");
+        var repo = RepoFilters();
+        Assert.Fail(
+            $"base={AppContext.BaseDirectory}\nrepo={repo}\nfiltersDir={filtersDir}\ncombined={combined}\nexists={File.Exists(combined)}\nrepoExists={File.Exists(Path.Combine(repo, "longCola.yaml"))}"
+        );
     }
+
+    // The runner resolves filters through MOTELY_FILTERS_DIR; point it at the repo's. A module
+    // initializer (not a static constructor) so it is set before any test collection — including the
+    // Aspire AppHost tests, which change the working directory — runs.
+    [System.Runtime.CompilerServices.ModuleInitializer]
+    internal static void SetFiltersDir() =>
+        Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", RepoFilters());
 
     [Fact]
     public async Task SearchRunner_replays_a_filter_deterministically()
