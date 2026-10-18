@@ -17,6 +17,16 @@
     <!-- Motely.MCP: the protocol, and the seed database (Neon in production, Aspire's Postgres
          container locally). -->
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.Extensions.Apps" Version="2.2.0" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+
+    <!-- Motely.MCP: the AG-UI server adapter (the /agui endpoint) and the MEAI abstractions it
+          bridges to. AGUI.Server 1.0.1 depends on MEAI.Abstractions 10.6.0. -->
+    <PackageVersion Include="AGUI.Abstractions" Version="1.0.1" />
+    <PackageVersion Include="AGUI.Server" Version="1.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
 
     <!-- Motely.Wasm: Bootsharp. Bootsharp.FileSystem is a sponsor package from the rewaffle feed
