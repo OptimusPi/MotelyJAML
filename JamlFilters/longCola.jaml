@@ -6,38 +6,38 @@ stake: White
 
 must:
   - tag: NegativeTag
-    antes: [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
+    antes: [11,12,13,14,15,16,17,18,10]
   - legendaryJoker: Any
-    antes: [12,13,14,15,16,17]
+    antes: [11,12,13,14,15,16,17,18,19]
     sources:
       boosterPacks: [0,1,2,3,4,5]
   - legendaryJoker: Perkeo
     antes: [1]
-    sources:
-      boosterPacks: [0,1]
   - spectralCard: Ankh
     antes: [1]
     sources:
       shopItems: [0,1]
-should:
-  - jokers: [Blueprint, Brainstorm, InvisibleJoker]
-    antes: [1,2,3]
-    score: 100
-  - legendaryJoker: Any
-    edition: Negative
-    antes: [8,9,10,11]
-    sources:
-      boosterPacks: [0,1]
-    score: 5
-  - jokers: [OopsAll6s, Troubadour, HangingChad, Blueprint, Brainstorm, InvisibleJoker]
-    score: 2
-    edition: Negative
-    antes: [10,11,12,13,14,15]
-  - legendaryJoker: Any
-    antes: [5,6,7,8,9,10,11,12,13,14,15,16]
+  - jokers: [Blueprint, Brainstorm]
+    antes: [2,3]
+  - legendaryJoker: Perkeo
+    antes: [12,13,14,15,16]
     sources:
       boosterPacks: [0,1,2,3,4,5]
-    score: 3
+    score: 10
+    min: 1
+  - tag: NegativeTag
+    antes: [8,9,10,11,12]
+should:
+  - jokers: [OopsAll6s, Troubadour, HangingChad, Baron, Mime, Blueprint, Brainstorm, InvisibleJoker]
+    score: 1
+    antes: [10..20]
+    sources:
+      shopItems: [0,1,2,3]
+  - legendaryJoker: Perkeo
+    antes: [10,11,12,13,14,15,16]
+    sources:
+      boosterPacks: [0,1,2,3,4,5]
+    score: 1
 
 seeds:
   - 7CSNSFD1
