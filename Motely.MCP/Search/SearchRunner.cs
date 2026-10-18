@@ -36,6 +36,12 @@ public abstract record SearchEvent
 /// </summary>
 public sealed class SearchRunner
 {
+    /// <summary>Matches a run stops after when the caller gives no <c>collect</c>.</summary>
+    public const int DefaultCollect = 100;
+
+    /// <summary>The most matches one remote run may collect, whatever <c>collect</c> asks for.</summary>
+    public const int MaxCollect = 10_000;
+
     /// <summary>
     /// Yields progress, matches and a terminal summary for <paramref name="filter"/>. A null or
     /// empty <paramref name="mode"/> replays the filter's saved seeds (fast, deterministic);
@@ -98,8 +104,9 @@ public sealed class SearchRunner
             yield break;
         }
 
-        if (collect is { } limit)
-            settings = settings.StopAfter(limit);
+        // Remote callers always get a cap: a sequential run with no limit walks the whole seed
+        // space (~2.3 trillion seeds) and would hold the request, and the match list, forever.
+        settings = settings.StopAfter(Math.Clamp(collect ?? DefaultCollect, 1, MaxCollect));
 
         var channel = Channel.CreateUnbounded<SearchEvent>();
         var matches = new List<string>();
