@@ -24,17 +24,6 @@ public sealed class MotelyMcpTests
         );
     }
 
-    [Fact]
-    public void Diagnostic_paths()
-    {
-        var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR");
-        var combined = Path.Combine(filtersDir ?? "JamlFilters", "longCola.yaml");
-        var repo = RepoFilters();
-        Assert.Fail(
-            $"base={AppContext.BaseDirectory}\nrepo={repo}\nfiltersDir={filtersDir}\ncombined={combined}\nexists={File.Exists(combined)}\nrepoExists={File.Exists(Path.Combine(repo, "longCola.yaml"))}"
-        );
-    }
-
     // The runner resolves filters through MOTELY_FILTERS_DIR; point it at the repo's. A module
     // initializer (not a static constructor) so it is set before any test collection — including the
     // Aspire AppHost tests, which change the working directory — runs.
@@ -51,6 +40,17 @@ public sealed class MotelyMcpTests
         Assert.True(searched1 > 0);
         Assert.Equal(searched1, searched2);
         Assert.Equal(matched1, matched2);
+    }
+
+    [Fact]
+    public void Diagnostic_full()
+    {
+        var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR");
+        var combined = Path.Combine(filtersDir ?? "JamlFilters", "longCola.yaml");
+        File.AppendAllText(
+            @"C:\Users\pifre\AppData\Local\Temp\opencode\mcpdiag.txt",
+            $"filtersDir={filtersDir} | combined={combined} | exists={File.Exists(combined)} | cwd={Environment.CurrentDirectory} | base={AppContext.BaseDirectory}\n"
+        );
     }
 
     [Fact]
