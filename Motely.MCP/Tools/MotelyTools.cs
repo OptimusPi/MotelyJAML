@@ -30,9 +30,15 @@ public static class MotelyTools
         return $"Error: {error}";
     }
 
-    [McpServerTool, Description("Run a search over a JAML filter and return matching seeds. Modes: replay (default), keyword <kw>, random <n>, sequential. Caps via collect.")]
+    [McpServerTool, Description("Run a search over a JAML filter and return matching seeds. Modes: replay (default), keyword <kw>, random <n>, sequential. Stops after collect matches (default 100, max 10,000).")]
     [McpAppUi(ResourceUri = "ui://motely/search")]
-    public static async Task<string> Search(ClaimsPrincipal? user, string filter, string? mode = null, int? collect = null)
+    public static async Task<string> Search(
+        ClaimsPrincipal? user,
+        string filter,
+        string? mode = null,
+        int? collect = null,
+        CancellationToken cancellationToken = default
+    )
     {
         var runner = new SearchRunner();
         var who = user?.Identity?.Name ?? "anonymous";
@@ -42,7 +48,7 @@ public static class MotelyTools
         double rate = 0;
         TimeSpan elapsed = default;
 
-        await foreach (var evt in runner.RunAsync(filter, mode, collect))
+        await foreach (var evt in runner.RunAsync(filter, mode, collect, cancellationToken))
         {
             switch (evt)
             {
