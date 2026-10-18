@@ -46,5 +46,13 @@ The engine hands JavaScript what a UI draws, so consumers stop translating.
 
 ## Changed
 
+- **An enum value is a name.** The loader read a number as the enum's value and `A, B` as
+  `A | B`, so `erraticRank: 2` bound Four (Two is 0) and `rank: "10"` bound Queen, with no error.
+  A number, or a comma list in one scalar, is now an error that names its line and the valid
+  names; names still match in any case. `luck:` keeps its numbers, because its value is the
+  multiplier (`luck: 4` is X4), but only 1, 2, 4, 5, 8, 16, 32 and 64: `luck: 3` used to bind a
+  multiplier no Oops count gives. The JSON Schema admits an integer for `luck` alone. The three
+  Erratic filters in `JamlFilters/` wrote `erraticRank: 2` for Two and were searching for Fours;
+  they say `Two` now.
 - `MotelyJamlyzerLegendary` gains the `item` field (record order: ante, packSlot, joker, edition,
   item). Fields that existed in 30 are unchanged.

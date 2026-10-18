@@ -9,7 +9,7 @@ namespace Motely.Schema;
 /// same keys, the same nesting, the same enum names, so a TypeScript app holds a filter as a plain
 /// <c>JamlFilter</c> object and hands <c>JSON.stringify(filter)</c> to the loader — no parser and
 /// no key list of its own. Enum types are the canonical names only; the loader also takes any
-/// casing and the numeric form, which a type deliberately does not invite.
+/// casing, which a type deliberately does not invite, and refuses a number.
 /// </summary>
 public static partial class FilterTypeScript
 {

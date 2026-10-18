@@ -10,7 +10,7 @@ must:
       - 2
       - 3
       - 4
-  - erraticRank: 2
+  - erraticRank: Two
     min: 8
     antes:
       - 1

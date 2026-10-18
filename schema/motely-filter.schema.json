@@ -268,9 +268,6 @@
           {
             "type": "string",
             "pattern": "^(?:[jJ][oO][kK][eE][rR]|[gG][rR][eE][eE][dD][yY][jJ][oO][kK][eE][rR]|[lL][uU][sS][tT][yY][jJ][oO][kK][eE][rR]|[wW][rR][aA][tT][hH][fF][uU][lL][jJ][oO][kK][eE][rR]|[gG][lL][uU][tT][tT][oO][nN][oO][uU][sS][jJ][oO][kK][eE][rR]|[jJ][oO][lL][lL][yY][jJ][oO][kK][eE][rR]|[zZ][aA][nN][yY][jJ][oO][kK][eE][rR]|[mM][aA][dD][jJ][oO][kK][eE][rR]|[cC][rR][aA][zZ][yY][jJ][oO][kK][eE][rR]|[dD][rR][oO][lL][lL][jJ][oO][kK][eE][rR]|[sS][lL][yY][jJ][oO][kK][eE][rR]|[wW][iI][lL][yY][jJ][oO][kK][eE][rR]|[cC][lL][eE][vV][eE][rR][jJ][oO][kK][eE][rR]|[dD][eE][vV][iI][oO][uU][sS][jJ][oO][kK][eE][rR]|[cC][rR][aA][fF][tT][yY][jJ][oO][kK][eE][rR]|[hH][aA][lL][fF][jJ][oO][kK][eE][rR]|[cC][rR][eE][dD][iI][tT][cC][aA][rR][dD]|[bB][aA][nN][nN][eE][rR]|[mM][yY][sS][tT][iI][cC][sS][uU][mM][mM][iI][tT]|[eE][iI][gG][hH][tT][bB][aA][lL][lL]|[mM][iI][sS][pP][rR][iI][nN][tT]|[rR][aA][iI][sS][eE][dD][fF][iI][sS][tT]|[cC][hH][aA][oO][sS][tT][hH][eE][cC][lL][oO][wW][nN]|[sS][cC][aA][rR][yY][fF][aA][cC][eE]|[aA][bB][sS][tT][rR][aA][cC][tT][jJ][oO][kK][eE][rR]|[dD][eE][lL][aA][yY][eE][dD][gG][rR][aA][tT][iI][fF][iI][cC][aA][tT][iI][oO][nN]|[gG][rR][oO][sS][mM][iI][cC][hH][eE][lL]|[eE][vV][eE][nN][sS][tT][eE][vV][eE][nN]|[oO][dD][dD][tT][oO][dD][dD]|[sS][cC][hH][oO][lL][aA][rR]|[bB][uU][sS][iI][nN][eE][sS][sS][cC][aA][rR][dD]|[sS][uU][pP][eE][rR][nN][oO][vV][aA]|[rR][iI][dD][eE][tT][hH][eE][bB][uU][sS]|[eE][gG][gG]|[rR][uU][nN][nN][eE][rR]|[iI][cC][eE][cC][rR][eE][aA][mM]|[sS][pP][lL][aA][sS][hH]|[bB][lL][uU][eE][jJ][oO][kK][eE][rR]|[fF][aA][cC][eE][lL][eE][sS][sS][jJ][oO][kK][eE][rR]|[gG][rR][eE][eE][nN][jJ][oO][kK][eE][rR]|[sS][uU][pP][eE][rR][pP][oO][sS][iI][tT][iI][oO][nN]|[tT][oO][dD][oO][lL][iI][sS][tT]|[cC][aA][vV][eE][nN][dD][iI][sS][hH]|[rR][eE][dD][cC][aA][rR][dD]|[sS][qQ][uU][aA][rR][eE][jJ][oO][kK][eE][rR]|[rR][iI][fF][fF][rR][aA][fF][fF]|[pP][hH][oO][tT][oO][gG][rR][aA][pP][hH]|[rR][eE][sS][eE][rR][vV][eE][dD][pP][aA][rR][kK][iI][nN][gG]|[mM][aA][iI][lL][iI][nN][rR][eE][bB][aA][tT][eE]|[hH][aA][lL][lL][uU][cC][iI][nN][aA][tT][iI][oO][nN]|[fF][oO][rR][tT][uU][nN][eE][tT][eE][lL][lL][eE][rR]|[jJ][uU][gG][gG][lL][eE][rR]|[dD][rR][uU][nN][kK][aA][rR][dD]|[gG][oO][lL][dD][eE][nN][jJ][oO][kK][eE][rR]|[pP][oO][pP][cC][oO][rR][nN]|[wW][aA][lL][kK][iI][eE][tT][aA][lL][kK][iI][eE]|[sS][mM][iI][lL][eE][yY][fF][aA][cC][eE]|[gG][oO][lL][dD][eE][nN][tT][iI][cC][kK][eE][tT]|[sS][wW][aA][sS][hH][bB][uU][cC][kK][lL][eE][rR]|[hH][aA][nN][gG][iI][nN][gG][cC][hH][aA][dD]|[sS][hH][oO][oO][tT][tT][hH][eE][mM][oO][oO][nN]|[jJ][oO][kK][eE][rR][sS][tT][eE][nN][cC][iI][lL]|[fF][oO][uU][rR][fF][iI][nN][gG][eE][rR][sS]|[mM][iI][mM][eE]|[cC][eE][rR][eE][mM][oO][nN][iI][aA][lL][dD][aA][gG][gG][eE][rR]|[mM][aA][rR][bB][lL][eE][jJ][oO][kK][eE][rR]|[lL][oO][yY][aA][lL][tT][yY][cC][aA][rR][dD]|[dD][uU][sS][kK]|[fF][iI][bB][oO][nN][aA][cC][cC][iI]|[sS][tT][eE][eE][lL][jJ][oO][kK][eE][rR]|[hH][aA][cC][kK]|[pP][aA][rR][eE][iI][dD][oO][lL][iI][aA]|[sS][pP][aA][cC][eE][jJ][oO][kK][eE][rR]|[bB][uU][rR][gG][lL][aA][rR]|[bB][lL][aA][cC][kK][bB][oO][aA][rR][dD]|[sS][iI][xX][tT][hH][sS][eE][nN][sS][eE]|[cC][oO][nN][sS][tT][eE][lL][lL][aA][tT][iI][oO][nN]|[hH][iI][kK][eE][rR]|[cC][aA][rR][dD][sS][hH][aA][rR][pP]|[mM][aA][dD][nN][eE][sS][sS]|[sS][eE][aA][nN][cC][eE]|[vV][aA][mM][pP][iI][rR][eE]|[sS][hH][oO][rR][tT][cC][uU][tT]|[hH][oO][lL][oO][gG][rR][aA][mM]|[cC][lL][oO][uU][dD]9|[rR][oO][cC][kK][eE][tT]|[mM][iI][dD][aA][sS][mM][aA][sS][kK]|[lL][uU][cC][hH][aA][dD][oO][rR]|[gG][iI][fF][tT][cC][aA][rR][dD]|[tT][uU][rR][tT][lL][eE][bB][eE][aA][nN]|[eE][rR][oO][sS][iI][oO][nN]|[tT][oO][tT][hH][eE][mM][oO][oO][nN]|[sS][tT][oO][nN][eE][jJ][oO][kK][eE][rR]|[lL][uU][cC][kK][yY][cC][aA][tT]|[bB][uU][lL][lL]|[dD][iI][eE][tT][cC][oO][lL][aA]|[tT][rR][aA][dD][iI][nN][gG][cC][aA][rR][dD]|[fF][lL][aA][sS][hH][cC][aA][rR][dD]|[sS][pP][aA][rR][eE][tT][rR][oO][uU][sS][eE][rR][sS]|[rR][aA][mM][eE][nN]|[sS][eE][lL][tT][zZ][eE][rR]|[cC][aA][sS][tT][lL][eE]|[mM][rR][bB][oO][nN][eE][sS]|[aA][cC][rR][oO][bB][aA][tT]|[sS][oO][cC][kK][aA][nN][dD][bB][uU][sS][kK][iI][nN]|[tT][rR][oO][uU][bB][aA][dD][oO][uU][rR]|[cC][eE][rR][tT][iI][fF][iI][cC][aA][tT][eE]|[sS][mM][eE][aA][rR][eE][dD][jJ][oO][kK][eE][rR]|[tT][hH][rR][oO][wW][bB][aA][cC][kK]|[rR][oO][uU][gG][hH][gG][eE][mM]|[bB][lL][oO][oO][dD][sS][tT][oO][nN][eE]|[aA][rR][rR][oO][wW][hH][eE][aA][dD]|[oO][nN][yY][xX][aA][gG][aA][tT][eE]|[gG][lL][aA][sS][sS][jJ][oO][kK][eE][rR]|[sS][hH][oO][wW][mM][aA][nN]|[fF][lL][oO][wW][eE][rR][pP][oO][tT]|[mM][eE][rR][rR][yY][aA][nN][dD][yY]|[oO][oO][pP][sS][aA][lL][lL]6[sS]|[tT][hH][eE][iI][dD][oO][lL]|[sS][eE][eE][iI][nN][gG][dD][oO][uU][bB][lL][eE]|[mM][aA][tT][aA][dD][oO][rR]|[sS][aA][tT][eE][lL][lL][iI][tT][eE]|[cC][aA][rR][tT][oO][mM][aA][nN][cC][eE][rR]|[aA][sS][tT][rR][oO][nN][oO][mM][eE][rR]|[bB][oO][oO][tT][sS][tT][rR][aA][pP][sS]|[dD][nN][aA]|[vV][aA][gG][aA][bB][oO][nN][dD]|[bB][aA][rR][oO][nN]|[oO][bB][eE][lL][iI][sS][kK]|[bB][aA][sS][eE][bB][aA][lL][lL][cC][aA][rR][dD]|[aA][nN][cC][iI][eE][nN][tT][jJ][oO][kK][eE][rR]|[cC][aA][mM][pP][fF][iI][rR][eE]|[bB][lL][uU][eE][pP][rR][iI][nN][tT]|[wW][eE][eE][jJ][oO][kK][eE][rR]|[hH][iI][tT][tT][hH][eE][rR][oO][aA][dD]|[tT][hH][eE][dD][uU][oO]|[tT][hH][eE][tT][rR][iI][oO]|[tT][hH][eE][fF][aA][mM][iI][lL][yY]|[tT][hH][eE][oO][rR][dD][eE][rR]|[tT][hH][eE][tT][rR][iI][bB][eE]|[sS][tT][uU][nN][tT][mM][aA][nN]|[iI][nN][vV][iI][sS][iI][bB][lL][eE][jJ][oO][kK][eE][rR]|[bB][rR][aA][iI][nN][sS][tT][oO][rR][mM]|[dD][rR][iI][vV][eE][rR][sS][lL][iI][cC][eE][nN][sS][eE]|[bB][uU][rR][nN][tT][jJ][oO][kK][eE][rR]|[cC][aA][nN][iI][oO]|[tT][rR][iI][bB][oO][uU][lL][eE][tT]|[yY][oO][rR][iI][cC][kK]|[cC][hH][iI][cC][oO][tT]|[pP][eE][rR][kK][eE][oO])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -294,7 +291,17 @@
             "pattern": "^(?:[xX]1|[xX]2|[xX]4|[xX]5|[xX]8|[xX]16|[xX]32|[xX]64)$"
           },
           {
-            "type": "integer"
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4,
+              5,
+              8,
+              16,
+              32,
+              64
+            ]
           }
         ]
       },
@@ -313,9 +320,6 @@
           {
             "type": "string",
             "pattern": "^(?:[nN][oO][nN][eE]|[fF][oO][iI][lL]|[hH][oO][lL][oO][gG][rR][aA][pP][hH][iI][cC]|[pP][oO][lL][yY][cC][hH][rR][oO][mM][eE]|[nN][eE][gG][aA][tT][iI][vV][eE])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -333,9 +337,6 @@
           {
             "type": "string",
             "pattern": "^(?:[nN][oO][nN][eE]|[eE][tT][eE][rR][nN][aA][lL]|[pP][eE][rR][iI][sS][hH][aA][bB][lL][eE]|[rR][eE][nN][tT][aA][lL])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -410,9 +411,6 @@
           {
             "type": "string",
             "pattern": "^(?:[jJ][oO][kK][eE][rR]|[gG][rR][eE][eE][dD][yY][jJ][oO][kK][eE][rR]|[lL][uU][sS][tT][yY][jJ][oO][kK][eE][rR]|[wW][rR][aA][tT][hH][fF][uU][lL][jJ][oO][kK][eE][rR]|[gG][lL][uU][tT][tT][oO][nN][oO][uU][sS][jJ][oO][kK][eE][rR]|[jJ][oO][lL][lL][yY][jJ][oO][kK][eE][rR]|[zZ][aA][nN][yY][jJ][oO][kK][eE][rR]|[mM][aA][dD][jJ][oO][kK][eE][rR]|[cC][rR][aA][zZ][yY][jJ][oO][kK][eE][rR]|[dD][rR][oO][lL][lL][jJ][oO][kK][eE][rR]|[sS][lL][yY][jJ][oO][kK][eE][rR]|[wW][iI][lL][yY][jJ][oO][kK][eE][rR]|[cC][lL][eE][vV][eE][rR][jJ][oO][kK][eE][rR]|[dD][eE][vV][iI][oO][uU][sS][jJ][oO][kK][eE][rR]|[cC][rR][aA][fF][tT][yY][jJ][oO][kK][eE][rR]|[hH][aA][lL][fF][jJ][oO][kK][eE][rR]|[cC][rR][eE][dD][iI][tT][cC][aA][rR][dD]|[bB][aA][nN][nN][eE][rR]|[mM][yY][sS][tT][iI][cC][sS][uU][mM][mM][iI][tT]|[eE][iI][gG][hH][tT][bB][aA][lL][lL]|[mM][iI][sS][pP][rR][iI][nN][tT]|[rR][aA][iI][sS][eE][dD][fF][iI][sS][tT]|[cC][hH][aA][oO][sS][tT][hH][eE][cC][lL][oO][wW][nN]|[sS][cC][aA][rR][yY][fF][aA][cC][eE]|[aA][bB][sS][tT][rR][aA][cC][tT][jJ][oO][kK][eE][rR]|[dD][eE][lL][aA][yY][eE][dD][gG][rR][aA][tT][iI][fF][iI][cC][aA][tT][iI][oO][nN]|[gG][rR][oO][sS][mM][iI][cC][hH][eE][lL]|[eE][vV][eE][nN][sS][tT][eE][vV][eE][nN]|[oO][dD][dD][tT][oO][dD][dD]|[sS][cC][hH][oO][lL][aA][rR]|[bB][uU][sS][iI][nN][eE][sS][sS][cC][aA][rR][dD]|[sS][uU][pP][eE][rR][nN][oO][vV][aA]|[rR][iI][dD][eE][tT][hH][eE][bB][uU][sS]|[eE][gG][gG]|[rR][uU][nN][nN][eE][rR]|[iI][cC][eE][cC][rR][eE][aA][mM]|[sS][pP][lL][aA][sS][hH]|[bB][lL][uU][eE][jJ][oO][kK][eE][rR]|[fF][aA][cC][eE][lL][eE][sS][sS][jJ][oO][kK][eE][rR]|[gG][rR][eE][eE][nN][jJ][oO][kK][eE][rR]|[sS][uU][pP][eE][rR][pP][oO][sS][iI][tT][iI][oO][nN]|[tT][oO][dD][oO][lL][iI][sS][tT]|[cC][aA][vV][eE][nN][dD][iI][sS][hH]|[rR][eE][dD][cC][aA][rR][dD]|[sS][qQ][uU][aA][rR][eE][jJ][oO][kK][eE][rR]|[rR][iI][fF][fF][rR][aA][fF][fF]|[pP][hH][oO][tT][oO][gG][rR][aA][pP][hH]|[rR][eE][sS][eE][rR][vV][eE][dD][pP][aA][rR][kK][iI][nN][gG]|[mM][aA][iI][lL][iI][nN][rR][eE][bB][aA][tT][eE]|[hH][aA][lL][lL][uU][cC][iI][nN][aA][tT][iI][oO][nN]|[fF][oO][rR][tT][uU][nN][eE][tT][eE][lL][lL][eE][rR]|[jJ][uU][gG][gG][lL][eE][rR]|[dD][rR][uU][nN][kK][aA][rR][dD]|[gG][oO][lL][dD][eE][nN][jJ][oO][kK][eE][rR]|[pP][oO][pP][cC][oO][rR][nN]|[wW][aA][lL][kK][iI][eE][tT][aA][lL][kK][iI][eE]|[sS][mM][iI][lL][eE][yY][fF][aA][cC][eE]|[gG][oO][lL][dD][eE][nN][tT][iI][cC][kK][eE][tT]|[sS][wW][aA][sS][hH][bB][uU][cC][kK][lL][eE][rR]|[hH][aA][nN][gG][iI][nN][gG][cC][hH][aA][dD]|[sS][hH][oO][oO][tT][tT][hH][eE][mM][oO][oO][nN])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -490,9 +488,6 @@
           {
             "type": "string",
             "pattern": "^(?:[jJ][oO][kK][eE][rR][sS][tT][eE][nN][cC][iI][lL]|[fF][oO][uU][rR][fF][iI][nN][gG][eE][rR][sS]|[mM][iI][mM][eE]|[cC][eE][rR][eE][mM][oO][nN][iI][aA][lL][dD][aA][gG][gG][eE][rR]|[mM][aA][rR][bB][lL][eE][jJ][oO][kK][eE][rR]|[lL][oO][yY][aA][lL][tT][yY][cC][aA][rR][dD]|[dD][uU][sS][kK]|[fF][iI][bB][oO][nN][aA][cC][cC][iI]|[sS][tT][eE][eE][lL][jJ][oO][kK][eE][rR]|[hH][aA][cC][kK]|[pP][aA][rR][eE][iI][dD][oO][lL][iI][aA]|[sS][pP][aA][cC][eE][jJ][oO][kK][eE][rR]|[bB][uU][rR][gG][lL][aA][rR]|[bB][lL][aA][cC][kK][bB][oO][aA][rR][dD]|[sS][iI][xX][tT][hH][sS][eE][nN][sS][eE]|[cC][oO][nN][sS][tT][eE][lL][lL][aA][tT][iI][oO][nN]|[hH][iI][kK][eE][rR]|[cC][aA][rR][dD][sS][hH][aA][rR][pP]|[mM][aA][dD][nN][eE][sS][sS]|[sS][eE][aA][nN][cC][eE]|[vV][aA][mM][pP][iI][rR][eE]|[sS][hH][oO][rR][tT][cC][uU][tT]|[hH][oO][lL][oO][gG][rR][aA][mM]|[cC][lL][oO][uU][dD]9|[rR][oO][cC][kK][eE][tT]|[mM][iI][dD][aA][sS][mM][aA][sS][kK]|[lL][uU][cC][hH][aA][dD][oO][rR]|[gG][iI][fF][tT][cC][aA][rR][dD]|[tT][uU][rR][tT][lL][eE][bB][eE][aA][nN]|[eE][rR][oO][sS][iI][oO][nN]|[tT][oO][tT][hH][eE][mM][oO][oO][nN]|[sS][tT][oO][nN][eE][jJ][oO][kK][eE][rR]|[lL][uU][cC][kK][yY][cC][aA][tT]|[bB][uU][lL][lL]|[dD][iI][eE][tT][cC][oO][lL][aA]|[tT][rR][aA][dD][iI][nN][gG][cC][aA][rR][dD]|[fF][lL][aA][sS][hH][cC][aA][rR][dD]|[sS][pP][aA][rR][eE][tT][rR][oO][uU][sS][eE][rR][sS]|[rR][aA][mM][eE][nN]|[sS][eE][lL][tT][zZ][eE][rR]|[cC][aA][sS][tT][lL][eE]|[mM][rR][bB][oO][nN][eE][sS]|[aA][cC][rR][oO][bB][aA][tT]|[sS][oO][cC][kK][aA][nN][dD][bB][uU][sS][kK][iI][nN]|[tT][rR][oO][uU][bB][aA][dD][oO][uU][rR]|[cC][eE][rR][tT][iI][fF][iI][cC][aA][tT][eE]|[sS][mM][eE][aA][rR][eE][dD][jJ][oO][kK][eE][rR]|[tT][hH][rR][oO][wW][bB][aA][cC][kK]|[rR][oO][uU][gG][hH][gG][eE][mM]|[bB][lL][oO][oO][dD][sS][tT][oO][nN][eE]|[aA][rR][rR][oO][wW][hH][eE][aA][dD]|[oO][nN][yY][xX][aA][gG][aA][tT][eE]|[gG][lL][aA][sS][sS][jJ][oO][kK][eE][rR]|[sS][hH][oO][wW][mM][aA][nN]|[fF][lL][oO][wW][eE][rR][pP][oO][tT]|[mM][eE][rR][rR][yY][aA][nN][dD][yY]|[oO][oO][pP][sS][aA][lL][lL]6[sS]|[tT][hH][eE][iI][dD][oO][lL]|[sS][eE][eE][iI][nN][gG][dD][oO][uU][bB][lL][eE]|[mM][aA][tT][aA][dD][oO][rR]|[sS][aA][tT][eE][lL][lL][iI][tT][eE]|[cC][aA][rR][tT][oO][mM][aA][nN][cC][eE][rR]|[aA][sS][tT][rR][oO][nN][oO][mM][eE][rR]|[bB][oO][oO][tT][sS][tT][rR][aA][pP][sS])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -526,9 +521,6 @@
           {
             "type": "string",
             "pattern": "^(?:[dD][nN][aA]|[vV][aA][gG][aA][bB][oO][nN][dD]|[bB][aA][rR][oO][nN]|[oO][bB][eE][lL][iI][sS][kK]|[bB][aA][sS][eE][bB][aA][lL][lL][cC][aA][rR][dD]|[aA][nN][cC][iI][eE][nN][tT][jJ][oO][kK][eE][rR]|[cC][aA][mM][pP][fF][iI][rR][eE]|[bB][lL][uU][eE][pP][rR][iI][nN][tT]|[wW][eE][eE][jJ][oO][kK][eE][rR]|[hH][iI][tT][tT][hH][eE][rR][oO][aA][dD]|[tT][hH][eE][dD][uU][oO]|[tT][hH][eE][tT][rR][iI][oO]|[tT][hH][eE][fF][aA][mM][iI][lL][yY]|[tT][hH][eE][oO][rR][dD][eE][rR]|[tT][hH][eE][tT][rR][iI][bB][eE]|[sS][tT][uU][nN][tT][mM][aA][nN]|[iI][nN][vV][iI][sS][iI][bB][lL][eE][jJ][oO][kK][eE][rR]|[bB][rR][aA][iI][nN][sS][tT][oO][rR][mM]|[dD][rR][iI][vV][eE][rR][sS][lL][iI][cC][eE][nN][sS][eE]|[bB][uU][rR][nN][tT][jJ][oO][kK][eE][rR])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -554,9 +546,6 @@
           {
             "type": "string",
             "pattern": "^(?:[mM][eE][rR][cC][uU][rR][yY]|[vV][eE][nN][uU][sS]|[eE][aA][rR][tT][hH]|[mM][aA][rR][sS]|[jJ][uU][pP][iI][tT][eE][rR]|[sS][aA][tT][uU][rR][nN]|[uU][rR][aA][nN][uU][sS]|[nN][eE][pP][tT][uU][nN][eE]|[pP][lL][uU][tT][oO]|[pP][lL][aA][nN][eE][tT][xX]|[cC][eE][rR][eE][sS]|[eE][rR][iI][sS])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -588,9 +577,6 @@
           {
             "type": "string",
             "pattern": "^(?:[fF][aA][mM][iI][lL][iI][aA][rR]|[gG][rR][iI][mM]|[iI][nN][cC][aA][nN][tT][aA][tT][iI][oO][nN]|[tT][aA][lL][iI][sS][mM][aA][nN]|[aA][uU][rR][aA]|[wW][rR][aA][iI][tT][hH]|[sS][iI][gG][iI][lL]|[oO][uU][iI][jJ][aA]|[eE][cC][tT][oO][pP][lL][aA][sS][mM]|[iI][mM][mM][oO][lL][aA][tT][eE]|[aA][nN][kK][hH]|[dD][eE][jJ][aA][vV][uU]|[hH][eE][xX]|[tT][rR][aA][nN][cC][eE]|[mM][eE][dD][iI][uU][mM]|[cC][rR][yY][pP][tT][iI][dD]|[tT][hH][eE][sS][oO][uU][lL]|[bB][lL][aA][cC][kK][hH][oO][lL][eE])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -626,9 +612,6 @@
           {
             "type": "string",
             "pattern": "^(?:[tT][hH][eE][fF][oO][oO][lL]|[tT][hH][eE][mM][aA][gG][iI][cC][iI][aA][nN]|[tT][hH][eE][hH][iI][gG][hH][pP][rR][iI][eE][sS][tT][eE][sS][sS]|[tT][hH][eE][eE][mM][pP][rR][eE][sS][sS]|[tT][hH][eE][eE][mM][pP][eE][rR][oO][rR]|[tT][hH][eE][hH][iI][eE][rR][oO][pP][hH][aA][nN][tT]|[tT][hH][eE][lL][oO][vV][eE][rR][sS]|[tT][hH][eE][cC][hH][aA][rR][iI][oO][tT]|[jJ][uU][sS][tT][iI][cC][eE]|[tT][hH][eE][hH][eE][rR][mM][iI][tT]|[tT][hH][eE][wW][hH][eE][eE][lL][oO][fF][fF][oO][rR][tT][uU][nN][eE]|[sS][tT][rR][eE][nN][gG][tT][hH]|[tT][hH][eE][hH][aA][nN][gG][eE][dD][mM][aA][nN]|[dD][eE][aA][tT][hH]|[tT][eE][mM][pP][eE][rR][aA][nN][cC][eE]|[tT][hH][eE][dD][eE][vV][iI][lL]|[tT][hH][eE][tT][oO][wW][eE][rR]|[tT][hH][eE][sS][tT][aA][rR]|[tT][hH][eE][mM][oO][oO][nN]|[tT][hH][eE][sS][uU][nN]|[jJ][uU][dD][gG][eE][mM][eE][nN][tT]|[tT][hH][eE][wW][oO][rR][lL][dD])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -694,9 +677,6 @@
           {
             "type": "string",
             "pattern": "^(?:[tT][wW][oO][oO][fF][cC][lL][uU][bB][sS]|[tT][hH][rR][eE][eE][oO][fF][cC][lL][uU][bB][sS]|[fF][oO][uU][rR][oO][fF][cC][lL][uU][bB][sS]|[fF][iI][vV][eE][oO][fF][cC][lL][uU][bB][sS]|[sS][iI][xX][oO][fF][cC][lL][uU][bB][sS]|[sS][eE][vV][eE][nN][oO][fF][cC][lL][uU][bB][sS]|[eE][iI][gG][hH][tT][oO][fF][cC][lL][uU][bB][sS]|[nN][iI][nN][eE][oO][fF][cC][lL][uU][bB][sS]|[tT][eE][nN][oO][fF][cC][lL][uU][bB][sS]|[jJ][aA][cC][kK][oO][fF][cC][lL][uU][bB][sS]|[qQ][uU][eE][eE][nN][oO][fF][cC][lL][uU][bB][sS]|[kK][iI][nN][gG][oO][fF][cC][lL][uU][bB][sS]|[aA][cC][eE][oO][fF][cC][lL][uU][bB][sS]|[tT][wW][oO][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[tT][hH][rR][eE][eE][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[fF][oO][uU][rR][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[fF][iI][vV][eE][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[sS][iI][xX][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[sS][eE][vV][eE][nN][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[eE][iI][gG][hH][tT][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[nN][iI][nN][eE][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[tT][eE][nN][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[jJ][aA][cC][kK][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[qQ][uU][eE][eE][nN][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[kK][iI][nN][gG][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[aA][cC][eE][oO][fF][dD][iI][aA][mM][oO][nN][dD][sS]|[tT][wW][oO][oO][fF][hH][eE][aA][rR][tT][sS]|[tT][hH][rR][eE][eE][oO][fF][hH][eE][aA][rR][tT][sS]|[fF][oO][uU][rR][oO][fF][hH][eE][aA][rR][tT][sS]|[fF][iI][vV][eE][oO][fF][hH][eE][aA][rR][tT][sS]|[sS][iI][xX][oO][fF][hH][eE][aA][rR][tT][sS]|[sS][eE][vV][eE][nN][oO][fF][hH][eE][aA][rR][tT][sS]|[eE][iI][gG][hH][tT][oO][fF][hH][eE][aA][rR][tT][sS]|[nN][iI][nN][eE][oO][fF][hH][eE][aA][rR][tT][sS]|[tT][eE][nN][oO][fF][hH][eE][aA][rR][tT][sS]|[jJ][aA][cC][kK][oO][fF][hH][eE][aA][rR][tT][sS]|[qQ][uU][eE][eE][nN][oO][fF][hH][eE][aA][rR][tT][sS]|[kK][iI][nN][gG][oO][fF][hH][eE][aA][rR][tT][sS]|[aA][cC][eE][oO][fF][hH][eE][aA][rR][tT][sS]|[tT][wW][oO][oO][fF][sS][pP][aA][dD][eE][sS]|[tT][hH][rR][eE][eE][oO][fF][sS][pP][aA][dD][eE][sS]|[fF][oO][uU][rR][oO][fF][sS][pP][aA][dD][eE][sS]|[fF][iI][vV][eE][oO][fF][sS][pP][aA][dD][eE][sS]|[sS][iI][xX][oO][fF][sS][pP][aA][dD][eE][sS]|[sS][eE][vV][eE][nN][oO][fF][sS][pP][aA][dD][eE][sS]|[eE][iI][gG][hH][tT][oO][fF][sS][pP][aA][dD][eE][sS]|[nN][iI][nN][eE][oO][fF][sS][pP][aA][dD][eE][sS]|[tT][eE][nN][oO][fF][sS][pP][aA][dD][eE][sS]|[jJ][aA][cC][kK][oO][fF][sS][pP][aA][dD][eE][sS]|[qQ][uU][eE][eE][nN][oO][fF][sS][pP][aA][dD][eE][sS]|[kK][iI][nN][gG][oO][fF][sS][pP][aA][dD][eE][sS]|[aA][cC][eE][oO][fF][sS][pP][aA][dD][eE][sS])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -719,9 +699,6 @@
           {
             "type": "string",
             "pattern": "^(?:[nN][oO][nN][eE]|[bB][oO][nN][uU][sS]|[mM][uU][lL][tT]|[wW][iI][lL][dD]|[gG][lL][aA][sS][sS]|[sS][tT][eE][eE][lL]|[sS][tT][oO][nN][eE]|[gG][oO][lL][dD]|[lL][uU][cC][kK][yY])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -748,9 +725,6 @@
           {
             "type": "string",
             "pattern": "^(?:[tT][wW][oO]|[tT][hH][rR][eE][eE]|[fF][oO][uU][rR]|[fF][iI][vV][eE]|[sS][iI][xX]|[sS][eE][vV][eE][nN]|[eE][iI][gG][hH][tT]|[nN][iI][nN][eE]|[tT][eE][nN]|[jJ][aA][cC][kK]|[qQ][uU][eE][eE][nN]|[kK][iI][nN][gG]|[aA][cC][eE])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -769,9 +743,6 @@
           {
             "type": "string",
             "pattern": "^(?:[nN][oO][nN][eE]|[gG][oO][lL][dD]|[rR][eE][dD]|[bB][lL][uU][eE]|[pP][uU][rR][pP][lL][eE])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -789,9 +760,6 @@
           {
             "type": "string",
             "pattern": "^(?:[cC][lL][uU][bB][sS]|[dD][iI][aA][mM][oO][nN][dD][sS]|[hH][eE][aA][rR][tT][sS]|[sS][pP][aA][dD][eE][sS])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -837,9 +805,6 @@
           {
             "type": "string",
             "pattern": "^(?:[oO][vV][eE][rR][sS][tT][oO][cC][kK]|[oO][vV][eE][rR][sS][tT][oO][cC][kK][pP][lL][uU][sS]|[cC][lL][eE][aA][rR][aA][nN][cC][eE][sS][aA][lL][eE]|[lL][iI][qQ][uU][iI][dD][aA][tT][iI][oO][nN]|[hH][oO][nN][eE]|[gG][lL][oO][wW][uU][pP]|[rR][eE][rR][oO][lL][lL][sS][uU][rR][pP][lL][uU][sS]|[rR][eE][rR][oO][lL][lL][gG][lL][uU][tT]|[cC][rR][yY][sS][tT][aA][lL][bB][aA][lL][lL]|[oO][mM][eE][nN][gG][lL][oO][bB][eE]|[tT][eE][lL][eE][sS][cC][oO][pP][eE]|[oO][bB][sS][eE][rR][vV][aA][tT][oO][rR][yY]|[gG][rR][aA][bB][bB][eE][rR]|[nN][aA][cC][hH][oO][tT][oO][nN][gG]|[wW][aA][sS][tT][eE][fF][uU][lL]|[rR][eE][cC][yY][cC][lL][oO][mM][aA][nN][cC][yY]|[tT][aA][rR][oO][tT][mM][eE][rR][cC][hH][aA][nN][tT]|[tT][aA][rR][oO][tT][tT][yY][cC][oO][oO][nN]|[pP][lL][aA][nN][eE][tT][mM][eE][rR][cC][hH][aA][nN][tT]|[pP][lL][aA][nN][eE][tT][tT][yY][cC][oO][oO][nN]|[sS][eE][eE][dD][mM][oO][nN][eE][yY]|[mM][oO][nN][eE][yY][tT][rR][eE][eE]|[bB][lL][aA][nN][kK]|[aA][nN][tT][iI][mM][aA][tT][tT][eE][rR]|[mM][aA][gG][iI][cC][tT][rR][iI][cC][kK]|[iI][lL][lL][uU][sS][iI][oO][nN]|[hH][iI][eE][rR][oO][gG][lL][yY][pP][hH]|[pP][eE][tT][rR][oO][gG][lL][yY][pP][hH]|[dD][iI][rR][eE][cC][tT][oO][rR][sS][cC][uU][tT]|[rR][eE][tT][cC][oO][nN]|[pP][aA][iI][nN][tT][bB][rR][uU][sS][hH]|[pP][aA][lL][eE][tT][tT][eE])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -877,9 +842,6 @@
           {
             "type": "string",
             "pattern": "^(?:[uU][nN][cC][oO][mM][mM][oO][nN][tT][aA][gG]|[rR][aA][rR][eE][tT][aA][gG]|[nN][eE][gG][aA][tT][iI][vV][eE][tT][aA][gG]|[fF][oO][iI][lL][tT][aA][gG]|[hH][oO][lL][oO][gG][rR][aA][pP][hH][iI][cC][tT][aA][gG]|[pP][oO][lL][yY][cC][hH][rR][oO][mM][eE][tT][aA][gG]|[iI][nN][vV][eE][sS][tT][mM][eE][nN][tT][tT][aA][gG]|[vV][oO][uU][cC][hH][eE][rR][tT][aA][gG]|[bB][oO][sS][sS][tT][aA][gG]|[sS][tT][aA][nN][dD][aA][rR][dD][tT][aA][gG]|[cC][hH][aA][rR][mM][tT][aA][gG]|[mM][eE][tT][eE][oO][rR][tT][aA][gG]|[bB][uU][fF][fF][oO][oO][nN][tT][aA][gG]|[hH][aA][nN][dD][yY][tT][aA][gG]|[gG][aA][rR][bB][aA][gG][eE][tT][aA][gG]|[eE][tT][hH][eE][rR][eE][aA][lL][tT][aA][gG]|[cC][oO][uU][pP][oO][nN][tT][aA][gG]|[dD][oO][uU][bB][lL][eE][tT][aA][gG]|[jJ][uU][gG][gG][lL][eE][tT][aA][gG]|[dD]6[tT][aA][gG]|[tT][oO][pP][uU][pP][tT][aA][gG]|[sS][pP][eE][eE][dD][tT][aA][gG]|[oO][rR][bB][iI][tT][aA][lL][tT][aA][gG]|[eE][cC][oO][nN][oO][mM][yY][tT][aA][gG])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -921,9 +883,6 @@
           {
             "type": "string",
             "pattern": "^(?:[tT][hH][eE][cC][lL][uU][bB]|[tT][hH][eE][gG][oO][aA][dD]|[tT][hH][eE][hH][eE][aA][dD]|[tT][hH][eE][hH][oO][oO][kK]|[tT][hH][eE][mM][aA][nN][aA][cC][lL][eE]|[tT][hH][eE][pP][iI][lL][lL][aA][rR]|[tT][hH][eE][pP][sS][yY][cC][hH][iI][cC]|[tT][hH][eE][wW][iI][nN][dD][oO][wW]|[tT][hH][eE][aA][rR][mM]|[tT][hH][eE][fF][iI][sS][hH]|[tT][hH][eE][fF][lL][iI][nN][tT]|[tT][hH][eE][hH][oO][uU][sS][eE]|[tT][hH][eE][mM][aA][rR][kK]|[tT][hH][eE][mM][oO][uU][tT][hH]|[tT][hH][eE][nN][eE][eE][dD][lL][eE]|[tT][hH][eE][wW][aA][lL][lL]|[tT][hH][eE][wW][aA][tT][eE][rR]|[tT][hH][eE][wW][hH][eE][eE][lL]|[tT][hH][eE][eE][yY][eE]|[tT][hH][eE][tT][oO][oO][tT][hH]|[tT][hH][eE][pP][lL][aA][nN][tT]|[tT][hH][eE][sS][eE][rR][pP][eE][nN][tT]|[tT][hH][eE][oO][xX]|[aA][mM][bB][eE][rR][aA][cC][oO][rR][nN]|[cC][eE][rR][uU][lL][eE][aA][nN][bB][eE][lL][lL]|[cC][rR][iI][mM][sS][oO][nN][hH][eE][aA][rR][tT]|[vV][eE][rR][dD][aA][nN][tT][lL][eE][aA][fF]|[vV][iI][oO][lL][eE][tT][vV][eE][sS][sS][eE][lL])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -952,9 +911,6 @@
           {
             "type": "string",
             "pattern": "^(?:[aA][rR][cC][aA][nN][aA]|[jJ][uU][mM][bB][oO][aA][rR][cC][aA][nN][aA]|[mM][eE][gG][aA][aA][rR][cC][aA][nN][aA]|[cC][eE][lL][eE][sS][tT][iI][aA][lL]|[jJ][uU][mM][bB][oO][cC][eE][lL][eE][sS][tT][iI][aA][lL]|[mM][eE][gG][aA][cC][eE][lL][eE][sS][tT][iI][aA][lL]|[sS][tT][aA][nN][dD][aA][rR][dD]|[jJ][uU][mM][bB][oO][sS][tT][aA][nN][dD][aA][rR][dD]|[mM][eE][gG][aA][sS][tT][aA][nN][dD][aA][rR][dD]|[bB][uU][fF][fF][oO][oO][nN]|[jJ][uU][mM][bB][oO][bB][uU][fF][fF][oO][oO][nN]|[mM][eE][gG][aA][bB][uU][fF][fF][oO][oO][nN]|[sS][pP][eE][cC][tT][rR][aA][lL]|[jJ][uU][mM][bB][oO][sS][pP][eE][cC][tT][rR][aA][lL]|[mM][eE][gG][aA][sS][pP][eE][cC][tT][rR][aA][lL])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -977,9 +933,6 @@
           {
             "type": "string",
             "pattern": "^(?:[hH][iI][gG][hH][cC][aA][rR][dD]|[pP][aA][iI][rR]|[tT][wW][oO][pP][aA][iI][rR]|[tT][hH][rR][eE][eE][oO][fF][aA][kK][iI][nN][dD]|[sS][tT][rR][aA][iI][gG][hH][tT]|[fF][lL][uU][sS][hH]|[fF][uU][lL][lL][hH][oO][uU][sS][eE]|[fF][oO][uU][rR][oO][fF][aA][kK][iI][nN][dD]|[sS][tT][rR][aA][iI][gG][hH][tT][fF][lL][uU][sS][hH])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -995,9 +948,6 @@
           {
             "type": "string",
             "pattern": "^(?:[sS][uU][mM]|[mM][aA][xX])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -1026,9 +976,6 @@
           {
             "type": "string",
             "pattern": "^(?:[rR][eE][dD]|[bB][lL][uU][eE]|[yY][eE][lL][lL][oO][wW]|[gG][rR][eE][eE][nN]|[bB][lL][aA][cC][kK]|[mM][aA][gG][iI][cC]|[nN][eE][bB][uU][lL][aA]|[gG][hH][oO][sS][tT]|[aA][bB][aA][nN][dD][oO][nN][eE][dD]|[cC][hH][eE][cC][kK][eE][rR][eE][dD]|[zZ][oO][dD][iI][aA][cC]|[pP][aA][iI][nN][tT][eE][dD]|[aA][nN][aA][gG][lL][yY][pP][hH]|[pP][lL][aA][sS][mM][aA]|[eE][rR][rR][aA][tT][iI][cC])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       },
@@ -1050,9 +997,6 @@
           {
             "type": "string",
             "pattern": "^(?:[wW][hH][iI][tT][eE]|[rR][eE][dD]|[gG][rR][eE][eE][nN]|[bB][lL][aA][cC][kK]|[bB][lL][uU][eE]|[pP][uU][rR][pP][lL][eE]|[oO][rR][aA][nN][gG][eE]|[gG][oO][lL][dD])$"
-          },
-          {
-            "type": "integer"
           }
         ]
       }

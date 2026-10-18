@@ -41,7 +41,7 @@ internal sealed class JamlStandardCardSlotConverter : IYamlTypeConverter
                 return new JamlStandardCardSlot();
             return new JamlStandardCardSlot
             {
-                Card = Enum.Parse<MotelyStandardCard>(scalar.Value, ignoreCase: true),
+                Card = JamlEnumName.Parse<MotelyStandardCard>(scalar.Value),
             };
         }
 

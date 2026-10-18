@@ -18,7 +18,8 @@ public static partial class JamlConfigLoader
         var builder = new StaticDeserializerBuilder(new JamlYamlContext())
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .WithCaseInsensitivePropertyMatching()
-            .WithNodeDeserializer(new ClauseTypeDiscriminatingNodeDeserializer());
+            .WithNodeDeserializer(new ClauseTypeDiscriminatingNodeDeserializer())
+            .WithNodeDeserializer(new JamlEnumNodeDeserializer());
         foreach (var converter in JamlClauseBinding.Converters)
             builder = builder.WithTypeConverter(converter);
         return builder.Build();
