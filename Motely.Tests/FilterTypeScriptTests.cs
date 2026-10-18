@@ -5,7 +5,7 @@ namespace Motely.Tests;
 /// <summary>
 /// The TypeScript declarations motely-wasm ships as <c>motely-wasm/jaml</c> are read off the
 /// engine's own vocabulary. These pin that every word the loader binds is in them, and that the
-/// copies checked into Motely.Wasm/jaml are the current output of <c>motely schema</c>.
+/// copies checked into Motely.Wasm/jaml are the current output of <c>dotnet run tools/schema.cs</c>.
 /// </summary>
 public sealed class FilterTypeScriptTests
 {
