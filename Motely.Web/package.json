@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@rewaffle/bootsharp-file-system": "2026.5.201827",
-    "jaml-ui": "^9.0.0",
+    "jaml-ui": "^9.1.0",
     "motely-wasm": "file:../Motely.Wasm",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
