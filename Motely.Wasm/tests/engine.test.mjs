@@ -189,6 +189,23 @@ test("a filter goes YAML → JSON → YAML through the engine, and the JSON load
   assert.equal(JamlConfigLoader.toJson(JamlConfigLoader.toYaml(json)), json);
 });
 
+test("deep nesting is refused at its line, and the module lives on", () => {
+  // 5,000 levels overflowed the stack in YamlDotNet's node building and killed the module.
+  const deep = "name: d\nmust:\n  - joker: Joker\n    antes: " + "[".repeat(100_000) + "]".repeat(100_000) + "\n";
+  Errors.last();
+  assert.throws(() => JamlConfigLoader.toJson(deep));
+  assert.match(Errors.last() ?? "", /^JAML line 4: the document nests deeper than 64 levels/);
+  assert.match(JamlConfigLoader.check(deep) ?? "", /^JAML line 4: the document nests deeper than 64 levels/);
+  assert.match(JamlConfigLoader.check(JamlConfigLoader.toJson("x: " + "[".repeat(63) + "]".repeat(63) + "\n")) ?? "", /'x' not found/);
+  assert.equal(JamlConfigLoader.check(telescope), null);
+});
+
+test("toJson keeps a seed that looks like a number as written", () => {
+  const json = JamlConfigLoader.toJson("name: s\nseeds: [99E99, 11E11111, 010]\nmust:\n  - joker: Joker\n");
+  assert.match(json, /"seeds": \[\n    99E99,\n    11E11111,\n    "010"\n  \]/);
+  assert.deepEqual(JamlConfigLoader.fromJaml(json).seeds, ["99E99", "11E11111", "010"]);
+});
+
 test("a legendary from the Jamlyzer is an item like every other card", () => {
   // C3DW94B8 (Red/White) holds one ante-1 Soul (Motely.Tests JAMLyzerUnitTests pins its slot).
   const result = MotelyJamlyzer.analyze(JamlConfigLoader.fromJaml("name: soul\nseeds: [C3DW94B8]\n"), 1)[0];

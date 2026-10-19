@@ -24,6 +24,7 @@ public static class FilterJsonSchema
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
+        NewLine = "\n",
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 

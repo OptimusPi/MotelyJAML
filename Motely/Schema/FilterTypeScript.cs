@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -8,8 +9,9 @@ namespace Motely.Schema;
 /// TypeScript declarations for a filter document, read off <see cref="FilterJsonSchema"/>: the
 /// same keys, the same nesting, the same enum names, so a TypeScript app holds a filter as a plain
 /// <c>JamlFilter</c> object and hands <c>JSON.stringify(filter)</c> to the loader — no parser and
-/// no key list of its own. Enum types are the canonical names only; the loader also takes any
-/// casing, which a type deliberately does not invite, and refuses a number.
+/// no key list of its own. Enum types are the canonical names, plus the numbers for luck, whose
+/// number is its value (<c>luck: 4</c> is X4); the loader also takes any casing, which a type
+/// deliberately does not invite.
 /// </summary>
 public static partial class FilterTypeScript
 {
@@ -65,13 +67,19 @@ public static partial class FilterTypeScript
         throw new InvalidOperationException($"Unexpected schema reference {pointer}.");
     }
 
-    /// <summary>An enum definition is <c>anyOf [names, case-insensitive pattern, integer]</c>; only the names become the type.</summary>
+    /// <summary>
+    /// An enum definition is <c>anyOf [names, case-insensitive pattern]</c>, and for luck also
+    /// <c>integer</c> with its values. The names and those integers become the type.
+    /// </summary>
     private static string EnumUnion(JsonNode node)
     {
-        foreach (var alternative in (JsonArray)node["anyOf"]!)
-            if (alternative?["enum"] is JsonArray names)
-                return Union(names.Select(n => Literal(n!.GetValue<string>())));
-        throw new InvalidOperationException("An enum definition has no name list.");
+        var members = ((JsonArray)node["anyOf"]!)
+            .Select(alternative => alternative?["enum"])
+            .OfType<JsonArray>()
+            .SelectMany(values => values)
+            .Select(v => v!.GetValueKind() == JsonValueKind.String ? Literal(v.GetValue<string>()) : v.ToJsonString())
+            .ToList();
+        return members.Count > 0 ? Union(members) : throw new InvalidOperationException("An enum definition has no name list.");
     }
 
     private static string Type(JsonNode node)

@@ -34,8 +34,9 @@ internal static class LegendarySoulMatcher
 
         /// <summary>
         /// Legendaries already drawn in this walk (Balatro's <c>used_jokers</c>). The pool has five
-        /// members; a sixth draw is impossible, so a fixed array is enough. <see cref="HeldCount"/>
-        /// is the live length — <see cref="GetNextLegendaryJoker"/> reads only that slice.
+        /// members; once all five are held a Soul draws <c>j_joker</c>, which <see cref="Own"/> drops, so
+        /// five slots are enough. <see cref="HeldCount"/> is the live length —
+        /// <see cref="GetNextLegendaryJoker"/> reads only that slice.
         /// </summary>
         public MotelyJoker[] Held = new MotelyJoker[5];
 

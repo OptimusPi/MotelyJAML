@@ -29,7 +29,7 @@ public static partial class JamlConfigLoader
     {
         try
         {
-            return Deserializer.Deserialize<JamlConfig?>(text)
+            return Deserializer.Deserialize<JamlConfig?>(new JamlParser(text))
                 ?? throw new InvalidOperationException("JAML: the document is empty.");
         }
         catch (YamlException ex)
