@@ -31,7 +31,7 @@ must:
 should:
   - jokers: [OopsAll6s, Troubadour, HangingChad, Baron, Mime, Blueprint, Brainstorm, InvisibleJoker]
     score: 1
-    antes: [10..20]
+    antes: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     sources:
       shopItems: [0,1,2,3]
   - legendaryJoker: Perkeo

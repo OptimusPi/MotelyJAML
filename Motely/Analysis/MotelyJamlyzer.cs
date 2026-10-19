@@ -23,12 +23,18 @@ public sealed record MotelyJamlyzerSeedResult(
 /// sits in. Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is run-global;
 /// the edition still comes from the Soul's own ante (<c>edisou{ante}</c>). This is the sequence
 /// <c>legendaryJoker:</c> matches against, read once per seed instead of restarted every ante.
+/// Every Soul is taken as opened and its legendary kept, so a draw that repeats a legendary already
+/// held resamples, as it does in the game without Showman: the order a <c>soulOrder:</c> clause
+/// without <c>with:</c> matches.
+/// <c>Item</c> is the joker the Soul yields as an item, edition included — the same shape as every
+/// other card the Jamlyzer reports, so a consumer draws it like any shop or pack card.
 /// </summary>
 public sealed record MotelyJamlyzerLegendary(
     int Ante,
     int PackSlot,
     MotelyJoker Joker,
-    MotelyItemEdition Edition
+    MotelyItemEdition Edition,
+    MotelyItem Item
 );
 
 public sealed record MotelyJamlyzerAnteResult(
@@ -214,6 +220,18 @@ public static class MotelyJamlyzer
     /// <summary>Every ante the Jamlyzer can walk: the pre-run shop (0) and antes 1..8.</summary>
     public static readonly int[] AllAntes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
+    /// <summary>How deep an ante's shop is walked when <c>shopSlots</c> is 0: 15 for the pre-run
+    /// shop and ante 1, 50 beyond.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>The number of shop items the result carries for that ante.</returns>
+    public static int DefaultShopSlots(int ante) => MotelyJamlyzerWindow.DefaultShopSlots(ante);
+
+    /// <summary>How many booster packs an ante offers, and so how many the result carries: 4 for
+    /// ante 1, 6 for every other ante, ante 0 included. Pack indices in <c>sources:</c> count these.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>The pack count.</returns>
+    public static int PackCount(int ante) => MotelyJamlyzerWindow.PackCount(ante);
+
     /// <summary>
     /// The Jamlyzer as a rider on a search. Attach the returned desc with
     /// <see cref="IMotelySearchSettings.WithSeedAnalyzeProvider"/> and every seed the search reports
@@ -232,7 +250,7 @@ public static class MotelyJamlyzer
         Action<MotelyJamlyzerSeedResult> onAnalyzed,
         int eventRolls = 20,
         int shopSlots = 0
-    ) => new(ComputeAntes(config), onAnalyzed, eventRolls, shopSlots);
+    ) => new(ComputeAntes(config), onAnalyzed, eventRolls, shopSlots, OpensAnteZeroSouls(config));
 
     private static IReadOnlyList<MotelyJamlyzerSeedResult> AnalyzeCore(
         JamlConfig config,
@@ -243,6 +261,7 @@ public static class MotelyJamlyzer
     {
         MotelyJamlyzerWindow.ThrowIfOutOfRange(eventRolls, shopSlots);
         var antesToAnalyze = ComputeAntes(config);
+        bool opensAnteZeroSouls = OpensAnteZeroSouls(config);
         bool hasScore = config.Must.Count + config.Should.Count > 0;
         var results = new List<MotelyJamlyzerSeedResult>(config.Seeds.Count);
 
@@ -257,7 +276,8 @@ public static class MotelyJamlyzer
                 antesToAnalyze,
                 eventRolls,
                 seedResume,
-                shopSlots
+                shopSlots,
+                opensAnteZeroSouls
             );
             var settings = new MotelySearchSettings<MotelyJamlyzerFilterDesc.JamlyzerFilter>(
                 filterDesc
@@ -373,4 +393,23 @@ public static class MotelyJamlyzer
             set.Add(ante);
         return set.Count > 0 ? [.. set] : AllAntes;
     }
+
+    /// <summary>
+    /// Whether the walk opens ante 0's Souls: only when a legendaryJoker or soulOrder clause names
+    /// ante 0. Ante 0 is in the run only after Hieroglyph or Petroglyph, so a walk that opened its
+    /// Soul first handed every later Soul the next legendary over (1YU11111: the ante-2 Soul read
+    /// Yorick, where a run that never plays ante 0 gets Triboulet) and disagreed with every
+    /// legendary clause on antes 1 and up, which opens exactly the Souls it names.
+    /// </summary>
+    public static bool OpensAnteZeroSouls(JamlConfig config) =>
+        config.Must.Concat(config.Should).Concat(config.MustNot).Any(NamesAnteZeroSoul);
+
+    private static bool NamesAnteZeroSoul(IMotelyClause clause) =>
+        clause switch
+        {
+            LegendaryJokerClause c => Array.IndexOf(c.Antes, 0) >= 0,
+            LegendarySoulOrderClause c => Array.Exists(c.Entries, e => Array.IndexOf(e.Antes, 0) >= 0),
+            LogicClause c => Array.Exists(c.Clauses, NamesAnteZeroSoul),
+            _ => false,
+        };
 }

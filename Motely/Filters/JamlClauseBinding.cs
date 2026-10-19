@@ -106,7 +106,7 @@ internal static class JamlClauseBinding
                 ),
                 Scalar scalar => ConsumeAndReturn(
                     parser,
-                    new[] { (T)Enum.Parse(typeof(T), scalar.Value, ignoreCase: true) }
+                    new[] { (T)JamlEnumName.Parse(typeof(T), scalar.Value) }
                 ),
                 _ => Array.Empty<T>(),
             };
@@ -118,7 +118,7 @@ internal static class JamlClauseBinding
             while (!parser.TryConsume<SequenceEnd>(out _))
             {
                 var scalar = parser.Consume<Scalar>();
-                items.Add((T)Enum.Parse(typeof(T), scalar.Value, ignoreCase: true));
+                items.Add((T)JamlEnumName.Parse(typeof(T), scalar.Value));
             }
 
             return items.ToArray();

@@ -109,7 +109,8 @@ public static class FilterJsonSchema
                     },
                     var x when x == typeof(string) => ArraySchema(ScalarString()),
                     var x when x == typeof(int) => ArraySchema(new JsonObject { ["type"] = "integer" }),
-                    _ => EnsureDef(defs, elem),
+                    // A list of blocks (soulOrder: [{ legendary: Perkeo }, …]): the loader binds a sequence.
+                    _ => ArraySchema((JsonObject)EnsureDef(defs, elem)),
                 }
             );
         }
@@ -169,9 +170,10 @@ public static class FilterJsonSchema
 
     /// <summary>
     /// One shared definition per enum type under <c>definitions/enums</c>: the exact-name list
-    /// (what editors complete from), the same names as a case-insensitive pattern, and the
-    /// numeric form — <c>Enum.Parse</c> takes all three, so the loader does
-    /// (<c>erraticRank: 2</c> is rank <c>Two</c>). Referenced by $ref so the names are stored
+    /// (what editors complete from) and the same names as a case-insensitive pattern, the forms
+    /// the loader binds. A number is refused (<see cref="Filters.JamlEnumName"/>): read as the
+    /// enum's value it made <c>erraticRank: 2</c> Four. An enum whose number is its meaning
+    /// (<c>luck: 4</c> is X4) also takes its values. Referenced by $ref so the names are stored
     /// once instead of per property.
     /// </summary>
     private static JsonObject EnumValue(JsonObject defs, Type enumType)
@@ -180,14 +182,17 @@ public static class FilterJsonSchema
         if (!enums.ContainsKey(enumType.Name))
         {
             var names = new JsonArray([.. Enum.GetNames(enumType).Select(n => (JsonNode)n)]);
-            enums[enumType.Name] = new JsonObject
-            {
-                ["anyOf"] = new JsonArray(
-                    new JsonObject { ["type"] = "string", ["enum"] = names },
-                    new JsonObject { ["type"] = "string", ["pattern"] = ValuePattern(enumType) },
-                    new JsonObject { ["type"] = "integer" }
-                ),
-            };
+            var forms = new JsonArray(
+                new JsonObject { ["type"] = "string", ["enum"] = names },
+                new JsonObject { ["type"] = "string", ["pattern"] = ValuePattern(enumType) }
+            );
+            if (Filters.JamlEnumName.NumberIsValue(enumType))
+                forms.Add(new JsonObject
+                {
+                    ["type"] = "integer",
+                    ["enum"] = new JsonArray([.. Enum.GetValuesAsUnderlyingType(enumType).Cast<int>().Select(v => (JsonNode)v)]),
+                });
+            enums[enumType.Name] = new JsonObject { ["anyOf"] = forms };
         }
         return new JsonObject { ["$ref"] = $"#/definitions/enums/{enumType.Name}" };
     }

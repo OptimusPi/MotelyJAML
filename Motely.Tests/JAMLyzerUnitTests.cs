@@ -40,15 +40,17 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(2, results[0].Antes.Count);
         Assert.Equal(0, results[0].Antes[0].Ante);
         Assert.Equal(1, results[0].Antes[1].Ante);
-        Assert.Equal(4, results[0].Antes[0].Packs.Count);
+        Assert.Equal(6, results[0].Antes[0].Packs.Count);
         Assert.Equal(15, results[0].Antes[0].ShopItems.Count);
     }
 
     [Fact]
-    public void Analyze_AnteOneHasFourPacks()
+    public void Analyze_AnteOneHasFourPacks_AnteZeroSix()
     {
+        // Ante 1's first shop opens after the small blind; ante 0 runs all three shops once
+        // Hieroglyph and Petroglyph ease the run back to it, the six packs a clause searches.
         var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
-        Assert.Equal(4, results[0].Antes[0].Packs.Count);
+        Assert.Equal(6, results[0].Antes[0].Packs.Count);
         Assert.Equal(4, results[0].Antes[1].Packs.Count);
     }
 
@@ -85,6 +87,103 @@ public sealed class JAMLyzerUnitTests
         var legendaries = MotelyEnum<MotelyJokerLegendary>
             .Values.Select(l => (MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)l));
         Assert.Contains(entry.Joker, legendaries);
+
+        // The yielded joker as an item: the engine's own construction, edition carried, so a
+        // consumer draws it like any shop or pack card.
+        Assert.Equal(new MotelyItem(entry.Joker, entry.Edition), entry.Item);
+        Assert.Equal(MotelyItemTypeCategory.Joker, entry.Item.TypeCategory);
+        Assert.Equal(entry.Edition, entry.Item.Edition);
+    }
+
+    [Theory]
+    // Ghost/White seeds with a Soul in ante 1 and another in ante 2. On the first three the raw
+    // Joker4 draw for the second Soul repeats the first legendary; with that legendary held the
+    // game resamples it. 3VX11111's draws differ, so nothing resamples.
+    [InlineData("BHT11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
+    [InlineData("D6L11111", MotelyJoker.Perkeo, MotelyJoker.Triboulet)]
+    [InlineData("L4V11111", MotelyJoker.Yorick, MotelyJoker.Perkeo)]
+    [InlineData("3VX11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
+    public void Analyze_LegendaryOrder_ResamplesOffTheLegendariesAlreadyHeld(
+        string seed,
+        MotelyJoker first,
+        MotelyJoker second
+    )
+    {
+        var order = MotelyJamlyzer.Analyze(SeedConfig(seed, MotelyDeck.Ghost), eventRolls: 1)[0].LegendaryOrder;
+        Assert.True(order.Count >= 2, $"{seed}: a Soul in ante 1 and another in ante 2");
+        Assert.Equal([first, second], order.Take(2).Select(l => l.Joker));
+
+        // The filter walks the same Souls the same way: soulOrder matches exactly this order.
+        ProofSearch.MustMatchAll(
+            $$"""
+            name: soul-order
+            deck: Ghost
+            stake: White
+            must:
+              - soulOrder:
+                  - { legendary: {{first}}, antes: [{{order[0].Ante}}] }
+                  - { legendary: {{second}}, antes: [{{order[1].Ante}}] }
+                maxAnte: {{order[1].Ante}}
+            """,
+            seed
+        );
+    }
+
+    [Fact]
+    public void Analyze_AnteZeroSoulStaysShutUnlessALegendaryClauseNamesAnteZero()
+    {
+        // 1YU11111 (Red/White) has a Soul in ante 0's first pack and one in ante 2's. Ante 0 is in
+        // the run only after Hieroglyph or Petroglyph, so with no clause naming it the walk shows
+        // ante 0's cards but leaves its Soul shut, and the ante-2 Soul is the first one opened:
+        // the stream's first legendary, Triboulet. Opening ante 0 first made it read Yorick.
+        var plain = MotelyJamlyzer.Analyze(SeedConfig("1YU11111"), eventRolls: 1)[0];
+        Assert.Equal(0, plain.Antes[0].Ante);
+        var only = Assert.Single(plain.LegendaryOrder);
+        Assert.Equal((2, 0, MotelyJoker.Triboulet), (only.Ante, only.PackSlot, only.Joker));
+
+        // A legendary clause naming ante 0 opens its Soul, first, as the clause itself does.
+        var namesAnteZero = JamlConfigLoader.FromJaml("""
+            deck: Red
+            stake: White
+            must:
+              - legendaryJoker: Triboulet
+                antes: [0, 1, 2]
+                sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }
+            seeds: [1YU11111]
+            """);
+        Assert.Equal(
+            [(0, MotelyJoker.Triboulet), (2, MotelyJoker.Yorick)],
+            MotelyJamlyzer.Analyze(namesAnteZero, eventRolls: 1)[0].LegendaryOrder.Select(l => (l.Ante, l.Joker)));
+
+        // The clauses agree with both readings: a clause on ante 2 opens that Soul first.
+        const string head = "name: ante-zero\ndeck: Red\nstake: White\nmust:\n";
+        ProofSearch.MustMatchAll(
+            head + "  - legendaryJoker: Triboulet\n    antes: [2]\n"
+                + "    sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }\n",
+            "1YU11111");
+        ProofSearch.MustMatchAll(head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [2] }\n", "1YU11111");
+        ProofSearch.MustMatchNone(head + "  - soulOrder:\n      - { legendary: Yorick, antes: [2] }\n", "1YU11111");
+        ProofSearch.MustMatchAll(
+            head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [0] }\n      - { legendary: Yorick, antes: [2] }\n",
+            "1YU11111");
+    }
+
+    [Fact]
+    public void Analyze_EachAnteCarriesItsPublishedShopDepthAndPackCount()
+    {
+        // DefaultShopSlots / PackCount are what a consumer sizes an ante with before it has a
+        // result; they must be exactly what the result then carries.
+        var result = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 1)[0];
+        foreach (var ante in result.Antes)
+        {
+            Assert.Equal(MotelyJamlyzer.DefaultShopSlots(ante.Ante), ante.ShopItems.Count);
+            Assert.Equal(MotelyJamlyzer.PackCount(ante.Ante), ante.Packs.Count);
+        }
+        Assert.Equal(6, MotelyJamlyzer.PackCount(0));
+        Assert.Equal(4, MotelyJamlyzer.PackCount(1));
+        Assert.Equal(6, MotelyJamlyzer.PackCount(2));
+        Assert.Equal(15, MotelyJamlyzer.DefaultShopSlots(1));
+        Assert.Equal(50, MotelyJamlyzer.DefaultShopSlots(2));
     }
 
     [Fact]

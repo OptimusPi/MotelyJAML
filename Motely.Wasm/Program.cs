@@ -139,6 +139,21 @@ public static class JamlConfigLoader
     [Export]
     public static string? Check(string yaml) =>
         Motely.Filters.JamlConfigLoader.TryLoad(yaml, out _, out var error) ? null : error;
+
+    /// <summary>The filter's YAML as JSON, keys and values as written, so JS holds it as a typed
+    /// <c>JamlFilter</c> (motely-wasm/jaml) without parsing YAML itself.</summary>
+    /// <param name="yaml">The filter text.</param>
+    /// <returns>Indented JSON.</returns>
+    [Export]
+    public static string ToJson(string yaml) =>
+        Guard.Run(() => Motely.Filters.JamlConfigLoader.ToJson(yaml));
+
+    /// <summary>The filter's JSON as block YAML, for showing or saving a filter JS built as JSON.</summary>
+    /// <param name="json">The filter as JSON.</param>
+    /// <returns>YAML text.</returns>
+    [Export]
+    public static string ToYaml(string json) =>
+        Guard.Run(() => Motely.Filters.JamlConfigLoader.ToYaml(json));
 }
 
 /// <summary>Engine's <see cref="Motely.Filters.MotelySearchBuilder"/>.</summary>
@@ -193,6 +208,18 @@ public static class MotelyJamlyzer
         int eventRolls = 20,
         int shopSlots = 0
     ) => Guard.Run(() => Motely.Analysis.MotelyJamlyzer.CreateRiderDesc(config, onAnalyzed, eventRolls, shopSlots));
+
+    /// <summary>How many shop items an ante's result carries when <c>shopSlots</c> is 0.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>15 for antes 0 and 1, 50 beyond.</returns>
+    [Export]
+    public static int DefaultShopSlots(int ante) => Motely.Analysis.MotelyJamlyzer.DefaultShopSlots(ante);
+
+    /// <summary>How many booster packs an ante offers; <c>sources:</c> pack indices count these.</summary>
+    /// <param name="ante">The ante.</param>
+    /// <returns>4 for antes 0 and 1, 6 beyond.</returns>
+    [Export]
+    public static int PackCount(int ante) => Motely.Analysis.MotelyJamlyzer.PackCount(ante);
 }
 
 /// <summary>Renaming (guide: renaming).</summary>

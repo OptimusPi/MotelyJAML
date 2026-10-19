@@ -10,7 +10,6 @@ using Motely.Enums;
 // stdout carries results only (CSV rows, or --analyze text); everything else goes to stderr.
 // Exit codes: 0 finished, 1 bad input, 130 interrupted.
 //   motely check <filters>   does each filter load? 0 yes, 1 no.
-//   motely schema            write the filter JSON Schema + TextMate grammar from the engine.
 //   motely hook              coding-agent post-edit hook: exit 2 with the error when an edited filter breaks.
 // The MCP server is its own program: Motely.MCP.
 
@@ -114,24 +113,10 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
-Option<string?> schemaOutOption = new("--out")
-{
-    Description = "Directory for the schema and grammar (default: the checkout's schema/ and vscode-jaml/syntaxes/).",
-};
-Command schemaCommand = new(
-    "schema",
-    "Write the filter JSON Schema and TextMate grammar, generated from the engine's own vocabulary."
-)
-{
-    schemaOutOption,
-};
-schemaCommand.SetAction(parseResult => SchemaWriter.Run(parseResult.GetValue(schemaOutOption)));
-
 RootCommand rootCommand = new("Balatro seed search.")
 {
     checkCommand,
     hookCommand,
-    schemaCommand,
     jamlOption,
     analyzeOption,
     deckOption,

@@ -50,7 +50,8 @@ public sealed partial record SoulOrderEntry
 {
     public MotelyJoker Legendary { get; set; }
 
-    /// <summary>Antes this Soul may be opened in. Empty = any ante up to the clause's <c>maxAnte</c>.</summary>
+    /// <summary>Antes this Soul may be opened in. Empty = any ante from 1 up to the clause's
+    /// <c>maxAnte</c>; ante 0, in the run only after Hieroglyph or Petroglyph, only when an entry names it.</summary>
     public int[] Antes { get; set; } = [];
 }
 
