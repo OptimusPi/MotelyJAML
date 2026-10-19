@@ -21,6 +21,7 @@ public static class FilterGrammar
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
+        NewLine = "\n",
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 

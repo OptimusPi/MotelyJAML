@@ -14,8 +14,7 @@ public sealed class FilterTypeScriptTests
     [Fact]
     public void EveryRootKeyIsAFilterProperty()
     {
-        var filter = Declarations[Declarations.IndexOf("export interface JamlFilter {", StringComparison.Ordinal)..];
-        filter = filter[..filter.IndexOf("\n}", StringComparison.Ordinal)];
+        var filter = Section("export interface JamlFilter {", "\n}");
         foreach (var key in FilterVocabulary.RootKeys)
             Assert.Contains($"\n  {key}?: ", filter);
     }
@@ -23,10 +22,9 @@ public sealed class FilterTypeScriptTests
     [Fact]
     public void EveryDiscriminatorIsAClauseMember()
     {
-        var clause = Declarations[Declarations.IndexOf("export type JamlClause = ", StringComparison.Ordinal)..];
-        clause = clause[..clause.IndexOf(";\n", StringComparison.Ordinal)];
+        var clause = Section("export type JamlClause = ", ";\n");
         foreach (var disc in FilterVocabulary.DiscriminatorTable)
-            Assert.Contains($", \"{disc.Key}\">>", clause);
+            Assert.True(clause.Contains($", \"{disc.Key}\">>", StringComparison.Ordinal), $"JamlClause has no member keyed {disc.Key}.");
     }
 
     [Theory]
@@ -53,10 +51,19 @@ public sealed class FilterTypeScriptTests
         Assert.True(JamlConfigLoader.TryLoad("must:\n  - soulOrder: [{ legendary: Perkeo }]\n", out _, out _));
         Assert.False(JamlConfigLoader.TryLoad("must:\n  - soulOrder: { legendary: Perkeo }\n", out _, out _));
 
-        var clause = Declarations[Declarations.IndexOf("export interface JamlLegendarySoulOrderClause {", StringComparison.Ordinal)..];
-        clause = clause[..clause.IndexOf("\n}", StringComparison.Ordinal)];
+        var clause = Section("export interface JamlLegendarySoulOrderClause {", "\n}");
         Assert.Contains("\n  soulOrder?: JamlSoulOrderEntry[];", clause);
         Assert.Contains("\n  entries?: JamlSoulOrderEntry[];", clause);
+    }
+
+    [Fact]
+    public void LuckTakesItsNumbers()
+    {
+        // The loader reads `luck: 4` as X4, so the type takes the numbers as well as the names.
+        Assert.True(JamlConfigLoader.TryLoad("must:\n  - luckyMoney: [0]\n    with:\n      luck: 4", out _, out var error), error);
+        Assert.Equal(
+            "export type MotelyLuckName = \"X1\" | \"X2\" | \"X4\" | \"X5\" | \"X8\" | \"X16\" | \"X32\" | \"X64\" | 1 | 2 | 4 | 5 | 8 | 16 | 32 | 64;",
+            Declarations.Split('\n').Single(l => l.StartsWith("export type MotelyLuckName = ", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -69,6 +76,16 @@ public sealed class FilterTypeScriptTests
             FilterJsonSchema.Generate(),
             File.ReadAllText(PackagePath("motely-filter.schema.json")).ReplaceLineEndings("\n")
         );
+
+    /// <summary>The declarations from <paramref name="start"/> up to the first <paramref name="end"/> after it.</summary>
+    private static string Section(string start, string end)
+    {
+        int from = Declarations.IndexOf(start, StringComparison.Ordinal);
+        Assert.True(from >= 0, $"The declarations have no `{start}`.");
+        int to = Declarations.IndexOf(end, from, StringComparison.Ordinal);
+        Assert.True(to >= 0, $"`{start}` is never closed by `{end}`.");
+        return Declarations[from..to];
+    }
 
     private static string PackagePath(string file)
     {

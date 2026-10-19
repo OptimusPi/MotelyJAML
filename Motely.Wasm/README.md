@@ -47,14 +47,20 @@ const fromFile: JamlFilter = JSON.parse(JamlConfigLoader.toJson(yamlText)); // a
 const yaml = JamlConfigLoader.toYaml(JSON.stringify(filter));                // and back, to show or save
 ```
 
-`toJson` keeps the document as written (keys, order, values); comments do not survive, since
-JSON has none.
+`toJson` keeps the document as written (keys, order, values), so the loader reads the JSON as it
+reads the YAML. A number stays a number only when it is spelled as JSON spells one, digits kept;
+YAML's other spellings (`010`, `0x1F`, `+5`) become strings, which the loader reads as it reads
+them unquoted (`010` is 8). `JSON.parse` still reads a number as a double, so a seed written
+unquoted as `99E99` arrives in JavaScript as `9.9e+100`: quote a seed that reads as a number.
+Comments do not survive, since JSON has none. Either direction throws on what it cannot carry (a
+second document, nesting past 64 levels, a tag or key JSON would drop, aliases that expand past
+100,000 values, an unpaired surrogate), and `Errors.last()` names the line.
 
 ## The Jamlyzer's shape
 
 - `MotelyJamlyzer.defaultShopSlots(ante)` and `MotelyJamlyzer.packCount(ante)` are the shop depth
-  (15 for antes 0–1, 50 beyond) and pack count (4 for antes 0–1, 6 beyond) every result carries.
-  Pack indices in `sources:` count these packs.
+  (15 for antes 0–1, 50 beyond) and pack count (4 for ante 1, 6 for every other ante, ante 0
+  included) every result carries. Pack indices in `sources:` count these packs.
 - `result.legendaryOrder` is every Soul of the run in the order it is opened: its ante, its pack
   slot, the legendary and its edition, and `item`, that legendary as a `MotelyItem` like every
   shop and pack card.

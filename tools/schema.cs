@@ -34,7 +34,10 @@ var (schemaPath, grammarPath, packageDir) = outDir is { Length: > 0 }
 var schema = FilterJsonSchema.Generate();
 Write(schemaPath, schema);
 Write(grammarPath, FilterGrammar.Generate());
-Write(Path.Combine(packageDir, SchemaFileName), schema);
+// The package ships its own copy of the schema; with --out that copy is the file just written.
+string packageSchemaPath = Path.Combine(packageDir, SchemaFileName);
+if (Path.GetFullPath(packageSchemaPath) != Path.GetFullPath(schemaPath))
+    Write(packageSchemaPath, schema);
 Write(Path.Combine(packageDir, TypesFileName), FilterTypeScript.Generate());
 // Types only: the module exists so a plain (non-type) import of motely-wasm/jaml resolves.
 Write(Path.Combine(packageDir, TypesModuleFileName), "export {};\n");
