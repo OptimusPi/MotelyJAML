@@ -1,44 +1,54 @@
 name: simpleCola
 author: pifreak
-description: Diet Cola Ante 11 with mystery charmt asg legendary jokers
+description: Diet Cola Ante 11 with mysAnytery charmt asg legendary jokers
 deck: Ghost
 stake: White
 cutoff: 100
 
 must:
   - tag: NegativeTag
-    antes: [11,12,13,14,15,16,17,18,10]
-  - legendaryJoker: Any
-    antes: [11,12,13,14,15,16,17,18,19]
-    sources:
-      boosterPacks: [0,1,2,3,4,5]
+    antes: [10,11,12,13,14,15,16]
   - legendaryJoker: Perkeo
-    antes: [1]
+    antes: [2,3]
   - spectralCard: Ankh
     antes: [1]
-    sources:
-      shopItems: [0,1]
-  - jokers: [Blueprint, Brainstorm]
+  - spectralCard: Ankh
     antes: [2,3]
-  - legendaryJoker: Perkeo
-    antes: [12,13,14,15,16]
     sources:
-      boosterPacks: [0,1,2,3,4,5]
+      shopItems: [0,1,2,3,4]
+  - jokers: [Blueprint, Brainstorm, InvisibleJoker]
+    antes: [1]
+  - legendaryJoker: Perkeo
+    antes: [10,11,12,13,14]
     score: 10
     min: 1
-  - tag: NegativeTag
-    antes: [8,9,10,11,12]
 should:
+<<<<<<< Updated upstream
   - jokers: [OopsAll6s, Troubadour, HangingChad, Baron, Mime, Blueprint, Brainstorm, InvisibleJoker]
     score: 1
     antes: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+=======
+  - jokers: [Baron, Mime]
+    score: 10
+    antes: [11,12,13,14,15,16,17,18,19,20,21,22]
+>>>>>>> Stashed changes
     sources:
-      shopItems: [0,1,2,3]
+      shopItems: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+  - jokers: [Blueprint, Brainstorm, InvisibleJoker]
+    score: 10
+    antes: [11,12,13,14,15,16,17,18,19,20,21,22]
+    sources:
+      shopItems: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
   - legendaryJoker: Perkeo
     antes: [10,11,12,13,14,15,16]
     sources:
       boosterPacks: [0,1,2,3,4,5]
-    score: 1
+    score: 7
+  - legendaryJoker: Any
+    antes: [10,11,12,13,14,15,16]
+    sources:
+      boosterPacks: [0,1,2,3,4,5]
+    score: 2
 
 seeds:
   - 7CSNSFD1
