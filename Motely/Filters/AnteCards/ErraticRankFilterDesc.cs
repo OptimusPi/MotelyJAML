@@ -5,8 +5,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class ErraticRankClause: IMotelyClause, IAnteScopedClause
+public sealed partial class ErraticRankClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -22,6 +21,12 @@ public struct ErraticRankFilterDesc(ErraticRankClause clause)
     : IMotelySeedFilterDesc<ErraticRankFilterDesc.ErraticRankFilter>
 {
     private readonly ErraticRankClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["erraticRank", "erraticRanks"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
 
     public ErraticRankFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

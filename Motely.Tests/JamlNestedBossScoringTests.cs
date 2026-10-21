@@ -14,11 +14,11 @@ public class JamlNestedBossScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score) RunSingleSeed(string yaml)
+    private static (long Matching, int? Score) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;

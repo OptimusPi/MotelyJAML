@@ -154,9 +154,9 @@ public sealed class JamlSimdPackSupportTests
     [Fact]
     public void HieroglyphSeed_StillMatches_Slot6_Legendary()
     {
-        // The ante-1 slot clamp keeps Hieroglyph-extended KHTW99TC.
+        // Regression: the ante-1 slot clamp must not drop Hieroglyph-extended KHTW99TC.
         const string seed = "KHTW99TC";
-        var yaml = """
+        var jaml = """
             name: HieroglyphPerkeo
             deck: Red
             stake: White
@@ -167,7 +167,7 @@ public sealed class JamlSimdPackSupportTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)

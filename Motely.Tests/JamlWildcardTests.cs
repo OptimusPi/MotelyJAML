@@ -24,21 +24,21 @@ public sealed class JamlWildcardTests
     [Fact]
     public void BareJokerKey_IsCategoryAny()
     {
-        const string yaml = """
+        const string jaml = """
             name: bare-any
             deck: Red
             stake: White
             must:
               - joker:
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         Assert.Empty(Assert.IsType<JokerClause>(config!.Must[0]).Jokers);
     }
 
     [Fact]
     public void EmptyJoker_WithEditionOnly_IsAnyNegativeJoker()
     {
-        var yaml = """
+        var jaml = """
             name: edition-any
             deck: Red
             stake: White
@@ -47,7 +47,7 @@ public sealed class JamlWildcardTests
                 edition: Negative
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<JokerClause>(config!.Must[0]);
         Assert.Empty(clause.Jokers);
         Assert.Equal(MotelyItemEdition.Negative, clause.Edition);
@@ -56,7 +56,7 @@ public sealed class JamlWildcardTests
     [Fact]
     public void TokenAny_IsCategoryAny()
     {
-        var yaml = """
+        var jaml = """
             name: token-any
             deck: Red
             stake: White
@@ -64,34 +64,17 @@ public sealed class JamlWildcardTests
               - joker: Any
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         Assert.Empty(Assert.IsType<JokerClause>(config!.Must[0]).Jokers);
-    }
-
-    [Fact]
-    public void LegendaryTokenAny_WithEdition_IsAnyNegativeLegendary()
-    {
-        var yaml = """
-            name: legendary-any
-            deck: Red
-            stake: White
-            must:
-              - legendaryJoker: Any
-                edition: Negative
-                antes: [1]
-            """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
-        var clause = Assert.IsType<LegendaryJokerClause>(config!.Must[0]);
-        Assert.Empty(clause.Jokers);
-        Assert.Equal(MotelyItemEdition.Negative, clause.Edition);
     }
 
     [Fact]
     public void AliasSyntaxIsRejected()
     {
         Assert.False(
-            JamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out _)
+            JamlConfigLoader.TryLoad(Block("joker").Replace("joker: []", "joker: *any*"), out _, out var error)
         );
+        Assert.Contains("*any*", error);
     }
 
     [Fact]
@@ -134,9 +117,25 @@ public sealed class JamlWildcardTests
     }
 
     [Fact]
+    public void WithLuck_UnderTarot_FailsLoad()
+    {
+        var jaml = """
+            name: with-on-tarot
+            deck: Red
+            stake: White
+            must:
+              - tarotCard: []
+                with:
+                  luck: 2
+            """;
+        Assert.False(JamlConfigLoader.TryLoad(jaml, out _, out var error));
+        Assert.False(string.IsNullOrEmpty(error));
+    }
+
+    [Fact]
     public void StandardCard_EmptyProps_LoadsAsAnyPlayingCard()
     {
-        var yaml = """
+        var jaml = """
             name: std-any
             deck: Red
             stake: White
@@ -144,7 +143,7 @@ public sealed class JamlWildcardTests
               - standardCard:
                 antes: [1]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<StandardCardClause>(config!.Must[0]);
         Assert.Null(clause.Rank);
         Assert.Null(clause.Suit);
@@ -157,7 +156,7 @@ public sealed class JamlWildcardTests
     public void EmptyJoker_FindsASeed_ListProof()
     {
         // Same dense filter StopAfter/Proof smoke uses — empty list is category any.
-        var yaml = """
+        var jaml = """
             name: empty-joker-proof
             deck: Red
             stake: White
@@ -165,7 +164,7 @@ public sealed class JamlWildcardTests
               - joker: []
                 antes: [1]
             """;
-        ProofSearch.MustMatchAll(yaml, "UNITTEST");
+        ProofSearch.MustMatchAll(jaml, "UNITTEST");
     }
 
     /// <summary>
@@ -175,7 +174,7 @@ public sealed class JamlWildcardTests
     [Fact]
     public void EmptySpectral_ShopDefault_MatchesAleebGhost_NotSoulPath()
     {
-        var yaml = """
+        var jaml = """
             name: empty-spectral-proof
             deck: Ghost
             stake: White
@@ -183,8 +182,8 @@ public sealed class JamlWildcardTests
               - spectralCard: []
                 antes: [1, 2, 3, 4]
             """;
-        ProofSearch.MustMatchAll(yaml, "ALEEB");
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        ProofSearch.MustMatchAll(jaml, "ALEEB");
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var clause = Assert.IsType<SpectralCardClause>(config!.Must[0]);
         Assert.Empty(clause.Spectrals);
         Assert.Null(clause.Sources);
@@ -194,7 +193,7 @@ public sealed class JamlWildcardTests
     [Fact]
     public void EmptyPlanet_FindsASeed_ListOrSequential()
     {
-        var yaml = """
+        var jaml = """
             name: empty-planet-proof
             deck: Red
             stake: White
@@ -203,7 +202,7 @@ public sealed class JamlWildcardTests
                 antes: [1]
             """;
         int delivered = 0;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSequentialSearch()

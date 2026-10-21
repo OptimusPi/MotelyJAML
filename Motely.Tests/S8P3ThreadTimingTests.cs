@@ -95,7 +95,7 @@ public sealed class S8P3ThreadTimingTests
 
         Assert.False(search.IsSequentialBatchSearch);
         Assert.Equal(seeds.Length, (int)search.TotalSeedsSearched);
-        Assert.True(search.SeedsPerSecond > 0, "the plan that searched the list has a positive rate");
+        Assert.True(search.SeedsPerSecond > 0, "the plan that chewed the list has a positive rate");
         Assert.Equal(-1L, search.ResumeBatchIndex);
     }
 }

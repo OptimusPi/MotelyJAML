@@ -4,16 +4,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
     <RunSettingsFilePath>../coverage.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../Motely/Motely.csproj" />
-    <!-- AppHostModelTests reads the Aspire composition; nothing here starts it. -->
-    <ProjectReference Include="../Motely.AppHost/Motely.AppHost.csproj" />
-    <!-- MotelyMcpTests covers the MCP server and AG-UI agent. -->
-    <ProjectReference Include="../Motely.MCP/Motely.MCP.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,7 +20,6 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Verify.Xunit" />
     <PackageReference Include="Verify.DiffPlex" />
-    <PackageReference Include="Aspire.Hosting.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,19 +27,22 @@
     <Using Include="Motely.Enums" />
   </ItemGroup>
 
-  <!-- The browser build's filter naming has no Bootsharp in it, so it is tested here on the
-       normal runtime (JamlFileNamesTests); the Node tests cover the mounted folder itself. -->
+  <!-- JimmolateScoringOrderTests.cs does not exist in the tree; it referenced a run-state API
+       (NewRunState / GetBossForAnteWithState) that was never wired up. The exclusion stays only so
+       a future restore of that file doesn't silently break the build. JimmolateFilterTests.cs is
+       compiled and running. -->
   <ItemGroup>
-    <Compile Include="../Motely.Wasm/JamlFileNames.cs" Link="Wasm/JamlFileNames.cs" />
+    <Compile Remove="JimmolateScoringOrderTests.cs" />
   </ItemGroup>
+
 
   <ItemGroup>
     <None Update="seeds/*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- Test JAML files travel to the output so data-driven tests can load them by name.
-         Include (not Update): new files in JamlFilters must enter the item list to copy. -->
-    <None Include="JamlFilters/**/*.yaml">
+         Include (not Update): new files in YamlFilters must enter the item list to copy. -->
+    <None Include="YamlFilters/**/*.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

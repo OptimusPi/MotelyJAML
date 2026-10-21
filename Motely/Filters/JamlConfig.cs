@@ -5,7 +5,6 @@ namespace Motely.Filters;
 /// must/should/mustNot clauses. Every default lives here in an initializer; the loader only
 /// assigns keys the document actually wrote.
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record JamlConfig
 {
     public string Id { get; set; } = "";
@@ -15,13 +14,6 @@ public sealed partial record JamlConfig
     public MotelyDeck Deck { get; set; } = MotelyDeck.Red;
     public MotelyStake Stake { get; set; } = MotelyStake.White;
     public List<string> Seeds { get; set; } = [];
-
-    /// <summary>
-    /// Fixed score floor: only seeds scoring at least this are reported. When set it replaces the
-    /// auto (running-maximum) cutoff; null leaves the cutoff to the host (auto by default). An
-    /// explicit host cutoff (the CLI's <c>--cutoff</c>) still wins over this.
-    /// </summary>
-    public int? Cutoff { get; set; }
 
     public List<IMotelyClause> Must { get; set; } = [];
     public List<IMotelyClause> Should { get; set; } = [];

@@ -5,16 +5,13 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class VoucherClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
+public sealed partial class VoucherClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    /// <summary>The vouchers that count; empty (<c>any</c>) counts every draw.</summary>
     public MotelyVoucher[] Vouchers { get; set; } = [];
 
     /// <summary>
@@ -30,6 +27,12 @@ public struct VoucherFilterDesc(VoucherClause clause)
     : IMotelySeedFilterDesc<VoucherFilterDesc.VoucherFilter>
 {
     private readonly VoucherClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["voucher", "vouchers"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     public readonly VoucherFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
@@ -55,6 +58,8 @@ public struct VoucherFilterDesc(VoucherClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
+            Debug.Assert(_clause.Vouchers.Length > 0);
+
             var clause = _clause;
             int maxAnte = _maxAnte;
 
@@ -102,10 +107,12 @@ public struct VoucherFilterDesc(VoucherClause clause)
         )
         {
             // Walk the voucher stream once, index 0..maxRoll, mirroring the scalar
-            // CountVoucherOccurrences. Index 0 is the ante award; 1+ are successive stream draws.
-            // (stackalloc of VectorEnum256 is the same pattern TagFilter uses for its tag-stream
-            // draws.)
-            int maxRoll = clause.Rolls.Max();
+            // CountVoucherOccurrences. The old code only materialized draws 1 and 2, so any
+            // requested roll index >= 3 (the clause doc says "1+") was silently dropped by SIMD
+            // while scalar scoring still counted it — a SIMD/scalar completeness gap. Index 0 is
+            // the ante award; 1+ are successive stream draws. (stackalloc of VectorEnum256 is the
+            // same pattern TagFilter uses for its tag-stream draws.)
+            int maxRoll = (clause.Rolls.Length == 0 ? -1 : clause.Rolls.Max());
             Span<VectorEnum256<MotelyVoucher>> draws =
                 stackalloc VectorEnum256<MotelyVoucher>[maxRoll + 1];
             draws[0] = anteVouchers;
@@ -133,8 +140,7 @@ public struct VoucherFilterDesc(VoucherClause clause)
         {
             // Vector256.Equals lanes are all-ones (-1) or 0, so the union of the per-name
             // masks is a bitwise OR; a signed Max would pick 0 over -1 and empty the union.
-            // No names at all is `any`: every draw counts.
-            Vector256<int> matchMask = clause.Vouchers.Length == 0 ? Vector256<int>.AllBitsSet : Vector256<int>.Zero;
+            Vector256<int> matchMask = Vector256<int>.Zero;
             foreach (var v in clause.Vouchers)
                 matchMask = Vector256.BitwiseOr(matchMask, VectorEnum256.Equals(vouchers, v));
 

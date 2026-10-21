@@ -7,21 +7,21 @@ namespace Motely.Tests;
 /// </summary>
 public static class ProofSearch
 {
-    public static JamlConfig LoadOrThrow(string yaml)
+    public static JamlConfig LoadOrThrow(string jaml)
     {
-        if (!JamlConfigLoader.TryLoad(yaml, out var config, out var error) || config is null)
+        if (!JamlConfigLoader.TryLoad(jaml, out var config, out var error) || config is null)
             throw new InvalidOperationException($"JAML load failed: {error}");
         return config;
     }
 
     public static (long Matching, List<string> Matched) ListMatch(
-        string yaml,
+        string jaml,
         string[] seeds,
         int threads = 1,
         int cutoff = 0
     )
     {
-        var config = LoadOrThrow(yaml);
+        var config = LoadOrThrow(jaml);
         var matched = new List<string>();
         using var search = MotelySearchBuilder
             .CreateSettings(config, cutoff)
@@ -35,9 +35,9 @@ public static class ProofSearch
         return (search.MatchingSeeds, matched);
     }
 
-    public static void MustMatchAll(string yaml, params string[] seeds)
+    public static void MustMatchAll(string jaml, params string[] seeds)
     {
-        var (matching, matched) = ListMatch(yaml, seeds);
+        var (matching, matched) = ListMatch(jaml, seeds);
         Assert.Equal(seeds.Length, (int)matching);
         Assert.Equal(
             seeds.OrderBy(static s => s, StringComparer.Ordinal).ToArray(),
@@ -45,9 +45,9 @@ public static class ProofSearch
         );
     }
 
-    public static void MustMatchNone(string yaml, params string[] seeds)
+    public static void MustMatchNone(string jaml, params string[] seeds)
     {
-        var (matching, _) = ListMatch(yaml, seeds);
+        var (matching, _) = ListMatch(jaml, seeds);
         Assert.Equal(0L, matching);
     }
 }

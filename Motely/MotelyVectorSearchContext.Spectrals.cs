@@ -91,35 +91,36 @@ ref partial struct MotelyVectorSearchContext
 
         if (stream.IsSoulBlackHoleable)
         {
-            // create_card: the Soul check, then the Black Hole check, both rolled on every lane
-            // (a Soul does not skip the Black Hole roll). The Black Hole check overwrites
-            // forced_key, so a lane that rolls both is a Black Hole. Same law as the scalar
-            // MotelySingleSearchContext.GetNextSpectral.
             Vector512<double> randomSoul = GetNextRandom(
                 ref stream.SoulBlackHolePrngStream,
                 activeMask
             );
-            Vector512<double> randomBH = GetNextRandom(
-                ref stream.SoulBlackHolePrngStream,
-                activeMask
-            );
-            Vector512<double> maskBH =
-                activeMask & Vector512.GreaterThan(randomBH, Vector512.Create(0.997));
-            Vector512<double> maskSoul = Vector512.AndNot(
-                activeMask & Vector512.GreaterThan(randomSoul, Vector512.Create(0.997)),
-                maskBH
-            );
+            Vector512<double> maskSoul =
+                activeMask & Vector512.GreaterThan(randomSoul, Vector512.Create(0.997));
+            Vector256<int> maskSoulInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(maskSoul);
             items = Vector256.ConditionalSelect(
-                MotelyVectorUtils.ShrinkDoubleMaskToInt(maskSoul),
+                maskSoulInt,
                 Vector256.Create((int)MotelyItemType.TheSoul),
                 items
             );
-            items = Vector256.ConditionalSelect(
-                MotelyVectorUtils.ShrinkDoubleMaskToInt(maskBH),
-                Vector256.Create((int)MotelyItemType.BlackHole),
-                items
-            );
-            activeMask = Vector512.AndNot(Vector512.AndNot(activeMask, maskSoul), maskBH);
+            activeMask = Vector512.AndNot(activeMask, maskSoul);
+
+            if (!Vector512.EqualsAll(activeMask, Vector512<double>.Zero))
+            {
+                Vector512<double> randomBH = GetNextRandom(
+                    ref stream.SoulBlackHolePrngStream,
+                    activeMask
+                );
+                Vector512<double> maskBH =
+                    activeMask & Vector512.GreaterThan(randomBH, Vector512.Create(0.997));
+                Vector256<int> maskBHInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(maskBH);
+                items = Vector256.ConditionalSelect(
+                    maskBHInt,
+                    Vector256.Create((int)MotelyItemType.BlackHole),
+                    items
+                );
+                activeMask = Vector512.AndNot(activeMask, maskBH);
+            }
         }
 
         if (Vector512.EqualsAll(activeMask, Vector512<double>.Zero))
@@ -234,21 +235,21 @@ ref partial struct MotelyVectorSearchContext
                 & MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.TheSoul)
                 );
-            Vector512<double> soulRolled =
+            soulMaskDbl =
                 soulValidMask
                 & Vector512.GreaterThan(
                     GetNextRandom(ref stream.SoulBlackHolePrngStream, soulValidMask),
                     Vector512.Create(0.997)
                 );
+            soulMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(soulMaskDbl);
 
-            // Black Hole roll: every lane whose pack does not already hold BlackHole rolls it,
-            // including lanes that just rolled TheSoul (create_card makes both checks). The
-            // Black Hole check overwrites forced_key, so a lane that rolls both is a Black Hole.
+            // Black Hole roll: skipped for lanes that just rolled TheSoul and lanes whose pack
+            // already holds BlackHole.
             Vector512<double> blackHoleValidMask =
                 mask
                 & MotelyVectorUtils.ExtendIntMaskToDouble(
                     ~itemSet.Contains(MotelyItemType.BlackHole)
-                );
+                ) & ~soulMaskDbl;
             blackHoleMaskDbl =
                 blackHoleValidMask
                 & Vector512.GreaterThan(
@@ -256,9 +257,6 @@ ref partial struct MotelyVectorSearchContext
                     Vector512.Create(0.997)
                 );
             blackHoleMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(blackHoleMaskDbl);
-
-            soulMaskDbl = Vector512.AndNot(soulRolled, blackHoleMaskDbl);
-            soulMaskInt = MotelyVectorUtils.ShrinkDoubleMaskToInt(soulMaskDbl);
         }
         else
         {
@@ -355,8 +353,12 @@ ref partial struct MotelyVectorSearchContext
     {
         MotelyVectorItemSet pack = new();
 
-        // Normal packs hold 2 cards; Jumbo and Mega hold 4.
-        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal);
+        // Create masks for different pack sizes
+        VectorMask isNormalSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Normal); // 2 cards
+        VectorMask isJumboSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Jumbo); // 4 cards
+        VectorMask isMegaSize = VectorEnum256.Equals(packSizes, MotelyBoosterPackSize.Mega); // 4 cards
+
+        // No longer need stackalloc thanks to SIMD helpers!
 
         // Spectral packs: Normal=2 cards, Jumbo=4 cards, Mega=4 cards
         // Use ConditionalSelect pattern like joker pack generation
@@ -394,9 +396,63 @@ ref partial struct MotelyVectorSearchContext
         return pack;
     }
 
-    // (No vector "has the Soul" here: the soul/black-hole walk pulls a different number of rolls
-    // per lane, so it is per-lane by nature. LegendarySoulMatcher uses the scalar
-    // MotelySingleSearchContext.GetNextSpectralPackHasTheSoul.)
+    public VectorMask GetNextSpectralPackHasTheSoul(
+        ref MotelyVectorSpectralStream spectralStream,
+        MotelyBoosterPackSize size
+    )
+    {
+        Debug.Assert(spectralStream.IsSoulBlackHoleable, "Spectral pack does not have the soul.");
+
+        int cardCount = MotelyBoosterPackType.Spectral.GetCardCount(size);
+        VectorMask hasTheSoul = VectorMask.NoBitsSet;
+        VectorMask hasBlackHole = VectorMask.NoBitsSet;
+
+        for (int i = 0; i < cardCount; i++)
+        {
+            Vector512<double> random = GetNextRandom(ref spectralStream.SoulBlackHolePrngStream);
+            VectorMask isSoul = new(
+                (uint)
+                    Vector512.ExtractMostSignificantBits(
+                        Vector512.GreaterThan(random, Vector512.Create(0.997))
+                    )
+            );
+
+            if (!isSoul.IsAllFalse())
+            {
+                hasTheSoul |= isSoul;
+
+                // Progress the stream for remaining cards
+                for (; i < cardCount; i++)
+                {
+                    Vector512<double> randomBH = GetNextRandom(
+                        ref spectralStream.SoulBlackHolePrngStream
+                    );
+                    hasBlackHole |= new VectorMask(
+                        (uint)
+                            Vector512.ExtractMostSignificantBits(
+                                Vector512.GreaterThan(randomBH, Vector512.Create(0.997))
+                            )
+                    );
+                }
+                break;
+            }
+
+            if (!hasBlackHole.IsAllFalse())
+            {
+                Vector512<double> randomBH = GetNextRandom(
+                    ref spectralStream.SoulBlackHolePrngStream
+                );
+                hasBlackHole |= new VectorMask(
+                    (uint)
+                        Vector512.ExtractMostSignificantBits(
+                            Vector512.GreaterThan(randomBH, Vector512.Create(0.997))
+                        )
+                );
+            }
+        }
+
+        return hasTheSoul;
+    }
 
     // The pack a player opens is deduplicated (resample rolls replace repeats), so HasThe
     // answers from the same contents walk the scalar engine uses — the raw stream diverges

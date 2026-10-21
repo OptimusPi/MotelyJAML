@@ -1,9 +1,0 @@
-{
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-11-07/mcp.schema.json",
-  "servers": {
-    "motely": {
-      "type": "http",
-      "url": "http://localhost:5000/mcp"
-    }
-  }
-}

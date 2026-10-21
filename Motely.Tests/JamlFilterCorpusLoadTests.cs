@@ -2,23 +2,28 @@
 namespace Motely.Tests;
 
 /// <summary>
-/// ADR-001 item 9: every test fixture filter loads through the one loader. Reads
-/// Motely.Tests/JamlFilters/ in place, not the copies in bin/, so a file that isn't copied to
-/// output still gets checked. All four extensions the loader accepts: .yaml .yaml .yml .json.
-/// The repo-root JamlFilters/ is the user's own filter folder and is not a test input.
+/// ADR-001 item 9: every filter in the repo loads through the one loader. Reads the source
+/// folders in place (repo YamlFilters/ and Motely.Tests/YamlFilters/), not the copies in bin/,
+/// so a file that isn't copied to output still gets checked. All four extensions the loader
+/// accepts: .jaml .yaml .yml .json.
 /// </summary>
 public sealed class MotelyfilterCorpusLoadTests
 {
-    private static readonly string[] Extensions = [".yaml", ".yaml", ".yml", ".json"];
+    private static readonly string[] Extensions = [".jaml", ".yaml", ".yml", ".json"];
 
     private static string TestsDir =>
         Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "..", "..", ".."));
 
-    [Fact]
-    public void EveryFilterFile_LoadsFromFile()
+    private static string RepoDir => Path.GetFullPath(Path.Join(TestsDir, ".."));
+
+    public static TheoryData<string> Folders =>
+        new() { Path.Join("YamlFilters"), Path.Join("Motely.Tests", "YamlFilters") };
+
+    [Theory]
+    [MemberData(nameof(Folders))]
+    public void EveryFilterFile_LoadsFromFile(string folder)
     {
-        const string folder = "JamlFilters";
-        var dir = Path.Join(TestsDir, folder);
+        var dir = Path.Join(RepoDir, folder);
         Assert.True(Directory.Exists(dir), $"filter folder missing: {dir}");
 
         var files = Directory

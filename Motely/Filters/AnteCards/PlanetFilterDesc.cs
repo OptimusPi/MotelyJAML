@@ -4,8 +4,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class PlanetCardClause: IMotelyClause, IAnteScopedClause
+public sealed partial class PlanetCardClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -25,6 +24,12 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
     : IMotelySeedFilterDesc<PlanetCardFilterDesc.PlanetCardFilter>
 {
     private readonly PlanetCardClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["planetCard", "planetCards"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs need explicit sources:.
@@ -252,9 +257,12 @@ public struct PlanetCardFilterDesc(PlanetCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>planetCard:</c>. Colocated with <see cref="PlanetCardFilterDesc"/> (T5).
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record PlanetSourceConfig
 {
+    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
+    public static readonly string[] SourceKeys =
+        ["shopItems", "boosterPacks", "requireMega", "requireMegaPack"];
+
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 

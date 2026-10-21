@@ -64,9 +64,101 @@ public sealed class MotelyRandomSeedProvider(int seedCount) : IMotelySeedProvide
 }
 
 /// <summary>
-/// One aesthetic family's seeds, generated lazily via <see cref="MotelyAesthetics.EnumerateSeeds"/>
-/// (palindrome, psychosis, ...).
+/// Generates palindrome seeds lazily via <see cref="MotelyAesthetics.EnumerateSeeds"/>.
 /// </summary>
+public sealed class MotelyPalindromeSeedProvider : IMotelySeedProvider
+{
+    public long SeedCount { get; } = MotelyAesthetics.GetSeedCount(MotelyAesthetic.Palindrome);
+
+    private readonly IEnumerator<string> _palindromeEnumerator;
+    private readonly object _enumeratorLock = new();
+
+    public MotelyPalindromeSeedProvider()
+    {
+        _palindromeEnumerator = MotelyAesthetics
+            .EnumerateSeeds(MotelyAesthetic.Palindrome)
+            .GetEnumerator();
+    }
+
+    public string NextSeed()
+    {
+        lock (_enumeratorLock)
+        {
+            if (_palindromeEnumerator.MoveNext())
+            {
+                return _palindromeEnumerator.Current;
+            }
+            return string.Empty;
+        }
+    }
+
+    public int NextSeeds(string[] seeds)
+    {
+        if (seeds == null || seeds.Length == 0)
+            return 0;
+
+        lock (_enumeratorLock)
+        {
+            int count = 0;
+            for (int i = 0; i < seeds.Length; i++)
+            {
+                if (!_palindromeEnumerator.MoveNext())
+                    break;
+                seeds[i] = _palindromeEnumerator.Current;
+                count++;
+            }
+            return count;
+        }
+    }
+}
+
+/// <summary>
+/// Generates psychosis seeds lazily via <see cref="MotelyAesthetics.EnumerateSeeds"/> (ABAxBxxx pattern, ~1 billion seeds).
+/// </summary>
+public sealed class MotelyPsychosisSeedProvider : IMotelySeedProvider
+{
+    public long SeedCount { get; } = MotelyAesthetics.GetSeedCount(MotelyAesthetic.Psychosis);
+
+    private readonly IEnumerator<string> _psychosisEnumerator;
+    private readonly object _enumeratorLock = new();
+
+    public MotelyPsychosisSeedProvider()
+    {
+        _psychosisEnumerator = MotelyAesthetics.EnumerateSeeds(MotelyAesthetic.Psychosis).GetEnumerator();
+    }
+
+    public string NextSeed()
+    {
+        lock (_enumeratorLock)
+        {
+            if (_psychosisEnumerator.MoveNext())
+            {
+                return _psychosisEnumerator.Current;
+            }
+            return string.Empty;
+        }
+    }
+
+    public int NextSeeds(string[] seeds)
+    {
+        if (seeds == null || seeds.Length == 0)
+            return 0;
+
+        lock (_enumeratorLock)
+        {
+            int count = 0;
+            for (int i = 0; i < seeds.Length; i++)
+            {
+                if (!_psychosisEnumerator.MoveNext())
+                    break;
+                seeds[i] = _psychosisEnumerator.Current;
+                count++;
+            }
+            return count;
+        }
+    }
+}
+
 public sealed class MotelyAestheticSeedProvider : IMotelySeedProvider
 {
     public long SeedCount { get; }

@@ -1,5 +1,3 @@
-using Motely.Filters;
-
 namespace Motely;
 
 // A plain reference type, not a ref struct — it doesn't need to be. The actual hot state in this
@@ -34,9 +32,7 @@ public sealed record MotelyRunState
     // check), which a bare `{ get; set; }` field never enforced.
     public int VoucherBitfield { get; private set; }
     public int BossBitfield { get; private set; }
-
-    /// <summary>One bit per ante (<see cref="MotelyGlobals.MaxAnte"/> needs more than an int's 32).</summary>
-    public long ExtendedPackAnteBitfield { get; private set; }
+    public int ExtendedPackAnteBitfield { get; private set; }
 
     // MotelyLuck, not int — the enum exists specifically so an invalid multiplier (a stray "3")
     // can't be represented at all, the same reason MotelyWith.Luck is typed this way.
@@ -70,12 +66,12 @@ public sealed record MotelyRunState
     public void ActivateExtendedPackAnte(int ante)
     {
         if (ante > 0)
-            ExtendedPackAnteBitfield |= 1L << ante;
+            ExtendedPackAnteBitfield |= 1 << ante;
     }
 
     public bool IsExtendedPackAnteActive(int ante)
     {
-        return ante > 0 && (ExtendedPackAnteBitfield & (1L << ante)) != 0;
+        return ante > 0 && (ExtendedPackAnteBitfield & (1 << ante)) != 0;
     }
 
     public void SeeBoss(MotelyBossBlind boss)
@@ -103,18 +99,5 @@ public sealed record MotelyRunState
     public void ActivateShowman()
     {
         ShowmanActive = true;
-    }
-
-    /// <summary>
-    /// Seed the run's shared state from a clause's <c>with:</c> block — the luck multiplier the
-    /// event clauses read, and Showman (held jokers containing it keep duplicates in the Soul pool).
-    /// The clause's own <c>with:</c> is the authority; scoring pushes it here so the event and
-    /// legendary walks read one run-wide value instead of re-deriving it per clause.
-    /// </summary>
-    public void ApplyWith(MotelyWith scope)
-    {
-        Luck = scope.Luck;
-        if (System.Array.IndexOf(scope.Jokers, MotelyJoker.Showman) >= 0)
-            ActivateShowman();
     }
 }

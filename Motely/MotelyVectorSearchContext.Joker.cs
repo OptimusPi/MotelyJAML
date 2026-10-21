@@ -75,20 +75,18 @@ unsafe partial struct MotelyVectorSearchContext
         );
     }
 
-    /// <summary>Wraith always makes a Rare (<c>Joker3wra{ante}</c>, no rarity roll) — see the single-lane twin.</summary>
-    public MotelyVectorJokerFixedRarityStream CreateWraithJokerStream(
+    public MotelyVectorJokerStream CreateWraithJokerStream(
         int ante,
-        MotelyJokerFixedRarityStreamFlags flags = MotelyJokerFixedRarityStreamFlags.Default,
+        MotelyJokerStreamFlags flags = MotelyJokerStreamFlags.Default,
         bool isCached = false
     )
     {
-        return CreateJokerFixedRarityStream(
+        return CreateJokerStream(
             MotelyPrngKeys.SpectralWraith,
             MotelyPrngKeys.DefaultJokerEternalPerishableSource,
             MotelyPrngKeys.DefaultJokerRentalSource,
             ante,
-            flags | MotelyJokerFixedRarityStreamFlags.ExcludeStickers,
-            MotelyJokerRarity.Rare,
+            flags | MotelyJokerStreamFlags.ExcludeStickers,
             isCached
         );
     }

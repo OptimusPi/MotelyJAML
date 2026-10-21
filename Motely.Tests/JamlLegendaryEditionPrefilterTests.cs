@@ -12,7 +12,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
         // KHTW99TC has Negative Perkeo ante 1 slot 6; Min=1 is the real case — Min=2 on antes 1..8
         // may or may not match; use Min=1 with edition to prove prefilter path with edition set.
         const string seed = "KHTW99TC";
-        var yaml = """
+        var jaml = """
             name: leg-ed
             deck: Red
             stake: White
@@ -24,7 +24,7 @@ public sealed class JamlLegendaryEditionPrefilterTests
                 sources:
                   boosterPacks: [6]
             """;
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var err), err);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var err), err);
         var settings = MotelySearchBuilder
             .CreateSettings(config!)
             .WithSeedGenerator([seed], 1)

@@ -9,12 +9,6 @@ public static partial class MotelyGlobals
     public const int MaxVectorWidth = 8;
 
     /// <summary>
-    /// The last ante a clause may name. Ante 0 is the shop before the first blind; a run ends
-    /// at ante 8 unless it goes endless, where Balatro's own counters hold out to 39.
-    /// </summary>
-    public const int MaxAnte = 39;
-
-    /// <summary>
     /// Default seeds per provider-mode report batch: <c>35³</c>. SIMD still processes
     /// <see cref="MaxVectorWidth"/> lanes at a time; this is how many seeds a provider plan
     /// chews before progress / auto-cutoff chat. Sequential batch size is different — it
@@ -37,11 +31,11 @@ public static partial class MotelyGlobals
     private static int ValidBatchCharacterCount(int batchCharacterCount) =>
         batchCharacterCount is >= 1 and < MaxSeedLength
             ? batchCharacterCount
-            : throw MotelyErrors.Report(new ArgumentOutOfRangeException(
+            : throw new ArgumentOutOfRangeException(
                 nameof(batchCharacterCount),
                 batchCharacterCount,
                 $"Batch character count must be 1-{MaxSeedLength - 1}."
-            ));
+            );
 
     private static long Pow35(int exponent)
     {
@@ -115,19 +109,14 @@ public static partial class MotelyGlobals
     /// <summary>Maximum pack-slot INDEX at antes 2+ (6 packs, 0..5). Not user-configurable.</summary>
     public const int LateAntesMaxPackSlot = 5;
 
-    /// <summary>
-    /// The pack slot a Charm Tag Mega Arcana opens before. The ante goes up when the boss falls,
-    /// before its shop, so antes 2+ start with the previous boss's shop (slots 0..1) and only then
-    /// reach blind select; ante 1 has no such shop, so its Charms open before any pack.
-    /// </summary>
-    public static int TagPackInsertSlot(int ante) => ante <= 1 ? 0 : 2;
+    /// <summary>Tag-stream draw indices per ante: 0 small blind, 1 big blind, 2+ replay / double-tag extras.</summary>
+    public const int MaxMapTagRollIndex = 5;
 
-    /// <summary>
-    /// Largest <c>rolls</c> index any clause may ask for. Voucher and tag filters stackalloc one
-    /// 32-byte vector per draw up to the largest roll, and event filters walk that many draws per
-    /// 8 seeds, so the bound keeps both to ~32 KB of stack and a bounded loop.
-    /// </summary>
-    public const int MaxRollIndex = 999;
+    /// <summary>Voucher-stream draw indices per ante: 0 ante award, 1+ Hieroglyph bonus / voucher-tag extras.</summary>
+    public const int MaxMapVoucherRollIndex = 2;
+
+    /// <summary>Boss roll 1+ needs full-run rewind simulation; filters match roll 0 today.</summary>
+    public const int MaxMapBossRollIndex = 2;
 
     public const double EnhancementLuckyMoneyChance = 15;
     public const double EnhancementLuckyMultChance = 5;
@@ -225,11 +214,11 @@ public static partial class MotelyGlobals
         if (validChars != null || string.IsNullOrEmpty(keyword) || keyword.Length > 2)
             return;
 
-        throw MotelyErrors.Report(new ArgumentException(
+        throw new ArgumentException(
             $"Keyword \"{keyword}\" has length {keyword.Length}; keywords of length 2 or less require explicit padding characters. "
                 + "Pass a non-null validChars array (e.g. from ParsePaddingChars).",
             paramName
-        ));
+        );
     }
 
     /// <summary>

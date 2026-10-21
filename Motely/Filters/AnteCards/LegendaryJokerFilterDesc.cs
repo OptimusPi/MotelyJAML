@@ -4,18 +4,7 @@ using Motely;
 
 namespace Motely.Filters;
 
-/// <summary>
-/// <c>legendaryJoker:</c> — the legendary a Soul card gives.
-///
-/// Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is decided by how many
-/// Souls the player has opened in the whole run, not by the ante the Soul sits in. The Souls this
-/// clause targets (<see cref="Antes"/> × <see cref="Sources"/>) are the ones the player opens, in
-/// ante then pack order: the first gets <c>Joker4</c> draw 0, the next draw 1, across antes. Leaving
-/// a Soul out of scope is skipping it — <c>antes: [1, 8]</c> skips ante 2's Soul. The edition still
-/// comes from the ante's own <c>edisou{ante}</c> stream.
-/// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClause, IWithScopedClause
+public sealed partial class LegendaryJokerClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -27,17 +16,6 @@ public sealed partial class LegendaryJokerClause: IMotelyClause, IAnteScopedClau
     /// <summary>Null = apply <see cref="LegendaryJokerFilterDesc.DefaultSources"/>; an explicit block
     /// overrides wholesale (same convention as every other clause's <c>Sources</c>).</summary>
     public LegendaryJokerSourceConfig? Sources { get; set; }
-
-    /// <summary>
-    /// Which opened Souls count: 0 is the first Soul opened, 1 the second, and so on through the
-    /// run. Empty = every opened Soul. <c>rolls: [0, 1], min: 2</c> with Perkeo = the first two Souls
-    /// both give Perkeo (sell the first before opening the second, or it resamples — see <see cref="With"/>).
-    /// </summary>
-    public int[] Rolls { get; set; } = [];
-
-    /// <summary><c>with: { jokers: [Perkeo] }</c> — legendaries held while opening Souls drop out of
-    /// the pool and resample; holding Showman keeps them in.</summary>
-    public MotelyWith With { get; set; } = new();
 
     /// <summary>
     /// When true, match as soon as The Soul appears in a targeted arcana/Spectral pack (Tarot/Spectral
@@ -59,6 +37,13 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
     : IMotelySeedFilterDesc<LegendaryJokerFilterDesc.LegendaryJokerFilter>
 {
     private readonly LegendaryJokerClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["legendaryJoker", "legendaryJokers"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys =>
+        ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "joker", "jokers", "soulCardOnly", "soulEditionRolls"];
 
     /// <summary>Source of truth for legendary/Soul defaults when a clause gives no <c>sources:</c> block:
     /// the SIMD/vector path walks all 6 booster-pack slots (legacy type-agnostic mode — both arcana and
@@ -86,9 +71,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
             Edition = _clause.Edition,
             Antes = _clause.Antes,
             Min = _clause.Min,
-            Max = _clause.Max,
-            Rolls = _clause.Rolls,
-            With = _clause.With,
             SoulCardOnly = _clause.SoulCardOnly,
             SoulEditionRolls = _clause.SoulEditionRolls,
             Sources = new LegendaryJokerSourceConfig
@@ -96,7 +78,6 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
                 BoosterPacks = src.BoosterPacks,
                 ArcanaPacks = src.ArcanaPacks,
                 SpectralPacks = src.SpectralPacks,
-                TagPacks = src.TagPacks,
                 RequireMegaPack = src.RequireMegaPack,
             },
         };
@@ -133,7 +114,7 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
             // Pure SIMD additional-filter link only. Never SearchIndividualSeeds here —
             // pack/Soul/face exact law runs last in JamlShouldScoreDesc must re-eval.
             //
-            // Stage 1: soul edition stream (when edition: is set). Negative ~0.3% — rejects almost
+            // Slice 1: soul edition stream (when edition: is set). Negative ~0.3% — kills almost
             // every lane before score. No edition → all valid lanes; scoring does the full walk.
             // Do not prefilter soul face before packs (order-dependent; see LegendarySoulMatcher).
             uint laneMask = 0;
@@ -155,9 +136,16 @@ public struct LegendaryJokerFilterDesc(LegendaryJokerClause clause)
 /// <c>sources:</c> block for <c>legendaryJoker:</c>. Colocated with
 /// <see cref="LegendaryJokerFilterDesc"/> (T5).
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record LegendaryJokerSourceConfig
 {
+    /// <summary>
+    /// requireMega/requireMegaPack are both real aliases the loader accepts for the one
+    /// RequireMegaPack bool below — the only case where this list has two entries for one
+    /// property, and it's a deliberate alias, not drift.
+    /// </summary>
+    public static readonly string[] SourceKeys =
+        ["boosterPacks", "arcanaPacks", "spectralPacks", "requireMega", "requireMegaPack"];
+
     // No ShopItems: shops never offer legendary/Soul jokers, so a shop slot would silently match
     // nothing. The loader rejects a `shopItems:` key on legendaryJoker sources outright.
 
@@ -174,15 +162,6 @@ public sealed partial record LegendaryJokerSourceConfig
 
     /// <summary>Only listed slots on the Spectral pack path.</summary>
     public int[] SpectralPacks { get; set; } = [];
-
-    /// <summary>
-    /// Charm Tag Mega Arcana packs, opened at blind select before the ante's shop: 0 = small-blind
-    /// tag, 1 = big-blind tag. Each takes the next 5 draws of the ante's ar&lt;ante&gt; / soul_Tarot&lt;ante&gt;
-    /// streams, so a Soul in the Charm is opened before any shop-pack Soul. Listing a pack assumes
-    /// the player skipped that blind for a Charm Tag; pair it with a <c>smallBlindTag</c>/<c>bigBlindTag</c>
-    /// must. Mirrors <see cref="TarotCardSourceConfig.TagPacks"/>; always Mega.
-    /// </summary>
-    public int[] TagPacks { get; set; } = [];
 
     /// <summary>If true, only Mega-sized booster packs (e.g. Charm Tag Mega arcana) match.</summary>
     public bool RequireMegaPack { get; set; }

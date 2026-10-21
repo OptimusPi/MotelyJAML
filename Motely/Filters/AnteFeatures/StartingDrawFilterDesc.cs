@@ -2,29 +2,13 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class StartingDrawClause: IMotelyClause, IAnteScopedClause
+public sealed partial class StartingDrawClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    /// <summary>A whole card (<c>startingDraw: AceOfSpades</c>): its rank and suit at once.</summary>
-    public MotelyStandardCard? Card
-    {
-        get;
-        set
-        {
-            field = value;
-            if (value is { } card)
-            {
-                Rank = card.GetRank();
-                Suit = card.GetSuit();
-            }
-        }
-    }
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
 
@@ -35,6 +19,12 @@ public struct StartingDrawFilterDesc(StartingDrawClause clause)
     : IMotelySeedFilterDesc<StartingDrawFilterDesc.StartingDrawFilter>
 {
     private readonly StartingDrawClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["startingDraw"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rank", "suit"];
 
     public StartingDrawFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {

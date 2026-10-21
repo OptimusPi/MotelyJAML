@@ -1,0 +1,63 @@
+name: Perkeo Prime
+author: waterbear (for nate)
+description: Perkeo by ante 1 on Red, dream support package scored — the seed that makes you yell
+deck: Red
+stake: White
+must:
+  - legendaryJoker: Perkeo
+    antes: [1]
+should:
+  - legendaryJoker: Triboulet
+    antes: [1, 2, 3]
+    score: 100
+  - spectralCard: BlackHole
+    antes: [1, 2, 3]
+    score: 80
+  - uncommonJoker: Constellation
+    antes: [1, 2, 3]
+    score: 60
+  - rareJoker: Blueprint
+    antes: [1, 2]
+    score: 50
+  - rareJoker: Brainstorm
+    antes: [1, 2]
+    score: 50
+  - voucher: Hieroglyph
+    antes: [1, 2]
+    score: 40
+  - spectralCard: Cryptid
+    antes: [1, 2, 3]
+    score: 40
+  - uncommonJoker: CeremonialDagger
+    antes: [1, 2]
+    score: 30
+
+seeds:
+  - AXA9X363
+  - ARA4R693
+  - BLB1L527
+  - AKA9K158
+  - AEA4E754
+  - 35853
+  - BRB5R864
+  - BEB4E866
+  - SJJDBR78
+  - D7SZPL3D
+  - VFZYB3IY
+  - MUB3ZKQ7
+  - 83MFQ43V
+  - BX1H23PF
+  - BPISAQLM
+  - O2CSI7F1
+  - OEJ2YKQU
+  - UII952CI
+  - DFHG29RM
+  - SJ6IA8WW
+  - 851ERSSX
+  - UXA88AJ7
+  - 88U32ERD
+  - M8HSJAKJ
+  - LU7TYIZA
+  - OTWQO262
+  - L7HA7IN1
+  - 42Q1MGYG

@@ -1,6 +1,7 @@
-# Cutting a release is `git tag v29.0.0 && git push --tags`. ci.yml gates it (the xunit suite),
+# Cutting a release is `git tag v27.0.0 && git push --tags`. ci.yml gates it (the xunit suite),
 # then the GitHub Release is created with docs/RELEASE-<version>.md as its body when that file
-# exists, generated notes otherwise.
+# exists, generated notes otherwise. Motely.Lsp, which this workflow used to build, was removed
+# from the repo in ab0f025.
 name: release
 
 on:
@@ -9,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v29.0.0)"
+        description: "Tag to release (e.g. v27.0.0)"
         required: true
 
 permissions:
@@ -18,15 +19,12 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
-    # ci.yml restores from rewaffle's feeds with REWAFFLE_TOKEN; a called workflow sees no secrets
-    # unless they are passed down.
-    secrets: inherit
 
   release:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - name: Pick the notes
         id: notes
         shell: bash

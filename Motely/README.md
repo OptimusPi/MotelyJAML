@@ -5,18 +5,20 @@ SIMD + scalar Balatro seed search. JAML loads into typed `JamlConfig`; filters a
 | Concern | Where |
 |---------|--------|
 | Search / SIMD | `MotelySearch`, vector contexts |
-| JAML grammar | `Filters/`: `JamlConfigLoader` (load), `JamlValidator` (bounds), `MotelySearchBuilder` (config to search); each clause's FilterDesc owns its wire |
+| JAML grammar | `Filters/Jaml/` — FilterDesc owns wire; `JamlSchema` indexes |
 | Seed providers | `SeedProviders/` (list, random, sequential, aesthetics) |
 | PRNG streams | keyed streams; order within a key is law |
 
 ## Commands (from repo root)
 
 ```sh
-dotnet run -c Release --project Motely.CLI -- --jaml <file> --collect 1
-dotnet run -c Release --project Motely.CLI -- check JamlFilters/
-dotnet test Motely.Tests -c Release
-cd Motely.Wasm && dotnet publish -c Release && npm test   # the npm package (Motely.Wasm/README.md)
-cd Motely.Web && npm run dev                              # the browser app, on that package
+dotnet build
+dotnet test
+dotnet run --project Motely.CLI -- --jaml <file>
+dotnet run --project Motely.CLI -- --jaml <file> --collect 1
+dotnet run --project Motely.TUI
+claude mcp add motely -- dotnet run --project Motely.MCP -c Release   # party tools over stdio
+cd Motely.Wasm && dotnet publish -c Release && node tests/smoke.mjs   # the npm package (Motely.Wasm/README.md)
 ```
 
 ## Projects
@@ -24,10 +26,10 @@ cd Motely.Web && npm run dev                              # the browser app, on 
 | Project | What it is |
 |---------|------------|
 | `Motely` | The engine and the JAML grammar. Everything else depends inward on it. |
-| `Motely.CLI` | Command-line search (NativeAOT). |
-| `Motely.MCP` | The engine as an MCP server for this machine; saves finds to Postgres (Neon). |
-| `Motely.AppHost` | Aspire: the database, `check`, `mcp`, `search` and `web` behind one dashboard. |
-| `Motely.ServiceDefaults` | OTLP traces and metrics for the CLI and MCP; AOT-safe, no ASP.NET. |
-| `Motely.Wasm` | `motely-wasm` on npm: the engine in the browser or node via Bootsharp. |
-| `Motely.Web` | Vite + React app: jaml-ui's SeedLab and a filters folder, on `motely-wasm`. |
+| `Motely.CLI` | Command-line search. |
+| `Motely.TUI` | Terminal UI: filter library, JAML editor, search with live results. |
+| `Motely.MCP` | MCP server (stdio). `party_start` splits one sweep across local Motely.CLI processes; `party_status`, `party_list`, `party_stop`, `party_save`. |
+| `Motely.Wasm` | `motely-wasm` on npm: the engine in the browser via Bootsharp. |
 | `Motely.Tests` | The xunit suite. |
+
+One grammar: editors and hosts load JAML through this project, never a second table.

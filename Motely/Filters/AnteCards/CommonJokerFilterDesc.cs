@@ -5,26 +5,16 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class CommonJokerClause : IMotelyClause, IAnteScopedClause
-{
-    public string? Label { get; set; }
-    public int Min { get; set; } = 1;
-    public int? Max { get; set; }
-    public int Score { get; set; } = 1;
-    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-    public MotelyJokerCommon[] Jokers { get; set; } = [];
-    public MotelyItemEdition? Edition { get; set; }
-    public MotelyJokerSticker[] Stickers { get; set; } = [];
-    public JokerSourceConfig? Sources { get; set; }
-
-    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
-}
-
 public struct CommonJokerFilterDesc(CommonJokerClause clause)
     : IMotelySeedFilterDesc<CommonJokerFilterDesc.CommonJokerFilter>
 {
     private readonly CommonJokerClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["commonJoker", "commonJokers"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => JokerFilterDesc.ClauseKeys;
 
     /// <summary>Defaults when a clause specifies no <c>sources:</c> block — shop slots only.
     /// Packs and specialty streams need an explicit <c>sources:</c> block. Applied only when <c>Sources</c> is null.</summary>
@@ -124,9 +114,6 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
             }
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
-            // Lanes with an in-pack duplicate: SIMD can't resample, so the scalar confirm decides.
-            VectorMask undecided = VectorMask.NoBitsSet;
-            BuffoonPackDuplicateTracker duplicates = default;
 
             var shopIndices = _shopIndices;
             var boosterIndices = _boosterIndices;
@@ -236,19 +223,14 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
                         var baseMask = SimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = SimdPackSupport.ToPrngMask(extraLanes);
 
-                        duplicates.Reset();
                         for (int c = 0; c < 2; c++)
                         {
                             var joker = ctx.GetNextJoker(ref jokerStream, baseMask);
-                            VectorMask dup = duplicates.Add(joker);
                             if (countLanes.IsPartiallyTrue())
-                            {
                                 SimdPackSupport.AddMatchCounts(
                                     MatchJokers(joker) & countLanes & baseLanes,
                                     ref matchCounts
                                 );
-                                undecided |= dup & countLanes & baseLanes;
-                            }
                         }
 
                         if (extraLanes.IsPartiallyTrue())
@@ -256,25 +238,18 @@ public struct CommonJokerFilterDesc(CommonJokerClause clause)
                             for (int c = 0; c < 2; c++)
                             {
                                 var joker = ctx.GetNextJoker(ref jokerStream, extraMask);
-                                VectorMask dup = duplicates.Add(joker);
                                 if (countLanes.IsPartiallyTrue())
-                                {
                                     SimdPackSupport.AddMatchCounts(
                                         MatchJokers(joker) & countLanes & extraLanes,
                                         ref matchCounts
                                     );
-                                    undecided |= dup & countLanes & extraLanes;
-                                }
                             }
                         }
                     }
                 }
             }
 
-            VectorMask result = SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
-            if (undecided.IsPartiallyTrue())
-                result |= undecided & SimdPackSupport.ValidLaneMask(ref ctx);
-            return result;
+            return SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

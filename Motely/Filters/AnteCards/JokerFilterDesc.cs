@@ -7,8 +7,7 @@ using static Motely.MotelyVectorUtils;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class JokerClause: IMotelyClause, IAnteScopedClause
+public sealed partial class JokerClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -31,6 +30,13 @@ public struct JokerFilterDesc(JokerClause clause)
     : IMotelySeedFilterDesc<JokerFilterDesc.JokerFilter>
 {
     private readonly JokerClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["joker", "jokers"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys =>
+        ["min", "max", "score", "label", "ante", "antes", "sources", "edition", "stickers"];
 
     /// <summary>
     /// Filter-layer default when <see cref="JokerClause.Sources"/> is null (no <c>sources:</c> in JAML).
@@ -161,9 +167,6 @@ public struct JokerFilterDesc(JokerClause clause)
             }
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
-            // Lanes with an in-pack duplicate: SIMD can't resample, so the scalar confirm decides.
-            VectorMask undecided = VectorMask.NoBitsSet;
-            BuffoonPackDuplicateTracker duplicates = default;
 
             var shopIndices = _shopIndices;
             var boosterIndices = _boosterIndices;
@@ -273,19 +276,14 @@ public struct JokerFilterDesc(JokerClause clause)
                         var baseMask = SimdPackSupport.ToPrngMask(baseLanes);
                         var extraMask = SimdPackSupport.ToPrngMask(extraLanes);
 
-                        duplicates.Reset();
                         for (int c = 0; c < 2; c++)
                         {
                             var joker = ctx.GetNextJoker(ref jokerStream, baseMask);
-                            VectorMask dup = duplicates.Add(joker);
                             if (countLanes.IsPartiallyTrue())
-                            {
                                 SimdPackSupport.AddMatchCounts(
                                     MatchJokers(joker) & countLanes & baseLanes,
                                     ref matchCounts
                                 );
-                                undecided |= dup & countLanes & baseLanes;
-                            }
                         }
 
                         if (extraLanes.IsPartiallyTrue())
@@ -293,25 +291,18 @@ public struct JokerFilterDesc(JokerClause clause)
                             for (int c = 0; c < 2; c++)
                             {
                                 var joker = ctx.GetNextJoker(ref jokerStream, extraMask);
-                                VectorMask dup = duplicates.Add(joker);
                                 if (countLanes.IsPartiallyTrue())
-                                {
                                     SimdPackSupport.AddMatchCounts(
                                         MatchJokers(joker) & countLanes & extraLanes,
                                         ref matchCounts
                                     );
-                                    undecided |= dup & countLanes & extraLanes;
-                                }
                             }
                         }
                     }
                 }
             }
 
-            VectorMask result = SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
-            if (undecided.IsPartiallyTrue())
-                result |= undecided & SimdPackSupport.ValidLaneMask(ref ctx);
-            return result;
+            return SimdPackSupport.MeetsMinMaxMask(matchCounts, _clause.Min, _clause.Max);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -349,13 +340,70 @@ public struct JokerFilterDesc(JokerClause clause)
 
 // ── Rarity-specific joker clauses ──
 
+public sealed partial class CommonJokerClause : IMotelyClause, IAnteScopedClause
+{
+    public string? Label { get; set; }
+    public int Min { get; set; } = 1;
+    public int? Max { get; set; }
+    public int Score { get; set; } = 1;
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public MotelyJokerCommon[] Jokers { get; set; } = [];
+    public MotelyItemEdition? Edition { get; set; }
+    public MotelyJokerSticker[] Stickers { get; set; } = [];
+    public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new CommonJokerFilterDesc(this);
+}
+
+public sealed partial class UncommonJokerClause : IMotelyClause, IAnteScopedClause
+{
+    public string? Label { get; set; }
+    public int Min { get; set; } = 1;
+    public int? Max { get; set; }
+    public int Score { get; set; } = 1;
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public MotelyJokerUncommon[] Jokers { get; set; } = [];
+    public MotelyItemEdition? Edition { get; set; }
+    public MotelyJokerSticker[] Stickers { get; set; } = [];
+    public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new UncommonJokerFilterDesc(this);
+}
+
+public sealed partial class RareJokerClause : IMotelyClause, IAnteScopedClause
+{
+    public string? Label { get; set; }
+    public int Min { get; set; } = 1;
+    public int? Max { get; set; }
+    public int Score { get; set; } = 1;
+    public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+    public MotelyJokerRare[] Jokers { get; set; } = [];
+    public MotelyItemEdition? Edition { get; set; }
+    public MotelyJokerSticker[] Stickers { get; set; } = [];
+    public JokerSourceConfig? Sources { get; set; }
+
+    public IMotelySeedFilterDesc CreateFilterDesc() => new RareJokerFilterDesc(this);
+}
+
 /// <summary>
 /// <c>sources:</c> block for joker / common / uncommon / rare clauses. Lives with the joker
 /// desc family (T5) — not on the dumb <see cref="JamlConfig"/> bag.
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record JokerSourceConfig
 {
+    /// <summary>
+    /// This class's settable properties, camelCased — the single list JamlConfigLoader
+    /// ValidateKeys and Motely.Schema both read. <c>emperor</c> lives on
+    /// <see cref="TarotCardSourceConfig"/>, not here.
+    /// </summary>
+    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
+    public static readonly string[] SourceKeys =
+    [
+        "shopItems", "boosterPacks", "judgement", "wraith", "riffRaff", "rareTag", "uncommonTag",
+        "commonShopJokers", "uncommonShopJokers", "rareShopJokers", "allShopJokers",
+        "requireMega", "requireMegaPack",
+    ];
+
     /// <summary>Assembled shop slots via the full shop item stream (any item type).</summary>
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
@@ -366,7 +414,7 @@ public sealed partial record JokerSourceConfig
     /// <summary>0..n rolls of the joker stream keyed by the Judgement tarot (rarity-polled, no stickers).</summary>
     public int[] Judgement { get; set; } = [];
 
-    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (always Rare, no stickers).</summary>
+    /// <summary>0..n rolls of the joker stream keyed by the Wraith spectral (rarity-polled, no stickers).</summary>
     public int[] Wraith { get; set; } = [];
 
     /// <summary>0..n rolls of the common-pool stream Riff-Raff spawns from (no stickers).</summary>

@@ -13,28 +13,8 @@ public sealed record MotelyJamlyzerSeedResult(
     IReadOnlyList<MotelyJamlyzerAnteResult> Antes,
     MotelyJamlyzerEvents Events,
     MotelyJamlyzerStreamStates StreamStates,
-    IReadOnlyList<MotelyJamlyzerLegendary> LegendaryOrder,
     MotelyItem[]? ErraticDeck = null,
     int[]? Tally = null
-);
-
-/// <summary>
-/// One Soul the player opens, in run order: the Nth entry is the Nth Soul opened, whatever ante it
-/// sits in. Balatro keys the legendary pool <c>Joker4</c> with no ante, so the face is run-global;
-/// the edition still comes from the Soul's own ante (<c>edisou{ante}</c>). This is the sequence
-/// <c>legendaryJoker:</c> matches against, read once per seed instead of restarted every ante.
-/// Every Soul is taken as opened and its legendary kept, so a draw that repeats a legendary already
-/// held resamples, as it does in the game without Showman: the order a <c>soulOrder:</c> clause
-/// without <c>with:</c> matches.
-/// <c>Item</c> is the joker the Soul yields as an item, edition included — the same shape as every
-/// other card the Jamlyzer reports, so a consumer draws it like any shop or pack card.
-/// </summary>
-public sealed record MotelyJamlyzerLegendary(
-    int Ante,
-    int PackSlot,
-    MotelyJoker Joker,
-    MotelyItemEdition Edition,
-    MotelyItem Item
 );
 
 public sealed record MotelyJamlyzerAnteResult(
@@ -69,8 +49,6 @@ public sealed record MotelyJamlyzerShopStreams(
 /// <summary>
 /// Per-ante rolls from streams that only fire when activated by a specific card or joker.
 /// All arrays have length == eventRolls. EmperorTarots has length == eventRolls * 2 (2 per use).
-/// Legendaries are not here: <c>Joker4</c> is run-global, so they live once per seed in
-/// <see cref="MotelyJamlyzerSeedResult.LegendaryOrder"/>.
 /// </summary>
 public sealed record MotelyJamlyzerPulls(
     IReadOnlyList<MotelyItem> JudgementJokers,
@@ -82,6 +60,7 @@ public sealed record MotelyJamlyzerPulls(
     IReadOnlyList<MotelyItem> RiffRaffJokers,
     IReadOnlyList<MotelyItem> RareTagJokers,
     IReadOnlyList<MotelyItem> UncommonTagJokers,
+    IReadOnlyList<MotelyItem> LegendaryJokers,
     IReadOnlyList<MotelyVoucher> VoucherSequence
 );
 
@@ -220,38 +199,6 @@ public static class MotelyJamlyzer
     /// <summary>Every ante the Jamlyzer can walk: the pre-run shop (0) and antes 1..8.</summary>
     public static readonly int[] AllAntes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-    /// <summary>How deep an ante's shop is walked when <c>shopSlots</c> is 0: 15 for the pre-run
-    /// shop and ante 1, 50 beyond.</summary>
-    /// <param name="ante">The ante.</param>
-    /// <returns>The number of shop items the result carries for that ante.</returns>
-    public static int DefaultShopSlots(int ante) => MotelyJamlyzerWindow.DefaultShopSlots(ante);
-
-    /// <summary>How many booster packs an ante offers, and so how many the result carries: 4 for
-    /// ante 1, 6 for every other ante, ante 0 included. Pack indices in <c>sources:</c> count these.</summary>
-    /// <param name="ante">The ante.</param>
-    /// <returns>The pack count.</returns>
-    public static int PackCount(int ante) => MotelyJamlyzerWindow.PackCount(ante);
-
-    /// <summary>
-    /// The Jamlyzer as a rider on a search. Attach the returned desc with
-    /// <see cref="IMotelySearchSettings.WithSeedAnalyzeProvider"/> and every seed the search reports
-    /// arrives at <paramref name="onAnalyzed"/> as a full <see cref="MotelyJamlyzerSeedResult"/>,
-    /// walked on the same context that just filtered and scored it and carrying the search's own
-    /// Score and Tally. One pass — a host on the far side of a boundary gets the find and what it
-    /// contains together, with no second call to <see cref="Analyze(JamlConfig, int)"/>.
-    /// <para>
-    /// <paramref name="eventRolls"/> 0 gives the per-ante summary alone — boss, voucher, tags, shop,
-    /// packs — with every roll queue empty, the cheap shape for a results table. The callback fires
-    /// on the search's worker thread(s).
-    /// </para>
-    /// </summary>
-    public static MotelyJamlyzerRiderDesc CreateRiderDesc(
-        JamlConfig config,
-        Action<MotelyJamlyzerSeedResult> onAnalyzed,
-        int eventRolls = 20,
-        int shopSlots = 0
-    ) => new(ComputeAntes(config), onAnalyzed, eventRolls, shopSlots, OpensAnteZeroSouls(config));
-
     private static IReadOnlyList<MotelyJamlyzerSeedResult> AnalyzeCore(
         JamlConfig config,
         IReadOnlyDictionary<string, MotelyJamlyzerStreamStates>? resumeStates,
@@ -261,7 +208,6 @@ public static class MotelyJamlyzer
     {
         MotelyJamlyzerWindow.ThrowIfOutOfRange(eventRolls, shopSlots);
         var antesToAnalyze = ComputeAntes(config);
-        bool opensAnteZeroSouls = OpensAnteZeroSouls(config);
         bool hasScore = config.Must.Count + config.Should.Count > 0;
         var results = new List<MotelyJamlyzerSeedResult>(config.Seeds.Count);
 
@@ -276,8 +222,7 @@ public static class MotelyJamlyzer
                 antesToAnalyze,
                 eventRolls,
                 seedResume,
-                shopSlots,
-                opensAnteZeroSouls
+                shopSlots
             );
             var settings = new MotelySearchSettings<MotelyJamlyzerFilterDesc.JamlyzerFilter>(
                 filterDesc
@@ -293,7 +238,11 @@ public static class MotelyJamlyzer
             {
                 settings = settings
                     .WithSeedScoreProvider(
-                        new JamlShouldScoreDesc([.. config.Must], [.. config.Should])
+                        new JamlShouldScoreDesc(
+                            [.. config.Must],
+                            [.. config.Should],
+                            minimumTotalScore: 0
+                        )
                     )
                     .WithScoredResultCallback(row =>
                     {
@@ -316,53 +265,54 @@ public static class MotelyJamlyzer
 
     /// <summary>
     /// A bag only ever comes back from a previous result, but across the JS boundary it is just
-    /// an object. A negative or huge offset, or a state outside the PRNG's [0, 1] range, is
-    /// refused.
+    /// an object. A negative offset used to leave the first slots of every queue as
+    /// default(MotelyItem) (an int.MaxValue one overflowed into an empty walk), a huge one replayed
+    /// for minutes, and a state outside the PRNG's [0, 1] range rolled nonsense. Refuse them.
     /// </summary>
     private static void ThrowIfNotResumable(
-        MotelyJamlyzerStreamStates resumeFrom,
+        MotelyJamlyzerStreamStates bag,
         int eventRolls,
         int shopSlots
     )
     {
         const string Hint = " Pass back the streamStates of a previous result unchanged.";
-        if (resumeFrom.RollOffset < 0 || (long)resumeFrom.RollOffset + eventRolls > MaxEventRolls)
+        if (bag.RollOffset < 0 || (long)bag.RollOffset + eventRolls > MaxEventRolls)
             throw new ArgumentOutOfRangeException(
                 "resumeFrom",
-                $"RollOffset {resumeFrom.RollOffset} + eventRolls {eventRolls} must be 0..{MaxEventRolls}."
+                $"RollOffset {bag.RollOffset} + eventRolls {eventRolls} must be 0..{MaxEventRolls}."
                     + Hint
             );
 
         // The deepest shop this window walks is an ante past 1, whose default depth is 50.
         int maxDefault = MotelyJamlyzerWindow.DefaultShopSlots(2);
         long shopDepth =
-            (long)resumeFrom.ShopOffset
-            + ((long)resumeFrom.ShopDefaultWindows + (shopSlots > 0 ? 0 : 1)) * maxDefault
+            (long)bag.ShopOffset
+            + ((long)bag.ShopDefaultWindows + (shopSlots > 0 ? 0 : 1)) * maxDefault
             + shopSlots;
-        if (resumeFrom.ShopOffset < 0 || resumeFrom.ShopDefaultWindows < 0 || shopDepth > MaxShopSlots)
+        if (bag.ShopOffset < 0 || bag.ShopDefaultWindows < 0 || shopDepth > MaxShopSlots)
             throw new ArgumentOutOfRangeException(
                 "resumeFrom",
-                $"ShopOffset {resumeFrom.ShopOffset} and ShopDefaultWindows {resumeFrom.ShopDefaultWindows} "
+                $"ShopOffset {bag.ShopOffset} and ShopDefaultWindows {bag.ShopDefaultWindows} "
                     + $"walk the shop to depth {shopDepth}; it must be 0..{MaxShopSlots}."
                     + Hint
             );
 
         ReadOnlySpan<(string Name, double State)> states =
         [
-            (nameof(resumeFrom.LuckyMoney), resumeFrom.LuckyMoney),
-            (nameof(resumeFrom.LuckyMult), resumeFrom.LuckyMult),
-            (nameof(resumeFrom.WheelOfFortune), resumeFrom.WheelOfFortune),
-            (nameof(resumeFrom.Cavendish), resumeFrom.Cavendish),
-            (nameof(resumeFrom.GrosMichel), resumeFrom.GrosMichel),
-            (nameof(resumeFrom.Space), resumeFrom.Space),
-            (nameof(resumeFrom.Business), resumeFrom.Business),
-            (nameof(resumeFrom.Bloodstone), resumeFrom.Bloodstone),
-            (nameof(resumeFrom.Parking), resumeFrom.Parking),
-            (nameof(resumeFrom.EightBall), resumeFrom.EightBall),
-            (nameof(resumeFrom.Glass), resumeFrom.Glass),
-            (nameof(resumeFrom.OmenGlobe), resumeFrom.OmenGlobe),
-            (nameof(resumeFrom.TheWheel), resumeFrom.TheWheel),
-            (nameof(resumeFrom.Misprint), resumeFrom.Misprint),
+            (nameof(bag.LuckyMoney), bag.LuckyMoney),
+            (nameof(bag.LuckyMult), bag.LuckyMult),
+            (nameof(bag.WheelOfFortune), bag.WheelOfFortune),
+            (nameof(bag.Cavendish), bag.Cavendish),
+            (nameof(bag.GrosMichel), bag.GrosMichel),
+            (nameof(bag.Space), bag.Space),
+            (nameof(bag.Business), bag.Business),
+            (nameof(bag.Bloodstone), bag.Bloodstone),
+            (nameof(bag.Parking), bag.Parking),
+            (nameof(bag.EightBall), bag.EightBall),
+            (nameof(bag.Glass), bag.Glass),
+            (nameof(bag.OmenGlobe), bag.OmenGlobe),
+            (nameof(bag.TheWheel), bag.TheWheel),
+            (nameof(bag.Misprint), bag.Misprint),
         ];
         foreach (var (name, state) in states)
         {
@@ -393,23 +343,4 @@ public static class MotelyJamlyzer
             set.Add(ante);
         return set.Count > 0 ? [.. set] : AllAntes;
     }
-
-    /// <summary>
-    /// Whether the walk opens ante 0's Souls: only when a legendaryJoker or soulOrder clause names
-    /// ante 0. Ante 0 is in the run only after Hieroglyph or Petroglyph, so a walk that opened its
-    /// Soul first handed every later Soul the next legendary over (1YU11111: the ante-2 Soul read
-    /// Yorick, where a run that never plays ante 0 gets Triboulet) and disagreed with every
-    /// legendary clause on antes 1 and up, which opens exactly the Souls it names.
-    /// </summary>
-    public static bool OpensAnteZeroSouls(JamlConfig config) =>
-        config.Must.Concat(config.Should).Concat(config.MustNot).Any(NamesAnteZeroSoul);
-
-    private static bool NamesAnteZeroSoul(IMotelyClause clause) =>
-        clause switch
-        {
-            LegendaryJokerClause c => Array.IndexOf(c.Antes, 0) >= 0,
-            LegendarySoulOrderClause c => Array.Exists(c.Entries, e => Array.IndexOf(e.Antes, 0) >= 0),
-            LogicClause c => Array.Exists(c.Clauses, NamesAnteZeroSoul),
-            _ => false,
-        };
 }

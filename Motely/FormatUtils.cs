@@ -88,22 +88,9 @@ public static class FormatUtils
 
     public static string FormatDisplayName(string enumName)
     {
-        if (SpecialDisplayNames.TryGetValue(enumName, out var special))
-            return special;
-
-        // A space before each capital that follows a lower-case letter.
-        var result = new StringBuilder(enumName.Length + 4);
-        for (int i = 0; i < enumName.Length; i++)
+        // Special cases that need custom formatting
+        var specialCases = new Dictionary<string, string>
         {
-            if (i > 0 && char.IsUpper(enumName[i]) && !char.IsUpper(enumName[i - 1]))
-                result.Append(' ');
-            result.Append(enumName[i]);
-        }
-        return result.ToString();
-    }
-
-    private static readonly Dictionary<string, string> SpecialDisplayNames = new()
-    {
             // Numbers
             { "EightBall", "8 Ball" },
             { "Cloud9", "Cloud 9" },
@@ -161,6 +148,25 @@ public static class FormatUtils
             { "TheWorld", "The World" },
             { "Strength", "Strength" },
         };
+
+        if (specialCases.TryGetValue(enumName, out var special))
+        {
+            return special;
+        }
+
+        // Add spaces before capital letters (except the first one)
+        var result = string.Empty;
+        for (int i = 0; i < enumName.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(enumName[i]) && !char.IsUpper(enumName[i - 1]))
+            {
+                result += " ";
+            }
+            result += enumName[i];
+        }
+
+        return result;
+    }
 
     public static string FormatJokerName(MotelyJoker joker)
     {
@@ -238,9 +244,9 @@ public static class FormatUtils
             MotelyStandardcardSuit.Hearts => "Hearts",
             MotelyStandardcardSuit.Spades => "Spades",
             _ => throw new InvalidEnumArgumentException(
-                nameof(suit),
-                (int)suit,
-                typeof(MotelyStandardcardSuit)
+                nameof(rank),
+                (int)rank,
+                typeof(MotelyStandardcardRank)
             ),
         };
 

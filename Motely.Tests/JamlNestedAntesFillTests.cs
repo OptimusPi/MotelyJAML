@@ -15,9 +15,9 @@ public class JamlNegFreeOopsAndTests
     private static readonly int[] NegScope = [2, 3, 4, 5, 6, 7, 8];
     private static readonly int[] AllAntes = [1, 2, 3, 4, 5, 6, 7, 8];
 
-    private static (long Matching, int? Score) Run(string yaml)
+    private static (long Matching, int? Score) Run(string jaml)
     {
-        Assert.True(JamlConfigLoader.TryLoad(yaml, out var config, out var error), error);
+        Assert.True(JamlConfigLoader.TryLoad(jaml, out var config, out var error), error);
         int? score = null;
         var settings = MotelySearchBuilder
             .CreateSettings(config!)

@@ -4,8 +4,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class SpectralCardClause: IMotelyClause, IAnteScopedClause
+public sealed partial class SpectralCardClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -27,6 +26,12 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     : IMotelySeedFilterDesc<SpectralCardFilterDesc.SpectralCardFilter>
 {
     private readonly SpectralCardClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["spectralCard", "spectralCards"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
     /// <summary>
     /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
@@ -388,9 +393,21 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>spectralCard:</c>. Colocated with <see cref="SpectralCardFilterDesc"/> (T5).
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record SpectralCardSourceConfig
 {
+    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
+    public static readonly string[] SourceKeys =
+    [
+        "shopItems",
+        "boosterPacks",
+        "sixthSense",
+        "seance",
+        "etherealTag",
+        "requireMega",
+        "requireMegaPack",
+        "omenGlobe",
+    ];
+
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
     public int[] SixthSense { get; set; } = [];

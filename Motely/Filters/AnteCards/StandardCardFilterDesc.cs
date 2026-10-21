@@ -2,29 +2,13 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class StandardCardClause: IMotelyClause, IAnteScopedClause
+public sealed partial class StandardCardClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    /// <summary>A whole card (<c>standardCard: AceOfSpades</c>): its rank and suit at once.</summary>
-    public MotelyStandardCard? Card
-    {
-        get;
-        set
-        {
-            field = value;
-            if (value is { } card)
-            {
-                Rank = card.GetRank();
-                Suit = card.GetSuit();
-            }
-        }
-    }
     public MotelyStandardcardRank? Rank { get; set; }
     public MotelyStandardcardSuit? Suit { get; set; }
     public MotelyItemEnhancement? Enhancement { get; set; }
@@ -41,6 +25,12 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
     : IMotelySeedFilterDesc<StandardCardFilterDesc.StandardCardFilter>
 {
     private readonly StandardCardClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["standardCard", "standardCards"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources", "rank", "suit", "enhancement", "seal", "edition"];
 
     /// <summary>
     /// Filter-layer default when Sources is null: every booster-pack slot, Standard packs only.
@@ -89,9 +79,17 @@ public struct StandardCardFilterDesc(StandardCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>standardCard:</c>. Colocated with <see cref="StandardCardFilterDesc"/> (T5).
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record StandardCardSourceConfig
 {
+    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
+    public static readonly string[] SourceKeys =
+    [
+        "shopItems",
+        "boosterPacks",
+        "requireMega",
+        "requireMegaPack",
+    ];
+
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
 

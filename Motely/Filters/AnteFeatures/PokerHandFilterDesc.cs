@@ -8,8 +8,7 @@ namespace Motely.Filters;
 /// Scalar-per-seed via <see cref="MotelyVectorSearchContext.SearchIndividualSeeds"/> — same shape as
 /// <c>startingDraw</c> / native ShuffleFinder.
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class PokerHandClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
+public sealed partial class PokerHandClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -35,6 +34,13 @@ public struct PokerHandFilterDesc(PokerHandClause clause)
     : IMotelySeedFilterDesc<PokerHandFilterDesc.PokerHandFilter>
 {
     private readonly PokerHandClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["pokerHand", "pokerHands"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys =>
+        ["min", "max", "score", "label", "ante", "antes", "rolls"];
 
     /// <summary>Small, Big, Boss — blinds in one pass through an ante.</summary>
     public const int BlindsPerAntePass = 3;

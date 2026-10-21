@@ -1,18 +1,16 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public partial class TagClause: IMotelyClause, IAnteScopedClause, IRollScopedClause
+public partial class TagClause : IMotelyClause, IAnteScopedClause, IRollScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    /// <summary>The tags that count; empty (<c>any</c>) counts every offer.</summary>
     public MotelyTag[] Tags { get; set; } = [];
 
     /// <summary>
@@ -25,15 +23,13 @@ public partial class TagClause: IMotelyClause, IAnteScopedClause, IRollScopedCla
 }
 
 /// <summary>The small blind's tag offer only.</summary>
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class SmallBlindTagClause: TagClause
+public sealed class SmallBlindTagClause : TagClause
 {
     public SmallBlindTagClause() => Rolls = [0];
 }
 
 /// <summary>The big blind's tag offer only.</summary>
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class BigBlindTagClause: TagClause
+public sealed class BigBlindTagClause : TagClause
 {
     public BigBlindTagClause() => Rolls = [1];
 }
@@ -43,10 +39,22 @@ public struct TagFilterDesc(TagClause clause)
 {
     private readonly TagClause _clause = clause;
 
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["tag", "tags", "smallBlindTag", "bigBlindTag"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "rolls"];
+
     public TagFilter CreateFilter(ref MotelyFilterCreationContext ctx)
     {
         foreach (var ante in _clause.Antes)
+        {
+            // NOTE(audit): the tag clause only reads the tag stream below — this
+            // booster-pack-stream cache looks unused/vestigial here. Left intact pending review;
+            // remove if nothing downstream actually consumes a cached pack stream for tags.
+            ctx.CacheBoosterPackStream(ante);
             ctx.CacheTagStream(ante);
+        }
         return new TagFilter(_clause);
     }
 
@@ -57,8 +65,9 @@ public struct TagFilterDesc(TagClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
+            Debug.Assert(_clause.Tags.Length > 0);
             var clause = _clause;
-            int maxDraw = clause.Rolls.Max();
+            int maxDraw = (clause.Rolls.Length == 0 ? -1 : clause.Rolls.Max());
             Span<VectorEnum256<MotelyTag>> draws = stackalloc VectorEnum256<MotelyTag>[maxDraw + 1];
 
             Vector256<int> matchCounts = Vector256<int>.Zero;
@@ -72,13 +81,18 @@ public struct TagFilterDesc(TagClause clause)
                 foreach (var drawIndex in clause.Rolls)
                 {
                     var rolled = draws[drawIndex];
-                    Vector256<int> match = clause.Tags.Length == 0 ? Vector256<int>.AllBitsSet : Vector256<int>.Zero;
-                    foreach (var tag in clause.Tags)
-                        match |= VectorEnum256.Equals(rolled, tag);
-                    matchCounts = Vector256.Add(
-                        matchCounts,
-                        Vector256.ConditionalSelect(match, Vector256<int>.One, Vector256<int>.Zero)
-                    );
+                    foreach (var t in clause.Tags)
+                    {
+                        var match = VectorEnum256.Equals(rolled, t);
+                        matchCounts = Vector256.Add(
+                            matchCounts,
+                            Vector256.ConditionalSelect(
+                                match,
+                                Vector256.Create(1),
+                                Vector256<int>.Zero
+                            )
+                        );
+                    }
                 }
             }
 

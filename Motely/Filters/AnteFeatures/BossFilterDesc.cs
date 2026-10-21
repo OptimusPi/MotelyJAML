@@ -3,19 +3,17 @@ using System.Runtime.CompilerServices;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class BossClause: IMotelyClause, IAnteScopedClause
+public sealed partial class BossClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
     public int? Max { get; set; }
     public int Score { get; set; } = 1;
     public int[] Antes { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    /// <summary>The bosses that count; empty (<c>any</c>) counts every ante's boss.</summary>
     public MotelyBossBlind[] Bosses { get; set; } = [];
-    // No Rolls: boss re-rolls need the full-run rewind that MotelySearchContext.Boss.cs does
-    // not simulate yet. Antes select the where.
+    // No Rolls — for now. Boss re-rolls ARE a real source, but the re-roll read isn't
+    // implemented in MotelySearchContext.Boss.cs yet (state-heavy, same blocker as joker
+    // re-rolls). Antes select the WHERE; re-add Rolls here when that source lands.
 
     public IMotelySeedFilterDesc CreateFilterDesc() => new BossFilterDesc(this);
 }
@@ -24,6 +22,12 @@ public readonly struct BossFilterDesc(BossClause clause)
     : IMotelySeedFilterDesc<BossFilterDesc.BossFilter>
 {
     private readonly BossClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["boss", "bosses"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes"];
 
     private static bool IsFinisherAnte(int ante) => ante % 8 == 0;
 
@@ -93,6 +97,8 @@ public readonly struct BossFilterDesc(BossClause clause)
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorMask Filter(ref MotelyVectorSearchContext ctx)
         {
+            Debug.Assert(_clause.Bosses.Length > 0);
+
             // Single match core: same PrepareRunState + CountBossOccurrences as should-scoring.
             var clause = _clause;
             return ctx.SearchIndividualSeeds(

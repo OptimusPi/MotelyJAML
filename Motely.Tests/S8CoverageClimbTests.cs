@@ -481,7 +481,7 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string sources)
         {
-            var yaml = $"""
+            var jaml = $"""
                 name: s8-parity
                 deck: Red
                 stake: White
@@ -491,7 +491,7 @@ public sealed class S8CoverageClimbTests
                     sources:
                 {sources}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
             return matching;
         }
         Assert.Equal(8, Count("      uncommonShopJokers: [0]"));
@@ -531,14 +531,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var yaml = $"""
+            var jaml = $"""
                 name: s8-tarot-probe
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
             return matching;
         }
         long shopAny = Count("""
@@ -590,14 +590,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var yaml = $"""
+            var jaml = $"""
                 name: s8-spectral
                 deck: Ghost
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(yaml, FixtureSeeds);
+            var (matching, _) = ProofSearch.ListMatch(jaml, FixtureSeeds);
             return matching;
         }
         const string AllContent =
@@ -757,8 +757,9 @@ public sealed class S8CoverageClimbTests
     ];
 
     /// <summary>
-    /// Legendary soul routes over a 20-seed list (3 vector batches). Split-mode arcana/spectral
-    /// slots, soulCardOnly counting, the requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
+    /// Legendary soul routes over a 20-seed list (3 vector batches — the P2 multi-batch
+    /// regression). Split-mode arcana/spectral slots, soulCardOnly counting, the
+    /// requireMegaPack gate, legacy boosterPacks slots, and a named-face clause all walk
     /// the same pack-order law — and the same slot numbering as <c>spectralCard: TheSoul</c>,
     /// so the two counts agree. CUC's only Soul is ante 1's fourth rolled pack, which no run
     /// offers: ante 1 slot 0 is the fixed Buffoon, so slots 0–3 hold three rolls, not four.
@@ -768,14 +769,14 @@ public sealed class S8CoverageClimbTests
     {
         static long Count(string body)
         {
-            var yaml = $"""
+            var jaml = $"""
                 name: s8-legendary
                 deck: Red
                 stake: White
                 must:
                 {body}
                 """;
-            var (matching, _) = ProofSearch.ListMatch(yaml, WideSeeds);
+            var (matching, _) = ProofSearch.ListMatch(jaml, WideSeeds);
             return matching;
         }
         long split = Count("""
@@ -829,7 +830,7 @@ public sealed class S8CoverageClimbTests
         Assert.Equal(8, soulOnly);
         Assert.Equal(0, mega);
         Assert.Equal(8, legacy);
-        Assert.Equal(1, perkeo);
+        Assert.Equal(0, perkeo);
         Assert.Equal(8, theSoulClause);
         Assert.Equal(0, ante0);
     }

@@ -40,17 +40,15 @@ public sealed class JAMLyzerUnitTests
         Assert.Equal(2, results[0].Antes.Count);
         Assert.Equal(0, results[0].Antes[0].Ante);
         Assert.Equal(1, results[0].Antes[1].Ante);
-        Assert.Equal(6, results[0].Antes[0].Packs.Count);
+        Assert.Equal(4, results[0].Antes[0].Packs.Count);
         Assert.Equal(15, results[0].Antes[0].ShopItems.Count);
     }
 
     [Fact]
-    public void Analyze_AnteOneHasFourPacks_AnteZeroSix()
+    public void Analyze_AnteOneHasFourPacks()
     {
-        // Ante 1's first shop opens after the small blind; ante 0 runs all three shops once
-        // Hieroglyph and Petroglyph ease the run back to it, the six packs a clause searches.
         var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
-        Assert.Equal(6, results[0].Antes[0].Packs.Count);
+        Assert.Equal(4, results[0].Antes[0].Packs.Count);
         Assert.Equal(4, results[0].Antes[1].Packs.Count);
     }
 
@@ -68,122 +66,6 @@ public sealed class JAMLyzerUnitTests
         var results = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"));
         for (int i = 0; i < 9; i++)
             Assert.Equal(i, results[0].Antes[i].Ante);
-    }
-
-    [Theory]
-    [InlineData("C3DW94B8", 1)]
-    [InlineData("3MLDLU2W", 2)]
-    [InlineData("9KIXS1TL", 3)]
-    public void Analyze_LegendaryOrder_ReadsTheSameSoulTheScorerFinds(string seed, int expectedSlot)
-    {
-        // These Red/White seeds each hold one ante-1 Soul at a known pack slot — the same seeds
-        // LegendaryPackIndexTests pins the legendaryJoker clause against. The analyser's run-global
-        // LegendaryOrder must find exactly that one Soul, at that slot.
-        var order = MotelyJamlyzer.Analyze(SeedConfig(seed), eventRolls: 1)[0].LegendaryOrder;
-        var entry = Assert.Single(order);
-        Assert.Equal(1, entry.Ante);
-        Assert.Equal(expectedSlot, entry.PackSlot);
-
-        var legendaries = MotelyEnum<MotelyJokerLegendary>
-            .Values.Select(l => (MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)l));
-        Assert.Contains(entry.Joker, legendaries);
-
-        // The yielded joker as an item: the engine's own construction, edition carried, so a
-        // consumer draws it like any shop or pack card.
-        Assert.Equal(new MotelyItem(entry.Joker, entry.Edition), entry.Item);
-        Assert.Equal(MotelyItemTypeCategory.Joker, entry.Item.TypeCategory);
-        Assert.Equal(entry.Edition, entry.Item.Edition);
-    }
-
-    [Theory]
-    // Ghost/White seeds with a Soul in ante 1 and another in ante 2. On the first three the raw
-    // Joker4 draw for the second Soul repeats the first legendary; with that legendary held the
-    // game resamples it. 3VX11111's draws differ, so nothing resamples.
-    [InlineData("BHT11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
-    [InlineData("D6L11111", MotelyJoker.Perkeo, MotelyJoker.Triboulet)]
-    [InlineData("L4V11111", MotelyJoker.Yorick, MotelyJoker.Perkeo)]
-    [InlineData("3VX11111", MotelyJoker.Triboulet, MotelyJoker.Canio)]
-    public void Analyze_LegendaryOrder_ResamplesOffTheLegendariesAlreadyHeld(
-        string seed,
-        MotelyJoker first,
-        MotelyJoker second
-    )
-    {
-        var order = MotelyJamlyzer.Analyze(SeedConfig(seed, MotelyDeck.Ghost), eventRolls: 1)[0].LegendaryOrder;
-        Assert.True(order.Count >= 2, $"{seed}: a Soul in ante 1 and another in ante 2");
-        Assert.Equal([first, second], order.Take(2).Select(l => l.Joker));
-
-        // The filter walks the same Souls the same way: soulOrder matches exactly this order.
-        ProofSearch.MustMatchAll(
-            $$"""
-            name: soul-order
-            deck: Ghost
-            stake: White
-            must:
-              - soulOrder:
-                  - { legendary: {{first}}, antes: [{{order[0].Ante}}] }
-                  - { legendary: {{second}}, antes: [{{order[1].Ante}}] }
-                maxAnte: {{order[1].Ante}}
-            """,
-            seed
-        );
-    }
-
-    [Fact]
-    public void Analyze_AnteZeroSoulStaysShutUnlessALegendaryClauseNamesAnteZero()
-    {
-        // 1YU11111 (Red/White) has a Soul in ante 0's first pack and one in ante 2's. Ante 0 is in
-        // the run only after Hieroglyph or Petroglyph, so with no clause naming it the walk shows
-        // ante 0's cards but leaves its Soul shut, and the ante-2 Soul is the first one opened:
-        // the stream's first legendary, Triboulet. Opening ante 0 first made it read Yorick.
-        var plain = MotelyJamlyzer.Analyze(SeedConfig("1YU11111"), eventRolls: 1)[0];
-        Assert.Equal(0, plain.Antes[0].Ante);
-        var only = Assert.Single(plain.LegendaryOrder);
-        Assert.Equal((2, 0, MotelyJoker.Triboulet), (only.Ante, only.PackSlot, only.Joker));
-
-        // A legendary clause naming ante 0 opens its Soul, first, as the clause itself does.
-        var namesAnteZero = JamlConfigLoader.FromJaml("""
-            deck: Red
-            stake: White
-            must:
-              - legendaryJoker: Triboulet
-                antes: [0, 1, 2]
-                sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }
-            seeds: [1YU11111]
-            """);
-        Assert.Equal(
-            [(0, MotelyJoker.Triboulet), (2, MotelyJoker.Yorick)],
-            MotelyJamlyzer.Analyze(namesAnteZero, eventRolls: 1)[0].LegendaryOrder.Select(l => (l.Ante, l.Joker)));
-
-        // The clauses agree with both readings: a clause on ante 2 opens that Soul first.
-        const string head = "name: ante-zero\ndeck: Red\nstake: White\nmust:\n";
-        ProofSearch.MustMatchAll(
-            head + "  - legendaryJoker: Triboulet\n    antes: [2]\n"
-                + "    sources: { arcanaPacks: [0, 1, 2, 3, 4, 5], spectralPacks: [0, 1, 2, 3, 4, 5] }\n",
-            "1YU11111");
-        ProofSearch.MustMatchAll(head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [2] }\n", "1YU11111");
-        ProofSearch.MustMatchNone(head + "  - soulOrder:\n      - { legendary: Yorick, antes: [2] }\n", "1YU11111");
-        ProofSearch.MustMatchAll(
-            head + "  - soulOrder:\n      - { legendary: Triboulet, antes: [0] }\n      - { legendary: Yorick, antes: [2] }\n",
-            "1YU11111");
-    }
-
-    [Fact]
-    public void Analyze_EachAnteCarriesItsPublishedShopDepthAndPackCount()
-    {
-        // DefaultShopSlots / PackCount are what a consumer sizes an ante with before it has a
-        // result; they must be exactly what the result then carries.
-        var result = MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls: 1)[0];
-        foreach (var ante in result.Antes)
-        {
-            Assert.Equal(MotelyJamlyzer.DefaultShopSlots(ante.Ante), ante.ShopItems.Count);
-            Assert.Equal(MotelyJamlyzer.PackCount(ante.Ante), ante.Packs.Count);
-        }
-        Assert.Equal(6, MotelyJamlyzer.PackCount(0));
-        Assert.Equal(4, MotelyJamlyzer.PackCount(1));
-        Assert.Equal(6, MotelyJamlyzer.PackCount(2));
-        Assert.Equal(15, MotelyJamlyzer.DefaultShopSlots(1));
-        Assert.Equal(50, MotelyJamlyzer.DefaultShopSlots(2));
     }
 
     [Fact]
@@ -286,6 +168,10 @@ public sealed class JAMLyzerUnitTests
                 fa.Pulls.UncommonTagJokers,
                 p1.Pulls.UncommonTagJokers.Concat(p2.Pulls.UncommonTagJokers)
             );
+            Assert.Equal<IEnumerable<MotelyItem>>(
+                fa.Pulls.LegendaryJokers,
+                p1.Pulls.LegendaryJokers.Concat(p2.Pulls.LegendaryJokers)
+            );
             Assert.Equal<IEnumerable<MotelyVoucher>>(
                 fa.Pulls.VoucherSequence,
                 p1.Pulls.VoucherSequence.Concat(p2.Pulls.VoucherSequence)
@@ -321,11 +207,6 @@ public sealed class JAMLyzerUnitTests
                 p1.ShopStreams.ShopSpectrals.Concat(p2.ShopStreams.ShopSpectrals)
             );
         }
-
-        // The legendary order is run-global (one Joker4 walk per seed), so every page reports the
-        // whole sequence identically -- it is not sliced by the window like the per-ante queues.
-        Assert.Equal(full.LegendaryOrder, page1.LegendaryOrder);
-        Assert.Equal(full.LegendaryOrder, page2.LegendaryOrder);
     }
 
     [Fact]
@@ -480,8 +361,10 @@ public sealed class JAMLyzerUnitTests
     }
 
     /// <summary>
-    /// Shop depth is its own dial, independent of <c>eventRolls</c>: exactly 20 shop slots
-    /// gives 20, and a deep shop does not deepen the pull and shop-source queues.
+    /// Shop depth is its own dial. It used to ride <c>eventRolls</c> behind a
+    /// <c>!= 20</c> guard, which made 20 a dead value -- asking for exactly 20 shop slots
+    /// silently returned the ante-1 default of 15 -- and made a deep shop allocate an equally
+    /// deep array for all eighteen pull and shop-source queues.
     /// </summary>
     [Fact]
     public void Analyze_ShopSlots_IsIndependentOfEventRolls()
@@ -553,16 +436,14 @@ public sealed class JAMLyzerUnitTests
     [InlineData(20, int.MaxValue)]
     public void Analyze_OutOfRangeWindow_ThrowsArgumentOutOfRange(int eventRolls, int shopSlots)
     {
-        // JS can pass anything; the call must say what is wrong.
+        // These used to surface as OverflowException / OutOfMemoryException from an array
+        // allocation, or walk for minutes. JS can pass anything; the call must say what is wrong.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(SeedConfig("UNITTEST"), eventRolls, shopSlots)
         );
         // Checked up front, so a seedless config is no way around it.
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             MotelyJamlyzer.Analyze(JamlConfigLoader.FromJaml("seeds: []"), eventRolls, shopSlots)
-        );
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new MotelyJamlyzerRiderDesc(MotelyJamlyzer.AllAntes, _ => { }, eventRolls, shopSlots)
         );
     }
 
@@ -637,7 +518,7 @@ public sealed class JAMLyzerUnitTests
         var config = JamlConfigLoader.FromJaml(
             "must:\n  - voucher: Overstock\n    antes: [39]\nseeds: [UNITTEST]"
         );
-        // Off the test thread with a deadline: a hang fails here instead of stalling the run.
+        // Off the test thread with a deadline: a regression fails here instead of hanging the run.
         var result = await Task.Run(() => MotelyJamlyzer.Analyze(config, eventRolls: 3)[0])
             .WaitAsync(TimeSpan.FromSeconds(60));
 

@@ -4,7 +4,7 @@ namespace Motely;
 
 /// <summary>
 /// The single, shared "should this scored seed be emitted / persisted?" gate. Every caller
-/// (Motely.CLI, and any future GUI) routes scored results through one of these so the
+/// (Motely.CLI, Motely.TUI, and any future GUI) routes scored results through one of these so the
 /// three cutoff modes behave identically everywhere:
 ///
 ///   • Auto (running maximum): emit every seed at-or-above the best score seen so far. The bar
@@ -82,45 +82,11 @@ public sealed class MotelyScoreCutoff
     }
 
     /// <summary>
-    /// The cutoff a front-end should run with: an explicit host value (<paramref name="hostText"/>,
-    /// e.g. the CLI's <c>--cutoff</c>) wins; otherwise the filter document's own <c>cutoff:</c>
-    /// becomes a fixed floor; otherwise auto. <paramref name="description"/> names the effective
-    /// value and where it came from, for banners.
-    /// </summary>
-    public static bool TryResolve(
-        string? hostText,
-        int? jamlCutoff,
-        out MotelyScoreCutoff cutoff,
-        out string description,
-        out string? error
-    )
-    {
-        if (hostText is not null)
-        {
-            description = hostText.Trim().Length == 0 ? "auto" : hostText.Trim();
-            return TryParse(hostText, out cutoff, out error);
-        }
-
-        error = null;
-        if (jamlCutoff is { } floor)
-        {
-            cutoff = Fixed(floor);
-            description = $"{floor} (yaml)";
-            return true;
-        }
-
-        cutoff = Auto();
-        description = "auto";
-        return true;
-    }
-
-    /// <summary>
     /// The engine-side pre-filter threshold this cutoff implies. The scorer drops seeds below this
     /// value before any callback fires, so a fixed floor can be pushed all the way into the engine;
-    /// auto and off cannot (auto's bar is not known until seeds arrive), so they use no floor at
-    /// all: a negative score is a real score, not a reject.
+    /// auto and off cannot (auto's bar is not known until seeds arrive), so they use 0.
     /// </summary>
-    public int EngineCutoff => !_auto ? _fixedFloor : int.MinValue;
+    public int EngineCutoff => (!_auto && _fixedFloor > int.MinValue) ? _fixedFloor : 0;
 
     /// <summary>
     /// Thread-safe: does a seed with this score pass the gate? In auto mode this also ratchets the

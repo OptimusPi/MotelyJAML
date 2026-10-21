@@ -63,7 +63,7 @@ public interface IMotelySeedScoreProvider
         ref MotelyVectorSearchContext searchContext,
         MotelyScoredSeedResult[] buffer,
         VectorMask baseFilterMask,
-        int scoreThreshold = int.MinValue
+        int scoreThreshold = 0
     );
 }
 
@@ -178,16 +178,12 @@ public interface IMotelySearchSettings
     IMotelySearchSettings WithStake(MotelyStake stake);
     IMotelySearchSettings WithProgressCallback(Action<MotelyProgress> callback);
     IMotelySearchSettings WithProgressReportIntervalMs(long intervalMs);
-    /// <summary>A flag for the host's own output; the engine never reads it.</summary>
     IMotelySearchSettings WithCsvOutput(bool csvOutput);
-
-    /// <summary>A flag for the host's own output; the engine never reads it (it writes nothing).
-    /// Kept because hosts such as jaml-ui set it.</summary>
     IMotelySearchSettings WithQuietMode(bool quietMode);
     IMotelySearchSettings WithSeedMatchCallback(Action<string> callback);
     IMotelySearchSettings WithScoredResultCallback(Action<MotelyScoredSeedResult> callback);
     /// <summary>
-    /// Fired after each search report batch (provider batch or sequential space partition).
+    /// Fired after each search report batch (provider chew or sequential space partition).
     /// Persist sinks flush here — not per find, not on a timer.
     /// </summary>
     IMotelySearchSettings WithBatchBoundaryCallback(Action callback);
@@ -263,7 +259,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
 
     public bool CsvOutput { get; set; } = false;
     public bool QuietMode { get; set; } = false;
-    public bool AutoScoreCutoff { get; set; } = true;
+    public bool AutoScoreCutoff { get; set; } = false;
 
     /// <summary>
     /// Stop searching once AT LEAST this many seeds have matched; 0 (the default) searches the
@@ -361,7 +357,9 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     /// <summary>
     /// Pads each keyword out to every 8-character seed that contains it. Keywords are seed text, so
     /// they are folded to upper case (as the game's seed box does) and must otherwise be 1–8
-    /// characters of the seed alphabet (1-9, A-Z). Anything else throws.
+    /// characters of the seed alphabet (1-9, A-Z). Anything else throws: a lowercase or punctuated
+    /// keyword used to be padded verbatim into seeds no one can type, and a '0' or over-long one
+    /// produced an empty search that "completed" instantly.
     /// </summary>
     public MotelySearchSettings<TBaseFilter> WithKeywordSearch(
         IReadOnlyList<string> keywords,
@@ -395,10 +393,10 @@ public sealed class MotelySearchSettings<TBaseFilter>(
                 || upper.AsSpan().IndexOfAnyExcept(MotelyGlobals.SeedDigits) >= 0
             )
             {
-                throw MotelyErrors.Report(new ArgumentException(
+                throw new ArgumentException(
                     $"Keyword '{keyword}' is not a seed fragment: keywords are 1-{MotelyGlobals.MaxSeedLength} characters of 1-9 and A-Z (Balatro seeds have no 0).",
                     nameof(keywords)
-                ));
+                );
             }
 
             // "cats" and "CATS" fold to one keyword; searching both would report every seed twice.
@@ -407,7 +405,7 @@ public sealed class MotelySearchSettings<TBaseFilter>(
         }
 
         if (normalized.Count == 0)
-            throw MotelyErrors.Report(new ArgumentException("Keyword search needs at least one keyword.", nameof(keywords)));
+            throw new ArgumentException("Keyword search needs at least one keyword.", nameof(keywords));
 
         return [.. normalized];
     }
@@ -423,10 +421,10 @@ public sealed class MotelySearchSettings<TBaseFilter>(
             char c = char.ToUpperInvariant(raw);
             if (Array.IndexOf(MotelyGlobals.SeedDigits, c) < 0)
             {
-                throw MotelyErrors.Report(new ArgumentException(
+                throw new ArgumentException(
                     $"Padding character '{raw}' is not a seed character (1-9, A-Z).",
                     nameof(paddingAlphabet)
-                ));
+                );
             }
 
             // A repeated pad character would emit every padded seed once per repeat.
@@ -716,17 +714,8 @@ public interface IMotelySearch : IDisposable
 
     IMotelySearch Start(CancellationToken cancellationToken = default);
     Task RunSearchAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>Blocks until the search ends. Not for the browser, where the search runs on the
-    /// calling thread; await <see cref="WaitForCompletionAsync"/> there.</summary>
     void AwaitCompletion();
-
     Task WaitForCompletionAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>Stops the search and frees its native buffers. Redeclared from
-    /// <see cref="IDisposable"/> so hosts that only see this interface's own members (the Wasm
-    /// bindings) can release a search instead of waiting on the finalizer.</summary>
-    new void Dispose();
 }
 
 internal unsafe interface IInternalMotelySearch : IMotelySearch
@@ -744,6 +733,9 @@ public struct MotelySearchParameters
 public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySearch
     where TBaseFilter : struct, IMotelySeedFilter
 {
+    /// <summary>Shared lock for console output (replaces removed FancyConsole.ConsoleLock).</summary>
+    internal static readonly object ConsoleLock = new();
+
     private readonly MotelySearchParameters _searchParameters;
 
     internal CancellationToken _cancellationToken = CancellationToken.None;
@@ -932,7 +924,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     private readonly Action? _batchBoundaryCallback;
     private readonly bool _autoScoreCutoff;
     private readonly long _progressReportIntervalMs;
-    /// <summary>Provider-mode: seeds to search per report batch (SIMD still 8-wide).</summary>
+    /// <summary>Provider-mode: seeds to chew per report batch (SIMD still 8-wide).</summary>
     private readonly int _providerBatchSeedCount;
 
     private readonly Stopwatch _elapsedTime = new();
@@ -961,11 +953,11 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     {
         if (batchCharacterCount is < 1 or >= MotelyGlobals.MaxSeedLength)
         {
-            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
+            throw new ArgumentOutOfRangeException(
                 nameof(batchCharacterCount),
                 batchCharacterCount,
                 $"Batch character count must be 1-{MotelyGlobals.MaxSeedLength - 1}."
-            ));
+            );
         }
     }
 
@@ -987,20 +979,20 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // start near long.MaxValue overflowed start + threadIndex into a negative batch.
         if (start < 0 || start > totalBatches)
         {
-            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
+            throw new ArgumentOutOfRangeException(
                 nameof(settings.StartBatchIndex),
                 start,
                 $"Start batch must be 0-{totalBatches:N0}: a {settings.SequentialBatchCharacterCount}-character batch splits the seed space into {totalBatches:N0} batches."
-            ));
+            );
         }
 
         if (end < start)
         {
-            throw MotelyErrors.Report(new ArgumentOutOfRangeException(
+            throw new ArgumentOutOfRangeException(
                 nameof(settings.EndBatchIndex),
                 end,
                 $"End batch (exclusive) is before start batch {start:N0}."
-            ));
+            );
         }
     }
 
@@ -1156,7 +1148,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
     private void BeginSearch(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _hasStarted, 1) != 0)
-            throw MotelyErrors.Report(new InvalidOperationException("Search has already been started."));
+            throw new InvalidOperationException("Search has already been started.");
 
         // Always linked, not only for StopAfter: a worker that throws stops the others through this
         // same source (see WorkerCoordinator). Without it the faulted thread exited alone and the
@@ -1236,8 +1228,6 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
                 }
                 catch (Exception ex)
                 {
-                    // Same "first in → last out" clock as the threaded path's last worker.
-                    _elapsedTime.Stop();
                     _completionSource.TrySetException(ex);
                     return;
                 }
@@ -1259,7 +1249,9 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         // Bootsharp marshals that Task to the JS Promise.
         if (OperatingSystem.IsBrowser())
         {
-            Task pump = RunBrowserPumpAsync(_isProviderMode);
+            Task pump = _isProviderMode
+                ? RunProviderBrowserPumpAsync()
+                : RunSequentialBrowserPumpAsync();
 
             // Don't drop the handle. If the pump faults before it can signal completion, route
             // the exception onto the SAME _completionSource the Promise awaits — otherwise the
@@ -1321,6 +1313,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[WORKER EXCEPTION] {ex}");
                 Interlocked.CompareExchange(ref _firstError, ex, null);
                 // The error only surfaces when the LAST worker exits, so the others must stop
                 // too — otherwise a callback that throws once leaves the awaiter hanging for
@@ -1359,24 +1352,12 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
     public Task WaitForCompletionAsync(CancellationToken cancellationToken = default)
     {
-        ThrowIfNeverStarted();
         return _completionSource.Task.WaitAsync(cancellationToken);
     }
 
     public void AwaitCompletion()
     {
-        ThrowIfNeverStarted();
         _completionSource.Task.GetAwaiter().GetResult();
-    }
-
-    /// <summary>A search that was never started (nor disposed, which settles it) would never
-    /// complete: waiting on it hung forever.</summary>
-    private void ThrowIfNeverStarted()
-    {
-        if (Volatile.Read(ref _hasStarted) == 0 && !_completionSource.Task.IsCompleted)
-            throw MotelyErrors.Report(
-                new InvalidOperationException("The search was never started: call Start or RunSearchAsync first.")
-            );
     }
 
     /// <summary>Disk for persist sinks: one flush per search batch, not per find.</summary>
@@ -1783,7 +1764,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
         /// <summary>
         /// Runs one provider <b>report</b> batch: many SIMD packs (8 seeds each) until
-        /// <see cref="MotelySearch{TBaseFilter}._providerBatchSeedCount"/> seeds are searched,
+        /// <see cref="MotelySearch{TBaseFilter}._providerBatchSeedCount"/> seeds are chewed,
         /// the provider is empty, or cancel fires. Returns false when finished — disposed,
         /// cancelled, or the provider is exhausted — at which point the caller flushes.
         /// Sequential's batchCharCount is a different machine (space partition + partial hash);
@@ -1811,10 +1792,10 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             if (_providerExhausted)
                 return false;
 
-            long perReport = Search._providerBatchSeedCount;
-            long searched = 0;
+            long target = Search._providerBatchSeedCount;
+            long chewed = 0;
             while (
-                searched < perReport
+                chewed < target
                 && !_providerExhausted
                 && Volatile.Read(ref Search._isDisposed) == 0
                 && !Search._cancellationToken.IsCancellationRequested
@@ -1822,17 +1803,15 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             {
                 long before = _localSeedsSearched;
                 SearchProviderBatch();
-                // A pack with no valid seeds searches nothing but is not the end of the provider;
-                // only _providerExhausted (checked by the loop) ends it.
-                searched += _localSeedsSearched - before;
+                long got = _localSeedsSearched - before;
+                if (got <= 0)
+                    break;
+                chewed += got;
             }
 
-            // Nothing searched: either the provider was empty on entry, or every seed left was
-            // invalid. Stop without counting a report batch only when there is truly nothing left.
-            if (searched == 0)
-                return !_providerExhausted
-                    && Volatile.Read(ref Search._isDisposed) == 0
-                    && !Search._cancellationToken.IsCancellationRequested;
+            // Nothing ran (already empty on entry) — stop without counting a report batch.
+            if (chewed == 0)
+                return false;
 
             _localBatchesCompleted++;
 
@@ -1943,7 +1922,9 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
                 "Mask should be checked for partial truth before calling report seeds (for performance)."
             );
 
-            // A score provider handles scoring, cutoff and printing.
+            // If we have a score provider, ALWAYS use it (it handles scoring, cutoff AND printing)
+            // Previously this was gated by _csvOutput, which caused normal runs to bypass scoring
+            // and fall back to ReportBasicSeeds (printing every raw seed).
             if (Search.TryGetScoreProvider(out var scoreProvider))
             {
                 // Create search context for scoring
@@ -2168,15 +2149,48 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
                         }
                     }
 
-                    // Carry the cached partial hashes: lane `lane` of each registered key
-                    // length's vector (Cache[keyLength] points at it) into lane `seedBatchIndex`
-                    // of the batch's own vector for that key length (SeedHashes[i]). The key set
-                    // is fixed at search creation and every registered length has a cache slot.
+                    // Store the cached hashes
+                    // The cache structure: Cache[partialHashLength] already points to the correct Vector512<double>*
+                    // for that key length. We just need to copy lane 'lane' from source to lane 'seedBatchIndex' in target.
+                    if (
+                        Search._pseudoHashKeyLengths == null
+                        || Search._pseudoHashKeyLengthCount <= 0
+                    )
+                        return;
+
                     for (int i = 0; i < Search._pseudoHashKeyLengthCount; i++)
                     {
-                        int keyLength = Search._pseudoHashKeyLengths[i];
-                        ((double*)filterBatch->SeedHashes)[i * Vector512<double>.Count + seedBatchIndex] =
-                            ((double*)searchParams.SeedHashCache->Cache[keyLength])[lane];
+                        int partialHashLength = Search._pseudoHashKeyLengths[i];
+
+                        // Ensure cache entry exists before accessing
+                        if (searchParams.SeedHashCache == null)
+                            continue;
+
+                        if (partialHashLength >= MotelyGlobals.MaxCachedPseudoHashKeyLength)
+                            Console.WriteLine(
+                                $"partialHashLength {partialHashLength} >= MotelyGlobals.MaxCachedPseudoHashKeyLength {MotelyGlobals.MaxCachedPseudoHashKeyLength}"
+                            );
+
+                        if (searchParams.SeedHashCache->Cache[partialHashLength] == null)
+                            continue;
+
+                        // Cache[partialHashLength] already points to the correct Vector512<double>*
+                        // for this key length (set up by PartialSeedHashCache ctor:
+                        //     InitialCache[keyLength] = &partialSeedHashes[i]
+                        // ). So the source vector is one Vector512 and we just need lane `lane`.
+                        // Using `[i * Vector512<double>.Count + lane]` here reads `_hashes[2*i]`
+                        // — correct only when i == 0, wrong vector or OOB for i >= 1 — which
+                        // silently drops seeds from multi-keylength additional-filter chains.
+                        // Regression covered by Tacodiva/Motely#5 and
+                        // Motely.Tests/ChainedMustClauseSeedTests.cs.
+                        double sourceValue = (
+                            (double*)searchParams.SeedHashCache->Cache[partialHashLength]
+                        )[lane];
+
+                        // Write to target: filterBatch->SeedHashes is an array of Vector512<double>
+                        ((double*)filterBatch->SeedHashes)[
+                            i * Vector512<double>.Count + seedBatchIndex
+                        ] = sourceValue;
                     }
 
                     if (seedBatchIndex == Vector512<double>.Count - 1)
@@ -2627,7 +2641,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             _batchCharCount = settings.SequentialBatchCharacterCount;
 
             _nonBatchCharCount = MotelyGlobals.MaxSeedLength - _batchCharCount;
-            MaxBatch = MotelyGlobals.SequentialBatchCount(_batchCharCount);
+            MaxBatch = (long)Math.Pow(MotelyGlobals.SeedDigits.Length, _nonBatchCharCount);
 
             // Safety check for pseudoHashKeyLengthCount to prevent null pointer issues
             if (Search._pseudoHashKeyLengthCount <= 0)

@@ -24,7 +24,7 @@ public struct JamlShouldScoreDesc
         IMotelyClause[] mustClauses,
         IMotelyClause[] shouldClauses,
         Action<string>? seedMatchCallback = null,
-        int minimumTotalScore = int.MinValue,
+        int minimumTotalScore = 0,
         IMotelyClause[]? mustNotClauses = null
     )
     {
@@ -60,7 +60,7 @@ public struct JamlShouldScoreDesc
             IMotelyClause[] mustClauses,
             IMotelyClause[] shouldClauses,
             Action<string>? seedMatchCallback,
-            int minimumTotalScore = int.MinValue,
+            int minimumTotalScore = 0,
             bool skipMustReeval = false,
             IMotelyClause[]? mustNotClauses = null
         )
@@ -93,7 +93,7 @@ public struct JamlShouldScoreDesc
             ref MotelyVectorSearchContext searchContext,
             MotelyScoredSeedResult[] buffer,
             VectorMask baseFilterMask,
-            int scoreThreshold = int.MinValue
+            int scoreThreshold = 0
         )
         {
             if (baseFilterMask.IsAllFalse())
@@ -145,16 +145,26 @@ public struct JamlShouldScoreDesc
                     {
                         for (int i = 0; i < mustClauses.Length; i++)
                         {
-                            int raw = ClauseScoring.CountRawOccurrences(ref singleCtx, mustClauses[i], runState);
-                            if (!ClauseScoring.Matches(raw, mustClauses[i]))
+                            int raw = ClauseScoring.CountRawOccurrences(
+                                ref singleCtx,
+                                mustClauses[i],
+                                runState
+                            );
+
+                            if (!ClauseScoring.MeetsOccurrenceBounds(raw, mustClauses[i]))
                                 return 0;
                         }
                     }
 
                     for (int i = 0; i < mustNotClauses.Length; i++)
                     {
-                        int raw = ClauseScoring.CountRawOccurrences(ref singleCtx, mustNotClauses[i], runState);
-                        if (ClauseScoring.Matches(raw, mustNotClauses[i]))
+                        int raw = ClauseScoring.CountRawOccurrences(
+                            ref singleCtx,
+                            mustNotClauses[i],
+                            runState
+                        );
+
+                        if (ClauseScoring.MeetsOccurrenceBounds(raw, mustNotClauses[i]))
                             return 0;
                     }
 

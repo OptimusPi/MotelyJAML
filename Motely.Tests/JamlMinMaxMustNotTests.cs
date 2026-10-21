@@ -16,7 +16,7 @@ public class JamlMinMaxMustNotTests
 {
     private const string Seed = "MOTELY77";
 
-    /// <summary>First twelve seeds of JamlFilters/Zerkeo.yaml: Anaglyph/White, Hieroglyph in
+    /// <summary>First twelve seeds of YamlFilters/Zerkeo.jaml: Anaglyph/White, Hieroglyph in
     /// ante 1, Negative Perkeo in an ante-0 pack.</summary>
     private static readonly string[] ZerkeoSeeds =
     [
@@ -24,11 +24,11 @@ public class JamlMinMaxMustNotTests
         "4E1MRX11", "KWR8OX11", "BB3BOX11", "K4GBQX11", "B5BCQX11", "6E5RVX11",
     ];
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;
@@ -49,11 +49,11 @@ public class JamlMinMaxMustNotTests
         return (search.MatchingSeeds, score, tally);
     }
 
-    private static HashSet<string> RunSeedList(string yaml, string[] seeds)
+    private static HashSet<string> RunSeedList(string jaml, string[] seeds)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{jaml}"
         );
 
         var hits = new HashSet<string>();

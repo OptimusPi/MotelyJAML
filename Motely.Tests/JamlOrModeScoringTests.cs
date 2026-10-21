@@ -12,11 +12,11 @@ public class JamlOrModeScoringTests
 {
     private const string Seed = "MOTELY77";
 
-    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string yaml)
+    private static (long Matching, int? Score, int? Tally) RunSingleSeed(string jaml)
     {
         Assert.True(
-            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
-            $"JAML parse failed: {error}\n{yaml}"
+            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
+            $"JAML parse failed: {error}\n{jaml}"
         );
 
         int? score = null;
@@ -108,7 +108,7 @@ public class JamlOrModeScoringTests
                 out var error
             )
         );
-        Assert.Contains("average", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("mode", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class JamlOrModeScoringTests
     [Fact]
     public void Or_ArmsWriteTheirOwnAntes_LoadAndScore_MOTELY77()
     {
-        const string yaml = """
+        const string jaml = """
             name: or-arm-antes
             deck: Red
             stake: White
@@ -218,7 +218,7 @@ public class JamlOrModeScoringTests
             """;
 
         Assert.True(
-            JamlConfigLoader.TryLoad(yaml, out var config, out var error),
+            JamlConfigLoader.TryLoad(jaml, out var config, out var error),
             error
         );
 
@@ -231,7 +231,7 @@ public class JamlOrModeScoringTests
         Assert.Equal([1], tag.Antes);
         Assert.Equal([1], voucher.Antes);
 
-        var (matching, score, tally) = RunSingleSeed(yaml);
+        var (matching, score, tally) = RunSingleSeed(jaml);
         Assert.Equal(1, matching);
         Assert.Equal(5, score); // max(3, 5) via ante-1 hits only
         Assert.Equal(1, tally);

@@ -90,20 +90,6 @@ internal static class SimdPackSupport
         );
     }
 
-    /// <summary>Lanes holding a real seed in this batch (the tail batch can be partial).</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static VectorMask ValidLaneMask(ref MotelyVectorSearchContext ctx)
-    {
-        uint bits = 0;
-        for (int lane = 0; lane < MotelyGlobals.MaxVectorWidth; lane++)
-        {
-            if (ctx.IsLaneValid(lane))
-                bits |= 1u << lane;
-        }
-
-        return new VectorMask(bits);
-    }
-
     /// <summary>
     /// Vector form of match bounds: count ≥ min, and count ≤ max when max is set.
     /// </summary>
@@ -116,53 +102,5 @@ internal static class SimdPackSupport
             return new VectorMask(VectorizedComparisonToMask(minOk));
         var maxOk = Vector256.LessThanOrEqual(matchCounts, Vector256.Create(max.Value));
         return new VectorMask(VectorizedComparisonToMask(Vector256.BitwiseAnd(minOk, maxOk)));
-    }
-}
-
-/// <summary>
-/// The SIMD Buffoon-pack walk draws each card straight off the pack stream and does not resample
-/// in-pack duplicates the way Balatro (and the scalar walk) does. Where a lane drew a duplicate in
-/// a counted pack, the real card is a resample that may or may not match, so the vector count is
-/// unknowable for that lane. Track those lanes and pass them through to the scalar confirm instead
-/// of rejecting them — a prefilter may over-accept, never under-accept.
-/// </summary>
-internal struct BuffoonPackDuplicateTracker
-{
-    private MotelyItemVector _first;
-    private MotelyItemVector _second;
-    private MotelyItemVector _third;
-    private int _count;
-
-    /// <summary>Start a new pack.</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Reset() => _count = 0;
-
-    /// <summary>Records <paramref name="joker"/> and returns the lanes where it repeats an earlier card of this pack.</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public VectorMask Add(in MotelyItemVector joker)
-    {
-        VectorMask duplicate = VectorMask.NoBitsSet;
-        if (_count > 0)
-            duplicate |= VectorEnum256.Equals(joker.Type, _first.Type);
-        if (_count > 1)
-            duplicate |= VectorEnum256.Equals(joker.Type, _second.Type);
-        if (_count > 2)
-            duplicate |= VectorEnum256.Equals(joker.Type, _third.Type);
-
-        switch (_count)
-        {
-            case 0:
-                _first = joker;
-                break;
-            case 1:
-                _second = joker;
-                break;
-            case 2:
-                _third = joker;
-                break;
-        }
-
-        _count++;
-        return duplicate;
     }
 }

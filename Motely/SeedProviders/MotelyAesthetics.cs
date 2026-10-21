@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace Motely.SeedProviders;
 
 /// <summary>
@@ -20,12 +18,6 @@ public enum MotelyAesthetic
     Funny,
     Balatro,
     Nsfw,
-    /// <summary>Every 8-digit window of π (O plays 0, which the seed alphabet lacks).</summary>
-    Pi,
-    /// <summary>180° ambigrams: the seed reads the same upside down (SWIMS, MOW, NOON).</summary>
-    Spin,
-    /// <summary>Each character is the sum of the two before it, mod the alphabet.</summary>
-    Fibonacci,
 }
 
 /// <summary>
@@ -62,9 +54,6 @@ public static class MotelyAesthetics
             MotelyAesthetic.Repeater => RepeaterAestheticSeeds.GetSeedCount(paddingAlphabet),
             MotelyAesthetic.Runs => RunsAestheticSeeds.GetSeedCount(paddingAlphabet),
             MotelyAesthetic.Step => StepAestheticSeeds.GetSeedCount(paddingAlphabet),
-            MotelyAesthetic.Pi => PiAestheticSeeds.GetSeedCount(paddingAlphabet),
-            MotelyAesthetic.Spin => SpinAestheticSeeds.GetSeedCount(paddingAlphabet),
-            MotelyAesthetic.Fibonacci => FibonacciAestheticSeeds.GetSeedCount(paddingAlphabet),
             MotelyAesthetic.Gross
                 or MotelyAesthetic.Funny
                 or MotelyAesthetic.Balatro
@@ -89,9 +78,6 @@ public static class MotelyAesthetics
             MotelyAesthetic.Repeater => RepeaterAestheticSeeds.Enumerate(paddingAlphabet),
             MotelyAesthetic.Runs => RunsAestheticSeeds.Enumerate(paddingAlphabet),
             MotelyAesthetic.Step => StepAestheticSeeds.Enumerate(paddingAlphabet),
-            MotelyAesthetic.Pi => PiAestheticSeeds.Enumerate(paddingAlphabet),
-            MotelyAesthetic.Spin => SpinAestheticSeeds.Enumerate(paddingAlphabet),
-            MotelyAesthetic.Fibonacci => FibonacciAestheticSeeds.Enumerate(paddingAlphabet),
             MotelyAesthetic.Gross
                 or MotelyAesthetic.Funny
                 or MotelyAesthetic.Balatro
@@ -420,176 +406,6 @@ file static class StepAestheticSeeds
             {
                 for (int i = 0; i < buf.Length; i++)
                     buf[i] = alphabet[(start + i * step) % n];
-                yield return new string(buf);
-            }
-        }
-    }
-}
-
-/// <summary>
-/// Pi seeds: every 8-character window of π's first <see cref="DigitCount"/> digits, starting at
-/// <c>31415926</c>. The seed alphabet has no <c>0</c>, so <c>O</c> stands in for it. The digits are
-/// fixed, so the pad alphabet does not apply.
-/// </summary>
-file static class PiAestheticSeeds
-{
-    public const int DigitCount = 10_000;
-
-    private static readonly Lazy<string> Digits = new(() => ComputeDigits(DigitCount).Replace('0', 'O'));
-
-    public static long GetSeedCount(char[]? paddingAlphabet) => DigitCount - MotelyGlobals.MaxSeedLength + 1;
-
-    public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
-    {
-        string digits = Digits.Value;
-        for (int i = 0; i + MotelyGlobals.MaxSeedLength <= digits.Length; i++)
-            yield return digits.Substring(i, MotelyGlobals.MaxSeedLength);
-    }
-
-    // Machin: π = 16·arccot(5) − 4·arccot(239), in fixed point with ten guard digits.
-    private static string ComputeDigits(int count)
-    {
-        var unity = BigInteger.Pow(10, count + 10);
-        var pi = 4 * (4 * ArcCot(5, unity) - ArcCot(239, unity));
-        return pi.ToString()[..count];
-    }
-
-    private static BigInteger ArcCot(int x, BigInteger unity)
-    {
-        BigInteger sum = 0;
-        BigInteger power = unity / x;
-        BigInteger xSquared = x * x;
-        for (int n = 1, sign = 1; !power.IsZero; n += 2, sign = -sign)
-        {
-            sum += sign * (power / n);
-            power /= xSquared;
-        }
-
-        return sum;
-    }
-}
-
-/// <summary>
-/// Spin seeds: 180° ambigrams over lengths 1..<see cref="MotelyGlobals.MaxSeedLength"/>. Turned upside
-/// down the seed reads the same: <c>H I N O S X Z 8</c> map to themselves, <c>M</c>↔<c>W</c> and
-/// <c>6</c>↔<c>9</c> swap, so <c>SWIMS</c>, <c>MOW</c>, <c>NOON</c> and <c>69</c> all qualify.
-/// A pad alphabet keeps only the glyphs (and whole pairs) it contains.
-/// </summary>
-file static class SpinAestheticSeeds
-{
-    private const string Turnable = "689HIMNOSWXZ";
-    private const string TurnedUp = "986HIWNOSMXZ";
-
-    private static (char[] All, char[] Self) EffectiveAlphabet(char[]? paddingAlphabet)
-    {
-        var all = Turnable.ToCharArray();
-        if (paddingAlphabet is { Length: > 0 })
-        {
-            var pad = new HashSet<char>(paddingAlphabet);
-            var kept = all.Where(c => pad.Contains(c) && pad.Contains(Turn(c))).ToArray();
-            if (kept.Length > 0)
-                all = kept;
-        }
-
-        return (all, all.Where(static c => Turn(c) == c).ToArray());
-    }
-
-    private static char Turn(char c) => TurnedUp[Turnable.IndexOf(c)];
-
-    public static long GetSeedCount(char[]? paddingAlphabet)
-    {
-        var (all, self) = EffectiveAlphabet(paddingAlphabet);
-        checked
-        {
-            long total = 0;
-            long halves = 1;
-            for (int len = 1; len <= MotelyGlobals.MaxSeedLength; len++)
-            {
-                if (len % 2 == 0)
-                {
-                    halves *= all.Length;
-                    total += halves;
-                }
-                else
-                {
-                    total += halves * self.Length;
-                }
-            }
-
-            return total;
-        }
-    }
-
-    public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
-    {
-        var (all, self) = EffectiveAlphabet(paddingAlphabet);
-        char[] buf = new char[MotelyGlobals.MaxSeedLength];
-        for (int len = 1; len <= MotelyGlobals.MaxSeedLength; len++)
-        {
-            foreach (var seed in Generate(buf, 0, len, all, self))
-                yield return seed;
-        }
-    }
-
-    private static IEnumerable<string> Generate(char[] buf, int pos, int length, char[] all, char[] self)
-    {
-        int half = length / 2;
-        if (pos == half)
-        {
-            if (length % 2 == 0)
-            {
-                yield return new string(buf, 0, length);
-                yield break;
-            }
-
-            foreach (char c in self)
-            {
-                buf[half] = c;
-                yield return new string(buf, 0, length);
-            }
-
-            yield break;
-        }
-
-        foreach (char c in all)
-        {
-            buf[pos] = c;
-            buf[length - 1 - pos] = Turn(c);
-            foreach (var seed in Generate(buf, pos + 1, length, all, self))
-                yield return seed;
-        }
-    }
-}
-
-/// <summary>
-/// Fibonacci seeds: pick the first two characters, then each next one is the sum of the two before
-/// it (as positions in the pad alphabet, mod its size). Always 8 chars; |alphabet|² seeds.
-/// </summary>
-file static class FibonacciAestheticSeeds
-{
-    public static long GetSeedCount(char[]? paddingAlphabet)
-    {
-        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
-        return checked((long)alphabet.Length * alphabet.Length);
-    }
-
-    public static IEnumerable<string> Enumerate(char[]? paddingAlphabet)
-    {
-        char[] alphabet = MotelyAesthetics.AlphabetOrFull(paddingAlphabet);
-        int n = alphabet.Length;
-        int[] index = new int[MotelyGlobals.MaxSeedLength];
-        char[] buf = new char[MotelyGlobals.MaxSeedLength];
-
-        for (int first = 0; first < n; first++)
-        {
-            for (int second = 0; second < n; second++)
-            {
-                index[0] = first;
-                index[1] = second;
-                for (int i = 2; i < index.Length; i++)
-                    index[i] = (index[i - 1] + index[i - 2]) % n;
-                for (int i = 0; i < buf.Length; i++)
-                    buf[i] = alphabet[index[i]];
                 yield return new string(buf);
             }
         }

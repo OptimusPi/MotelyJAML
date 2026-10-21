@@ -4,8 +4,7 @@ using System.Runtime.Intrinsics;
 
 namespace Motely.Filters;
 
-[YamlDotNet.Serialization.YamlSerializable]
-public sealed partial class TarotCardClause: IMotelyClause, IAnteScopedClause
+public sealed partial class TarotCardClause : IMotelyClause, IAnteScopedClause
 {
     public string? Label { get; set; }
     public int Min { get; set; } = 1;
@@ -24,6 +23,12 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
     : IMotelySeedFilterDesc<TarotCardFilterDesc.TarotCardFilter>
 {
     private readonly TarotCardClause _clause = clause;
+
+    /// <inheritdoc/>
+    public static string[] Discriminators => ["tarotCard", "tarotCards"];
+
+    /// <inheritdoc/>
+    public static string[] ClauseKeys => ["min", "max", "score", "label", "ante", "antes", "sources"];
 
     /// <summary>
     /// Filter-layer default when Sources is null. Shop only; packs/specialty need explicit sources:.
@@ -107,7 +112,7 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
             // charmTag counts only alongside a boosterPacks list — the bonus pack's contents
             // are gated on its pack index being in boosterPacks, so charmTag alone matches
             // nothing by construction.
-            if (sources.CharmTag || sources.TagPacks.Length > 0)
+            if (sources.CharmTag)
             {
                 return ctx.SearchIndividualSeeds(
                     (MotelySingleSearchContext single) =>
@@ -371,9 +376,20 @@ public struct TarotCardFilterDesc(TarotCardClause clause)
 /// <summary>
 /// <c>sources:</c> block for <c>tarotCard:</c>. Colocated with <see cref="TarotCardFilterDesc"/> (T5).
 /// </summary>
-[YamlDotNet.Serialization.YamlSerializable]
 public sealed partial record TarotCardSourceConfig
 {
+    /// <summary>requireMega/requireMegaPack: both real aliases for RequireMegaPack below.</summary>
+    public static readonly string[] SourceKeys =
+    [
+        "shopItems",
+        "boosterPacks",
+        "emperor",
+        "purpleSealOrEightBall",
+        "charmTag",
+        "requireMega",
+        "requireMegaPack",
+    ];
+
     public int[] ShopItems { get; set; } = [];
     public int[] BoosterPacks { get; set; } = [];
     public int[] Emperor { get; set; } = [];
@@ -383,14 +399,6 @@ public sealed partial record TarotCardSourceConfig
     /// When true, booster arcana scoring may consume the Charm-tag bonus pack (second weighted slot, no natural Arcana).
     /// </summary>
     public bool CharmTag { get; set; }
-
-    /// <summary>
-    /// Charm Tag Mega Arcana packs, opened at blind select before the ante's shop: 0 = small-blind
-    /// tag, 1 = big-blind tag. Each takes the next 5 draws of the ante's <c>ar1</c> stream, so shop
-    /// Arcana packs in the same clause draw after them. Listing a pack assumes the player skipped
-    /// that blind for a Charm Tag; pair it with a <c>smallBlindTag</c>/<c>bigBlindTag</c> must.
-    /// </summary>
-    public int[] TagPacks { get; set; } = [];
 
     /// <summary>When true, only Mega-sized Arcana packs count (Normal/Jumbo still advance the stream).</summary>
     public bool RequireMegaPack { get; set; }

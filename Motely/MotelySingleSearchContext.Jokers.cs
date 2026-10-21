@@ -39,17 +39,6 @@ public class MotelySingleJokerResampleStreams
     public MotelySingleResampleStream RareJokerResampleStream = MotelySingleResampleStream.Invalid;
 }
 
-/// <summary>
-/// The legendary pool for a whole run. Balatro keys it <c>Joker4</c> with no ante (and its resamples
-/// <c>Joker4_resample{n}</c>), so one stream serves every Soul the player opens, antes included.
-/// Editions are not here: those come from each ante's <c>edisou{ante}</c> stream.
-/// </summary>
-public struct MotelySingleLegendaryJokerStream
-{
-    public MotelySinglePrngStream JokerPrngStream;
-    public MotelySingleResampleStream ResampleStream;
-}
-
 public struct MotelySingleJokerFixedRarityStream
 {
     public MotelyJokerRarity Rarity;
@@ -141,23 +130,18 @@ public unsafe partial class MotelySingleSearchContext
         );
     }
 
-    /// <summary>
-    /// Wraith always makes a Rare: Balatro calls <c>create_card('Joker', G.jokers, nil, 0.99, …, 'wra')</c>,
-    /// so there is no rarity roll and the pool key is <c>Joker3wra{ante}</c>.
-    /// </summary>
-    public MotelySingleJokerFixedRarityStream CreateWraithJokerStream(
+    public MotelySingleJokerStream CreateWraithJokerStream(
         int ante,
-        MotelyJokerFixedRarityStreamFlags flags = MotelyJokerFixedRarityStreamFlags.Default,
+        MotelyJokerStreamFlags flags = MotelyJokerStreamFlags.Default,
         bool isCached = false
     )
     {
-        return CreateJokerFixedRarityStream(
+        return CreateJokerStream(
             MotelyPrngKeys.SpectralWraith,
             MotelyPrngKeys.DefaultJokerEternalPerishableSource,
             MotelyPrngKeys.DefaultJokerRentalSource,
             ante,
-            flags | MotelyJokerFixedRarityStreamFlags.ExcludeStickers,
-            MotelyJokerRarity.Rare,
+            flags | MotelyJokerStreamFlags.ExcludeStickers,
             isCached
         );
     }
@@ -240,64 +224,6 @@ public unsafe partial class MotelySingleSearchContext
             "Soul joker stream should provide editions unless explicitly excluded"
         );
         return stream;
-    }
-
-    /// <summary>Create once per run walk; see <see cref="MotelySingleLegendaryJokerStream"/>.</summary>
-    public MotelySingleLegendaryJokerStream CreateRunLegendaryJokerStream() =>
-        new()
-        {
-            JokerPrngStream = CreatePrngStream(MotelyPrngKeys.JokerLegendary),
-            ResampleStream = CreateResampleStream(MotelyPrngKeys.JokerLegendary, false),
-        };
-
-    /// <summary>
-    /// The legendary the next opened Soul gives. A legendary in <paramref name="held"/> is out of the
-    /// pool (Balatro's <c>used_jokers</c>), so landing on it resamples — unless Showman is active
-    /// (<paramref name="showmanActive"/>, the run state seeded from the clause's <c>with:</c>). With
-    /// all five held the pool is empty and the game falls back to <c>j_joker</c>, still drawing once.
-    /// </summary>
-    public MotelyJoker GetNextLegendaryJoker(
-        ref MotelySingleLegendaryJokerStream stream,
-        ReadOnlySpan<MotelyJoker> held,
-        bool showmanActive
-    )
-    {
-        bool poolKeepsHeld = showmanActive;
-        if (!poolKeepsHeld && AllLegendariesHeld(held))
-        {
-            GetNextPrngState(ref stream.JokerPrngStream);
-            return MotelyJoker.Joker;
-        }
-
-        MotelyJoker joker = GetNextJoker<MotelyJokerLegendary>(
-            ref stream.JokerPrngStream,
-            MotelyJokerRarity.Legendary
-        );
-
-        for (int resample = 0; !poolKeepsHeld && held.Contains(joker); resample++)
-        {
-            joker = GetNextJoker<MotelyJokerLegendary>(
-                ref GetResamplePrngStream(
-                    ref stream.ResampleStream,
-                    MotelyPrngKeys.JokerLegendary,
-                    resample
-                ),
-                MotelyJokerRarity.Legendary
-            );
-        }
-
-        return joker;
-    }
-
-    private static bool AllLegendariesHeld(ReadOnlySpan<MotelyJoker> held)
-    {
-        foreach (var legendary in MotelyEnum<MotelyJokerLegendary>.Values)
-        {
-            if (!held.Contains((MotelyJoker)((int)MotelyJokerRarity.Legendary | (int)legendary)))
-                return false;
-        }
-
-        return true;
     }
 
     public MotelySingleJokerFixedRarityStream CreateRareTagJokerStream(
@@ -606,14 +532,8 @@ public unsafe partial class MotelySingleSearchContext
         return item;
     }
 
-    /// <summary>
-    /// Pack draw with in-pack duplicate resampling. Balatro picks the joker first (resampling on
-    /// <c>Joker{r}{src}{ante}_resample{n}</c> while it duplicates one already in the pack), then rolls
-    /// stickers and edition for the final card. The resample streams live on
-    /// <see cref="MotelySingleJokerStream.ResampleStreams"/> so they keep their position across every
-    /// pack of the ante, exactly like the game's persistent <c>pseudoseed</c> keys.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // Overload that handles duplicate checking for packs using resample stream
     public MotelyItem GetNextJoker(
         ref MotelySingleJokerStream stream,
         in MotelySingleItemSet itemSet
@@ -624,7 +544,104 @@ public unsafe partial class MotelySingleSearchContext
             "Joker stream should have resample key for duplicate handling in packs"
         );
 
-        return GetNextJokerInternal(ref stream, in itemSet);
+        MotelyItem joker = GetNextJokerInternal(
+            ref stream,
+            in Unsafe.NullRef<MotelySingleItemSet>()
+        );
+
+        // If we got an excluded joker, don't check for duplicates
+        if (joker.Type == MotelyItemType.JokerExcludedByStream)
+            return joker;
+
+        // If no duplicate, return immediately
+        if (!itemSet.Contains(joker))
+            return joker;
+
+        // Determine the rarity-specific resample key based on the original joker's rarity
+        MotelyJokerRarity originalRarity = (MotelyJokerRarity)((int)joker.Type & 0xF00);
+        string rarityPrefix = originalRarity switch
+        {
+            MotelyJokerRarity.Rare => MotelyPrngKeys.JokerRare,
+            MotelyJokerRarity.Uncommon => MotelyPrngKeys.JokerUncommon,
+            _ => MotelyPrngKeys.JokerCommon,
+        };
+        string resampleKey = rarityPrefix + stream.ResampleKey;
+
+        // Create the resample stream with the correct key
+        var resampleStream = CreateResampleStream(resampleKey, false);
+        int resampleCount = 0;
+
+        // Keep rerolling while we have duplicates
+        while (itemSet.Contains(joker))
+        {
+            ref var resamplePrngStream = ref GetResamplePrngStream(
+                ref resampleStream,
+                resampleKey,
+                resampleCount
+            );
+
+            // Get new joker of same rarity
+            MotelyJoker newJoker = originalRarity switch
+            {
+                MotelyJokerRarity.Rare => GetNextJoker<MotelyJokerRare>(
+                    ref resamplePrngStream,
+                    MotelyJokerRarity.Rare
+                ),
+                MotelyJokerRarity.Uncommon => GetNextJoker<MotelyJokerUncommon>(
+                    ref resamplePrngStream,
+                    MotelyJokerRarity.Uncommon
+                ),
+                _ => GetNextJoker<MotelyJokerCommon>(
+                    ref resamplePrngStream,
+                    MotelyJokerRarity.Common
+                ),
+            };
+
+            // Preserve edition and stickers from original (Balatro doesn't re-roll these)
+            joker = new MotelyItem(newJoker).WithEdition(joker.Edition);
+            if (joker.IsEternal)
+                joker = joker.WithEternal(true);
+            if (joker.IsPerishable)
+                joker = joker.WithPerishable(true);
+            if (joker.IsRental)
+                joker = joker.WithRental(true);
+
+            resampleCount++;
+
+            if (joker.Type == MotelyItemType.JokerExcludedByStream)
+                return joker;
+        }
+
+        return joker;
+    }
+
+    // Helper for applying stickers from resample stream
+    private MotelyItem ApplyNextStickersFromResample(
+        MotelyItem item,
+        ref MotelySinglePrngStream resampleStream
+    )
+    {
+        if (Stake < MotelyStake.Black)
+            return item;
+
+        double stickerPoll = GetNextRandom(ref resampleStream);
+
+        item = item.WithEternal(stickerPoll > 0.7);
+
+        if (Stake < MotelyStake.Orange)
+            return item;
+
+        item = item.WithPerishable(stickerPoll > 0.4 && stickerPoll <= 0.7);
+
+        if (Stake < MotelyStake.Gold)
+            return item;
+
+        // Use another roll for rental
+        stickerPoll = GetNextRandom(ref resampleStream);
+
+        item = item.WithRental(stickerPoll > 0.7);
+
+        return item;
     }
 
     public MotelyItem GetNextJoker(ref MotelySingleJokerStream stream) =>
@@ -776,10 +793,6 @@ public unsafe partial class MotelySingleSearchContext
                                 );
                                 break;
                         }
-
-                        // Advance to the next resample substream (_resample2, _resample3, …) so a
-                        // back-to-back duplicate retries the next seed, not the same one forever.
-                        resample++;
                     } while (
                         items.Contains(
                             (MotelyItemType)((int)MotelyItemTypeCategory.Joker | (int)joker)
