@@ -32,6 +32,11 @@ public static partial class JamlConfigLoader
             return Deserializer.Deserialize<JamlConfig?>(new JamlParser(text))
                 ?? throw new InvalidOperationException("JAML: the document is empty.");
         }
+        catch (InvalidCastException)
+        {
+            // A scalar document (a CSV, a seed list) parses as one string, not a mapping.
+            throw new InvalidOperationException("JAML: not a filter (expected keys like name:, must:, should:).");
+        }
         catch (YamlException ex)
         {
             var inner = ex;

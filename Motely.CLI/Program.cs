@@ -38,7 +38,7 @@ Option<string> jamlOption = new("--jaml")
 };
 Option<string> analyzeOption = new("--analyze")
 {
-    Description = "Print each comma-separated seed's antes: boss, voucher, tags, shop and packs.",
+    Description = "Print each seed's antes: boss, voucher, tags, shop and packs. Comma-separated seeds, a seed file, or - for stdin.",
 };
 Option<MotelyDeck?> deckOption = new("--deck")
 {
@@ -49,7 +49,10 @@ Option<MotelyStake?> stakeOption = new("--stake")
     Description = "Search: replaces the filter's stake. Analyze: the stake (default White).",
 };
 Option<int?> threadsOption = new("--threads") { Description = "Worker threads (default: every core)." };
-Option<string> seedsOption = new("--seeds") { Description = "Search exactly these comma-separated seeds." };
+Option<string> seedsOption = new("--seeds")
+{
+    Description = "Search exactly these seeds: comma-separated, a seed file (first column; a motely CSV works), or - for stdin.",
+};
 Option<bool> replayOption = new("--replay") { Description = "Search the filter file's own seeds: block." };
 Option<string> keywordOption = new("--keyword") { Description = "Search seeds containing this word." };
 Option<string> keywordsOption = new("--keywords")
@@ -169,15 +172,15 @@ int Analyze(ParseResult parseResult, string seedList)
     var deck = parseResult.GetValue(deckOption) ?? MotelyDeck.Red;
     var stake = parseResult.GetValue(stakeOption) ?? MotelyStake.White;
 
-    int failed = 0;
-    foreach (var raw in seedList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    if (!CliSearchMode.TryResolveSeeds(seedList, out var seeds, out var seedsError))
     {
-        if (!CliSearchMode.TryNormalizeSeed(raw, out var seed))
-        {
-            Console.Error.WriteLine($"Error: '{raw}' is not a seed ({CliSearchMode.SeedRule}).");
-            failed++;
-            continue;
-        }
+        Console.Error.WriteLine(seedsError.Replace("--seeds", "--analyze"));
+        return 1;
+    }
+
+    int failed = 0;
+    foreach (var seed in seeds)
+    {
         var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, deck, stake));
         if (!string.IsNullOrEmpty(analysis.Error))
         {

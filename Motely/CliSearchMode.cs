@@ -183,26 +183,8 @@ public static class CliSearchMode
         }
         else if (hasSeedsArg)
         {
-            var seedsValue = input.SeedsArgument!;
-            if (
-                seedsValue.Contains(Path.DirectorySeparatorChar)
-                || seedsValue.Contains(Path.AltDirectorySeparatorChar)
-                || Path.HasExtension(seedsValue)
-            )
-            {
-                error = $"Error: --seeds takes inline seeds (A1B2C3D4,E5F6G7H8), not a file: '{seedsValue}'.";
+            if (!TryResolveSeeds(input.SeedsArgument!, out explicitSeeds, out error))
                 return false;
-            }
-
-            if (!TryParseInlineSeeds(seedsValue, out var inlineSeeds, out error))
-                return false;
-            if (inlineSeeds.Count == 0)
-            {
-                error = "Error: --seeds requires at least one inline seed.";
-                return false;
-            }
-
-            explicitSeeds = inlineSeeds.ToArray();
         }
 
         if (explicitSeeds != null)
@@ -352,6 +334,72 @@ public static class CliSearchMode
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// What --seeds names: a seed file (an earlier run's CSV, a .txt, a filter's export), "-" for
+    /// stdin, or inline comma-separated seeds. Repeats are searched once.
+    /// </summary>
+    public static bool TryResolveSeeds(
+        string value,
+        [NotNullWhen(true)] out string[]? seeds,
+        [NotNullWhen(false)] out string? error
+    )
+    {
+        seeds = null;
+        List<string> list;
+        if (value.Trim() == "-")
+            list = ReadSeedFile(Console.In, "stdin");
+        else if (File.Exists(value))
+        {
+            using var reader = File.OpenText(value);
+            list = ReadSeedFile(reader, value);
+        }
+        else if (
+            value.Contains(Path.DirectorySeparatorChar)
+            || value.Contains(Path.AltDirectorySeparatorChar)
+            || Path.HasExtension(value)
+        )
+        {
+            error = $"Error: --seeds: no seed file at {Path.GetFullPath(value)}.";
+            return false;
+        }
+        else if (!TryParseInlineSeeds(value, out list, out error))
+            return false;
+
+        seeds = [.. list.Distinct()];
+        if (seeds.Length == 0)
+        {
+            error = $"Error: --seeds: no seeds in '{value}'.";
+            seeds = null;
+            return false;
+        }
+        error = null;
+        return true;
+    }
+
+    /// <summary>
+    /// The first column of each line: motely's own CSV (its seed,score header is skipped), a plain
+    /// list, or a spreadsheet export (quotes and a formula's leading '=' stripped). A line that is
+    /// still not a seed is reported on stderr and skipped, so one bad cell doesn't sink the run.
+    /// </summary>
+    private static List<string> ReadSeedFile(TextReader reader, string name)
+    {
+        List<string> seeds = [];
+        int lineNumber = 0;
+        while (reader.ReadLine() is { } line)
+        {
+            lineNumber++;
+            int comma = line.IndexOf(',');
+            var cell = (comma < 0 ? line : line[..comma]).Trim().Trim('"').TrimStart('=').Trim();
+            if (cell.Length == 0 || (lineNumber == 1 && cell.Equals("seed", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            if (TryNormalizeSeed(cell, out var seed))
+                seeds.Add(seed);
+            else
+                Console.Error.WriteLine($"Warning: {name} line {lineNumber}: '{cell}' is not a seed ({SeedRule}); skipped.");
+        }
+        return seeds;
     }
 
     private static bool TryParseInlineSeeds(

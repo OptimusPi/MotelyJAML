@@ -30,7 +30,7 @@ public static class MotelyTools
         return $"Error: {error}";
     }
 
-    [McpServerTool, Description("Run a search over a JAML filter and return matching seeds. Modes: replay (default), keyword <kw>, random <n>, sequential. Stops after collect matches (default 100, max 10,000).")]
+    [McpServerTool, Description("Run a search over a JAML filter and return matching seeds. Modes: replay (default; the filter's saved seeds), seeds <A1B2C3D4,... or an absolute path to a seed file/CSV>, keyword <kw>, random <n>, sequential. Stops after collect matches (max 10,000; default 100, or the whole list for replay/seeds).")]
     [McpAppUi(ResourceUri = "ui://motely/search")]
     public static async Task<string> Search(
         ClaimsPrincipal? user,
@@ -71,12 +71,7 @@ public static class MotelyTools
             $"{filter}: {matched:N0} matched / {total:N0} searched in {FormatDuration(elapsed)} ({rate:N0} seeds/s) by {who}."
         );
         if (matches.Count > 0)
-        {
-            var shown = matches.Take(50);
-            sb.AppendLine("Matches: " + string.Join(", ", shown));
-            if (matches.Count > 50)
-                sb.AppendLine($"… and {matches.Count - 50:N0} more.");
-        }
+            sb.AppendLine("Matches: " + string.Join(", ", matches));
         else
             sb.AppendLine("No seeds matched.");
         return sb.ToString();

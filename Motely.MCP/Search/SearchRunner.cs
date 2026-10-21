@@ -45,7 +45,8 @@ public sealed class SearchRunner
     /// <summary>
     /// Yields progress, matches and a terminal summary for <paramref name="filter"/>. A null or
     /// empty <paramref name="mode"/> replays the filter's saved seeds (fast, deterministic);
-    /// "keyword &lt;kw&gt;", "random &lt;n&gt;" and "sequential" select the other engines.
+    /// "seeds &lt;list or file&gt;", "keyword &lt;kw&gt;", "random &lt;n&gt;" and "sequential" select
+    /// the other engines.
     /// </summary>
     public async IAsyncEnumerable<SearchEvent> RunAsync(
         string filter,
@@ -73,7 +74,7 @@ public sealed class SearchRunner
             yield break;
         }
 
-        var (keyword, random, replay, modeError) = ParseMode(mode);
+        var (keyword, random, replay, seeds, modeError) = ParseMode(mode);
         if (modeError is not null)
         {
             yield return new SearchEvent.Error(modeError);
@@ -81,7 +82,7 @@ public sealed class SearchRunner
         }
 
         var input = new CliSearchMode.Input(
-            SeedsArgument: null,
+            SeedsArgument: seeds,
             Replay: replay,
             JamlPath: path,
             FilterId: config.Id,
@@ -106,7 +107,9 @@ public sealed class SearchRunner
 
         // Remote callers always get a cap: a sequential run with no limit walks the whole seed
         // space (~2.3 trillion seeds) and would hold the request, and the match list, forever.
-        settings = settings.StopAfter(Math.Clamp(collect ?? DefaultCollect, 1, MaxCollect));
+        // A replay or seed list is finite, so by default it runs to the end of the list.
+        bool finite = replay || seeds is not null;
+        settings = settings.StopAfter(Math.Clamp(collect ?? (finite ? MaxCollect : DefaultCollect), 1, MaxCollect));
 
         var channel = Channel.CreateUnbounded<SearchEvent>();
         var matches = new List<string>();
@@ -215,36 +218,45 @@ public sealed class SearchRunner
         }
     }
 
-    /// <summary>Splits a mode string into (keyword, random, replay); exactly one is set, or an error.</summary>
-    private static (string? keyword, int? random, bool replay, string? error) ParseMode(string? mode)
+    /// <summary>Splits a mode string into (keyword, random, replay, seeds); exactly one is set, or an error.</summary>
+    private static (string? keyword, int? random, bool replay, string? seeds, string? error) ParseMode(string? mode)
     {
         if (string.IsNullOrWhiteSpace(mode) || mode == "replay")
-            return (null, null, true, null);
+            return (null, null, true, null, null);
+
+        if (mode.StartsWith("seeds ", StringComparison.OrdinalIgnoreCase))
+        {
+            var list = mode["seeds ".Length..].Trim();
+            return list.Length == 0
+                ? (null, null, false, null, "Error: 'seeds' needs comma-separated seeds or a seed file path after it.")
+                : (null, null, false, list, null);
+        }
 
         if (mode.StartsWith("keyword ", StringComparison.OrdinalIgnoreCase))
         {
             var kw = mode["keyword ".Length..].Trim();
             return kw.Length == 0
-                ? (null, null, false, "Error: 'keyword' needs a seed word after it.")
-                : (kw, null, false, null);
+                ? (null, null, false, null, "Error: 'keyword' needs a seed word after it.")
+                : (kw, null, false, null, null);
         }
 
         if (mode.StartsWith("random ", StringComparison.OrdinalIgnoreCase))
         {
             var n = mode["random ".Length..].Trim();
             return int.TryParse(n, out var count) && count > 0
-                ? (null, count, false, null)
-                : (null, null, false, $"Error: 'random' needs a positive count, got '{n}'.");
+                ? (null, count, false, null, null)
+                : (null, null, false, null, $"Error: 'random' needs a positive count, got '{n}'.");
         }
 
         if (mode == "sequential")
-            return (null, null, false, null);
+            return (null, null, false, null, null);
 
         return (
             null,
             null,
             false,
-            $"Error: unknown mode '{mode}'. Use replay, keyword <kw>, random <n>, or sequential."
+            null,
+            $"Error: unknown mode '{mode}'. Use replay, seeds <list or file>, keyword <kw>, random <n>, or sequential."
         );
     }
 }
