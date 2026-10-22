@@ -15,11 +15,19 @@ public static partial class JamlConfigLoader
 
     private static IDeserializer CreateDeserializer()
     {
+        // Build order matters: first registered = first tried (first-wins).
+        // Shorthand must intercept scalars and shorthand-mixed mappings
+        // BEFORE the default discriminator logic sees them.
+        var defaultClauseDeserializer = new ClauseTypeDiscriminatingNodeDeserializer();
+        var shorthandClauseDeserializer = new JamlShorthandClauseDeserializer(defaultClauseDeserializer);
+
         var builder = new StaticDeserializerBuilder(new JamlYamlContext())
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .WithCaseInsensitivePropertyMatching()
-            .WithNodeDeserializer(new ClauseTypeDiscriminatingNodeDeserializer())
+            .WithNodeDeserializer(shorthandClauseDeserializer)
+            .WithNodeDeserializer(defaultClauseDeserializer)
             .WithNodeDeserializer(new JamlEnumNodeDeserializer());
+
         foreach (var converter in JamlClauseBinding.Converters)
             builder = builder.WithTypeConverter(converter);
         return builder.Build();
