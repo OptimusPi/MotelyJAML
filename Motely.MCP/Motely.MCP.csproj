@@ -12,6 +12,8 @@
     <RootNamespace>Motely.MCP</RootNamespace>
     <!-- MCP Apps is an evaluation extension (MCPEXP003); we ship it deliberately. -->
     <NoWarn>$(NoWarn);MCPEXP003</NoWarn>
+    <!-- Request filters are an evaluation extension (MCPEXP002); the tool-error filter ships too. -->
+    <NoWarn>$(NoWarn);MCPEXP002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

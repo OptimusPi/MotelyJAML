@@ -2,11 +2,13 @@ using System.Text;
 using Motely.MCP.Agui;
 using Motely.MCP.Agent;
 using Motely.MCP.Resources;
+using Motely.MCP.Tools;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.AspNetCore.Authentication;
 using ModelContextProtocol.Extensions.Apps;
+using ModelContextProtocol.Server;
 
 // The filters directory: MOTELY_FILTERS_DIR (Aspire sets it on the mcp resource), else the repo's
 // JamlFilters/. FilterCheck reads the variable, so it is set before any filter is resolved.
@@ -27,6 +29,36 @@ builder.Services
     .WithToolsFromAssembly()
     .WithResources<MotelyResources>()
     .WithMcpApps();
+
+// IHttpContextAccessor: the tools take a ClaimsPrincipal; the SDK's tool invoker resolves it from
+// HttpContext, which needs this registration.
+builder.Services.AddHttpContextAccessor();
+
+// The server-level usage brief, returned on initialize so agents read it before tools/list, plus
+// the tool-error filter that turns tool exceptions into corrective isError results.
+builder.Services.Configure<McpServerOptions>(options =>
+{
+    options.ServerInstructions =
+        """
+        Motely seed search over JAML filters.
+
+        Seeds are 8 characters from 1-9 and A-Z; 0 is never used (it reads as O). Filters live in
+        JamlFilters/ — pass the filter name ("boss-the-eye") or an absolute path. Validate a new or
+        edited filter with seed_validate before seed_search.
+
+        seed_search modes: replay (the filter's saved seeds), seeds + seeds (comma list or absolute
+        file path), keyword + keyword (a seed word's padded space), random + randomCount (fresh
+        sample every call — not deterministic), sequential (space sweep — always pass collect).
+        Exactly one mode with its matching source field; anything else is an error naming the fix.
+
+        Auth: in Development with no Mcp:Authority, POST /dev/token mints a dev JWT; production
+        uses the configured authority.
+        """;
+
+    options.Filters ??= new McpServerFilters();
+    options.Filters.Request ??= new McpRequestFilters();
+    options.Filters.Request.CallToolFilters.Add(ToolErrorFilter.Filter);
+});
 
 // The AG-UI endpoint, backed by the deterministic agent registered as the IChatClient.
 builder.Services.AddAGUI();
