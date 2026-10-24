@@ -49,7 +49,8 @@ public enum SeedSearchMode
 /// <param name="Searched">Seeds the engine evaluated.</param>
 /// <param name="DurationMs">Wall-clock run time in milliseconds.</param>
 /// <param name="SeedsPerSecond">Engine throughput for the run.</param>
-/// <param name="Matches">The matched seeds, capped at the effective collect limit.</param>
+/// <param name="Matches">The matched seeds. The run stops after at least the collect limit's
+/// worth, so the engine can overshoot it by one batch; the note flags real truncation.</param>
 /// <param name="Note">Truncation or sampling caveats; null when there are none.</param>
 /// <param name="RequestedBy">The authenticated caller, or "anonymous".</param>
 public sealed record SeedSearchResult(
@@ -97,7 +98,8 @@ public static class MotelyTools
         </examples>
 
         Returns: plain text — "ok: <name> (<deck> <stake>) — <n> must, <n> should, <n> mustNot; the
-        search plan builds." on success, "Error: <reason>" on failure.
+        search plan builds." on success. A failure (missing filter, broken plan) is a tool-execution
+        error: an isError result carrying "Error: <reason>", same as seed_search.
         Cost: negligible; the plan builds in memory in milliseconds.
         """
     )]
@@ -105,14 +107,14 @@ public static class MotelyTools
     {
         var path = FilterCheck.ResolvePath(filter);
         if (!File.Exists(path))
-            return $"Error: no filter at {path}.";
+            throw new InvalidOperationException($"Error: no filter at {path}.");
 
         if (FilterCheck.TryCheck(File.ReadAllText(path), out var config, out _, out var error))
             return $"ok: {config.Name ?? "unnamed"} ({config.Deck} {config.Stake}) — "
                 + $"{config.Must.Count} must, {config.Should.Count} should, {config.MustNot.Count} mustNot; "
                 + "the search plan builds.";
 
-        return $"Error: {error}";
+        throw new InvalidOperationException($"Error: {error}");
     }
 
     // IdempotentHint is deliberately NOT set: random mode draws from Random.Shared, so two calls
@@ -157,8 +159,9 @@ public static class MotelyTools
         </examples>
 
         Returns: structured content { filter, mode, matched, searched, durationMs,
-        seedsPerSecond, matches, note, requestedBy }; `matches` holds at most the effective collect
-        limit and `note` flags any truncation.
+        seedsPerSecond, matches, note, requestedBy }; `matched` counts every match in the run and
+        `matches` lists them (the run stops after at least `collect` matches, so one batch of
+        overshoot is normal); `note` flags when `matched` exceeded what `matches` can carry.
         Cost: replay/seeds are bounded by the list (instant). random ≈ seconds at ~70k seeds/s
         (random 100k ≈ 1.5 s). keyword depends on the word's padded space. sequential over the
         uncapped space can run ~2.3T seeds — always pass `collect` for sequential.

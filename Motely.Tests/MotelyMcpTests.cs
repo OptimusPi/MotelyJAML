@@ -54,7 +54,10 @@ public sealed class MotelyMcpTests
     [Fact]
     public void ValidateFilter_rejects_a_missing_filter()
     {
-        Assert.StartsWith("Error:", MotelyTools.ValidateFilter("no-such-filter"));
+        // A missing filter is a tool-execution error, not an "ok"-shaped answer: the tool-error
+        // filter turns the throw into an isError result whose text is the same "Error: ..." line.
+        var ex = Assert.Throws<InvalidOperationException>(() => MotelyTools.ValidateFilter("no-such-filter"));
+        Assert.StartsWith("Error:", ex.Message);
     }
 
     [Fact]

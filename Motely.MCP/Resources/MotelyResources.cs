@@ -40,7 +40,7 @@ public sealed class MotelyResources
           <h1>Motely Search</h1>
           <div class="card">
             <label for="filter">Filter</label>
-            <input id="filter" placeholder="perkeo" />
+            <input id="filter" placeholder="boss-the-eye" />
             <label for="mode">Mode</label>
             <select id="mode">
               <option value="replay">replay (saved seeds)</option>

@@ -9,7 +9,7 @@ namespace Motely.MCP.Agent;
 
 /// <summary>
 /// The deterministic <see cref="IChatClient"/> behind the AG-UI <c>/agui</c> endpoint. It reads a
-/// request like "search perkeo" (optionally "keyword joker", "random 500", "sequential"), runs the
+/// request like "search boss-the-eye" (optionally "keyword joker", "random 500", "sequential"), runs the
 /// real engine through a <see cref="SearchRunner"/>, and streams the run as AG-UI events: text for
 /// narration, <see cref="StateSnapshotEvent"/> for live progress, and the matched seeds as a live
 /// feed. No model in the loop, so a given request always produces the same run — which makes the
@@ -33,7 +33,7 @@ public sealed class MotelySearchAgent : IChatClient
         }
         if (filter is null)
         {
-            yield return Text("Tell me which JAML filter to search, e.g. \"search perkeo\".");
+            yield return Text("Tell me which JAML filter to search, e.g. \"search boss-the-eye\".");
             yield break;
         }
 

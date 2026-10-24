@@ -4,7 +4,7 @@
     "Motely.MCP": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5000",
+      "applicationUrl": "http://localhost:5200",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "MOTELY_FILTERS_DIR": "../JamlFilters"

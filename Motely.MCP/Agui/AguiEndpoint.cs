@@ -44,6 +44,12 @@ internal static class AguiEndpoint
                 CancellationToken cancellationToken
             ) =>
             {
+                // The spec asks the agent to mint thread/run ids the client didn't send, so
+                // RUN_STARTED/RUN_FINISHED always carry real ones; set them on the input before it
+                // becomes the request context the event stream reads them from.
+                input.ThreadId = string.IsNullOrEmpty(input.ThreadId) ? Guid.NewGuid().ToString("n") : input.ThreadId;
+                input.RunId = string.IsNullOrEmpty(input.RunId) ? Guid.NewGuid().ToString("n") : input.RunId;
+
                 var jsonSerializerOptions = jsonOptions.Value.SerializerOptions;
                 var ctx = input.ToChatRequestContext(jsonSerializerOptions);
                 var updates = chatClient.GetStreamingResponseAsync(
