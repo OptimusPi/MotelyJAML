@@ -31,12 +31,14 @@ builder
     .WithEnvironment("MOTELY_FILTERS_DIR", filters)
     .WithExplicitStart();
 
-builder.AddViteApp("web", "../Motely.Web");
-
 // The MCP + AG-UI server. Runs as an Aspire resource: its URL is on the dashboard, and it shares
-// the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI resources do.
-builder
+// the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI resources do. The web resource
+// references it so the Vite dev server learns the URL through service discovery and can proxy
+// /agui (the agent panel calls same-origin).
+var mcp = builder
     .AddProject<Projects.Motely_MCP>("mcp")
     .WithEnvironment("MOTELY_FILTERS_DIR", filters);
+
+builder.AddViteApp("web", "../Motely.Web").WithReference(mcp);
 
 builder.Build().Run();

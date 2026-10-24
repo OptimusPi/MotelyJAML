@@ -1,10 +1,21 @@
 import { useState } from "react";
-import { JimboApp, JimboBackground, JimboBalatroFooter, JimboBadge, JimboWordmark, SeedLab, STARTER_JAML } from "jaml-ui";
+import {
+  JimboApp,
+  JimboBackground,
+  JimboBalatroFooter,
+  JimboBadge,
+  JimboTabs,
+  JimboWordmark,
+  SeedLab,
+  STARTER_JAML,
+} from "jaml-ui";
+import { AgentPanel } from "./AgentPanel.js";
 import { FilterFolder, type OpenedFilter } from "./FilterFolder.js";
 import { useSeedLabWebMCP } from "./webmcp.js";
 
 export function App({ folders }: { folders: boolean }) {
   const [opened, setOpened] = useState<OpenedFilter | null>(null);
+  const [tab, setTab] = useState<"lab" | "agent">("lab");
   // WebMCP tools are registered for as long as the lab is mounted; the badge says an
   // in-page agent (native WebMCP) can drive seed_validate / seed_search directly.
   const agentReady = useSeedLabWebMCP();
@@ -25,9 +36,23 @@ export function App({ folders }: { folders: boolean }) {
             </JimboBadge>
           ) : null}
         </div>
-        {folders ? <FilterFolder opened={opened} onOpen={setOpened} /> : null}
-        {/* Opening a filter remounts the lab with that text: a new filter is a new search. */}
-        <SeedLab key={opened?.name ?? "starter"} defaultJaml={opened?.yaml ?? STARTER_JAML} />
+        <JimboTabs
+          tabs={[
+            { id: "lab", label: "Seed Lab" },
+            { id: "agent", label: "Server Agent" },
+          ]}
+          activeTab={tab}
+          onTabChange={(id) => setTab(id === "agent" ? "agent" : "lab")}
+        />
+        {tab === "agent" ? (
+          <AgentPanel />
+        ) : (
+          <>
+            {folders ? <FilterFolder opened={opened} onOpen={setOpened} /> : null}
+            {/* Opening a filter remounts the lab with that text: a new filter is a new search. */}
+            <SeedLab key={opened?.name ?? "starter"} defaultJaml={opened?.yaml ?? STARTER_JAML} />
+          </>
+        )}
       </JimboApp>
     </>
   );

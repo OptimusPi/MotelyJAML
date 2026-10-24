@@ -10,7 +10,7 @@ Balatro seed search. You write a filter in JAML (YAML), and a SIMD engine sweeps
 | `Motely.Lsp`, `vscode-jaml` | Editor support for JAML |
 | `Motely.Wasm`, `Motely.Web` | Browser build and SeedLab UI |
 | `Motely.AppHost` | Runs it all under Aspire |
-| `JamlFilters/` | Filters. A bare name like `perkeo` means `JamlFilters/perkeo.yaml` |
+| `JamlFilters/` | Filters. A bare name like `boss-the-eye` means `JamlFilters/boss-the-eye.yaml` |
 
 ## CLI
 
@@ -56,16 +56,18 @@ motely --analyze pile.csv                                  # read them all
 ## MCP server
 
 ```sh
-dotnet run --project Motely.MCP        # http://localhost:5000/mcp
+dotnet run --project Motely.MCP        # http://localhost:5200/mcp
 ```
 
-- **Claude Code:** `claude mcp add --transport http motely http://localhost:5000/mcp`
+(5200, not 5000: macOS's AirPlay Receiver pins 5000, so the server would fail to bind out of the box.)
+
+- **Claude Code:** `claude mcp add --transport http motely http://localhost:5200/mcp`
 - **VS Code:** `.vscode/mcp.json` already points at this server.
 - **Aspire:** `dotnet run --project Motely.AppHost` (or `aspire run`) starts it as the `mcp` resource, next to the CLI and web resources.
 
 **Tools**
-- `validate_filter(filter)`: the same check as `motely check`.
-- `search(filter, mode?, collect?)`. `mode` is one of:
+- `seed_validate(filter)`: the same check as `motely check`. Failures come back as `isError` results.
+- `seed_search(filter, mode?, ...)` — the structured result carries `matches`, `matched`, `searched`, `durationMs`, `seedsPerSecond`, `note`. `mode` is one of:
   - `replay` (default)
   - `seeds <A1B2C3D4,...>` or `seeds </absolute/path/to/seeds.csv>`. Use an absolute path, because the server runs from its own project directory.
   - `keyword <kw>`
@@ -75,6 +77,11 @@ dotnet run --project Motely.MCP        # http://localhost:5000/mcp
   `collect` defaults to 100 matches, or to the whole list for `replay` and `seeds`. The maximum is 10,000.
 
 **Other endpoints:** `/agui` (AG-UI agent) and `POST /dev/token` (mints a local JWT in Development).
+
+**Agent panel:** Motely.Web's "Server Agent" tab is a small AG-UI client for `/agui` — it runs
+the deterministic `MotelySearchAgent` (real engine, no model) and renders live progress and the
+matched seeds. The Vite dev server proxies `/agui` to the `mcp` resource (service discovery under
+Aspire, `http://localhost:5200` standalone, `MOTELY_MCP_URL` to override).
 
 **Configuration** (`appsettings*.json`, or environment variables like `Mcp__Authority`):
 
