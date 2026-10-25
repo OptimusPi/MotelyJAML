@@ -1,0 +1,14 @@
+/* Overrides after jaml-ui's jimbo.css.
+ *
+ * Balatro button feedback, the actual in-game behavior: the face DARKENS on hover and
+ * darkens further when pressed (jaml-ui ships brightness(1.1) = lighter on hover, which
+ * reads as "highlighted", not "pressed-in"). Pressed also keeps the sink animation.
+ */
+.j-btn:not(.j-btn--disabled):hover .j-btn__face {
+  filter: brightness(0.88);
+}
+
+.j-btn[data-pressed="true"] .j-btn__face,
+.j-btn:active:not(.j-btn--disabled) .j-btn__face {
+  filter: brightness(0.75);
+}

@@ -3,6 +3,7 @@ import * as fs from "@rewaffle/bootsharp-file-system";
 import bootsharp from "motely-wasm";
 import { IFileMounter } from "motely-wasm/bootsharp/file-system";
 import "jaml-ui/jimbo.css";
+import "./jimbo-overrides.css";
 import { App } from "./App.js";
 
 // Folder access binds before boot; boot comes before render because FilterFolder reads JamlFiles.
