@@ -6,9 +6,6 @@ stake: White
 must:
   - boss: ThePlant
     antes:
-      - 1
-      - 2
-      - 3
       - 4
 should:
   - commonJoker: RideTheBus

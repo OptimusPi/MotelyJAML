@@ -6,8 +6,6 @@ stake: White
 must:
   - boss: TheEye
     antes:
-      - 1
-      - 2
       - 3
       - 4
 should:

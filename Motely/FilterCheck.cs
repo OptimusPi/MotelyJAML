@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Motely.Enums;
 using Motely.Filters;
 
 namespace Motely;
@@ -34,6 +35,10 @@ public static class FilterCheck
 
     private static string FiltersDirectory =>
         Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is { Length: > 0 } directory ? directory : "JamlFilters";
+
+    /// <summary>Every filter file in the filters directory (where bare names resolve), sorted by name.</summary>
+    public static IEnumerable<string> ListFilterFiles() =>
+        Directory.Exists(FiltersDirectory) ? Expand(FiltersDirectory) : [];
 
     /// <summary>A directory stands for every .yaml/.yml/.jaml file in it; anything else goes through <see cref="ResolvePath"/>.</summary>
     private static IEnumerable<string> Expand(string filter) =>
@@ -71,6 +76,49 @@ public static class FilterCheck
     }
 
     /// <summary>
+    /// Mistakes that load and plan fine but quietly cost matches: a boss asked for in an ante it
+    /// can never appear in (The Eye before ante 3, a showdown boss off ante 8). A must clause with
+    /// no possible ante makes the whole filter unmatchable.
+    /// </summary>
+    public static IReadOnlyList<string> Warnings(JamlConfig config)
+    {
+        List<string> warnings = [];
+        Scan(config.Must, "must");
+        Scan(config.Should, "should");
+        Scan(config.MustNot, "mustNot");
+        return warnings;
+
+        void Scan(List<IMotelyClause> clauses, string section)
+        {
+            foreach (var boss in clauses.OfType<BossClause>().SelectMany(c => c.Bosses.Select(b => (b, c.Antes))))
+            {
+                var (blind, antes) = boss;
+                var impossible = antes.Where(a => !CanAppear(blind, a)).ToArray();
+                if (impossible.Length == 0)
+                    continue;
+
+                var rule = blind.GetBossType() == MotelyBossBlindType.Finisher
+                    ? "a showdown boss appears only in antes 8, 16, ..."
+                    : $"{blind} first appears in ante {Math.Max(1, blind.GetBossMinAnte())}, and never in antes 8, 16, ...";
+                warnings.Add(
+                    impossible.Length == antes.Length
+                        ? $"{section} boss {blind}: antes [{string.Join(", ", antes)}] are all impossible ({rule}); "
+                            + (section == "must" ? "the filter can never match." : "this clause never counts.")
+                        : $"{section} boss {blind}: ante(s) {string.Join(", ", impossible)} can never hold it ({rule})."
+                );
+            }
+        }
+
+        static bool CanAppear(MotelyBossBlind blind, int ante) =>
+            ante >= 1
+            && (
+                blind.GetBossType() == MotelyBossBlindType.Finisher
+                    ? ante % 8 == 0
+                    : ante % 8 != 0 && ante >= blind.GetBossMinAnte()
+            );
+    }
+
+    /// <summary>
     /// <c>motely check</c>: 0 when every file loads, 1 when any doesn't. A directory checks every
     /// filter in it, and one with none in it fails rather than passing on nothing.
     /// </summary>
@@ -90,7 +138,11 @@ public static class FilterCheck
                     continue;
                 }
                 if (TryCheck(File.ReadAllText(path), out var config, out _, out var error))
+                {
                     Console.WriteLine($"{path}: ok ({config.Name ?? "unnamed"}, {config.Deck} {config.Stake})");
+                    foreach (var warning in Warnings(config))
+                        Console.Error.WriteLine($"{path}: warning: {warning}");
+                }
                 else
                 {
                     Console.Error.WriteLine($"{path}: {error}");

@@ -6,10 +6,7 @@ stake: White
 must:
   - boss: AmberAcorn
     antes:
-      - 1
-      - 2
-      - 3
-      - 4
+      - 8
 should:
   - rareJoker: Blueprint
     score: 50
