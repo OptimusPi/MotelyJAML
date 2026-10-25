@@ -46,7 +46,7 @@ builder.Services.Configure<McpServerOptions>(options =>
         1. filter_list — see the server's filters (narrow with `contains`), or write your own:
            the resource jaml://guide shows the format in a page, jaml://schema has every key.
         2. seed_validate — check the filter: `filter` (a name from filter_list, or an absolute
-           path) or `jaml` (your filter's YAML text; nothing needs saving).
+           path) or `jaml` (your filter's JAML text; nothing needs saving).
         3. seed_search — find seeds. To find NEW seeds use mode random + randomCount, or
            sequential + collect (continue a sweep with the returned nextBatch as startBatch).
            replay runs the filter's saved seeds; seeds + seeds checks a list; keyword + keyword

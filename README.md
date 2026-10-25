@@ -1,6 +1,6 @@
 # MotelyJAML
 
-Balatro seed search. You write a filter in JAML (YAML), and a SIMD engine sweeps seeds against it.
+Balatro seed search. You write a filter in JAML (YAML-shaped), and a SIMD engine sweeps seeds against it.
 
 | Project | What it is |
 |---|---|
@@ -11,6 +11,23 @@ Balatro seed search. You write a filter in JAML (YAML), and a SIMD engine sweeps
 | `Motely.Wasm`, `Motely.Web` | Browser build and SeedLab UI |
 | `Motely.AppHost` | Runs it all under Aspire |
 | `JamlFilters/` | Filters. A bare name like `boss-the-eye` means `JamlFilters/boss-the-eye.yaml` |
+
+## Filters
+
+A filter lists `must`, `should` and `mustNot` clauses. A clause is a mapping, or one line of shorthand that loads to the same clause:
+
+```yaml
+must:
+  - legendaryJoker: Perkeo         # mapping form
+    antes: [1, 2]
+  - The Eye in ante 3              # shorthand: boss: TheEye, antes: [3]
+should:
+  - Negative Blueprint in antes 1-3
+  - Black Hole in ante 2, 3 and 4
+  - Charm Tag in ante 1
+```
+
+Shorthand is `[Edition] <Name> in ante|antes <antes>`. The name is any joker, boss, voucher, tag, tarot, planet or spectral card, in any case, spaces optional. A legendary joker becomes `legendaryJoker`, any other joker `joker`. Antes are numbers and inclusive ranges joined by commas, `or` and `and`, and `in ante` is required. An edition (Foil, Holographic, Polychrome, Negative) fits jokers only. Every other key keeps its default (score 1), so use the mapping form when you need `score`, `sources` and the like. Write shorthand as `- ` list items, because inside `[ ]` a comma splits it. A bad line fails to load with the closest names or the accepted ante forms. The parser is `Motely/Filters/JamlShorthand.cs`.
 
 ## CLI
 
@@ -65,7 +82,7 @@ dotnet run --project Motely.MCP        # http://localhost:5200/mcp
 - **VS Code:** `.vscode/mcp.json` already points at this server.
 - **Aspire:** `dotnet run --project Motely.AppHost` (or `aspire run`) starts it as the `mcp` resource, next to the CLI and web resources.
 
-**Tools.** Every tool that takes a filter accepts either `filter` (a name from `filter_list`, or an absolute path) or `jaml` (the filter's YAML text). With `jaml`, an agent can write and run its own filter without saving anything on the server.
+**Tools.** Every tool that takes a filter accepts either `filter` (a name from `filter_list`, or an absolute path) or `jaml` (the filter's JAML text). With `jaml`, an agent can write and run its own filter without saving anything on the server.
 - `filter_list(contains?)`: the server's filters, with name, deck, stake, clause counts and saved-seed count. A file that fails to load is listed with its error.
 - `seed_validate(filter | jaml)`: the same check as `motely check`. Failures come back as `isError` results.
 - `seed_search(filter | jaml, mode?, ...)`: the structured result carries `matches`, `matched`, `searched`, `durationMs`, `seedsPerSecond`, `note` and `nextBatch`. `mode` is one of:

@@ -212,7 +212,7 @@ public static class MotelyTools
         reports clause counts, not matches, and can never time out.
 
         Pass exactly one of `filter` (a name from filter_list, or an absolute path) or `jaml` (the
-        filter's YAML text, for a filter you wrote — the resource jaml://guide shows the format).
+        filter's JAML text, for a filter you wrote — the resource jaml://guide shows the format).
 
         <examples>
         <example><tool>seed_validate</tool><args>{"filter":"boss-the-eye"}</args></example>
@@ -222,7 +222,7 @@ public static class MotelyTools
         Returns: plain text — "ok: <name> (<deck> <stake>) — <n> must, <n> should, <n> mustNot; the
         search plan builds." on success, followed by one "warning: ..." line per clause that loads
         but can't match as written (a boss asked for before its first ante — The Eye can't appear
-        before ante 3; a must clause with no possible ante makes the filter unmatchable). A failure (missing filter, bad YAML, broken plan) is a
+        before ante 3; a must clause with no possible ante makes the filter unmatchable). A failure (missing filter, bad JAML, broken plan) is a
         tool-execution error: an isError result carrying "Error: <reason>", same as seed_search.
         Cost: negligible; the plan builds in memory in milliseconds.
         """
@@ -264,7 +264,7 @@ public static class MotelyTools
         (its bosses, vouchers, shops, packs), pass the matches to seed_analyze.
 
         The filter: exactly one of `filter` (a name from filter_list, or an absolute path) or `jaml`
-        (the filter's YAML text — write your own; the resource jaml://guide shows the format).
+        (the filter's JAML text — write your own; the resource jaml://guide shows the format).
 
         Exactly one mode, with exactly its matching source field:
           replay     — the filter's saved seeds: block (fast, deterministic). No source field.
@@ -510,11 +510,11 @@ public static class MotelyTools
             return (jaml!, "inline JAML");
         if (!hasFilter)
             throw new ArgumentException(
-                "Error: pass 'filter' (a name from filter_list, or an absolute path) or 'jaml' (the filter's YAML text)."
+                "Error: pass 'filter' (a name from filter_list, or an absolute path) or 'jaml' (the filter's JAML text)."
             );
 
         // A pasted filter body in the name field: the path lookup would only report "no filter at
-        // <the whole YAML>".
+        // <the whole JAML>".
         if (filter!.Contains('\n'))
             throw new ArgumentException("Error: 'filter' looks like JAML text; pass it as 'jaml' instead.");
 

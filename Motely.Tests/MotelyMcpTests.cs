@@ -254,8 +254,10 @@ public sealed class MotelyMcpTests
     public void Guide_examples_all_validate()
     {
         foreach (var example in MotelyResources.GuideExamples)
+        {
             Assert.StartsWith("ok:", MotelyTools.ValidateFilter(jaml: example));
-        Assert.Contains(MotelyResources.GuideExamples[0], MotelyResources.Guide());
+            Assert.Contains(example, MotelyResources.Guide());
+        }
     }
 
     [Fact]
