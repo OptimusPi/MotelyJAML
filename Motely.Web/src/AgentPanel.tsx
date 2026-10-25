@@ -3,7 +3,6 @@ import {
   JimboButton,
   JimboErrorBlock,
   JimboSectionHeader,
-  JimboSeedCopyChip,
   JimboStatusPill,
   JimboText,
   JimboTextInput,
@@ -163,7 +162,7 @@ export function AgentPanel() {
             Stop
           </JimboButton>
         ) : (
-          <JimboButton tone="orange" type="submit" disabled={!input.trim()}>
+          <JimboButton tone="blue" type="submit" disabled={!input.trim()}>
             Run
           </JimboButton>
         )}
@@ -204,9 +203,9 @@ function RunCard({ run, live }: { run: RunRecord; live: boolean }) {
       ))}
 
       {run.seeds.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
           {run.seeds.map((seed) => (
-            <JimboSeedCopyChip key={seed} value={seed} />
+            <SeedChip key={seed} seed={seed} />
           ))}
         </div>
       ) : null}
@@ -235,7 +234,7 @@ function ProgressRow({ progress, done }: { progress: AguiProgress; done: boolean
           style={{
             width: `${pct}%`,
             height: "100%",
-            background: done ? "var(--j-green)" : "var(--j-orange)",
+            background: done ? "var(--j-green)" : "var(--j-blue)",
             transition: "width 0.2s ease",
           }}
         />
@@ -246,5 +245,29 @@ function ProgressRow({ progress, done }: { progress: AguiProgress; done: boolean
         {progress.elapsed ? ` · ${progress.elapsed}` : ""}
       </JimboText>
     </div>
+  );
+}
+
+/** One matched seed as a real Balatro button (hover brightens, press sinks — jaml-ui's face).
+ * Click copies the seed; the chip flashes green "copied!" for a moment. */
+function SeedChip({ seed }: { seed: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <JimboButton
+      size="xs"
+      tone={copied ? "green" : "blue"}
+      title={`Click to copy ${seed}`}
+      onClick={() => {
+        void navigator.clipboard?.writeText(seed).then(
+          () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          },
+          () => {},
+        );
+      }}
+    >
+      {copied ? "copied!" : seed}
+    </JimboButton>
   );
 }

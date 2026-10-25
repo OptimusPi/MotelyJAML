@@ -21,9 +21,9 @@ export function App({ folders }: { folders: boolean }) {
   const agentReady = useSeedLabWebMCP();
 
   return (
-    <>
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <JimboBackground />
-      <JimboApp variant="page" footer={<JimboBalatroFooter style={{ position: "static" }} />}>
+      <JimboApp variant="page" style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
           <JimboWordmark title="Motely" sub="Balatro seed search, in your browser, at full speed" />
           {agentReady ? (
@@ -54,6 +54,7 @@ export function App({ folders }: { folders: boolean }) {
           </>
         )}
       </JimboApp>
-    </>
+      <JimboBalatroFooter style={{ position: "static", marginTop: "auto" }} />
+    </div>
   );
 }
