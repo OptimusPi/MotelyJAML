@@ -43,8 +43,11 @@ export function AgentPanel() {
   const logRef = useRef<HTMLDivElement | null>(null);
 
   const active = busy ? runs[runs.length - 1] : null;
+  // Keep the newest run in view — scroll ONLY the run feed, never the page
+  // (scrollIntoView here snapped the whole window on every arriving seed).
   useEffect(() => {
-    logRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [runs, busy]);
 
   async function submit(prompt: string) {
