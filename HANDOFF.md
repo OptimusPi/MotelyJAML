@@ -60,6 +60,9 @@ reach the browser until then (JAML filters are data — no rebuild needed).
   Claude-plugin sibling project.
 - The agent emits one text message **per seed** (noisy on the wire); the panel folds them into
   buttons, but batching in `MotelySearchAgent` would be cleaner (watch the determinism tests).
+- jaml-ui: the Balatro button spec (hover darkens 0.88, press sinks + darkens 0.75) is written
+  into the repo's AGENTS.md/llms.txt and shipped in **jaml-ui 9.1.1** (tag `v9.1.1`, branch
+  `v9-maintenance`; master is the unreleased v10 Base-UI rewrite). Motely.Web pins `^9.1.1`.
 - Port 5173 is squatted by other projects sometimes (NoFog dev server was) — `PORT=<n>` env
   moves Vite; the `/agui` proxy follows automatically.
 - `scratch/` and `assets/` at repo root are untracked leftovers from probing sessions.
