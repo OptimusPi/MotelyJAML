@@ -74,8 +74,8 @@ public sealed class MotelyResources
         seed_validate name the problem.
 
         `joker` finds a joker of any rarity, so use it unless you mean to narrow the source:
-        `rareJoker: Blueprint` and `joker: Blueprint` both work, `commonJoker: Blueprint` never
-        matches. Bosses have a first ante: most can appear from ante 1, but The Arm, Fish, Flint,
+        `rareJoker: Blueprint` and `joker: Blueprint` both work, `commonJoker: Blueprint` is
+        rejected by seed_validate. Bosses have a first ante: most can appear from ante 1, but The Arm, Fish, Flint,
         House, Mark, Mouth, Needle, Wall, Water and Wheel start at ante 2, The Eye and The Tooth at
         3, The Plant at 4, The Serpent at 5, The Ox at 6. Ante 8 is always a showdown boss
         (AmberAcorn, CeruleanBell, CrimsonHeart, VerdantLeaf, VioletVessel). seed_validate warns
