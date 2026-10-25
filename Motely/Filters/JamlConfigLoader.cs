@@ -42,11 +42,30 @@ public static partial class JamlConfigLoader
             var inner = ex;
             while (inner.InnerException is YamlException next)
                 inner = next;
-            var message = $"JAML line {inner.Start.Line}: {inner.InnerException?.Message ?? inner.Message}";
+            var message = $"JAML line {inner.Start.Line}: {Explain(inner.InnerException?.Message ?? inner.Message)}";
             // Mark coordinates are long; an editor needs int and no file is 2GB of lines.
             throw new JamlFilterException(
                 message, (int)inner.Start.Line, (int)inner.Start.Column, ex);
         }
+    }
+
+    /// <summary>
+    /// YamlDotNet's <c>Property 'x' not found on type 'Motely.Filters.T'.</c>, said in JAML terms
+    /// with the key meant (<see cref="JamlKeys.UnknownKeyMessage"/>); any other message as it is.
+    /// </summary>
+    private static string Explain(string message)
+    {
+        const string Head = "Property '";
+        const string Middle = "' not found on type '";
+        if (!message.StartsWith(Head, StringComparison.Ordinal))
+            return message;
+        int middle = message.IndexOf(Middle, Head.Length, StringComparison.Ordinal);
+        int end = message.LastIndexOf('\'');
+        if (middle < 0 || end <= middle + Middle.Length)
+            return message;
+        var key = message[Head.Length..middle];
+        var type = message[(middle + Middle.Length)..end];
+        return JamlKeys.UnknownKeyMessage(key, type) ?? message;
     }
 
     public static JamlConfig FromFile(string path) => FromJaml(File.ReadAllText(path));

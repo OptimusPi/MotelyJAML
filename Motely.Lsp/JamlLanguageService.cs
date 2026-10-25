@@ -120,11 +120,28 @@ public static class JamlLanguageService
     {
         const string Marker = "Property '";
         var start = message.IndexOf(Marker, StringComparison.Ordinal);
-        if (start < 0)
+        if (start >= 0)
+        {
+            start += Marker.Length;
+            var end = message.IndexOf('\'', start);
+            return end > start ? message[start..end] : null;
+        }
+
+        // The loader's own wording: `'ante' is not a key of …`, `'luckMoney' is not a clause key …`,
+        // `'boosterPacks' on a `rareJoker` clause goes under …`.
+        var colon = message.IndexOf(": '", StringComparison.Ordinal);
+        if (colon < 0)
             return null;
-        start += Marker.Length;
-        var end = message.IndexOf('\'', start);
-        return end > start ? message[start..end] : null;
+        start = colon + 3;
+        var close = message.IndexOf('\'', start);
+        if (close <= start)
+            return null;
+        var rest = message.AsSpan(close + 1);
+        return rest.StartsWith(" is not a key", StringComparison.Ordinal)
+            || rest.StartsWith(" is not a clause key", StringComparison.Ordinal)
+            || rest.StartsWith(" on a `", StringComparison.Ordinal)
+            ? message[start..close]
+            : null;
     }
 
     /// <summary>The column where <paramref name="line"/> declares <paramref name="key"/> before its colon, or -1.</summary>
