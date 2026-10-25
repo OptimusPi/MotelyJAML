@@ -65,16 +65,22 @@ dotnet run --project Motely.MCP        # http://localhost:5200/mcp
 - **VS Code:** `.vscode/mcp.json` already points at this server.
 - **Aspire:** `dotnet run --project Motely.AppHost` (or `aspire run`) starts it as the `mcp` resource, next to the CLI and web resources.
 
-**Tools**
-- `seed_validate(filter)`: the same check as `motely check`. Failures come back as `isError` results.
-- `seed_search(filter, mode?, ...)` — the structured result carries `matches`, `matched`, `searched`, `durationMs`, `seedsPerSecond`, `note`. `mode` is one of:
-  - `replay` (default)
-  - `seeds <A1B2C3D4,...>` or `seeds </absolute/path/to/seeds.csv>`. Use an absolute path, because the server runs from its own project directory.
-  - `keyword <kw>`
-  - `random <n>`
-  - `sequential`
+**Tools.** Every tool that takes a filter accepts either `filter` (a name from `filter_list`, or an absolute path) or `jaml` (the filter's YAML text). With `jaml`, an agent can write and run its own filter without saving anything on the server.
+- `filter_list(contains?)`: the server's filters, with name, deck, stake, clause counts and saved-seed count. A file that fails to load is listed with its error.
+- `seed_validate(filter | jaml)`: the same check as `motely check`. Failures come back as `isError` results.
+- `seed_search(filter | jaml, mode?, ...)`: the structured result carries `matches`, `matched`, `searched`, `durationMs`, `seedsPerSecond`, `note` and `nextBatch`. `mode` is one of:
+  - `replay` (default): the filter's `seeds:` block
+  - `seeds` + `seeds`: `A1B2C3D4,...` or an absolute path to a seed file (the server runs from its own project directory)
+  - `keyword` + `keyword`
+  - `random` + `randomCount`
+  - `sequential` (+ optional `startBatch`, `batches`): each call sweeps a window of whole batches (16 by default, at most 256; one batch is 42,875 seeds). Pass the returned `nextBatch` as `startBatch` to sweep the next window. Windows never overlap or leave gaps.
 
-  `collect` defaults to 100 matches, or to the whole list for `replay` and `seeds`. The maximum is 10,000.
+  `collect` defaults to 100 matches, or to the whole list for `replay` and `seeds`. The maximum is 10,000. In `sequential` it only caps how many matches are listed, because every window runs to its end.
+
+  Both `seed_validate` and `seed_search` warn about clauses that load but can never hold, such as a boss asked for before its first ante (The Eye first appears in ante 3, The Ox in ante 6). `motely check` prints the same warnings.
+- `seed_analyze(seeds, deck?, stake?, antes?)`: the `motely --analyze` report for up to 20 seeds, so an agent can say what a seed actually contains. `antes` trims it to the antes that matter, since the full report is mostly shop queues.
+
+**Resources:** `jaml://guide` (a one-page primer with working example filters) and `jaml://schema` (the full filter JSON schema).
 
 **Other endpoints:** `/agui` (AG-UI agent) and `POST /dev/token` (mints a local JWT in Development).
 
@@ -94,7 +100,7 @@ Aspire, `http://localhost:5200` standalone, `MOTELY_MCP_URL` to override).
 | `Mcp:AllowDevTokenIssuer` | on in Development | Enables `POST /dev/token` |
 
 **Auth:** in Development with no authority, the endpoint is open. In Production, or whenever an authority is set, a bearer token is required.
-(The advertised `ResourceDocumentation` URL, docs.motely.dev/mcp, doesn't exist. This README is the documentation.)
+The advertised `ResourceDocumentation` URL points at this section of the README.
 
 ## Build and test
 

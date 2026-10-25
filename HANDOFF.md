@@ -1,6 +1,29 @@
-# Handoff — MotelyJAML, 2026-10-24 (Kimi session)
+# Handoff — MotelyJAML, 2026-10-25 (MCP for first-time agents)
 
 ## TL;DR
+
+The MCP server now works for an agent that knows nothing about Motely. A cold Haiku agent
+went from ~32 calls with silent dead ends to ~12 calls with zero errors on the same task set.
+908/908 tests. No engine change that reaches the browser, so **no motely-wasm release**
+(31.0.0 is still current).
+
+- New tools: `filter_list` (what filters exist), `seed_analyze` (what a seed holds, `antes`
+  to trim). Every filter-taking tool accepts inline `jaml` text, so agents can write filters
+  without saving files on the server.
+- Resources `jaml://guide` (primer + examples, tests validate them) and `jaml://schema`.
+- `sequential` is now a window of whole batches (`startBatch`, `batches`, returns
+  `nextBatch`): no overlap, no gaps. The old collect-stop resume repeated or skipped seeds.
+- `FilterCheck.Warnings`: a boss asked for in an ante it can never appear in. Surfaces in
+  `motely check`, `seed_validate` and `seed_search`'s note. It found that `boss-the-ox` and
+  `boss-amber-acorn` could **never match** (The Ox starts at ante 6, showdown bosses are ante
+  8 only); those and 7 other boss filters had their antes corrected.
+- Removed the fake MCP Apps panel (`ui://motely/search`, its Run button did nothing) and the
+  `ModelContextProtocol.Extensions.Apps` package. `seeds: "-"` (stdin) is refused on the server.
+  Null fields are always serialized, matching the output schemas.
+- Unmerged remote branches, left alone pending the owner's call: `feature/jaml-shorthand-parser`
+  (doesn't compile against current YamlDotNet: CS0535) and `feature-yaml` (74k-line deletion).
+
+## Previous session (2026-10-24, Kimi)
 
 MCP server + AG-UI endpoint audited and fixed; Motely.Web grew a **Server Agent** tab
 (AG-UI client for `/agui`) with proper Balatro buttons and a pinned footer. All commits are
@@ -54,7 +77,6 @@ reach the browser until then (JAML filters are data — no rebuild needed).
 
 ## Known loose ends
 
-- `docs.motely.dev/mcp` is advertised in the MCP auth metadata but doesn't exist (README admits it).
 - `OptimusPi/seedfinder-app` is an **empty stub** — intended home for the deployable MCP server?
   The MCP code currently only lives here (`Motely.MCP`). `seedfinder.app` (private) is the
   Claude-plugin sibling project.

@@ -68,6 +68,26 @@ public sealed class SearchRunner
             yield break;
         }
 
+        await foreach (var evt in RunAsync(config, path, mode, collect, null, null, cancellationToken).ConfigureAwait(false))
+            yield return evt;
+    }
+
+    /// <summary>
+    /// Runs an already-loaded filter. <paramref name="label"/> names it in errors (a path, or
+    /// "inline JAML"). A sequential sweep given <paramref name="endBatch"/> searches exactly the
+    /// batches [startBatch, endBatch) to the end, with no collect stop: a run that stopped part way
+    /// through its batches could only be resumed by repeating or skipping seeds.
+    /// </summary>
+    public async IAsyncEnumerable<SearchEvent> RunAsync(
+        JamlConfig config,
+        string label,
+        string? mode,
+        int? collect,
+        long? startBatch,
+        long? endBatch,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
+    {
         if (!TryCreatePlan(config, out var plan, out var planError))
         {
             yield return new SearchEvent.Error(planError);
@@ -84,15 +104,15 @@ public sealed class SearchRunner
         var input = new CliSearchMode.Input(
             SeedsArgument: seeds,
             Replay: replay,
-            JamlPath: path,
+            JamlPath: label,
             FilterId: config.Id,
             JamlSeeds: config.Seeds,
             KeywordInputs: keyword is not null ? [keyword] : [],
             PaddingCharsOption: null,
             RandomCount: random,
             AestheticName: null,
-            StartBatch: null,
-            EndBatch: null,
+            StartBatch: startBatch,
+            EndBatch: endBatch,
             StartPercent: null,
             StartSeed: null,
             StopSeed: null,
@@ -109,7 +129,8 @@ public sealed class SearchRunner
         // space (~2.3 trillion seeds) and would hold the request, and the match list, forever.
         // A replay or seed list is finite, so by default it runs to the end of the list.
         bool finite = replay || seeds is not null;
-        settings = settings.StopAfter(Math.Clamp(collect ?? (finite ? MaxCollect : DefaultCollect), 1, MaxCollect));
+        if (endBatch is null)
+            settings = settings.StopAfter(Math.Clamp(collect ?? (finite ? MaxCollect : DefaultCollect), 1, MaxCollect));
 
         var channel = Channel.CreateUnbounded<SearchEvent>();
         var matches = new List<string>();

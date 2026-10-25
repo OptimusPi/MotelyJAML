@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.AspNetCore.Authentication;
-using ModelContextProtocol.Extensions.Apps;
 using ModelContextProtocol.Server;
 
 // The filters directory: MOTELY_FILTERS_DIR (Aspire sets it on the mcp resource), else the repo's
@@ -19,7 +18,7 @@ Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", filtersDir);
 var builder = WebApplication.CreateBuilder(args);
 
 // The MCP server over Streamable HTTP (stateless: no server-to-client requests, so no session
-// affinity), with tools from this assembly, the MCP Apps UI resource, and MCP Apps support.
+// affinity), with tools from this assembly and the JAML guide + schema resources.
 builder.Services
     .AddMcpServer()
     .WithHttpTransport(options =>
@@ -27,8 +26,7 @@ builder.Services
         options.Stateless = true;
     })
     .WithToolsFromAssembly()
-    .WithResources<MotelyResources>()
-    .WithMcpApps();
+    .WithResources<MotelyResources>();
 
 // IHttpContextAccessor: the tools take a ClaimsPrincipal; the SDK's tool invoker resolves it from
 // HttpContext, which needs this registration.
@@ -40,19 +38,24 @@ builder.Services.Configure<McpServerOptions>(options =>
 {
     options.ServerInstructions =
         """
-        Motely seed search over JAML filters.
+        Motely: Balatro seed search over JAML filters.
 
-        Seeds are 8 characters from 1-9 and A-Z; 0 is never used (it reads as O). Filters live in
-        JamlFilters/ — pass the filter name ("boss-the-eye") or an absolute path. Validate a new or
-        edited filter with seed_validate before seed_search.
+        Seeds are 1-8 characters from 1-9 and A-Z; 0 is never used (it reads as O).
 
-        seed_search modes: replay (the filter's saved seeds), seeds + seeds (comma list or absolute
-        file path), keyword + keyword (a seed word's padded space), random + randomCount (fresh
-        sample every call — not deterministic), sequential (space sweep — always pass collect).
-        Exactly one mode with its matching source field; anything else is an error naming the fix.
+        The usual loop:
+        1. filter_list — see the server's filters (narrow with `contains`), or write your own:
+           the resource jaml://guide shows the format in a page, jaml://schema has every key.
+        2. seed_validate — check the filter: `filter` (a name from filter_list, or an absolute
+           path) or `jaml` (your filter's YAML text; nothing needs saving).
+        3. seed_search — find seeds. To find NEW seeds use mode random + randomCount, or
+           sequential + collect (continue a sweep with the returned nextBatch as startBatch).
+           replay runs the filter's saved seeds; seeds + seeds checks a list; keyword + keyword
+           searches a seed word's padded space. Exactly one mode with its matching field.
+        4. seed_analyze — read what a matched seed actually contains, ante by ante, before
+           describing it. Pass the filter's deck and stake.
 
-        Auth: in Development with no Mcp:Authority, POST /dev/token mints a dev JWT; production
-        uses the configured authority.
+        Auth: a local server (Development, no Mcp:Authority) needs no token; just call the tools.
+        A deployed server requires a bearer token from its configured authority.
         """;
 
     options.Filters ??= new McpServerFilters();
@@ -113,7 +116,7 @@ builder.Services
     {
         options.ResourceMetadata = new()
         {
-            ResourceDocumentation = "https://docs.motely.dev/mcp",
+            ResourceDocumentation = "https://github.com/OptimusPi/MotelyJAML#mcp-server",
             AuthorizationServers = { authority ?? "local-dev" },
             ScopesSupported = ["mcp:tools"]
         };

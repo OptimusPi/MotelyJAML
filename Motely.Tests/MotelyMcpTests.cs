@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Server;
 using Motely.MCP.Agent;
+using Motely.MCP.Resources;
 using Motely.MCP.Search;
 using Motely.MCP.Tools;
 
@@ -157,6 +158,8 @@ public sealed class MotelyMcpTests
     {
         Assert.Equal("seed_validate", ToolAttribute(nameof(MotelyTools.ValidateFilter)).Name);
         Assert.Equal("seed_search", ToolAttribute(nameof(MotelyTools.Search)).Name);
+        Assert.Equal("seed_analyze", ToolAttribute(nameof(MotelyTools.Analyze)).Name);
+        Assert.Equal("filter_list", ToolAttribute(nameof(MotelyTools.ListFilters)).Name);
     }
 
     [Fact]
@@ -194,6 +197,237 @@ public sealed class MotelyMcpTests
         Assert.NotNull(method);
         return method.GetCustomAttribute<McpServerToolAttribute>()
             ?? throw new InvalidOperationException($"{methodName} has no McpServerToolAttribute.");
+    }
+
+    [Fact]
+    public void Filter_list_shows_repo_filters_with_their_deck_and_stake()
+    {
+        var all = MotelyTools.ListFilters();
+        var eye = Assert.Single(all.Filters, f => f.Filter == "boss-the-eye");
+
+        Assert.Equal(all.Filters.Count, all.Count);
+        Assert.Equal("Red", eye.Deck);
+        Assert.Equal("White", eye.Stake);
+        Assert.True(eye.Must > 0);
+        Assert.Null(eye.Error);
+        // The stray CSVs in JamlFilters/ are seed lists, not filters.
+        Assert.DoesNotContain(all.Filters, f => f.Filter.Contains("Seed,Score"));
+    }
+
+    [Fact]
+    public void Filter_list_narrows_by_name_title_or_description()
+    {
+        var found = MotelyTools.ListFilters("PERKEO");
+
+        Assert.NotEmpty(found.Filters);
+        Assert.Contains(found.Filters, f => f.Filter == "legendary-perkeo");
+        Assert.DoesNotContain(found.Filters, f => f.Filter == "boss-the-eye");
+    }
+
+    [Fact]
+    public void Validate_accepts_inline_jaml()
+    {
+        var jaml = "name: Eye\nmust:\n  - boss: TheEye\n    antes: [1, 2]\n";
+        Assert.StartsWith("ok: Eye", MotelyTools.ValidateFilter(jaml: jaml));
+    }
+
+    [Theory]
+    [InlineData("boss-the-eye", "name: x\n", "not both")]
+    [InlineData(null, null, "pass 'filter'")]
+    [InlineData("name: x\nmust: []\n", null, "pass it as 'jaml'")]
+    public void Validate_names_the_fix_for_a_bad_filter_source(string? filter, string? jaml, string expected)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => MotelyTools.ValidateFilter(filter, jaml));
+        Assert.Contains(expected, ex.Message);
+    }
+
+    [Fact]
+    public void Validate_reports_broken_inline_jaml_as_an_error()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MotelyTools.ValidateFilter(jaml: "must:\n  - boss: NotARealBoss\n    antes: [1]\n")
+        );
+        Assert.StartsWith("Error:", ex.Message);
+    }
+
+    [Fact]
+    public void Guide_examples_all_validate()
+    {
+        foreach (var example in MotelyResources.GuideExamples)
+            Assert.StartsWith("ok:", MotelyTools.ValidateFilter(jaml: example));
+        Assert.Contains(MotelyResources.GuideExamples[0], MotelyResources.Guide());
+    }
+
+    [Fact]
+    public void Schema_resource_serves_the_filter_schema()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(MotelyResources.Schema());
+        Assert.True(doc.RootElement.GetProperty("properties").TryGetProperty("must", out _));
+    }
+
+    [Fact]
+    public async Task Search_runs_inline_jaml_against_a_seed_list()
+    {
+        var result = await MotelyTools.Search(
+            mode: SeedSearchMode.Seeds,
+            seeds: "A1B2C3D4,E5F6G7H8",
+            jaml: MotelyResources.GuideExamples[0]
+        );
+
+        Assert.Equal("Eye in ante 3 or 4", result.Filter);
+        Assert.Equal(2, result.Searched);
+        Assert.Null(result.NextBatch);
+    }
+
+    [Fact]
+    public async Task Sequential_windows_tile_the_sweep_with_no_overlap_or_gap()
+    {
+        // Two one-batch windows, then the same two batches as one window: the halves must add up
+        // to the whole exactly, which fails if a window stops early, repeats seeds or skips them.
+        var first = await MotelyTools.Search("boss-the-eye", SeedSearchMode.Sequential, collect: 10_000, batches: 1);
+        var second = await MotelyTools.Search(
+            "boss-the-eye",
+            SeedSearchMode.Sequential,
+            collect: 10_000,
+            startBatch: first.NextBatch,
+            batches: 1
+        );
+        var both = await MotelyTools.Search("boss-the-eye", SeedSearchMode.Sequential, collect: 10_000, batches: 2);
+
+        Assert.Equal(1, first.NextBatch);
+        Assert.Equal(2, second.NextBatch);
+        Assert.Equal(2, both.NextBatch);
+        Assert.True(first.Matched > 0);
+        Assert.Empty(first.Matches.Intersect(second.Matches));
+        Assert.Equal(both.Matches, first.Matches.Concat(second.Matches).Order(StringComparer.Ordinal));
+        Assert.Equal(both.Searched, first.Searched + second.Searched);
+    }
+
+    [Fact]
+    public async Task Sequential_window_lists_collect_matches_but_counts_them_all()
+    {
+        var result = await MotelyTools.Search("boss-the-eye", SeedSearchMode.Sequential, collect: 3, batches: 1);
+
+        Assert.Equal(3, result.Matches.Count);
+        Assert.True(result.Matched > 3);
+        Assert.Contains("truncated", result.Note);
+        Assert.Equal(1, result.NextBatch);
+    }
+
+    [Theory]
+    [InlineData(SeedSearchMode.Replay)]
+    [InlineData(SeedSearchMode.Random)]
+    public void Start_batch_is_refused_outside_sequential(SeedSearchMode mode)
+    {
+        var ex = Assert.Throws<ArgumentException>(
+            () => MotelyTools.ValidateModeCombo(mode, null, null, mode == SeedSearchMode.Random ? 10 : null, 5)
+        );
+        Assert.Contains("startBatch", ex.Message);
+    }
+
+    [Fact]
+    public void Batches_are_refused_outside_sequential()
+    {
+        var ex = Assert.Throws<ArgumentException>(
+            () => MotelyTools.ValidateModeCombo(SeedSearchMode.Random, null, null, 10, batches: 4)
+        );
+        Assert.Contains("batches", ex.Message);
+    }
+
+    [Theory]
+    // The Eye first appears in ante 3; ante 8 is always a showdown boss.
+    [InlineData("must:\n  - boss: TheEye\n    antes: [1, 2]\n", "can never match")]
+    [InlineData("must:\n  - boss: TheEye\n    antes: [1, 2, 3]\n", "ante(s) 1, 2")]
+    [InlineData("should:\n  - boss: TheWindow\n    antes: [8]\n", "never counts")]
+    [InlineData("must:\n  - boss: VioletVessel\n    antes: [4]\n", "showdown")]
+    public void Validate_warns_about_a_boss_in_an_impossible_ante(string jaml, string expected)
+    {
+        var result = MotelyTools.ValidateFilter(jaml: jaml);
+        Assert.StartsWith("ok:", result);
+        Assert.Contains("warning:", result);
+        Assert.Contains(expected, result);
+    }
+
+    [Fact]
+    public void Validate_stays_quiet_for_possible_boss_antes()
+    {
+        Assert.DoesNotContain("warning", MotelyTools.ValidateFilter(jaml: MotelyResources.GuideExamples[0]));
+        Assert.DoesNotContain("warning", MotelyTools.ValidateFilter(jaml: MotelyResources.GuideExamples[2]));
+    }
+
+    [Fact]
+    public async Task Search_surfaces_filter_warnings_in_its_note()
+    {
+        var result = await MotelyTools.Search(
+            mode: SeedSearchMode.Seeds,
+            seeds: "A1B2C3D4",
+            jaml: "must:\n  - boss: TheEye\n    antes: [1]\n"
+        );
+        Assert.Contains("can never match", result.Note);
+    }
+
+    [Fact]
+    public void Seeds_from_stdin_are_refused_on_the_server()
+    {
+        // "-" makes the shared resolver read Console.In, which would block the request forever.
+        var ex = Assert.Throws<ArgumentException>(
+            () => MotelyTools.ValidateModeCombo(SeedSearchMode.Seeds, "-", null, null)
+        );
+        Assert.Contains("stdin", ex.Message);
+        Assert.Throws<ArgumentException>(() => MotelyTools.Analyze("-"));
+    }
+
+    [Fact]
+    public void Analyze_reads_a_seed_ante_by_ante()
+    {
+        var result = MotelyTools.Analyze("F2U88X11", deck: "anaglyph", stake: "White");
+        var analysis = Assert.Single(result.Analyses);
+
+        Assert.Equal("F2U88X11", analysis.Seed);
+        Assert.Equal("Anaglyph", analysis.Deck);
+        Assert.Null(analysis.Error);
+        Assert.False(string.IsNullOrWhiteSpace(analysis.Text));
+    }
+
+    [Fact]
+    public void Analyze_keeps_only_the_antes_asked_for()
+    {
+        var full = Assert.Single(MotelyTools.Analyze("F2U88X11").Analyses).Text!;
+        var cut = Assert.Single(MotelyTools.Analyze("F2U88X11", antes: [1, 2]).Analyses).Text!;
+
+        Assert.Contains("==ANTE 1==", cut);
+        Assert.Contains("==ANTE 2==", cut);
+        Assert.DoesNotContain("==ANTE 3==", cut);
+        Assert.DoesNotContain("\r", cut);
+        Assert.True(cut.Length < full.Length / 2);
+    }
+
+    [Fact]
+    public async Task Random_note_says_when_collect_stopped_the_run_early()
+    {
+        var result = await MotelyTools.Search(
+            "boss-the-eye",
+            SeedSearchMode.Random,
+            randomCount: 1_000_000,
+            collect: 1
+        );
+        Assert.True(result.Searched < 1_000_000);
+        Assert.Contains("because collect was reached", result.Note);
+    }
+
+    [Fact]
+    public void Analyze_names_the_valid_decks_for_a_bad_one()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => MotelyTools.Analyze("F2U88X11", deck: "Rainbow"));
+        Assert.Contains("Anaglyph", ex.Message);
+    }
+
+    [Fact]
+    public void Analyze_caps_the_seeds_per_call()
+    {
+        var seeds = string.Join(",", Enumerable.Range(1, MotelyTools.MaxAnalyzeSeeds + 1).Select(i => $"AAAA{i:D2}".Replace('0', 'Z')));
+        var ex = Assert.Throws<ArgumentException>(() => MotelyTools.Analyze(seeds));
+        Assert.Contains("at most", ex.Message);
     }
 
     [Fact]
