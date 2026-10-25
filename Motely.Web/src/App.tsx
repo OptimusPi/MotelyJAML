@@ -21,7 +21,7 @@ export function App({ folders }: { folders: boolean }) {
   const agentReady = useSeedLabWebMCP();
 
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", paddingBottom: 48 }}>
       <JimboBackground />
       <JimboApp variant="page" style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
@@ -54,7 +54,9 @@ export function App({ folders }: { folders: boolean }) {
           </>
         )}
       </JimboApp>
-      <JimboBalatroFooter style={{ position: "static", marginTop: "auto" }} />
+      {/* Pinned to the viewport bottom, like Balatro's page chrome — content scrolls under
+          the 48px of padding above, so nothing ever hides behind it. */}
+      <JimboBalatroFooter style={{ position: "fixed", bottom: 0, left: 0, right: 0, marginTop: 0 }} />
     </div>
   );
 }
