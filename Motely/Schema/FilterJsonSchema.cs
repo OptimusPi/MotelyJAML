@@ -31,6 +31,9 @@ public static class FilterJsonSchema
     /// <summary>The words a converter reads as "the whole category" — in any case.</summary>
     private const string CategoryAnyPattern = "^(?:[aA][nN][yY]|~|[nN][uU][lL][lL])$";
 
+    /// <summary>A shorthand clause names something, then <c>in ante</c> or <c>in antes</c>, then the list.</summary>
+    private const string ShorthandPattern = "^\\S.*\\s[iI][nN]\\s+[aA][nN][tT][eE][sS]?\\s+\\S";
+
     /// <summary>Per-enum case-insensitive alternation, computed once per enum type.</summary>
     private static readonly ConcurrentDictionary<Type, string> ValuePatterns = new();
 
@@ -58,6 +61,16 @@ public static class FilterJsonSchema
                         new JsonObject { ["required"] = new JsonArray(disc.Key) }),
                 });
         }
+        // A clause may also be one line of shorthand (Filters.JamlShorthand), read by the loader
+        // into the same clause as its mapping twin.
+        discEntries.Add(new JsonObject
+        {
+            ["type"] = "string",
+            ["pattern"] = ShorthandPattern,
+            ["description"] =
+                "Shorthand clause: [Edition] <Name> in ante|antes <list>, e.g. \"Perkeo in ante 1 or 2\", "
+                + "\"Negative Blueprint in antes 1-3\", \"Black Hole in ante 2, 3 and 4\".",
+        });
         defs["clause"] = new JsonObject { ["anyOf"] = discEntries };
 
         var properties = new JsonObject();
