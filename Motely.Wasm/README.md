@@ -104,6 +104,13 @@ npm install                      # @rewaffle/bootsharp-file-system, for the fold
 npm test                         # node --test "tests/*.test.mjs"
 ```
 
+macOS: NativeAOT-LLVM publishes no `runtime.osx-arm64.Microsoft.DotNet.ILCompiler.LLVM` on any
+public feed (Bootsharp 0.9 bundles only the win/linux host compilers), so `dotnet publish` can't
+run the AOT step on a Mac — CI publishes on ubuntu-latest and uploads `bin/motely-wasm` as an
+artifact. To develop the web app on macOS, drop the published npm package's `bin/motely-wasm`
+into `Motely.Wasm/bin/` (matching version; the `jaml/` types in the repo are identical to the
+published ones).
+
 `jaml/` (the TypeScript declarations and the schema) is written by `dotnet run tools/schema.cs`
 from the repo root; Motely.Tests fails when it is stale.
 
