@@ -32,7 +32,7 @@ public static class FilterVocabulary
     private static readonly string[] RootKeyOrder =
     [
         "id", "name", "description", "author", "dateCreated", "deck", "stake", "seeds", "cutoff",
-        "must", "should", "mustNot",
+        "defaults", "must", "should", "mustNot",
     ];
 
     private static readonly string[] RootPropKeys = PropertiesOf(typeof(JamlConfig))

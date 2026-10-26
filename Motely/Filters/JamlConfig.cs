@@ -26,6 +26,9 @@ public sealed partial record JamlConfig
     /// </summary>
     public int? Cutoff { get; set; }
 
+    /// <summary>Values for keys the clauses leave out (<see cref="JamlClauseDefaults"/>); the loader has already filled them in.</summary>
+    public JamlClauseDefaults? Defaults { get; set; }
+
     public List<IMotelyClause> Must { get; set; } = [];
     public List<IMotelyClause> Should { get; set; } = [];
     public List<IMotelyClause> MustNot { get; set; } = [];

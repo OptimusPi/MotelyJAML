@@ -76,6 +76,8 @@ internal static class JamlKeys
             return "a filter";
         if (type == typeof(MotelyWith))
             return "`with:`";
+        if (type == typeof(JamlClauseDefaults))
+            return "`defaults:`";
         if (ClauseKeyOf(type) is { } clauseKey)
             return $"a `{clauseKey}` clause";
         if (type.Name.EndsWith("SourceConfig", StringComparison.Ordinal))

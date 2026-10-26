@@ -27,10 +27,14 @@ public static partial class JamlConfigLoader
 
     public static JamlConfig FromJaml(string text)
     {
+        var outer = ClauseTypeDiscriminatingNodeDeserializer.UnstatedClauses;
+        var unstated = ClauseTypeDiscriminatingNodeDeserializer.UnstatedClauses = [];
         try
         {
-            return Deserializer.Deserialize<JamlConfig?>(new JamlParser(text))
+            var config = Deserializer.Deserialize<JamlConfig?>(new JamlParser(text))
                 ?? throw new InvalidOperationException("JAML: the document is empty.");
+            config.Defaults?.Apply(unstated);
+            return config;
         }
         catch (InvalidCastException)
         {
@@ -46,6 +50,10 @@ public static partial class JamlConfigLoader
             // Mark coordinates are long; an editor needs int and no file is 2GB of lines.
             throw new JamlFilterException(
                 message, (int)inner.Start.Line, (int)inner.Start.Column, ex);
+        }
+        finally
+        {
+            ClauseTypeDiscriminatingNodeDeserializer.UnstatedClauses = outer;
         }
     }
 

@@ -15,6 +15,17 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
     private const int MaxBufferDepth = 128;
     private const int MaxBufferLength = 1_048_576;
 
+    /// <summary>A clause the document left without <c>antes</c> and/or <c>score</c>, for <c>defaults:</c> to fill.</summary>
+    internal readonly record struct Unstated(IMotelyClause Clause, bool Antes, bool Score);
+
+    /// <summary>
+    /// While <see cref="JamlConfigLoader.FromJaml"/> reads a document: each clause read that leaves a
+    /// defaultable key out. The <c>defaults:</c> block may come after the clauses, so they are filled
+    /// in once the whole document is read. Null outside a load (one load per thread at a time).
+    /// </summary>
+    [ThreadStatic]
+    internal static List<Unstated>? UnstatedClauses;
+
     public bool Deserialize(
         IParser reader,
         Type expectedType,
@@ -31,7 +42,9 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
         {
             try
             {
-                value = JamlShorthand.Parse(scalar.Value).Clause;
+                var reading = JamlShorthand.Parse(scalar.Value);
+                value = reading.Clause;
+                Note(reading.Clause, !reading.StatesAntes, !reading.StatesScore);
             }
             catch (FormatException ex)
             {
@@ -55,9 +68,43 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
         var concrete = ClauseType(start, keys);
         RefuseBothSpellings(keys, "ante", "antes");
 
+        bool statesScore = keys.Any(k => k.Value.Equals("score", StringComparison.OrdinalIgnoreCase));
+        if (!statesScore && concrete.IsSubclassOf(typeof(LogicClause)))
+        {
+            // `and: { clauses: [...], score: 5 }` states the group's score inside its payload.
+            buffer.Reset();
+            statesScore = PayloadKeys(buffer).Any(k => k.Value.Equals("score", StringComparison.OrdinalIgnoreCase));
+        }
+
         buffer.Reset();
-        value = nestedObjectDeserializer(buffer, concrete);
+        var clause = (IMotelyClause)nestedObjectDeserializer(buffer, concrete)!;
+        value = clause;
+        Note(clause,
+            antes: !keys.Any(k => k.Value.Equals("antes", StringComparison.OrdinalIgnoreCase) || k.Value.Equals("ante", StringComparison.OrdinalIgnoreCase)),
+            score: !statesScore);
         return true;
+    }
+
+    private static void Note(IMotelyClause clause, bool antes, bool score)
+    {
+        if ((antes || score) && UnstatedClauses is { } unstated)
+            unstated.Add(new(clause, antes, score));
+    }
+
+    /// <summary>The keys of the logic clause's payload mapping (<c>and: { mode, clauses, score }</c>); none for a list payload.</summary>
+    private static List<Scalar> PayloadKeys(IParser buffer)
+    {
+        buffer.Consume<MappingStart>();
+        while (!buffer.TryConsume<MappingEnd>(out _))
+        {
+            var key = buffer.Current as Scalar;
+            buffer.SkipThisAndNestedEvents();
+            if (key is not null && JamlClauseBinding.ClauseTypeByKey.TryGetValue(key.Value, out var type)
+                && type.IsSubclassOf(typeof(LogicClause)) && buffer.Current is MappingStart)
+                return TopLevelKeys(buffer);
+            buffer.SkipThisAndNestedEvents();
+        }
+        return [];
     }
 
     /// <summary>A clause writes one spelling of a key; with both, one would silently win.</summary>
