@@ -1,11 +1,35 @@
-# Handoff — MotelyJAML, 2026-10-25 (MCP for first-time agents)
+# Handoff — MotelyJAML, 2026-10-25 (MCP, JAML shorthand + dialect, motely-wasm 31.1.0)
 
 ## TL;DR
 
-The MCP server now works for an agent that knows nothing about Motely. A cold Haiku agent
-went from ~32 calls with silent dead ends to ~12 calls with zero errors on the same task set.
-908/908 tests. No engine change that reaches the browser, so **no motely-wasm release**
-(31.0.0 is still current).
+JAML reads the way the owner writes it, the MCP server works for agents that know nothing
+about Motely, and **motely-wasm 31.1.0** is tagged (`v31.1.0`, notes in
+docs/RELEASE-31.1.0.md). 1042/1042 xunit, wasm node:test 27/27, NativeAOT-LLVM publish clean.
+
+- **Shorthand** (`Motely/Filters/JamlShorthand.cs`): `- Perkeo in ante 1 or 2`,
+  `- Negative Blueprint in antes 1-3 score 50`, bare `- Triboulet`. Each form loads to exactly
+  its mapping twin (tests compare fields and search a fixed seed list with both).
+- **Dialect** (from the owner's own filters in BalatroSeedOracle/YAMLFilters, 139 → 149 of 157
+  load): `defaults: { antes, score }`, `ante:`, one number for a one-item list, `requireMega:`,
+  `soulJoker:`, `dateCreated:` (kept as metadata), J/Q/K/A ranks, loose names in mappings.
+  The 8 that still fail are real mistakes or pre-JAML formats; each error names the fix.
+- **Loader errors** are one line in JAML terms ("'antez' is not a key of a `joker` clause; did
+  you mean `antes`?"). A clause with no clause key used to throw a NullReferenceException.
+- **CI** had failed on every master push since before 31.0.0: the repo has no `REWAFFLE_TOKEN`
+  secret and `wasm` ran `dotnet nuget add source` with an empty password. Now a `secrets-gate`
+  job skips `wasm`/`web` with a warning when the token is missing. **To get the real wasm gate
+  back, set `REWAFFLE_TOKEN`** (read:packages on rewaffle's GitHub Packages).
+- **npm**: 31.1.0 is not on npm yet. This machine isn't logged in to npmjs (`npm whoami` →
+  401). From Motely.Wasm: `npm login`, then `npm publish` (prepack runs the NativeAOT-LLVM
+  build, ~1 min on Windows).
+- **Binaryen trap**: PATH points at `X:inaryen-version_130` (gone); `_132` is installed, but
+  wasm-opt 132 output fails in Node 26 ("unknown import kind 0x7f"). Ship unoptimized, as
+  31.0.0 did, until that's sorted.
+
+### Earlier the same day: MCP for first-time agents
+
+A cold Haiku agent went from ~32 calls with silent dead ends to ~12 calls with zero errors on
+the same task set.
 
 - New tools: `filter_list` (what filters exist), `seed_analyze` (what a seed holds, `antes`
   to trim). Every filter-taking tool accepts inline `jaml` text, so agents can write filters
@@ -20,8 +44,9 @@ went from ~32 calls with silent dead ends to ~12 calls with zero errors on the s
 - Removed the fake MCP Apps panel (`ui://motely/search`, its Run button did nothing) and the
   `ModelContextProtocol.Extensions.Apps` package. `seeds: "-"` (stdin) is refused on the server.
   Null fields are always serialized, matching the output schemas.
-- Unmerged remote branches, left alone pending the owner's call: `feature/jaml-shorthand-parser`
-  (doesn't compile against current YamlDotNet: CS0535) and `feature-yaml` (74k-line deletion).
+- Dead remote branches the owner OK'd deleting (the auto-mode classifier blocked the delete):
+  `git push origin --delete feature/jaml-shorthand-parser feature-yaml` (tips fe8b39d7,
+  82b7a156).
 
 ## Previous session (2026-10-24, Kimi)
 
