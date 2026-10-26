@@ -56,12 +56,18 @@ public sealed class SeedLocatorTests
             Lines(Locate("diet cola"))
         );
 
-        // The Jamlyzer's own ante-10 Uncommon Tag stream (a clause on ante 10 scopes its walk to 1-10).
+        // Every pull hit is that index of the Jamlyzer's own Uncommon Tag stream (a clause on
+        // antes 1-12 scopes its walk to 1-12).
         var config = JamlConfigLoader.FromJaml(
-            "deck: Ghost\nstake: White\nseeds: [9KOCZ9YO]\nshould:\n  - Diet Cola in ante 10\n"
+            "deck: Ghost\nstake: White\nseeds: [9KOCZ9YO]\nshould:\n  - Diet Cola in antes 1-12\n"
         );
-        var ante10 = MotelyJamlyzer.Analyze(config).Single().Antes.Single(a => a.Ante == 10);
-        Assert.Equal(MotelyItemType.DietCola, ante10.Pulls.UncommonTagJokers[1].Type);
+        var antes = MotelyJamlyzer.Analyze(config).Single().Antes;
+        Assert.Equal(MotelyItemType.DietCola, antes.Single(a => a.Ante == 10).Pulls.UncommonTagJokers[1].Type);
+        foreach (var hit in Locate("Diet Cola").Hits.Where(h => h.Source == MotelyLocateSource.UncommonTag))
+            Assert.Equal(
+                MotelyItemType.DietCola,
+                antes.Single(a => a.Ante == hit.Ante).Pulls.UncommonTagJokers[hit.Position - 1].Type
+            );
     }
 
     [Fact]

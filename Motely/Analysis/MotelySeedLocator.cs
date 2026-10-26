@@ -86,7 +86,7 @@ public sealed record MotelyLocateResult(
 /// (<see cref="MotelyJamlyzerSeedWalk"/>) over the antes asked for, then a scan of what it read:
 /// boss, voucher, both blind tags, the shop queue, every pack's cards, the Souls in run order, and
 /// the pull streams (Uncommon and Rare Tag, Judgement, Wraith, Emperor, Purple Seal, Sixth Sense,
-/// Séance, Riff-raff). The raw shop-source queues are not places a card is seen, so they are not
+/// Seance, Riff-raff). The raw shop-source queues are not places a card is seen, so they are not
 /// read; neither is the voucher stream past each ante's voucher.
 /// </summary>
 public static class MotelySeedLocator
