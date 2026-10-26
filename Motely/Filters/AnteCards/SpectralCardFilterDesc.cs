@@ -29,8 +29,10 @@ public struct SpectralCardFilterDesc(SpectralCardClause clause)
     private readonly SpectralCardClause _clause = clause;
 
     /// <summary>
-    /// Filter-layer default when Sources is null for ordinary spectrals: every shop slot plus
-    /// every booster-pack slot (Spectral packs). The shop half only ever pays on the Ghost deck —
+    /// Filter-layer default when Sources is null for ordinary spectrals: the first eight shop
+    /// cards (shopItems 0–7, the same window as the joker, tarot and planet defaults — not the 15
+    /// or 50 the analyzer lists) plus every booster-pack slot (Spectral packs). A card deeper in
+    /// the shop needs an explicit <c>shopItems:</c>. The shop half only ever pays on the Ghost deck —
     /// its spectral weight is zero everywhere else (<see cref="JamlRarityContext.ShopSpectralRate"/>)
     /// — so the packs are what make the default matchable on the other fourteen decks. Sixth Sense,
     /// Séance, Ethereal and Omen Globe need an explicit <c>sources:</c>. Slot range is the engine's

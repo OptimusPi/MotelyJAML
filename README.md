@@ -54,6 +54,8 @@ Some keys and names have a second spelling that loads the same clause:
 | `rank: K` | `rank: King` (J, Q, K, A) |
 | `dateCreated: 2025-12-25` | metadata, kept and ignored by the search |
 
+**What a clause looks at without `sources:`.** A joker, tarot, planet or spectral clause reads the first eight shop cards of each ante (`shopItems: [0..7]`, the opening shop and about three rerolls); spectral also reads every pack, the others don't. `--analyze` lists 15 shop cards for antes 0–1 and 50 after, so a card it shows at position 9 or later scores 0 unless the clause names the slot: the 11th card is `sources: { shopItems: [10] }`.
+
 A wrong key or name fails to load with one line, on its own line of the file, naming the fix: `luckMoney:` asks whether you meant `luckyMoney`, `commonJoker: Showman` says Showman is an uncommon joker and to write `uncommonJoker: Showman` or `joker: Showman`, and `shopItems:` written beside `joker:` says it goes under `sources:`.
 
 ## CLI

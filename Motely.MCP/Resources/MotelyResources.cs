@@ -102,6 +102,13 @@ public sealed class MotelyResources
         resource jaml://schema lists every key and every valid name; a wrong one makes
         seed_validate name the problem.
 
+        Without `sources:`, a joker, tarot, planet or spectral clause looks at the FIRST EIGHT
+        shop cards of each ante (`shopItems: [0..7]`: the opening shop and about three rerolls);
+        spectral also looks in every pack, and jokers/tarots/planets do not. seed_analyze lists
+        15 shop cards for antes 0-1 and 50 after, so a card it shows at position 9 or later is
+        outside the default and scores 0. To reach it, list the slots: e.g. the 11th card is
+        `sources: { shopItems: [10] }`, and a deep look is `shopItems: [0, 1, 2, ..., 49]`.
+
         `joker` finds a joker of any rarity, so use it unless you mean to narrow the source:
         `rareJoker: Blueprint` and `joker: Blueprint` both work, `commonJoker: Blueprint` is
         rejected by seed_validate. Bosses have a first ante: most can appear from ante 1, but The Arm, Fish, Flint,

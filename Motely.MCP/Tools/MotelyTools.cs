@@ -428,6 +428,10 @@ public static class MotelyTools
 
         DO-NOT-USE-FOR: finding seeds — use seed_search; this reads seeds you already have.
 
+        The shop queue lists 15 cards for antes 0-1 and 50 after. A clause with no `sources:`
+        only reads the first 8 (shopItems 0-7), so a card at position 9+ needs
+        `sources: { shopItems: [<position - 1>] }` to score.
+
         `seeds`: comma-separated seeds or an absolute path to a seed file/CSV, at most 20 per call.
         `deck` and `stake` change what a seed contains — pass the filter's own (filter_list shows
         them); they default to Red and White. `antes` (e.g. [1, 2]) keeps only those antes: the
