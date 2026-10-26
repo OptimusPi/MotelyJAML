@@ -1,0 +1,11 @@
+# Trimmed from the owner's 2Ethereal4u.yaml: ante (singular), with one number.
+name: 2Ethereal4u
+author: Opus 4.6 and pi
+must:
+  - legendaryJoker: Perkeo
+    sources:
+      spectralPacks: [0]
+    edition: Negative
+    ante: 2
+  - smallBlindTag: EtherealTag
+    ante: 2

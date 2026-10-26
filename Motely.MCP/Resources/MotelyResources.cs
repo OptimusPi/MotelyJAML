@@ -59,6 +59,21 @@ public sealed class MotelyResources
             antes: [1, 2, 3]
             score: 5
         """,
+        """
+        name: Early legendaries
+        deck: Anaglyph
+        stake: White
+        defaults:
+          antes: [1, 2, 3]
+        must:
+          - voucher: Hieroglyph
+            antes: [1]
+        should:
+          - Perkeo score 5
+          - Triboulet
+          - Canio
+          - Blueprint in antes 1-8
+        """,
     ];
 
     [McpServerResource(UriTemplate = "jaml://guide", Name = "jaml-guide", MimeType = "text/markdown")]
@@ -77,8 +92,9 @@ public sealed class MotelyResources
         - `seeds`: a saved list, run by mode `replay`.
 
         A clause is one key naming the thing, plus the antes to look in: `antes: [1, 2]`. Always
-        give `antes`. In a mapping, names are PascalCase with no spaces: `TheEye`, `BlackHole`, `CharmTag`,
-        `Perkeo`. Common keys: `joker`, `commonJoker`, `uncommonJoker`, `rareJoker`,
+        give `antes` (or a `defaults:` block): without them a clause looks in antes 1-8. In a
+        mapping, write names as the engine does, PascalCase with no spaces: `TheEye`, `BlackHole`,
+        `CharmTag`, `Perkeo`. Common keys: `joker`, `commonJoker`, `uncommonJoker`, `rareJoker`,
         `legendaryJoker`, `voucher`, `tag`, `boss`, `tarotCard`, `planetCard`, `spectralCard`,
         `standardCard`, `boosterPack`. A joker or card clause also takes `edition` (Foil,
         Holographic, Polychrome, Negative) and `sources`, which narrows where it may appear, e.g.
@@ -99,19 +115,34 @@ public sealed class MotelyResources
 
         ## Shorthand
 
-        A clause can also be one line: `[Edition] <Name> in ante|antes <antes>`. It loads to the
-        same clause as the mapping, with every other key at its default (score 1).
+        A clause can also be one line: `[Edition] <Name> [in ante|antes <antes>] [score <N>]`. It
+        loads to the same clause as the mapping, with every other key at its default (score 1).
 
         - `Perkeo in ante 1 or 2` is `legendaryJoker: Perkeo` with `antes: [1, 2]`
         - `The Eye in ante 3` is `boss: TheEye` with `antes: [3]`
-        - `Negative Blueprint in antes 1-3` is `joker: Blueprint`, `edition: Negative`, `antes: [1, 2, 3]`
-        - `Black Hole in ante 2, 3 and 4`, `Charm Tag in ante 1`
+        - `Negative Blueprint in antes 1-3 score 5` is `joker: Blueprint`, `edition: Negative`,
+          `antes: [1, 2, 3]`, `score: 5`
+        - `Triboulet` (no antes) is `legendaryJoker: Triboulet` with no `antes` key: antes 1-8, or
+          the filter's `defaults:`
 
         Names are any joker, boss, voucher, tag, tarot, planet or spectral card, in any case, with or
-        without spaces. Antes are numbers and ranges (`1-3`) joined by commas, `or` and `and`;
-        `in ante` is required. An edition (Foil, Holographic, Polychrome, Negative) fits jokers only.
-        For a score, sources, or anything else, use the mapping form. Both forms mix in one list
-        (the last example below). Write shorthand as `- ` list items: inside `[ ]` a comma splits it.
+        without spaces, with or without a leading "The". Antes are numbers and ranges (`1-3`) joined
+        by commas, `or` and `and`. An edition (Foil, Holographic, Polychrome, Negative) fits jokers
+        only. For sources, or anything else, use the mapping form. Both forms mix in one list.
+        Write shorthand as `- ` list items: inside `[ ]` a comma splits it.
+
+        ## Defaults and second spellings
+
+        `defaults: { antes: [1, 2, 3], score: 5 }` at the top fills each key into every clause that
+        leaves it out (the last example below), as if the clause had written it. A clause that
+        writes the key keeps its own; event clauses like `luckyMoney` and `and`/`or` take no antes.
+
+        Mapping names are read as loosely as shorthand names when exactly one fits: `voucher: Reroll
+        Surplus`, `boss: The Hook`, and a card `rank` may be its letter (`K`). These also load:
+        `ante:` for `antes:`, one number for a list of one (`ante: 2`), `requireMega:` for
+        `requireMegaPack:`, `soulJoker:` for `legendaryJoker:`, and `dateCreated:` as metadata.
+        A name of the wrong kind (`commonJoker: Showman`, `standardCard: Certificate`) is an error
+        that names the key it belongs under.
 
         ## Examples
 
@@ -129,6 +160,10 @@ public sealed class MotelyResources
 
         ```yaml
         {{GuideExamples[3]}}
+        ```
+
+        ```yaml
+        {{GuideExamples[4]}}
         ```
         """;
 

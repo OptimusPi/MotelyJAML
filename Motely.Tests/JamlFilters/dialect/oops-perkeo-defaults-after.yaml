@@ -1,0 +1,18 @@
+# Trimmed from the owner's oops-perkeo.yaml, with the defaults block moved after the clauses.
+name: Oops Perkeo
+deck: Anaglyph
+stake: White
+
+must:
+  - smallBlindTag: NegativeTag
+    antes: [1]
+  - legendaryJoker: Perkeo
+
+should:
+  - joker: OopsAll6s
+    score: 1
+  - legendaryJoker: Perkeo
+    score: 5
+
+defaults:
+  antes: [1, 2]

@@ -1,0 +1,12 @@
+# Names as people write them: spaces, a leading "The" either way.
+name: Loose names
+must:
+  - voucher: Reroll Surplus
+    antes: [1, 2, 3]
+should:
+  - boss: The Hook
+    antes: [1, 2]
+  - joker: The Luchador
+    antes: [1, 2]
+  - tarotCard: Fool
+    antes: [1]

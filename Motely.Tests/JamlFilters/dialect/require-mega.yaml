@@ -1,0 +1,15 @@
+# Trimmed from the owner's legendaryJokerAnyEditionNegative.yaml: requireMega in sources.
+name: Legendary Joker Any Edition Negative
+deck: Ghost
+stake: White
+must:
+  - legendaryJoker: Perkeo
+    sources:
+      requireMega: true
+      boosterPacks: [1]
+    antes: [1]
+  - spectralCard: Ankh
+    antes: [1, 2]
+    sources:
+      requireMega: true
+      boosterPacks: [1]

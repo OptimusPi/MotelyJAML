@@ -27,7 +27,34 @@ should:
   - Charm Tag in ante 1
 ```
 
-Shorthand is `[Edition] <Name> in ante|antes <antes>`. The name is any joker, boss, voucher, tag, tarot, planet or spectral card, in any case, spaces optional. A legendary joker becomes `legendaryJoker`, any other joker `joker`. Antes are numbers and inclusive ranges joined by commas, `or` and `and`, and `in ante` is required. An edition (Foil, Holographic, Polychrome, Negative) fits jokers only. Every other key keeps its default (score 1), so use the mapping form when you need `score`, `sources` and the like. Write shorthand as `- ` list items, because inside `[ ]` a comma splits it. A bad line fails to load with the closest names or the accepted ante forms. The parser is `Motely/Filters/JamlShorthand.cs`.
+Shorthand is `[Edition] <Name> [in ante|antes <antes>] [score <N>]`. The name is any joker, boss, voucher, tag, tarot, planet or spectral card, in any case, spaces optional, a leading "The" optional. A legendary joker becomes `legendaryJoker`, any other joker `joker`. Antes are numbers and inclusive ranges joined by commas, `or` and `and`. A line without antes (`- Triboulet`) is the mapping clause with no `antes` key, so it looks in antes 1-8, or in the filter's `defaults:`. A trailing `score N` is `score: N`. An edition (Foil, Holographic, Polychrome, Negative) fits jokers only. Every other key keeps its default, so use the mapping form for `sources` and the like. Write shorthand as `- ` list items, because inside `[ ]` a comma splits it. A bad line fails to load with the closest names or the accepted forms. The parser is `Motely/Filters/JamlShorthand.cs`.
+
+A top-level `defaults:` block gives the keys a clause leaves out:
+
+```yaml
+defaults:
+  antes: [1, 2, 3]   # every clause that looks in antes and names none (not luckyMoney and the other events, nor and/or)
+  score: 5           # every clause that names no score
+should:
+  - Perkeo           # antes [1, 2, 3], score 5
+  - joker: Blueprint
+    antes: [4]       # its own antes win
+```
+
+It reaches every clause, mapping or shorthand, inside `and:`/`or:` too, and may sit anywhere in the file.
+
+Some keys and names have a second spelling that loads the same clause:
+
+| Written | Means |
+|---|---|
+| `ante: 2` | `antes: [2]` (any list of numbers may be one number) |
+| `requireMega: true` | `requireMegaPack: true` |
+| `soulJoker: Perkeo` | `legendaryJoker: Perkeo` |
+| `voucher: Reroll Surplus`, `boss: The Hook`, `tarotCard: Fool` | `RerollSurplus`, `TheHook`, `TheFool`: any case, spaces optional, "The" optional, when exactly one name fits |
+| `rank: K` | `rank: King` (J, Q, K, A) |
+| `dateCreated: 2025-12-25` | metadata, kept and ignored by the search |
+
+A wrong key or name fails to load with one line, on its own line of the file, naming the fix: `luckMoney:` asks whether you meant `luckyMoney`, `commonJoker: Showman` says Showman is an uncommon joker and to write `uncommonJoker: Showman` or `joker: Showman`, and `shopItems:` written beside `joker:` says it goes under `sources:`.
 
 ## CLI
 

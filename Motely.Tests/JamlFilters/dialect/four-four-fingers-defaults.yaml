@@ -1,0 +1,16 @@
+# Trimmed from the owner's four-four-fingers.yaml: a top-level defaults block.
+name: Four Four Fingers
+deck: Painted
+stake: White
+
+defaults:
+  antes: [1, 2, 3, 4]
+
+must:
+  - joker: Showman
+  - joker: FourFingers
+    min: 4
+
+should:
+  - joker: FourFingers
+    score: 1

@@ -1,0 +1,12 @@
+# Trimmed from the owner's Zerkeo.yaml: shorthand with a trailing score, and bare names (no antes).
+name: Zerkeo
+deck: Anaglyph
+stake: White
+must:
+  - voucher: Hieroglyph
+    antes: [1]
+should:
+  - Perkeo in antes 1-8 score 1
+  - Triboulet
+  - Canio
+  - Blueprint
