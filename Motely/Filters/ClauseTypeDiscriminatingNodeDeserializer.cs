@@ -64,8 +64,9 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
                 "a clause is a mapping such as `joker: Blueprint`, or one line such as `Blueprint in ante 1`.");
 
         var buffer = new ParserBuffer(reader, MaxBufferDepth, MaxBufferLength);
-        var keys = TopLevelKeys(buffer);
-        var concrete = ClauseType(start, keys);
+        var values = new Dictionary<Scalar, string>();
+        var keys = TopLevelKeys(buffer, values);
+        var concrete = ClauseType(start, keys, values);
         RefuseBothSpellings(keys, "ante", "antes");
 
         bool statesScore = keys.Any(k => k.Value.Equals("score", StringComparison.OrdinalIgnoreCase));
@@ -119,15 +120,19 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
     }
 
     /// <summary>The mapping's own keys, in order (not the keys of blocks nested in it).</summary>
-    private static List<Scalar> TopLevelKeys(IParser buffer)
+    /// <param name="values">When given, each key whose value is a plain value maps to it here.</param>
+    private static List<Scalar> TopLevelKeys(IParser buffer, Dictionary<Scalar, string>? values = null)
     {
         var keys = new List<Scalar>();
         buffer.Consume<MappingStart>();
         while (!buffer.TryConsume<MappingEnd>(out _))
         {
-            if (buffer.Current is Scalar key)
+            var key = buffer.Current as Scalar;
+            if (key is not null)
                 keys.Add(key);
             buffer.SkipThisAndNestedEvents(); // the key
+            if (key is not null && values is not null && buffer.Current is Scalar value)
+                values[key] = value.Value;
             buffer.SkipThisAndNestedEvents(); // its value
         }
         return keys;
@@ -138,12 +143,12 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
     /// sit beside it only where the selected type also takes it as a plain key (<c>soulOrder</c>
     /// takes <c>boosterPacks</c>).
     /// </summary>
-    private static Type ClauseType(ParsingEvent start, List<Scalar> keys)
+    private static Type ClauseType(ParsingEvent start, List<Scalar> keys, Dictionary<Scalar, string> values)
     {
         var clauseKeys = keys.Where(k => JamlClauseBinding.ClauseTypeByKey.ContainsKey(k.Value)).ToList();
         if (clauseKeys.Count == 0)
         {
-            var (at, message) = NoClauseKey(keys);
+            var (at, message) = NoClauseKey(keys, values);
             var mark = (ParsingEvent?)at ?? start;
             throw new YamlException(mark.Start, mark.End, message);
         }
@@ -167,15 +172,22 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
     }
 
     /// <summary>Why no key names a clause, and the key to point at (null: the mapping itself).</summary>
-    private static (Scalar? At, string Message) NoClauseKey(List<Scalar> keys)
+    private static (Scalar? At, string Message) NoClauseKey(List<Scalar> keys, Dictionary<Scalar, string> values)
     {
         if (keys.Count == 0)
             return (null, "an empty clause: write one such as `joker: Blueprint`.");
 
         // BalatroSeedOracle's builder wrote a clause as { type: Joker, value: Blueprint }.
         var type = keys.FirstOrDefault(k => k.Value.Equals("type", StringComparison.OrdinalIgnoreCase));
-        if (type is not null && keys.Any(k => k.Value.Equals("value", StringComparison.OrdinalIgnoreCase)))
-            return (type, "a clause names its kind by its key, not by `type:` and `value:`: write `joker: Blueprint` for { type: Joker, value: Blueprint }.");
+        var value = keys.FirstOrDefault(k => k.Value.Equals("value", StringComparison.OrdinalIgnoreCase));
+        if (type is not null && value is not null)
+        {
+            var kind = values.GetValueOrDefault(type) ?? "";
+            var clauseKey = JamlClauseBinding.ClauseTypeByKey.Keys.FirstOrDefault(k => k.Equals(kind, StringComparison.OrdinalIgnoreCase));
+            return (type, clauseKey is null
+                ? $"a clause names its kind by its key, not by `type:` and `value:`: write it as `joker: Blueprint`, and '{kind}' is not a clause key."
+                : $"a clause names its kind by its key, not by `type:` and `value:`: write `{clauseKey}: {values.GetValueOrDefault(value) ?? "..."}`.");
+        }
 
         // A key some clause takes (score, antes, sources …) is not the misspelt clause key.
         foreach (var key in keys.Where(k => !JamlClauseBinding.ClauseTypeByKey.Values.Any(t => JamlKeys.Takes(t, k.Value))))

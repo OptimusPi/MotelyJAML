@@ -56,7 +56,7 @@ public sealed class JamlKeyErrorTests
     {
         var error = LoadError("{\"must\": [{\"type\": \"Joker\", \"value\": \"OopsAll6s\"}]}");
         Assert.Equal(
-            "JAML line 1: a clause names its kind by its key, not by `type:` and `value:`: write `joker: Blueprint` for { type: Joker, value: Blueprint }.",
+            "JAML line 1: a clause names its kind by its key, not by `type:` and `value:`: write `joker: OopsAll6s`.",
             error);
     }
 
