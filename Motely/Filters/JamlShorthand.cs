@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 
 namespace Motely.Filters;
 
@@ -117,7 +116,7 @@ internal static class JamlShorthand
     private static (Entry Entry, MotelyItemEdition? Edition) Resolve(string name, Dictionary<string, Entry[]> index)
     {
         // The whole name first: "Negative Tag" is a tag, not a Negative "Tag".
-        if (index.TryGetValue(Normalize(name), out var whole))
+        if (Find(name, index) is { } whole)
             return (Single(name, whole), null);
 
         MotelyItemEdition? edition = null;
@@ -136,7 +135,7 @@ internal static class JamlShorthand
             }
         }
 
-        if (edition is { } ed && index.TryGetValue(Normalize(bare), out var found))
+        if (edition is { } ed && Find(bare, index) is { } found)
         {
             var entry = Single(bare, found);
             if (entry.Family != Family.Joker)
@@ -150,6 +149,39 @@ internal static class JamlShorthand
             suggestions.Count == 0
                 ? $"'{bare}' is not a joker, boss, voucher, tag, tarot, planet or spectral card name."
                 : $"'{bare}' is not a known name; did you mean {JoinOr(suggestions)}?");
+    }
+
+    /// <summary>
+    /// The entries spelled <paramref name="name"/>, ignoring case, spaces and punctuation, and a
+    /// leading "The" either way (<c>The Luchador</c> is Luchador, <c>Fool</c> is TheFool); null when
+    /// none is.
+    /// </summary>
+    private static Entry[]? Find(string name, Dictionary<string, Entry[]> index)
+    {
+        var key = Normalize(name);
+        if (key.Length == 0)
+            return null;
+        if (index.TryGetValue(key, out var found))
+            return found;
+        var other = key.StartsWith("the", StringComparison.Ordinal) ? key[3..] : "the" + key;
+        return index.TryGetValue(other, out found) ? found : null;
+    }
+
+    /// <summary>Every engine name <paramref name="name"/> may mean, across the families; null when none.</summary>
+    internal static Entry[]? Lookup(string name) => Find(name, EngineIndex);
+
+    /// <summary>What an entry is ("uncommon joker", "boss" …) and the clause keys that take it, most specific first.</summary>
+    internal static (string Kind, string[] Keys) Kind(Entry entry)
+    {
+        if (entry.Family != Family.Joker)
+            return (Article(entry.Family)[(Article(entry.Family).IndexOf(' ') + 1)..], [MappingKey(entry)]);
+        return ((MotelyJokerRarity)(entry.Value & MotelyGlobals.JokerRarityMask)) switch
+        {
+            MotelyJokerRarity.Legendary => ("legendary joker", ["legendaryJoker"]),
+            MotelyJokerRarity.Rare => ("rare joker", ["rareJoker", "joker"]),
+            MotelyJokerRarity.Uncommon => ("uncommon joker", ["uncommonJoker", "joker"]),
+            _ => ("common joker", ["commonJoker", "joker"]),
+        };
     }
 
     private static Entry Single(string name, Entry[] entries)
@@ -169,8 +201,8 @@ internal static class JamlShorthand
         int limit = Math.Max(2, key.Length / 3);
         return index
             .Select(kv => (kv.Value[0].Name, Distance: kv.Key.Contains(key, StringComparison.Ordinal) || key.Contains(kv.Key, StringComparison.Ordinal)
-                ? Math.Min(limit, Levenshtein(key, kv.Key))
-                : Levenshtein(key, kv.Key)))
+                ? Math.Min(limit, JamlKeys.Levenshtein(key, kv.Key))
+                : JamlKeys.Levenshtein(key, kv.Key)))
             .Where(c => c.Distance <= limit)
             .OrderBy(c => c.Distance)
             .ThenBy(c => c.Name, StringComparer.Ordinal)
@@ -179,34 +211,8 @@ internal static class JamlShorthand
             .ToList();
     }
 
-    private static int Levenshtein(string a, string b)
-    {
-        var previous = new int[b.Length + 1];
-        var current = new int[b.Length + 1];
-        for (int j = 0; j <= b.Length; j++)
-            previous[j] = j;
-        for (int i = 1; i <= a.Length; i++)
-        {
-            current[0] = i;
-            for (int j = 1; j <= b.Length; j++)
-            {
-                int cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
-            }
-            (previous, current) = (current, previous);
-        }
-        return previous[b.Length];
-    }
-
     /// <summary>Letters and digits only, lower case: "The Eye", "the_eye" and "TheEye" are one name.</summary>
-    internal static string Normalize(string name)
-    {
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name)
-            if (char.IsLetterOrDigit(c))
-                sb.Append(char.ToLowerInvariant(c));
-        return sb.ToString();
-    }
+    internal static string Normalize(string name) => JamlKeys.Normalize(name);
 
     // ── Antes ────────────────────────────────────────────────────────────────────────────
 

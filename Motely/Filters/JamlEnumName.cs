@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -35,8 +36,101 @@ internal static class JamlEnumName
         }
         if (trimmed.Contains(','))
             throw new FormatException($"'{text}' holds more than one name: a list goes in brackets, [{text}].");
-        return Enum.Parse(enumType, text, ignoreCase: true);
+        if (Enum.TryParse(enumType, text, ignoreCase: true, out var exact))
+            return exact;
+        if (Tolerant(enumType, text) is { } name)
+            return Enum.Parse(enumType, name);
+        throw new FormatException(NotANameMessage(enumType, text.Trim()));
     }
+
+    /// <summary>Per enum: normalized name (letters and digits, lower case) → the names spelled that way.</summary>
+    private static readonly ConcurrentDictionary<Type, Dictionary<string, string[]>> NormalizedNames = new();
+
+    /// <summary>
+    /// Short names that mean one value and nothing else: a card rank written as on the card.
+    /// (Numbers stay refused: <c>Enum.Parse</c> read <c>2</c> as Four.)
+    /// </summary>
+    private static readonly Dictionary<string, string> RankLetters = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["J"] = nameof(MotelyStandardcardRank.Jack),
+        ["Q"] = nameof(MotelyStandardcardRank.Queen),
+        ["K"] = nameof(MotelyStandardcardRank.King),
+        ["A"] = nameof(MotelyStandardcardRank.Ace),
+    };
+
+    /// <summary>
+    /// The one name <paramref name="text"/> means when spelled loosely — any case, spaces or
+    /// punctuation (<c>Reroll Surplus</c>, <c>the_hook</c>), with or without a leading "The"
+    /// (<c>The Luchador</c>, <c>Fool</c>) — or null when no name, or more than one, fits.
+    /// </summary>
+    internal static string? Tolerant(Type enumType, string text)
+    {
+        if (enumType == typeof(MotelyStandardcardRank) && RankLetters.TryGetValue(text.Trim(), out var rank))
+            return rank;
+
+        var names = NormalizedNames.GetOrAdd(enumType, static t =>
+            Enum.GetNames(t)
+                .GroupBy(JamlKeys.Normalize, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal));
+        var key = JamlKeys.Normalize(text);
+        if (key.Length == 0)
+            return null;
+        if (names.TryGetValue(key, out var found))
+            return found.Length == 1 ? found[0] : null;
+        var other = key.StartsWith("the", StringComparison.Ordinal) ? key[3..] : "the" + key;
+        return names.TryGetValue(other, out found) && found.Length == 1 ? found[0] : null;
+    }
+
+    /// <summary>
+    /// Why <paramref name="text"/> is no <paramref name="enumType"/> name, in one line that names the
+    /// fix: the clause key it belongs under when it names something else (Certificate is a joker,
+    /// Showman an uncommon joker), else the closest names.
+    /// </summary>
+    private static string NotANameMessage(Type enumType, string text)
+    {
+        var kind = Kind(enumType);
+        if (JamlShorthand.Lookup(text) is { Length: 1 } entries && entries[0] is var entry && JamlShorthand.Kind(entry) is var (otherKind, keys) && otherKind != kind)
+        {
+            var article = Article(otherKind);
+            var write = JamlKeys.JoinOr(keys.Select(k => $"`{k}: {entry.Name}`").ToList());
+            return $"'{text}' is {article} {otherKind}, not {Article(kind)} {kind}: write {write}.";
+        }
+
+        var closest = JamlKeys.Closest(text, Enum.GetNames(enumType));
+        return closest.Count > 0
+            ? $"'{text}' is not {Article(kind)} {kind} name; did you mean {JamlKeys.JoinOr(closest)}?"
+            : $"'{text}' is not {Article(kind)} {kind} name: write {Names(enumType)}.";
+    }
+
+    /// <summary>What an enum names, in the words the clause-key messages use.</summary>
+    internal static string Kind(Type enumType) =>
+        enumType.Name switch
+        {
+            nameof(MotelyJoker) => "joker",
+            nameof(MotelyJokerCommon) => "common joker",
+            nameof(MotelyJokerUncommon) => "uncommon joker",
+            nameof(MotelyJokerRare) => "rare joker",
+            nameof(MotelyJokerLegendary) => "legendary joker",
+            nameof(MotelyBossBlind) => "boss",
+            nameof(MotelyVoucher) => "voucher",
+            nameof(MotelyTag) => "tag",
+            nameof(MotelyTarotCard) => "tarot card",
+            nameof(MotelyPlanetCard) => "planet card",
+            nameof(MotelySpectralCard) => "spectral card",
+            nameof(MotelyStandardCard) => "standard card",
+            nameof(MotelyStandardcardRank) => "rank",
+            nameof(MotelyStandardcardSuit) => "suit",
+            nameof(MotelyItemEdition) => "edition",
+            nameof(MotelyItemEnhancement) => "enhancement",
+            nameof(MotelyItemSeal) => "seal",
+            nameof(MotelyBoosterPack) => "booster pack",
+            nameof(MotelyPokerHand) => "poker hand",
+            nameof(MotelyDeck) => "deck",
+            nameof(MotelyStake) => "stake",
+            _ => enumType.Name.StartsWith("Motely", StringComparison.Ordinal) ? enumType.Name["Motely".Length..] : enumType.Name,
+        };
+
+    private static string Article(string word) => word.Length > 0 && "aeiouAEIOU".Contains(word[0]) ? "an" : "a";
 
     private static string Names(Type enumType)
     {
