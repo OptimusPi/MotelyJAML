@@ -40,6 +40,22 @@ Option<string> analyzeOption = new("--analyze")
 {
     Description = "Print each seed's antes: boss, voucher, tags, shop and packs. Comma-separated seeds, a seed file, or - for stdin.",
 };
+Option<string> locateOption = new("--locate")
+{
+    Description = "With --analyze: list every ante and source where this item appears (shop card, pack card, Soul, tag or other pulls, boss, voucher, blind tag). A joker, tarot, planet, spectral, voucher, tag or boss name.",
+};
+Option<string> antesOption = new("--antes")
+{
+    Description = "With --locate: the antes to look in, as a range like 1-12 (default 1-8).",
+};
+Option<int?> rollsOption = new("--rolls")
+{
+    Description = "With --locate: rolls read from each pull stream (tags, Judgement, Wraith, ...) per ante (default 20).",
+};
+Option<int?> shopSlotsOption = new("--shopSlots")
+{
+    Description = "With --locate: shop cards read per ante (default 15 for antes 0-1, 50 after).",
+};
 Option<MotelyDeck?> deckOption = new("--deck")
 {
     Description = "Search: replaces the filter's deck. Analyze: the deck (default Red).",
@@ -122,6 +138,10 @@ RootCommand rootCommand = new("Balatro seed search.")
     hookCommand,
     jamlOption,
     analyzeOption,
+    locateOption,
+    antesOption,
+    rollsOption,
+    shopSlotsOption,
     deckOption,
     stakeOption,
     threadsOption,
@@ -148,7 +168,14 @@ rootCommand.SetAction(
     async (parseResult, cancellationToken) =>
     {
         if (parseResult.GetValue(analyzeOption) is { } seedList)
-            return Analyze(parseResult, seedList);
+            return parseResult.GetValue(locateOption) is { } item
+                ? Locate(parseResult, seedList, item)
+                : Analyze(parseResult, seedList);
+        if (parseResult.GetValue(locateOption) is not null)
+        {
+            Console.Error.WriteLine("Error: --locate reads seeds: give them with --analyze, as in --analyze 9KOCZ9YO --locate \"Diet Cola\".");
+            return 1;
+        }
         if (parseResult.GetValue(jamlOption) is { } filterPath)
             return await SearchAsync(parseResult, filterPath, cancellationToken);
         if (args.Length > 0)
@@ -191,6 +218,69 @@ int Analyze(ParseResult parseResult, string seedList)
         Console.WriteLine($"=== {seed} | {deck} {stake} ===");
         Console.Write(analysis);
         Console.WriteLine();
+    }
+    return failed == 0 ? 0 : 1;
+}
+
+int Locate(ParseResult parseResult, string seedList, string item)
+{
+    var deck = parseResult.GetValue(deckOption) ?? MotelyDeck.Red;
+    var stake = parseResult.GetValue(stakeOption) ?? MotelyStake.White;
+    int rolls = parseResult.GetValue(rollsOption) ?? 20;
+    int shopSlots = parseResult.GetValue(shopSlotsOption) ?? 0;
+    int minAnte = 1, maxAnte = 8;
+    if (parseResult.GetValue(antesOption) is { } antesText)
+    {
+        int[] antes;
+        try
+        {
+            antes = JamlShorthand.ParseAntes(antesText);
+        }
+        catch (FormatException ex)
+        {
+            Console.Error.WriteLine($"Error: --antes: {ex.Message}");
+            return 1;
+        }
+        if (antes[^1] - antes[0] + 1 != antes.Length)
+        {
+            Console.Error.WriteLine($"Error: --antes takes one range, like {antes[0]}-{antes[^1]}.");
+            return 1;
+        }
+        (minAnte, maxAnte) = (antes[0], antes[^1]);
+    }
+
+    if (!CliSearchMode.TryResolveSeeds(seedList, out var seeds, out var seedsError))
+    {
+        Console.Error.WriteLine(seedsError.Replace("--seeds", "--analyze"));
+        return 1;
+    }
+
+    int failed = 0;
+    foreach (var seed in seeds)
+    {
+        MotelyLocateResult result;
+        try
+        {
+            result = MotelySeedLocator.Locate(seed, deck, stake, item, minAnte, maxAnte, rolls, shopSlots);
+        }
+        catch (FormatException ex)
+        {
+            // The name is wrong for every seed: say so once.
+            Console.Error.WriteLine($"Error: --locate: {ex.Message}");
+            return 1;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"Error: {seed}: {ex.Message}");
+            failed++;
+            continue;
+        }
+        if (result.Hits.Count == 0)
+            Console.WriteLine(
+                $"{result.Seed} {result.Name}: not found in {result.Depth} ({deck} {stake}); deeper needs --antes/--rolls/--shopSlots"
+            );
+        foreach (var hit in result.Hits)
+            Console.WriteLine($"{result.Seed} ante {hit.Ante,-2} {hit.Where,-44} {hit.Item}");
     }
     return failed == 0 ? 0 : 1;
 }

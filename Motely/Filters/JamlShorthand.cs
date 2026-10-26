@@ -209,6 +209,19 @@ internal static class JamlShorthand
         return index.TryGetValue(other, out found) ? found : null;
     }
 
+    /// <summary>
+    /// One name, with an optional edition first word, resolved the way a shorthand line's name is:
+    /// the entry and the edition it states. A <see cref="FormatException"/> carries the same
+    /// one-line correction (closest names, ambiguity, an edition on a non-joker).
+    /// </summary>
+    internal static (Entry Entry, MotelyItemEdition? Edition) ResolveName(string name)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0)
+            throw new FormatException("an empty name: write a joker, boss, voucher, tag, tarot, planet or spectral card name, as in `Perkeo`.");
+        return Resolve(trimmed, EngineIndex);
+    }
+
     /// <summary>Every engine name <paramref name="name"/> may mean, across the families; null when none.</summary>
     internal static Entry[]? Lookup(string name) => Find(name, EngineIndex);
 

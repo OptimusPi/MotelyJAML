@@ -102,6 +102,27 @@ public sealed record SeedAnalysis(
 /// <summary>The structured result of <c>seed_analyze</c>.</summary>
 public sealed record SeedAnalyzeResult(IReadOnlyList<SeedAnalysis> Analyses);
 
+/// <summary>One place an item appears, as <c>seed_locate</c> reports it.</summary>
+/// <param name="Source">Boss, Voucher, SmallBlindTag, BigBlindTag, Shop, Pack, Soul, UncommonTag,
+/// RareTag, Judgement, Wraith, Emperor, PurpleSeal, SixthSense, Seance or RiffRaff.</param>
+/// <param name="Position">1-based, as a player counts: 11 is the 11th shop card.</param>
+/// <param name="Where">The source and position in words, e.g. "shop card #11".</param>
+/// <param name="Item">The card as the analyzer prints it, edition included.</param>
+public sealed record SeedLocateHit(int Ante, string Source, int Position, string Where, string Item, string Edition);
+
+/// <summary>The structured result of <c>seed_locate</c>.</summary>
+/// <param name="Item">The resolved name.</param>
+/// <param name="Searched">How deep the look went: antes, pull rolls and shop cards per ante.</param>
+/// <param name="Hits">Every hit, by ante; empty when the item is not within <c>Searched</c>.</param>
+public sealed record SeedLocateResult(
+    string Seed,
+    string Deck,
+    string Stake,
+    string Item,
+    string Searched,
+    IReadOnlyList<SeedLocateHit> Hits
+);
+
 /// <summary>
 /// The MCP tools, bot-first: named, annotated, schema-validated entry points over the raw SIMD
 /// engine. <c>filter_list</c> shows what can be searched, <c>seed_validate</c> is the same check
@@ -472,6 +493,98 @@ public static class MotelyTools
             })
             .ToList();
         return new(analyses);
+    }
+
+    [McpServerTool(
+        Name = "seed_locate",
+        Title = "Find where an item is in a seed",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description(
+        """
+        Find every ante and place one item appears in a seed: shop card #N, a pack's card, a Soul
+        (legendary, in run order), an Uncommon/Rare Tag pull, Judgement, Wraith, Emperor, Purple
+        Seal, Sixth Sense, Seance or Riff-raff pull, the boss, the voucher, or a blind tag.
+
+        WHEN: "where is Diet Cola in this seed", "which antes have a Negative Tag", "when is the
+        next Perkeo" — one call instead of reading seed_analyze's whole report, or one filter
+        clause per ante.
+
+        DO-NOT-USE-FOR: finding seeds — use seed_search. Seeing everything in an ante — use
+        seed_analyze.
+
+        `item`: a joker, tarot, planet, spectral card, voucher, tag or boss name, in any case,
+        spaces optional, "The" optional. A bare name matches every edition (each hit says its own);
+        "Negative Blueprint" keeps Negative only. `deck` and `stake` change what a seed holds:
+        pass the ones the user plays (default Red, White). `antes`: the range to look in, e.g.
+        [1, 12] (min to max; default 1-8, at most 39). `rolls`: pull-stream depth per ante
+        (default 20). The shop is read 15 cards deep in antes 0-1 and 50 after.
+
+        <examples>
+        <example><tool>seed_locate</tool><args>{"seed":"9KOCZ9YO","item":"Diet Cola","deck":"Ghost","antes":[1,12]}</args></example>
+        <example><tool>seed_locate</tool><args>{"seed":"9KOCZ9YO","item":"Negative Tag","deck":"Ghost","antes":[1,12]}</args></example>
+        </examples>
+
+        Returns: structured content { seed, deck, stake, item, searched, hits: [{ ante, source,
+        position, where, item, edition }] }. No hits means not within `searched`; pass wider antes
+        or more rolls to look deeper. An unknown name is an isError result naming the closest names.
+        Cost: milliseconds.
+        """
+    )]
+    public static SeedLocateResult Locate(
+        string seed,
+        string item,
+        string? deck = null,
+        string? stake = null,
+        int[]? antes = null,
+        int? rolls = null
+    )
+    {
+        var motelyDeck = ParseEnum(deck, MotelyDeck.Red, "deck");
+        var motelyStake = ParseEnum(stake, MotelyStake.White, "stake");
+        var list = ResolveSeeds(seed);
+        if (list.Length != 1)
+            throw new ArgumentException(
+                $"Error: seed_locate reads one seed per call, got {list.Length}; call it once per seed."
+            );
+        int minAnte = antes is { Length: > 0 } ? antes.Min() : 1;
+        int maxAnte = antes is { Length: > 0 } ? antes.Max() : 8;
+
+        MotelyLocateResult result;
+        try
+        {
+            result = MotelySeedLocator.Locate(list[0], motelyDeck, motelyStake, item, minAnte, maxAnte, rolls ?? 20);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException($"Error: item: {ex.Message}", ex);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ArgumentException($"Error: {ex.Message}", ex);
+        }
+
+        return new(
+            result.Seed,
+            motelyDeck.ToString(),
+            motelyStake.ToString(),
+            result.Name,
+            result.Depth,
+            [
+                .. result.Hits.Select(h => new SeedLocateHit(
+                    h.Ante,
+                    h.Source.ToString(),
+                    h.Position,
+                    h.Where,
+                    h.Item,
+                    h.Edition.ToString()
+                )),
+            ]
+        );
     }
 
     /// <summary>

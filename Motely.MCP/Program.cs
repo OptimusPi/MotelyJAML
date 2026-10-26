@@ -52,7 +52,9 @@ builder.Services.Configure<McpServerOptions>(options =>
            replay runs the filter's saved seeds; seeds + seeds checks a list; keyword + keyword
            searches a seed word's padded space. Exactly one mode with its matching field.
         4. seed_analyze — read what a matched seed actually contains, ante by ante, before
-           describing it. Pass the filter's deck and stake.
+           describing it. Pass the filter's deck and stake. To answer "where is X" (which ante,
+           which shop card, pack, tag pull or Soul), call seed_locate instead of reading the
+           whole report.
 
         Auth: a local server (Development, no Mcp:Authority) needs no token; just call the tools.
         A deployed server requires a bearer token from its configured authority.

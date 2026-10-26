@@ -84,6 +84,13 @@ Exit codes: `0` finished, `1` bad input, `130` interrupted (the resume point is 
 
 **Commands:**
 - `motely --analyze SEEDS|file|-` prints each seed ante by ante: boss, voucher, tags, shop and packs.
+- `motely --analyze SEEDS --locate "Diet Cola" [--deck Ghost] [--stake ...] [--antes 1-12] [--rolls N] [--shopSlots N]` prints one line per place the item appears: shop card, pack card, Soul (run order), Uncommon/Rare Tag and other pulls, boss, voucher, blind tag. The item is any joker, tarot, planet, spectral, voucher, tag or boss name, read as shorthand reads one; "Negative Blueprint" keeps that edition only. Antes default to 1-8 (up to 39), pulls to 20 rolls per ante, the shop to 15 cards in antes 0-1 and 50 after; nothing found prints how deep it looked.
+  ```
+  $ motely --analyze 9KOCZ9YO --deck Ghost --locate "Diet Cola" --antes 1-12
+  9KOCZ9YO ante 4  Buffoon Pack (pack 1) card 1                 Diet Cola
+  9KOCZ9YO ante 10 Uncommon Tag pull #2                         Diet Cola
+  ...
+  ```
 - `motely check <filters...>` checks that each filter loads.
 - `motely hook` is a post-edit hook for coding agents (exit 2 when an edited filter breaks).
 
@@ -124,6 +131,7 @@ dotnet run --project Motely.MCP        # http://localhost:5200/mcp
   `collect` defaults to 100 matches, or to the whole list for `replay` and `seeds`. The maximum is 10,000. In `sequential` it only caps how many matches are listed, because every window runs to its end.
 
   Both `seed_validate` and `seed_search` warn about clauses that load but can never hold, such as a boss asked for before its first ante (The Eye first appears in ante 3, The Ox in ante 6). `motely check` prints the same warnings.
+- `seed_locate(seed, item, deck?, stake?, antes?, rolls?)`: every ante and place one item appears in a seed (shop card #N, pack card, Soul in run order, tag and other pulls, boss, voucher, blind tag), the same lookup as `--locate`. `antes` is the range to look in, e.g. `[1, 12]`.
 - `seed_analyze(seeds, deck?, stake?, antes?)`: the `motely --analyze` report for up to 20 seeds, so an agent can say what a seed actually contains. `antes` trims it to the antes that matter, since the full report is mostly shop queues.
 
 **Resources:** `jaml://guide` (a one-page primer with working example filters) and `jaml://schema` (the full filter JSON schema).
