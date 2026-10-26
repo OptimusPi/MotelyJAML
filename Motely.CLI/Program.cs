@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Motely;
 using Motely.Analysis;
 using Motely.CLI;
+using Motely.CLI.Party;
 using Motely.Enums;
 
 // motely: search a JAML filter, or analyze seeds.
@@ -132,10 +133,67 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
+Option<string> partyServerOption = new("--server")
+{
+    Description = "The coordinator's base URL, e.g. https://www.seedfinder.app.",
+    Required = true,
+};
+Option<string> partyIdOption = new("--party")
+{
+    Description = "The party id (from create_search_party or the app).",
+    Required = true,
+};
+Option<int?> partyThreadsOption = new("--threads") { Description = "Worker threads (default: every core)." };
+Option<bool> partyOnceOption = new("--once") { Description = "Sweep and report one lease, then stop (for testing)." };
+Command partyCommand = new(
+    "party",
+    "Join a seedfinder.app Search Party as a worker: lease a block range, sweep it, report the matches, repeat"
+        + " until the party is complete, exhausted or cancelled. Ctrl+C stops the sweep and sends no report for the"
+        + " half-done lease: it expires on the server (60 s) and is leased to another worker."
+)
+{
+    partyServerOption,
+    partyIdOption,
+    partyThreadsOption,
+    partyOnceOption,
+};
+partyCommand.SetAction(
+    async (parseResult, cancellationToken) =>
+    {
+        string server = parseResult.GetValue(partyServerOption)!;
+        string partyId = parseResult.GetValue(partyIdOption)!;
+        if (!Uri.TryCreate(server, UriKind.Absolute, out var serverUri) || serverUri.Scheme is not ("http" or "https"))
+        {
+            Console.Error.WriteLine($"Error: --server '{server}' is not an http(s) URL.");
+            return 1;
+        }
+        int threads = parseResult.GetValue(partyThreadsOption) ?? Environment.ProcessorCount;
+        if (threads < 1)
+        {
+            Console.Error.WriteLine("Error: --threads must be at least 1.");
+            return 1;
+        }
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"motely/{typeof(MotelyGlobals).Assembly.GetName().Version?.ToString(3)}");
+        var worker = new PartyWorker(
+            new PartyClient(http, serverUri),
+            partyId,
+            new PartyWorkerOptions { Threads = threads, Once = parseResult.GetValue(partyOnceOption) },
+            Console.Error
+        );
+        Console.Error.WriteLine($"motely party {partyId} at {serverUri.GetLeftPart(UriPartial.Path).TrimEnd('/')} | threads {threads}");
+        var summary = await worker.RunAsync(cancellationToken);
+        PartyWorker.WriteSummary(Console.Error, partyId, summary);
+        return PartyWorker.ExitCode(summary);
+    }
+);
+
 RootCommand rootCommand = new("Balatro seed search.")
 {
     checkCommand,
     hookCommand,
+    partyCommand,
     jamlOption,
     analyzeOption,
     locateOption,

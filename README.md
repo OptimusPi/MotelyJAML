@@ -91,6 +91,11 @@ Exit codes: `0` finished, `1` bad input, `130` interrupted (the resume point is 
   9KOCZ9YO ante 10 Uncommon Tag pull #2                         Diet Cola
   ...
   ```
+- `motely party --server https://www.seedfinder.app --party <id> [--threads N] [--once]` joins a seedfinder.app Search Party as a worker. It leases a block range from the coordinator, sweeps it with the engine (the lease's deck and stake override the party JAML's), heartbeats every 20 s, reports the matching seeds (the 1000 best by score when more match; the server re-checks each one), and repeats until the party is complete, exhausted or cancelled. "fully leased" (other workers hold the rest) makes it wait and ask again. `--once` stops after one lease. Ctrl+C stops the sweep and sends no report for the half-done lease, which expires on the server and is leased again. stderr gets one line per lease and a summary at the end:
+  ```
+  lease blocks 1200-1263 (64 × 42,875 seeds) … 31 matches, reported: 29 confirmed
+  ```
+  Exit codes: `0` the party ended (or `--once` finished), `1` unknown party or the server kept failing, `130` interrupted. The code is in `Motely.CLI/Party/`, and the wire protocol is seedfinder.app's `lib/party/PROTOCOL.md`.
 - `motely check <filters...>` checks that each filter loads.
 - `motely hook` is a post-edit hook for coding agents (exit 2 when an edited filter breaks).
 

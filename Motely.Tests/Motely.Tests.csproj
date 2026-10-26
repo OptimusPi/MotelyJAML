@@ -14,6 +14,8 @@
     <ProjectReference Include="../Motely.AppHost/Motely.AppHost.csproj" />
     <!-- MotelyMcpTests covers the MCP server and AG-UI agent. -->
     <ProjectReference Include="../Motely.MCP/Motely.MCP.csproj" />
+    <!-- PartyWorkerTests drives the Search Party worker (Motely.CLI/Party) against a fake coordinator. -->
+    <ProjectReference Include="../Motely.CLI/Motely.CLI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
