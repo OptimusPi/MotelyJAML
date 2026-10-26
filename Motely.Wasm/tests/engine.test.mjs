@@ -196,7 +196,7 @@ test("deep nesting is refused at its line, and the module lives on", () => {
   assert.throws(() => JamlConfigLoader.toJson(deep));
   assert.match(Errors.last() ?? "", /^JAML line 4: the document nests deeper than 64 levels/);
   assert.match(JamlConfigLoader.check(deep) ?? "", /^JAML line 4: the document nests deeper than 64 levels/);
-  assert.match(JamlConfigLoader.check(JamlConfigLoader.toJson("x: " + "[".repeat(63) + "]".repeat(63) + "\n")) ?? "", /'x' not found/);
+  assert.match(JamlConfigLoader.check(JamlConfigLoader.toJson("x: " + "[".repeat(63) + "]".repeat(63) + "\n")) ?? "", /'x' is not a key of a filter/);
   assert.equal(JamlConfigLoader.check(telescope), null);
 });
 
