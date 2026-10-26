@@ -12,6 +12,9 @@ public sealed partial record JamlConfig
     public string? Name { get; set; }
     public string? Description { get; set; }
     public string? Author { get; set; }
+
+    /// <summary>When the filter was written, as its author's tool wrote it. Metadata: the search never reads it.</summary>
+    public string? DateCreated { get; set; }
     public MotelyDeck Deck { get; set; } = MotelyDeck.Red;
     public MotelyStake Stake { get; set; } = MotelyStake.White;
     public List<string> Seeds { get; set; } = [];

@@ -24,6 +24,7 @@ internal static class JamlClauseBinding
         new ScalarOrSequenceConverter<MotelyBossBlind>(),
         new ScalarOrSequenceConverter<MotelyBoosterPack>(),
         new ScalarOrSequenceConverter<MotelyPokerHand>(),
+        new IntListConverter(),
         new JamlEventRolls.Converter(),
         new OrPayloadConverter(),
         new AndPayloadConverter(),
@@ -42,6 +43,7 @@ internal static class JamlClauseBinding
         ["rareJokers"] = typeof(RareJokerClause),
         ["legendaryJoker"] = typeof(LegendaryJokerClause),
         ["legendaryJokers"] = typeof(LegendaryJokerClause),
+        ["soulJoker"] = typeof(LegendaryJokerClause),
         ["planetCard"] = typeof(PlanetCardClause),
         ["planetCards"] = typeof(PlanetCardClause),
         ["spectralCard"] = typeof(SpectralCardClause),
@@ -128,6 +130,36 @@ internal static class JamlClauseBinding
         {
             parser.Consume<Scalar>();
             return value;
+        }
+
+        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer nested) =>
+            nested(value, type);
+    }
+
+    /// <summary>
+    /// A list of numbers (<c>antes</c>, <c>shopItems</c>, …) as a list, or as one number for a list
+    /// of one: <c>ante: 2</c> is <c>antes: [2]</c>. Each number reads as YamlDotNet reads an int; a
+    /// null value stays null, as without this converter.
+    /// </summary>
+    internal sealed class IntListConverter : IYamlTypeConverter
+    {
+        public bool Accepts(Type type) => type == typeof(int[]);
+
+        public object? ReadYaml(IParser parser, Type type, ObjectDeserializer nested)
+        {
+            if (parser.Current is Scalar scalar && scalar.Style == ScalarStyle.Plain && scalar.Value is "" or "~" or "null" or "Null" or "NULL")
+            {
+                parser.MoveNext();
+                return null;
+            }
+            if (parser.Current is not SequenceStart)
+                return new[] { (int)nested(typeof(int))! };
+
+            parser.Consume<SequenceStart>();
+            var items = new List<int>();
+            while (!parser.TryConsume<SequenceEnd>(out _))
+                items.Add((int)nested(typeof(int))!);
+            return items.ToArray();
         }
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer nested) =>

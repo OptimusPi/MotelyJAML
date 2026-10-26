@@ -61,6 +61,20 @@
         }
       ]
     },
+    "dateCreated": {
+      "anyOf": [
+        {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "deck": {
       "$ref": "#/definitions/enums/MotelyDeck"
     },
@@ -1006,31 +1020,69 @@
       "additionalProperties": false,
       "properties": {
         "arcanaPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requireMegaPack": {
           "type": "boolean"
         },
         "spectralPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "tagPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1039,73 +1091,160 @@
       "additionalProperties": false,
       "properties": {
         "allShopJokers": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "commonShopJokers": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "judgement": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "rareShopJokers": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "rareTag": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requireMegaPack": {
           "type": "boolean"
         },
         "riffRaff": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "shopItems": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "uncommonShopJokers": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "uncommonTag": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "wraith": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1151,19 +1290,43 @@
       "additionalProperties": false,
       "properties": {
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requireMegaPack": {
           "type": "boolean"
         },
         "shopItems": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1172,10 +1335,17 @@
       "additionalProperties": false,
       "properties": {
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "etherealTag": {
           "type": "boolean"
@@ -1183,26 +1353,57 @@
         "omenGlobe": {
           "type": "boolean"
         },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "requireMegaPack": {
           "type": "boolean"
         },
         "seance": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "shopItems": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "sixthSense": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1211,40 +1412,85 @@
       "additionalProperties": false,
       "properties": {
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "charmTag": {
           "type": "boolean"
         },
         "emperor": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "purpleSealOrEightBall": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requireMegaPack": {
           "type": "boolean"
         },
         "shopItems": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "tagPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1253,19 +1499,43 @@
       "additionalProperties": false,
       "properties": {
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
+        "requireMega": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requireMegaPack": {
           "type": "boolean"
         },
         "shopItems": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         }
       }
     },
@@ -1274,10 +1544,17 @@
       "additionalProperties": false,
       "properties": {
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "legendary": {
           "$ref": "#/definitions/enums/MotelyJoker"
@@ -1288,11 +1565,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "edition": {
           "anyOf": [
@@ -1444,11 +1741,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "commonJoker": {
           "anyOf": [
@@ -1618,11 +1935,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "edition": {
           "anyOf": [
@@ -1792,11 +2129,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "edition": {
           "anyOf": [
@@ -1966,11 +2323,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "edition": {
           "anyOf": [
@@ -2094,10 +2471,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -2107,6 +2491,34 @@
         },
         "soulEditionRolls": {
           "type": "integer"
+        },
+        "soulJoker": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/enums/MotelyJoker"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^(?:[aA][nN][yY]|~|[nN][uU][lL][lL])$"
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/enums/MotelyJoker"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "sources": {
           "anyOf": [
@@ -2134,11 +2546,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -2270,11 +2702,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -2406,11 +2858,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -2542,11 +3014,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "card": {
           "anyOf": [
@@ -2762,11 +3254,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "erraticRank": {
           "anyOf": [
@@ -2827,11 +3339,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "erraticSuit": {
           "anyOf": [
@@ -2892,11 +3424,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -2926,10 +3478,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -2996,11 +3555,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -3030,10 +3609,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3100,11 +3686,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -3134,10 +3740,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3232,11 +3845,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "bigBlindTag": {
           "anyOf": [
@@ -3294,10 +3927,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3364,11 +4004,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "boss": {
           "anyOf": [
@@ -3462,11 +4122,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "boosterPack": {
           "anyOf": [
@@ -3580,10 +4260,17 @@
           ]
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3594,11 +4281,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "label": {
           "anyOf": [
@@ -3684,10 +4391,17 @@
           ]
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3698,11 +4412,31 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "ante": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
+        },
         "antes": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "card": {
           "anyOf": [
@@ -3828,10 +4562,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3900,10 +4641,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -3975,10 +4723,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4017,10 +4772,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4089,10 +4851,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4181,10 +4950,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4253,10 +5029,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4325,10 +5108,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4377,10 +5167,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4469,10 +5266,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4531,10 +5335,17 @@
           ]
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4593,10 +5404,17 @@
           "type": "integer"
         },
         "rolls": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "score": {
           "type": "integer"
@@ -4820,10 +5638,17 @@
       "additionalProperties": false,
       "properties": {
         "boosterPacks": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          ]
         },
         "entries": {
           "type": "array",
@@ -5006,6 +5831,18 @@
             {
               "required": [
                 "legendaryJokers"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/legendaryJokerClause"
+            },
+            {
+              "required": [
+                "soulJoker"
               ]
             }
           ]

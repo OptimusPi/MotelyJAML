@@ -10,11 +10,11 @@
       "name": "comment.line.number-sign.jaml"
     },
     {
-      "match": "(?i)\\b(?:bloodstoneTrigger|grosMichelExtinct|wheelStaysFlipped|cavendishExtinct|legendaryJokers|businessPayout|legendaryJoker|uncommonJokers|wheelOfFortune|parkingPayout|smallBlindTag|spectralCards|standardCards|uncommonJoker|boosterPacks|commonJokers|erraticRanks|erraticSuits|glassDestroy|misprintMult|spaceLevelup|spectralCard|standardCard|startingDraw|bigBlindTag|boosterPack|commonJoker|erraticRank|erraticSuit|planetCards|luckyMoney|planetCard|pokerHands|rareJokers|soulOrders|tarotCards|luckyMult|pokerHand|rareJoker|soulOrder|tarotCard|vouchers|voucher|bosses|jokers|joker|boss|tags|and|tag|or)(?=\\s*:)",
+      "match": "(?i)\\b(?:bloodstoneTrigger|grosMichelExtinct|wheelStaysFlipped|cavendishExtinct|legendaryJokers|businessPayout|legendaryJoker|uncommonJokers|wheelOfFortune|parkingPayout|smallBlindTag|spectralCards|standardCards|uncommonJoker|boosterPacks|commonJokers|erraticRanks|erraticSuits|glassDestroy|misprintMult|spaceLevelup|spectralCard|standardCard|startingDraw|bigBlindTag|boosterPack|commonJoker|erraticRank|erraticSuit|planetCards|luckyMoney|planetCard|pokerHands|rareJokers|soulOrders|tarotCards|luckyMult|pokerHand|rareJoker|soulJoker|soulOrder|tarotCard|vouchers|voucher|bosses|jokers|joker|boss|tags|and|tag|or)(?=\\s*:)",
       "name": "entity.name.tag.discriminator.jaml"
     },
     {
-      "match": "(?i)\\b(?:purpleSealOrEightBall|uncommonShopJokers|commonShopJokers|legendarySources|soulEditionRolls|requireMegaPack|rareShopJokers|allShopJokers|spectralPacks|soulCardOnly|arcanaPacks|description|enhancement|etherealTag|uncommonTag|sixthSense|judgement|legendary|omenGlobe|shopItems|spectrals|charmTag|riffRaff|stickers|tagPacks|clauses|edition|emperor|entries|maxAnte|mustNot|planets|rareTag|sources|author|cutoff|seance|should|tarots|wraith|antes|label|packs|rolls|score|seeds|stake|card|deck|luck|mode|mult|must|name|rank|seal|suit|with|max|min|id)(?=\\s*:)",
+      "match": "(?i)\\b(?:purpleSealOrEightBall|uncommonShopJokers|commonShopJokers|legendarySources|soulEditionRolls|requireMegaPack|rareShopJokers|allShopJokers|spectralPacks|soulCardOnly|arcanaPacks|dateCreated|description|enhancement|etherealTag|requireMega|uncommonTag|sixthSense|judgement|legendary|omenGlobe|shopItems|spectrals|charmTag|riffRaff|stickers|tagPacks|clauses|edition|emperor|entries|maxAnte|mustNot|planets|rareTag|sources|author|cutoff|seance|should|tarots|wraith|antes|label|packs|rolls|score|seeds|stake|ante|card|deck|luck|mode|mult|must|name|rank|seal|suit|with|max|min|id)(?=\\s*:)",
       "name": "keyword.other.key.jaml"
     },
     {

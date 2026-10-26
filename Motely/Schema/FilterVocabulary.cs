@@ -31,7 +31,7 @@ public static class FilterVocabulary
     /// </summary>
     private static readonly string[] RootKeyOrder =
     [
-        "id", "name", "description", "author", "deck", "stake", "seeds", "cutoff",
+        "id", "name", "description", "author", "dateCreated", "deck", "stake", "seeds", "cutoff",
         "must", "should", "mustNot",
     ];
 

@@ -32,6 +32,7 @@ export interface JamlFilter {
   name?: string | number | boolean | null;
   description?: string | number | boolean | null;
   author?: string | number | boolean | null;
+  dateCreated?: string | number | boolean | null;
   deck?: MotelyDeckName;
   stake?: MotelyStakeName;
   seeds?: (string | number | boolean)[];
@@ -42,26 +43,28 @@ export interface JamlFilter {
 }
 
 export interface JamlLegendaryJokerSourceConfig {
-  arcanaPacks?: number[];
-  boosterPacks?: number[];
+  arcanaPacks?: number | number[];
+  boosterPacks?: number | number[];
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  spectralPacks?: number[];
-  tagPacks?: number[];
+  spectralPacks?: number | number[];
+  tagPacks?: number | number[];
 }
 
 export interface JamlJokerSourceConfig {
-  allShopJokers?: number[];
-  boosterPacks?: number[];
-  commonShopJokers?: number[];
-  judgement?: number[];
-  rareShopJokers?: number[];
-  rareTag?: number[];
+  allShopJokers?: number | number[];
+  boosterPacks?: number | number[];
+  commonShopJokers?: number | number[];
+  judgement?: number | number[];
+  rareShopJokers?: number | number[];
+  rareTag?: number | number[];
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  riffRaff?: number[];
-  shopItems?: number[];
-  uncommonShopJokers?: number[];
-  uncommonTag?: number[];
-  wraith?: number[];
+  riffRaff?: number | number[];
+  shopItems?: number | number[];
+  uncommonShopJokers?: number | number[];
+  uncommonTag?: number | number[];
+  wraith?: number | number[];
 }
 
 export interface JamlWith {
@@ -70,44 +73,49 @@ export interface JamlWith {
 }
 
 export interface JamlPlanetSourceConfig {
-  boosterPacks?: number[];
+  boosterPacks?: number | number[];
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  shopItems?: number[];
+  shopItems?: number | number[];
 }
 
 export interface JamlSpectralCardSourceConfig {
-  boosterPacks?: number[];
+  boosterPacks?: number | number[];
   etherealTag?: boolean;
   omenGlobe?: boolean;
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  seance?: number[];
-  shopItems?: number[];
-  sixthSense?: number[];
+  seance?: number | number[];
+  shopItems?: number | number[];
+  sixthSense?: number | number[];
 }
 
 export interface JamlTarotCardSourceConfig {
-  boosterPacks?: number[];
+  boosterPacks?: number | number[];
   charmTag?: boolean;
-  emperor?: number[];
-  purpleSealOrEightBall?: number[];
+  emperor?: number | number[];
+  purpleSealOrEightBall?: number | number[];
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  shopItems?: number[];
-  tagPacks?: number[];
+  shopItems?: number | number[];
+  tagPacks?: number | number[];
 }
 
 export interface JamlStandardCardSourceConfig {
-  boosterPacks?: number[];
+  boosterPacks?: number | number[];
+  requireMega?: boolean | null;
   requireMegaPack?: boolean;
-  shopItems?: number[];
+  shopItems?: number | number[];
 }
 
 export interface JamlSoulOrderEntry {
-  antes?: number[];
+  antes?: number | number[];
   legendary?: MotelyJokerName;
 }
 
 export interface JamlJokerClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   edition?: MotelyItemEditionName | null;
   joker?: MotelyJokerName | "Any" | MotelyJokerName[] | null;
   jokers?: MotelyJokerName | "Any" | MotelyJokerName[] | null;
@@ -121,7 +129,8 @@ export interface JamlJokerClause {
 }
 
 export interface JamlCommonJokerClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   commonJoker?: MotelyJokerCommonName | "Any" | MotelyJokerCommonName[] | null;
   commonJokers?: MotelyJokerCommonName | "Any" | MotelyJokerCommonName[] | null;
   edition?: MotelyItemEditionName | null;
@@ -135,7 +144,8 @@ export interface JamlCommonJokerClause {
 }
 
 export interface JamlUncommonJokerClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   edition?: MotelyItemEditionName | null;
   jokers?: MotelyJokerUncommonName | "Any" | MotelyJokerUncommonName[] | null;
   label?: string | number | boolean | null;
@@ -149,7 +159,8 @@ export interface JamlUncommonJokerClause {
 }
 
 export interface JamlRareJokerClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   edition?: MotelyItemEditionName | null;
   jokers?: MotelyJokerRareName | "Any" | MotelyJokerRareName[] | null;
   label?: string | number | boolean | null;
@@ -163,7 +174,8 @@ export interface JamlRareJokerClause {
 }
 
 export interface JamlLegendaryJokerClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   edition?: MotelyItemEditionName | null;
   jokers?: MotelyJokerName | "Any" | MotelyJokerName[] | null;
   label?: string | number | boolean | null;
@@ -171,16 +183,18 @@ export interface JamlLegendaryJokerClause {
   legendaryJokers?: MotelyJokerName | "Any" | MotelyJokerName[] | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   soulCardOnly?: boolean;
   soulEditionRolls?: number;
+  soulJoker?: MotelyJokerName | "Any" | MotelyJokerName[] | null;
   sources?: JamlLegendaryJokerSourceConfig | null;
   with?: JamlWith | null;
 }
 
 export interface JamlPlanetCardClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
@@ -192,7 +206,8 @@ export interface JamlPlanetCardClause {
 }
 
 export interface JamlSpectralCardClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
@@ -204,7 +219,8 @@ export interface JamlSpectralCardClause {
 }
 
 export interface JamlTarotCardClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
@@ -216,7 +232,8 @@ export interface JamlTarotCardClause {
 }
 
 export interface JamlStandardCardClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   card?: MotelyStandardCardName | null;
   edition?: MotelyItemEditionName | null;
   enhancement?: MotelyItemEnhancementName | null;
@@ -242,7 +259,8 @@ export interface JamlStandardCardSlot {
 }
 
 export interface JamlErraticRankClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   erraticRank?: MotelyStandardcardRankName | null;
   erraticRanks?: MotelyStandardcardRankName | null;
   label?: string | number | boolean | null;
@@ -253,7 +271,8 @@ export interface JamlErraticRankClause {
 }
 
 export interface JamlErraticSuitClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   erraticSuit?: MotelyStandardcardSuitName | null;
   erraticSuits?: MotelyStandardcardSuitName | null;
   label?: string | number | boolean | null;
@@ -264,33 +283,36 @@ export interface JamlErraticSuitClause {
 }
 
 export interface JamlVoucherClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   voucher?: MotelyVoucherName | "Any" | MotelyVoucherName[] | null;
   vouchers?: MotelyVoucherName | "Any" | MotelyVoucherName[] | null;
 }
 
 export interface JamlTagClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   tag?: MotelyTagName | "Any" | MotelyTagName[] | null;
   tags?: MotelyTagName | "Any" | MotelyTagName[] | null;
 }
 
 export interface JamlSmallBlindTagClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   smallBlindTag?: MotelyTagName | "Any" | MotelyTagName[] | null;
   tag?: MotelyTagName | "Any" | MotelyTagName[] | null;
@@ -298,19 +320,21 @@ export interface JamlSmallBlindTagClause {
 }
 
 export interface JamlBigBlindTagClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   bigBlindTag?: MotelyTagName | "Any" | MotelyTagName[] | null;
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   tag?: MotelyTagName | "Any" | MotelyTagName[] | null;
   tags?: MotelyTagName | "Any" | MotelyTagName[] | null;
 }
 
 export interface JamlBossClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   boss?: MotelyBossBlindName | "Any" | MotelyBossBlindName[] | null;
   bosses?: MotelyBossBlindName | "Any" | MotelyBossBlindName[] | null;
   label?: string | number | boolean | null;
@@ -320,30 +344,33 @@ export interface JamlBossClause {
 }
 
 export interface JamlBoosterPackClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   boosterPack?: MotelyBoosterPackName | "Any" | MotelyBoosterPackName[] | null;
   boosterPacks?: MotelyBoosterPackName | "Any" | MotelyBoosterPackName[] | null;
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
   packs?: MotelyBoosterPackName | "Any" | MotelyBoosterPackName[] | null;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
 export interface JamlPokerHandClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
   pokerHand?: MotelyPokerHandName | "Any" | MotelyPokerHandName[] | null;
   pokerHands?: MotelyPokerHandName | "Any" | MotelyPokerHandName[] | null;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
 export interface JamlStartingDrawClause {
-  antes?: number[];
+  ante?: number | number[];
+  antes?: number | number[];
   card?: MotelyStandardCardName | null;
   label?: string | number | boolean | null;
   max?: number | null;
@@ -359,7 +386,7 @@ export interface JamlLuckyMoneyClause {
   luckyMoney?: number | number[] | "Any" | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   with?: JamlWith | null;
 }
@@ -369,7 +396,7 @@ export interface JamlLuckyMultClause {
   luckyMult?: number | number[] | "Any" | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   with?: JamlWith | null;
 }
@@ -380,7 +407,7 @@ export interface JamlMisprintMultClause {
   min?: number;
   misprintMult?: number | number[] | "Any" | null;
   mult?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
@@ -388,7 +415,7 @@ export interface JamlWheelOfFortuneClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   wheelOfFortune?: number | number[] | "Any" | null;
   with?: JamlWith | null;
@@ -398,7 +425,7 @@ export interface JamlWheelStaysFlippedClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   wheelStaysFlipped?: number | number[] | "Any" | null;
   with?: JamlWith | null;
@@ -409,7 +436,7 @@ export interface JamlGlassDestroyClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   with?: JamlWith | null;
 }
@@ -419,7 +446,7 @@ export interface JamlCavendishExtinctClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   with?: JamlWith | null;
 }
@@ -429,7 +456,7 @@ export interface JamlGrosMichelExtinctClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   with?: JamlWith | null;
 }
@@ -438,7 +465,7 @@ export interface JamlSpaceLevelupClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
   spaceLevelup?: number | number[] | "Any" | null;
   with?: JamlWith | null;
@@ -449,7 +476,7 @@ export interface JamlBusinessPayoutClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
@@ -458,7 +485,7 @@ export interface JamlParkingPayoutClause {
   max?: number | null;
   min?: number;
   parkingPayout?: number | number[] | "Any" | null;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
@@ -467,7 +494,7 @@ export interface JamlBloodstoneTriggerClause {
   label?: string | number | boolean | null;
   max?: number | null;
   min?: number;
-  rolls?: number[];
+  rolls?: number | number[];
   score?: number;
 }
 
@@ -510,7 +537,7 @@ export interface JamlOrPayload {
 }
 
 export interface JamlLegendarySoulOrderClause {
-  boosterPacks?: number[];
+  boosterPacks?: number | number[];
   entries?: JamlSoulOrderEntry[];
   label?: string | number | boolean | null;
   max?: number | null;
@@ -522,4 +549,4 @@ export interface JamlLegendarySoulOrderClause {
   with?: JamlWith | null;
 }
 
-export type JamlClause = JamlJokerClause & Required<Pick<JamlJokerClause, "joker">> | JamlJokerClause & Required<Pick<JamlJokerClause, "jokers">> | JamlCommonJokerClause & Required<Pick<JamlCommonJokerClause, "commonJoker">> | JamlCommonJokerClause & Required<Pick<JamlCommonJokerClause, "commonJokers">> | JamlUncommonJokerClause & Required<Pick<JamlUncommonJokerClause, "uncommonJoker">> | JamlUncommonJokerClause & Required<Pick<JamlUncommonJokerClause, "uncommonJokers">> | JamlRareJokerClause & Required<Pick<JamlRareJokerClause, "rareJoker">> | JamlRareJokerClause & Required<Pick<JamlRareJokerClause, "rareJokers">> | JamlLegendaryJokerClause & Required<Pick<JamlLegendaryJokerClause, "legendaryJoker">> | JamlLegendaryJokerClause & Required<Pick<JamlLegendaryJokerClause, "legendaryJokers">> | JamlPlanetCardClause & Required<Pick<JamlPlanetCardClause, "planetCard">> | JamlPlanetCardClause & Required<Pick<JamlPlanetCardClause, "planetCards">> | JamlSpectralCardClause & Required<Pick<JamlSpectralCardClause, "spectralCard">> | JamlSpectralCardClause & Required<Pick<JamlSpectralCardClause, "spectralCards">> | JamlTarotCardClause & Required<Pick<JamlTarotCardClause, "tarotCard">> | JamlTarotCardClause & Required<Pick<JamlTarotCardClause, "tarotCards">> | JamlStandardCardClause & Required<Pick<JamlStandardCardClause, "standardCard">> | JamlStandardCardClause & Required<Pick<JamlStandardCardClause, "standardCards">> | JamlErraticRankClause & Required<Pick<JamlErraticRankClause, "erraticRank">> | JamlErraticRankClause & Required<Pick<JamlErraticRankClause, "erraticRanks">> | JamlErraticSuitClause & Required<Pick<JamlErraticSuitClause, "erraticSuit">> | JamlErraticSuitClause & Required<Pick<JamlErraticSuitClause, "erraticSuits">> | JamlVoucherClause & Required<Pick<JamlVoucherClause, "voucher">> | JamlVoucherClause & Required<Pick<JamlVoucherClause, "vouchers">> | JamlTagClause & Required<Pick<JamlTagClause, "tag">> | JamlTagClause & Required<Pick<JamlTagClause, "tags">> | JamlSmallBlindTagClause & Required<Pick<JamlSmallBlindTagClause, "smallBlindTag">> | JamlBigBlindTagClause & Required<Pick<JamlBigBlindTagClause, "bigBlindTag">> | JamlBossClause & Required<Pick<JamlBossClause, "boss">> | JamlBossClause & Required<Pick<JamlBossClause, "bosses">> | JamlBoosterPackClause & Required<Pick<JamlBoosterPackClause, "boosterPack">> | JamlBoosterPackClause & Required<Pick<JamlBoosterPackClause, "boosterPacks">> | JamlPokerHandClause & Required<Pick<JamlPokerHandClause, "pokerHand">> | JamlPokerHandClause & Required<Pick<JamlPokerHandClause, "pokerHands">> | JamlStartingDrawClause & Required<Pick<JamlStartingDrawClause, "startingDraw">> | JamlLuckyMoneyClause & Required<Pick<JamlLuckyMoneyClause, "luckyMoney">> | JamlLuckyMultClause & Required<Pick<JamlLuckyMultClause, "luckyMult">> | JamlMisprintMultClause & Required<Pick<JamlMisprintMultClause, "misprintMult">> | JamlWheelOfFortuneClause & Required<Pick<JamlWheelOfFortuneClause, "wheelOfFortune">> | JamlWheelStaysFlippedClause & Required<Pick<JamlWheelStaysFlippedClause, "wheelStaysFlipped">> | JamlGlassDestroyClause & Required<Pick<JamlGlassDestroyClause, "glassDestroy">> | JamlCavendishExtinctClause & Required<Pick<JamlCavendishExtinctClause, "cavendishExtinct">> | JamlGrosMichelExtinctClause & Required<Pick<JamlGrosMichelExtinctClause, "grosMichelExtinct">> | JamlSpaceLevelupClause & Required<Pick<JamlSpaceLevelupClause, "spaceLevelup">> | JamlBusinessPayoutClause & Required<Pick<JamlBusinessPayoutClause, "businessPayout">> | JamlParkingPayoutClause & Required<Pick<JamlParkingPayoutClause, "parkingPayout">> | JamlBloodstoneTriggerClause & Required<Pick<JamlBloodstoneTriggerClause, "bloodstoneTrigger">> | JamlAndClause & Required<Pick<JamlAndClause, "and">> | JamlOrClause & Required<Pick<JamlOrClause, "or">> | JamlLegendarySoulOrderClause & Required<Pick<JamlLegendarySoulOrderClause, "soulOrder">> | JamlLegendarySoulOrderClause & Required<Pick<JamlLegendarySoulOrderClause, "soulOrders">> | string;
+export type JamlClause = JamlJokerClause & Required<Pick<JamlJokerClause, "joker">> | JamlJokerClause & Required<Pick<JamlJokerClause, "jokers">> | JamlCommonJokerClause & Required<Pick<JamlCommonJokerClause, "commonJoker">> | JamlCommonJokerClause & Required<Pick<JamlCommonJokerClause, "commonJokers">> | JamlUncommonJokerClause & Required<Pick<JamlUncommonJokerClause, "uncommonJoker">> | JamlUncommonJokerClause & Required<Pick<JamlUncommonJokerClause, "uncommonJokers">> | JamlRareJokerClause & Required<Pick<JamlRareJokerClause, "rareJoker">> | JamlRareJokerClause & Required<Pick<JamlRareJokerClause, "rareJokers">> | JamlLegendaryJokerClause & Required<Pick<JamlLegendaryJokerClause, "legendaryJoker">> | JamlLegendaryJokerClause & Required<Pick<JamlLegendaryJokerClause, "legendaryJokers">> | JamlLegendaryJokerClause & Required<Pick<JamlLegendaryJokerClause, "soulJoker">> | JamlPlanetCardClause & Required<Pick<JamlPlanetCardClause, "planetCard">> | JamlPlanetCardClause & Required<Pick<JamlPlanetCardClause, "planetCards">> | JamlSpectralCardClause & Required<Pick<JamlSpectralCardClause, "spectralCard">> | JamlSpectralCardClause & Required<Pick<JamlSpectralCardClause, "spectralCards">> | JamlTarotCardClause & Required<Pick<JamlTarotCardClause, "tarotCard">> | JamlTarotCardClause & Required<Pick<JamlTarotCardClause, "tarotCards">> | JamlStandardCardClause & Required<Pick<JamlStandardCardClause, "standardCard">> | JamlStandardCardClause & Required<Pick<JamlStandardCardClause, "standardCards">> | JamlErraticRankClause & Required<Pick<JamlErraticRankClause, "erraticRank">> | JamlErraticRankClause & Required<Pick<JamlErraticRankClause, "erraticRanks">> | JamlErraticSuitClause & Required<Pick<JamlErraticSuitClause, "erraticSuit">> | JamlErraticSuitClause & Required<Pick<JamlErraticSuitClause, "erraticSuits">> | JamlVoucherClause & Required<Pick<JamlVoucherClause, "voucher">> | JamlVoucherClause & Required<Pick<JamlVoucherClause, "vouchers">> | JamlTagClause & Required<Pick<JamlTagClause, "tag">> | JamlTagClause & Required<Pick<JamlTagClause, "tags">> | JamlSmallBlindTagClause & Required<Pick<JamlSmallBlindTagClause, "smallBlindTag">> | JamlBigBlindTagClause & Required<Pick<JamlBigBlindTagClause, "bigBlindTag">> | JamlBossClause & Required<Pick<JamlBossClause, "boss">> | JamlBossClause & Required<Pick<JamlBossClause, "bosses">> | JamlBoosterPackClause & Required<Pick<JamlBoosterPackClause, "boosterPack">> | JamlBoosterPackClause & Required<Pick<JamlBoosterPackClause, "boosterPacks">> | JamlPokerHandClause & Required<Pick<JamlPokerHandClause, "pokerHand">> | JamlPokerHandClause & Required<Pick<JamlPokerHandClause, "pokerHands">> | JamlStartingDrawClause & Required<Pick<JamlStartingDrawClause, "startingDraw">> | JamlLuckyMoneyClause & Required<Pick<JamlLuckyMoneyClause, "luckyMoney">> | JamlLuckyMultClause & Required<Pick<JamlLuckyMultClause, "luckyMult">> | JamlMisprintMultClause & Required<Pick<JamlMisprintMultClause, "misprintMult">> | JamlWheelOfFortuneClause & Required<Pick<JamlWheelOfFortuneClause, "wheelOfFortune">> | JamlWheelStaysFlippedClause & Required<Pick<JamlWheelStaysFlippedClause, "wheelStaysFlipped">> | JamlGlassDestroyClause & Required<Pick<JamlGlassDestroyClause, "glassDestroy">> | JamlCavendishExtinctClause & Required<Pick<JamlCavendishExtinctClause, "cavendishExtinct">> | JamlGrosMichelExtinctClause & Required<Pick<JamlGrosMichelExtinctClause, "grosMichelExtinct">> | JamlSpaceLevelupClause & Required<Pick<JamlSpaceLevelupClause, "spaceLevelup">> | JamlBusinessPayoutClause & Required<Pick<JamlBusinessPayoutClause, "businessPayout">> | JamlParkingPayoutClause & Required<Pick<JamlParkingPayoutClause, "parkingPayout">> | JamlBloodstoneTriggerClause & Required<Pick<JamlBloodstoneTriggerClause, "bloodstoneTrigger">> | JamlAndClause & Required<Pick<JamlAndClause, "and">> | JamlOrClause & Required<Pick<JamlOrClause, "or">> | JamlLegendarySoulOrderClause & Required<Pick<JamlLegendarySoulOrderClause, "soulOrder">> | JamlLegendarySoulOrderClause & Required<Pick<JamlLegendarySoulOrderClause, "soulOrders">> | string;

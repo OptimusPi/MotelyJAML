@@ -53,10 +53,22 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
         var buffer = new ParserBuffer(reader, MaxBufferDepth, MaxBufferLength);
         var keys = TopLevelKeys(buffer);
         var concrete = ClauseType(start, keys);
+        RefuseBothSpellings(keys, "ante", "antes");
 
         buffer.Reset();
         value = nestedObjectDeserializer(buffer, concrete);
         return true;
+    }
+
+    /// <summary>A clause writes one spelling of a key; with both, one would silently win.</summary>
+    private static void RefuseBothSpellings(List<Scalar> keys, string alias, string key)
+    {
+        var a = keys.FirstOrDefault(k => k.Value.Equals(alias, StringComparison.OrdinalIgnoreCase));
+        var b = keys.FirstOrDefault(k => k.Value.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (a is null || b is null)
+            return;
+        var later = a.Start.Index > b.Start.Index ? a : b;
+        throw new YamlException(later.Start, later.End, $"this clause writes both `{alias}` and `{key}`: keep one.");
     }
 
     /// <summary>The mapping's own keys, in order (not the keys of blocks nested in it).</summary>

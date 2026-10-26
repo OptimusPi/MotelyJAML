@@ -122,7 +122,14 @@ public static class FilterJsonSchema
                         ["items"] = new JsonObject { ["$ref"] = "#/definitions/clause" },
                     },
                     var x when x == typeof(string) => ArraySchema(ScalarString()),
-                    var x when x == typeof(int) => ArraySchema(new JsonObject { ["type"] = "integer" }),
+                    // A list of numbers, or one number for a list of one (`ante: 2`).
+                    var x when x == typeof(int) => new JsonObject
+                    {
+                        ["anyOf"] = new JsonArray(
+                            new JsonObject { ["type"] = "integer" },
+                            ArraySchema(new JsonObject { ["type"] = "integer" })
+                        ),
+                    },
                     // A list of blocks (soulOrder: [{ legendary: Perkeo }, …]): the loader binds a sequence.
                     _ => ArraySchema((JsonObject)EnsureDef(defs, elem)),
                 }

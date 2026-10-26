@@ -19,6 +19,9 @@ internal static class JamlKeys
     /// <summary>Every type a document can name, by full name: the root, the clauses and their nested blocks.</summary>
     private static readonly Lazy<Dictionary<string, Type>> TypesByName = new(BuildTypesByName);
 
+    /// <summary>Second spellings (JamlKeyAliases.cs): accepted, but a message names the canonical key.</summary>
+    private static readonly HashSet<string> SecondSpellings = new(StringComparer.OrdinalIgnoreCase) { "ante", "requireMega", "soulJoker" };
+
     /// <summary>The keys <paramref name="type"/> takes, camelCase, alphabetical, with each value's type.</summary>
     public static (string Key, Type Type)[] Of(Type type) =>
         Cache.GetOrAdd(type, static t =>
@@ -59,7 +62,7 @@ internal static class JamlKeys
         if (typeof(IMotelyClause).IsAssignableFrom(type) && SourceKeysOf(type).FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase)) is { } sourceKey)
             return $"'{key}' is not a key of {where}: it goes under `sources:`, as in `sources: {{ {sourceKey}: [0] }}`.";
 
-        var keys = Of(type).Select(p => p.Key).ToList();
+        var keys = Of(type).Select(p => p.Key).Where(k => !SecondSpellings.Contains(k)).ToList();
         var closest = Closest(key, keys);
         return closest.Count > 0
             ? $"'{key}' is not a key of {where}; did you mean {JoinOr(closest.Select(k => $"`{k}`").ToList())}?"
