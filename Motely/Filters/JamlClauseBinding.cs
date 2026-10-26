@@ -153,13 +153,26 @@ internal static class JamlClauseBinding
                 return null;
             }
             if (parser.Current is not SequenceStart)
-                return new[] { (int)nested(typeof(int))! };
+                return new[] { Number(parser, nested) };
 
             parser.Consume<SequenceStart>();
             var items = new List<int>();
             while (!parser.TryConsume<SequenceEnd>(out _))
-                items.Add((int)nested(typeof(int))!);
+                items.Add(Number(parser, nested));
             return items.ToArray();
+        }
+
+        private static int Number(IParser parser, ObjectDeserializer nested)
+        {
+            var text = (parser.Current as Scalar)?.Value;
+            try
+            {
+                return (int)nested(typeof(int))!;
+            }
+            catch (Exception ex) when (text is not null && ex is FormatException or OverflowException or YamlException)
+            {
+                throw new FormatException($"'{text}' is not a number: write a whole number, or a list of them, as in [1, 2].", ex);
+            }
         }
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer nested) =>

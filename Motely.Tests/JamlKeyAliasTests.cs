@@ -80,6 +80,15 @@ public sealed class JamlKeyAliasTests
         Assert.Equal("JAML line 4: this clause writes both `ante` and `antes`: keep one.", error);
     }
 
+    [Theory]
+    [InlineData("must:\n  - joker: Blueprint\n    antes: any\n", "JAML line 3: 'any' is not a number: write a whole number, or a list of them, as in [1, 2].")]
+    [InlineData("must:\n  - joker: Blueprint\n    ante: [1, two]\n", "JAML line 3: 'two' is not a number: write a whole number, or a list of them, as in [1, 2].")]
+    public void ANonNumber_InANumberList_SaysSo(string yaml, string message)
+    {
+        Assert.False(JamlConfigLoader.TryLoad(yaml, out _, out var error));
+        Assert.Equal(message, error);
+    }
+
     [Fact]
     public void ANullAnteList_KeepsTheDefault()
     {
