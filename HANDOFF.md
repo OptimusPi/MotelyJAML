@@ -22,9 +22,12 @@ docs/RELEASE-31.1.0.md). 1042/1042 xunit, wasm node:test 27/27, NativeAOT-LLVM p
 - **npm**: 31.1.0 is not on npm yet. This machine isn't logged in to npmjs (`npm whoami` →
   401). From Motely.Wasm: `npm login`, then `npm publish` (prepack runs the NativeAOT-LLVM
   build, ~1 min on Windows).
-- **Binaryen trap**: PATH points at `X:inaryen-version_130` (gone); `_132` is installed, but
-  wasm-opt 132 output fails in Node 26 ("unknown import kind 0x7f"). Ship unoptimized, as
-  31.0.0 did, until that's sorted.
+- **Binaryen**: use version 130 (131 at most). `X:\binaryen-version_130\bin` is on PATH and
+  installed. Binaryen 132 added "compact imports" and writes that encoding whenever
+  `--all-features` is on, which Bootsharp 0.9.0's targets hardcode; V8 (Node, Chrome) can't
+  read it ("unknown import kind 0x7f"). `--disable-compact-imports` would fix it, but that
+  flag can only go into Bootsharp's own targets. With 130 the Release publish runs wasm-opt
+  and `npm test` is 27/27.
 
 ### Earlier the same day: MCP for first-time agents
 

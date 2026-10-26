@@ -114,9 +114,11 @@ published ones).
 `jaml/` (the TypeScript declarations and the schema) is written by `dotnet run tools/schema.cs`
 from the repo root; Motely.Tests fails when it is stale.
 
-Install [Binaryen](https://github.com/WebAssembly/binaryen/releases) and put `wasm-opt` on
-PATH first. Bootsharp runs it on every Release publish; when it's missing it logs a warning
-and ships an unoptimized binary.
+Install [Binaryen](https://github.com/WebAssembly/binaryen/releases) **version 130** (131 at
+most) and put `wasm-opt` on PATH first. Bootsharp runs it on every Release publish; when it's
+missing it logs a warning and ships an unoptimized binary. Binaryen 132 and later write the
+"compact imports" encoding under the `--all-features` flag Bootsharp passes, and no engine
+loads that yet (Node: `unknown import kind 0x7f`).
 
 The default build includes `JamlFiles` (folder access through Bootsharp.FileSystem). That package
 is not on nuget.org: add the rewaffle sponsor feed as a `rewaffle` source in your user-level
