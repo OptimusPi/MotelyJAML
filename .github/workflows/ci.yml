@@ -3,9 +3,10 @@
 # `aot` NativeAOT-publishes Motely.CLI (the trim/AOT gate) and runs the binary on JamlFilters/.
 # `wasm` publishes Motely.Wasm with NativeAOT-LLVM and runs its node:test suite.
 # `web` builds Motely.Web against that package.
-# REWAFFLE_TOKEN: read:packages on rewaffle's GitHub Packages (NuGet and npm). A PR from a fork
-# gets no secrets: `test` then builds Motely.Wasm without Bootsharp.FileSystem
-# (-p:MotelyFileSystem=false), and `wasm`/`web`, which need the npm package, are skipped.
+# REWAFFLE_TOKEN: read:packages on rewaffle's GitHub Packages (NuGet and npm). Without it (a PR
+# from a fork, or a repo where the secret isn't set) `test` builds Motely.Wasm without
+# Bootsharp.FileSystem (-p:MotelyFileSystem=false), and `wasm`/`web`, which need the packages,
+# are skipped with a warning in the run summary instead of failing on an empty password.
 name: ci
 
 on:
@@ -53,8 +54,23 @@ jobs:
           name: motely-linux-x64
           path: out/motely/Motely.CLI
 
+  # Job-level `if:` can't read secrets, so this job turns "is REWAFFLE_TOKEN set" into an output.
+  secrets-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      rewaffle: ${{ steps.check.outputs.rewaffle }}
+    steps:
+      - id: check
+        run: |
+          echo "rewaffle=$HAS_REWAFFLE" >> "$GITHUB_OUTPUT"
+          if [ "$HAS_REWAFFLE" != "true" ]; then
+            echo "::warning::REWAFFLE_TOKEN is not set: the wasm and web jobs are skipped, so this run does not test motely-wasm."
+            echo "### wasm/web skipped: REWAFFLE_TOKEN is not set" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   wasm:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: secrets-gate
+    if: needs.secrets-gate.outputs.rewaffle == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     defaults:
       run:
