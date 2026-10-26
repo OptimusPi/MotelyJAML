@@ -37,6 +37,8 @@ public sealed class JamlShorthandTests
     [InlineData("Jupiter in antes 1-2", "planetCard: Jupiter\n    antes: [1, 2]")]
     [InlineData("Telescope in ante 3 or 1 or 3", "voucher: Telescope\n    antes: [1, 3]")]
     [InlineData("Hieroglyph in ante 0", "voucher: Hieroglyph\n    antes: [0]")]
+    [InlineData("Hook in ante 2", "boss: TheHook\n    antes: [2]")]
+    [InlineData("The Luchador in ante 1", "joker: Luchador\n    antes: [1]")]
     public void Shorthand_LoadsTheSameClauseAsItsMappingTwin(string shorthand, string mapping)
     {
         var fromShorthand = OnlyMust($"must:\n  - {shorthand}\n");
@@ -219,11 +221,8 @@ public sealed class JamlShorthandTests
     }
 
     [Fact]
-    public void MissingAntes_SaysToAddInAnte()
+    public void AntesWrittenWrong_SaysHowToWriteThem()
     {
-        Assert.Equal(
-            "'Perkeo' says no antes: add `in ante N`, as in `Perkeo in ante 1`, or `in antes 1-8` for any ante.",
-            ErrorOnLine5("Perkeo"));
         Assert.Equal("'Perkeo ante 1': write `in` before the antes, as in `Perkeo in ante 1`.", ErrorOnLine5("Perkeo ante 1"));
         Assert.Equal("'Perkeo in 1': write `ante` after `in`, as in `Perkeo in ante 1`.", ErrorOnLine5("Perkeo in 1"));
         Assert.Contains("no ante numbers after `ante`", ErrorOnLine5("Perkeo in ante"));

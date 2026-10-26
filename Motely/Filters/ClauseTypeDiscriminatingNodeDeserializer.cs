@@ -31,7 +31,7 @@ internal sealed class ClauseTypeDiscriminatingNodeDeserializer : INodeDeserializ
         {
             try
             {
-                value = JamlShorthand.Parse(scalar.Value);
+                value = JamlShorthand.Parse(scalar.Value).Clause;
             }
             catch (FormatException ex)
             {

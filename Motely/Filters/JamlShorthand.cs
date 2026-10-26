@@ -7,22 +7,27 @@ namespace Motely.Filters;
 /// <c>should</c>, <c>mustNot</c> (or an <c>and:</c>/<c>or:</c> list) that is a plain string is
 /// read here and becomes exactly the clause its mapping twin would:
 /// <code>
-/// [Edition] &lt;Name&gt; in ante|antes &lt;ante list&gt;
+/// [Edition] &lt;Name&gt; [in ante|antes &lt;ante list&gt;] [score &lt;N&gt;]
 ///
 /// - Perkeo in ante 1 or 2              → legendaryJoker: Perkeo,  antes: [1, 2]
 /// - The Eye in ante 3                  → boss: TheEye,            antes: [3]
 /// - Negative Blueprint in antes 1-3    → joker: Blueprint, edition: Negative, antes: [1, 2, 3]
 /// - Black Hole in ante 2, 3 and 4      → spectralCard: BlackHole, antes: [2, 3, 4]
+/// - Perkeo in antes 1-8 score 5        → legendaryJoker: Perkeo,  antes: [1..8], score: 5
+/// - Triboulet                          → legendaryJoker: Triboulet (no antes key)
 /// </code>
 /// <para>
 /// <b>Name</b>: an engine name from one of the families jokers, bosses, vouchers, tags, tarot,
 /// planet and spectral cards, matched ignoring case, spaces and punctuation ("the eye" is TheEye,
-/// "Charm Tag" is CharmTag). A legendary joker becomes a <c>legendaryJoker</c> clause, any other
-/// joker a <c>joker</c> clause. <b>Edition</b> (Foil, Holographic, Polychrome, Negative) is an
-/// optional first word, for jokers only. <b>Ante list</b>: numbers and inclusive ranges
-/// (<c>1-3</c>) separated by commas, <c>or</c> or <c>and</c>; <c>in ante</c> is required.
-/// The antes come out ascending, without repeats. Every other key keeps its default (score 1,
-/// min 1, default sources); anything more needs the mapping form.
+/// "Charm Tag" is CharmTag), and a leading "The" either way ("Hook" is TheHook). A legendary joker
+/// becomes a <c>legendaryJoker</c> clause, any other joker a <c>joker</c> clause. <b>Edition</b>
+/// (Foil, Holographic, Polychrome, Negative) is an optional first word, for jokers only.
+/// <b>Ante list</b>: numbers and inclusive ranges (<c>1-3</c>) separated by commas, <c>or</c> or
+/// <c>and</c>, after <c>in ante</c>/<c>in antes</c>. The antes come out ascending, without repeats.
+/// Without them the line is its mapping twin with no <c>antes</c> key: the clause's own default
+/// antes, or the filter's <c>defaults:</c>. <b>Score</b>: a trailing <c>score N</c> is
+/// <c>score: N</c>. Every other key keeps its default (min 1, default sources); anything more
+/// needs the mapping form.
 /// </para>
 /// No reflection and no Regex: the names come from <see cref="Enum.GetValues{TEnum}"/> per
 /// family, so it runs unchanged under NativeAOT.
@@ -62,16 +67,25 @@ internal static class JamlShorthand
             .GroupBy(e => Normalize(e.Name), StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
 
-    /// <summary>Reads one shorthand clause. A <see cref="FormatException"/> carries the one-line correction.</summary>
-    public static IMotelyClause Parse(string text) => Parse(text, EngineIndex);
+    /// <summary>
+    /// One shorthand clause read: the clause, and whether the line stated its antes and its score
+    /// (a key the line leaves out is the mapping twin's omitted key: the clause default, or the
+    /// filter's <c>defaults:</c>).
+    /// </summary>
+    internal readonly record struct Reading(IMotelyClause Clause, bool StatesAntes, bool StatesScore);
 
-    internal static IMotelyClause Parse(string text, Dictionary<string, Entry[]> index)
+    /// <summary>Reads one shorthand clause. A <see cref="FormatException"/> carries the one-line correction.</summary>
+    public static Reading Parse(string text) => Parse(text, EngineIndex);
+
+    internal static Reading Parse(string text, Dictionary<string, Entry[]> index)
     {
         var line = text.Trim();
         if (line.Length == 0)
             throw new FormatException("an empty clause: write one like `Perkeo in ante 1`, or a mapping like `joker: Perkeo`.");
 
         var words = Words(line);
+        int? score = ReadScore(ref line, ref words);
+
         int at = -1;
         for (int i = words.Count - 2; i >= 0; i--)
         {
@@ -98,8 +112,10 @@ internal static class JamlShorthand
                 throw new FormatException(
                     $"'{line}': write `ante` after `in`, as in `{before} in ante {line[words[bareIn + 1].Start..]}`.");
             }
-            throw new FormatException(
-                $"'{line}' says no antes: add `in ante N`, as in `{line} in ante 1`, or `in antes 1-8` for any ante.");
+
+            // A bare name: every ante the clause looks in when its mapping twin omits `antes`.
+            var (bareEntry, bareEdition) = Resolve(line, index);
+            return new(Build(bareEntry, bareEdition, null, score), StatesAntes: false, StatesScore: score is not null);
         }
 
         var name = line[..words[at].Start].TrimEnd();
@@ -108,7 +124,33 @@ internal static class JamlShorthand
         var antes = ParseAntes(line[(words[at + 1].Start + words[at + 1].Length)..]);
 
         var (entry, edition) = Resolve(name, index);
-        return Build(entry, edition, antes);
+        return new(Build(entry, edition, antes, score), StatesAntes: true, StatesScore: score is not null);
+    }
+
+    /// <summary>
+    /// Takes a trailing <c>score N</c> (N a whole number, may be negative) off the line. A
+    /// <c>score</c> anywhere else, or without its number, is an error; no engine name holds the
+    /// word (pinned by a test).
+    /// </summary>
+    private static int? ReadScore(ref string line, ref List<Word> words)
+    {
+        int at = -1;
+        for (int i = 0; i < words.Count; i++)
+            if (Is(line, words[i], "score") || Is(line, words[i], "score:"))
+                at = at < 0 ? i : throw new FormatException($"'{line}' says `score` twice: write it once, at the end, as in `Perkeo in ante 1 score 5`.");
+        if (at < 0)
+            return null;
+
+        var example = at == 0 ? "Perkeo in ante 1 score 5" : $"{line[..words[at].Start].TrimEnd()} score 5";
+        if (at != words.Count - 2 || at == 0)
+            throw new FormatException($"'{line}': write the score as `score N` at the end, as in `{example}`.");
+        var number = line.Substring(words[^1].Start, words[^1].Length);
+        if (!int.TryParse(number, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int score))
+            throw new FormatException($"'{line}': the score is a whole number, as in `{example}`.");
+
+        line = line[..words[at].Start].TrimEnd();
+        words = words.GetRange(0, at);
+        return score;
     }
 
     // ── Name ─────────────────────────────────────────────────────────────────────────────
@@ -341,20 +383,28 @@ internal static class JamlShorthand
 
     // ── Clause ───────────────────────────────────────────────────────────────────────────
 
-    private static IMotelyClause Build(Entry entry, MotelyItemEdition? edition, int[] antes) =>
-        entry.Family switch
+    /// <summary>The clause, with <paramref name="antes"/> and <paramref name="score"/> where the line states them and its own defaults elsewhere.</summary>
+    private static IMotelyClause Build(Entry entry, MotelyItemEdition? edition, int[]? antes, int? score)
+    {
+        IMotelyClause clause = entry.Family switch
         {
             Family.Joker when IsLegendary((MotelyJoker)entry.Value) =>
-                new LegendaryJokerClause { Jokers = [(MotelyJoker)entry.Value], Edition = edition, Antes = antes },
-            Family.Joker => new JokerClause { Jokers = [(MotelyJoker)entry.Value], Edition = edition, Antes = antes },
-            Family.Boss => new BossClause { Bosses = [(MotelyBossBlind)entry.Value], Antes = antes },
-            Family.Voucher => new VoucherClause { Vouchers = [(MotelyVoucher)entry.Value], Antes = antes },
-            Family.Tag => new TagClause { Tags = [(MotelyTag)entry.Value], Antes = antes },
-            Family.Tarot => new TarotCardClause { Tarots = [(MotelyTarotCard)entry.Value], Antes = antes },
-            Family.Planet => new PlanetCardClause { Planets = [(MotelyPlanetCard)entry.Value], Antes = antes },
-            Family.Spectral => new SpectralCardClause { Spectrals = [(MotelySpectralCard)entry.Value], Antes = antes },
+                new LegendaryJokerClause { Jokers = [(MotelyJoker)entry.Value], Edition = edition },
+            Family.Joker => new JokerClause { Jokers = [(MotelyJoker)entry.Value], Edition = edition },
+            Family.Boss => new BossClause { Bosses = [(MotelyBossBlind)entry.Value] },
+            Family.Voucher => new VoucherClause { Vouchers = [(MotelyVoucher)entry.Value] },
+            Family.Tag => new TagClause { Tags = [(MotelyTag)entry.Value] },
+            Family.Tarot => new TarotCardClause { Tarots = [(MotelyTarotCard)entry.Value] },
+            Family.Planet => new PlanetCardClause { Planets = [(MotelyPlanetCard)entry.Value] },
+            Family.Spectral => new SpectralCardClause { Spectrals = [(MotelySpectralCard)entry.Value] },
             _ => throw new InvalidOperationException($"No shorthand clause for family {entry.Family}."),
         };
+        if (antes is not null)
+            ((IAnteScopedClause)clause).Antes = antes;
+        if (score is { } points)
+            clause.Score = points;
+        return clause;
+    }
 
     private static bool IsLegendary(MotelyJoker joker) =>
         (MotelyJokerRarity)((int)joker & MotelyGlobals.JokerRarityMask) == MotelyJokerRarity.Legendary;
