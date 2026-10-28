@@ -1,6 +1,7 @@
 using Motely.Enums;
+using Motely.Filters;
 
-namespace Motely.CLI.Party;
+namespace Motely.Party;
 
 /// <summary>A lease the engine can't run: its JAML doesn't load, or its deck/stake isn't a name.</summary>
 public sealed class PartyLeaseException(string message) : Exception(message);
@@ -34,7 +35,7 @@ public static class PartySweep
                 $"blocks [{lease.StartBlock}, {lease.EndBlock}) are outside the keyspace at batchChars {lease.BatchChars}."
             );
 
-        if (!JamlConfigLoader.TryLoad(lease.Jaml, out var config, out var loadError))
+        if (!JamlConfigLoader.TryLoad(lease.Jaml, out var config, out var loadError) || config is null)
             throw new PartyLeaseException($"the party's JAML does not load: {loadError}");
 
         JamlSearchPlan plan;
@@ -61,6 +62,7 @@ public static class PartySweep
         }
 
         return settings
+            .WithSourceConfig(config)
             .WithThreadCount(Math.Max(1, threads))
             .WithBatchCharacterCount(lease.BatchChars)
             .WithSequentialSearch()

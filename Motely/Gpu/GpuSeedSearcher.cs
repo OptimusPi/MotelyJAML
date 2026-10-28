@@ -39,6 +39,8 @@ public sealed class GpuFilterProgram
     public const int OpSoulPack = 5;
     public const int OpErraticRank = 6;
     public const int OpErraticSuit = 7;
+    public const int OpShopJoker = 8;
+    public const int OpBuffoonJoker = 9;
 
     public int[] Instructions { get; }
     public int InstructionGroupCount { get; }
@@ -335,9 +337,116 @@ public sealed class GpuFilterProgram
                 return true;
             }
 
+            case JokerClause jc when !negate && jc.Antes.Length > 0:
+            {
+                int targetRarity = 0;
+                if (jc.Jokers.Length > 0)
+                {
+                    var firstRarity = (MotelyJokerRarity)((int)jc.Jokers[0] & MotelyGlobals.JokerRarityMask);
+                    bool allSame = true;
+                    foreach (var j in jc.Jokers)
+                    {
+                        if (((MotelyJokerRarity)((int)j & MotelyGlobals.JokerRarityMask)) != firstRarity)
+                        {
+                            allSame = false;
+                            break;
+                        }
+                    }
+                    if (allSame)
+                    {
+                        targetRarity = firstRarity switch
+                        {
+                            MotelyJokerRarity.Common => 1,
+                            MotelyJokerRarity.Uncommon => 2,
+                            MotelyJokerRarity.Rare => 3,
+                            _ => 0,
+                        };
+                    }
+                }
+                return TryEmitJokerStream(ops, jc.Antes, jc.Sources, jc.Edition, targetRarity, jc.Min, ref opCount);
+            }
+
+            case RareJokerClause rjc when !negate && rjc.Antes.Length > 0:
+                return TryEmitJokerStream(ops, rjc.Antes, rjc.Sources, rjc.Edition, targetRarity: 3, rjc.Min, ref opCount);
+
+            case UncommonJokerClause ujc when !negate && ujc.Antes.Length > 0:
+                return TryEmitJokerStream(ops, ujc.Antes, ujc.Sources, ujc.Edition, targetRarity: 2, ujc.Min, ref opCount);
+
+            case CommonJokerClause cjc when !negate && cjc.Antes.Length > 0:
+                return TryEmitJokerStream(ops, cjc.Antes, cjc.Sources, cjc.Edition, targetRarity: 1, cjc.Min, ref opCount);
+
             default:
                 return false;
         }
+    }
+
+    private static bool TryEmitJokerStream(
+        List<int> ops,
+        int[] antes,
+        JokerSourceConfig? configSources,
+        MotelyItemEdition? edition,
+        int targetRarity,
+        int min,
+        ref int opCount
+    )
+    {
+        if (min <= 0)
+            return false;
+
+        int anteMask = 0;
+        int maxAnte = 0;
+        foreach (int a in antes)
+        {
+            if (a is < 1 or > 8)
+                return false;
+            anteMask |= 1 << a;
+            if (a > maxAnte)
+                maxAnte = a;
+        }
+
+        int targetEdition = edition.HasValue
+            ? edition.Value switch
+            {
+                MotelyItemEdition.Foil => 1,
+                MotelyItemEdition.Holographic => 2,
+                MotelyItemEdition.Polychrome => 3,
+                MotelyItemEdition.Negative => 4,
+                _ => 0,
+            }
+            : 0;
+
+        var sources = configSources ?? JokerFilterDesc.DefaultSources;
+
+        if (sources.ShopItems.Length > 0 && sources.BoosterPacks.Length == 0)
+        {
+            int maxSlot = sources.ShopItems.Max();
+            ops.Add(OpShopJoker);
+            ops.Add(anteMask);
+            ops.Add(maxAnte);
+            ops.Add(maxSlot + 1);
+            ops.Add(targetEdition);
+            ops.Add(targetRarity);
+            ops.Add(min);
+            opCount++;
+            return true;
+        }
+
+        if (sources.BoosterPacks.Length > 0 && sources.ShopItems.Length == 0)
+        {
+            int maxPack = sources.BoosterPacks.Max();
+            int maxDraws = Math.Max(8, (maxPack + 1) * 4);
+            ops.Add(OpBuffoonJoker);
+            ops.Add(anteMask);
+            ops.Add(maxAnte);
+            ops.Add(maxDraws);
+            ops.Add(targetEdition);
+            ops.Add(targetRarity);
+            ops.Add(min);
+            opCount++;
+            return true;
+        }
+
+        return false;
     }
 }
 
@@ -1012,6 +1121,62 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
             return pseudo_hash_key(seed, key, 7);
         }
 
+        inline double pseudo_hash_edisho(const uchar seed[8], int ante) {
+            uchar key[8];
+            key[0] = 'e'; key[1] = 'd'; key[2] = 'i'; key[3] = 's'; key[4] = 'h'; key[5] = 'o';
+            if (ante < 10) {
+                key[6] = (uchar)('0' + ante);
+                return pseudo_hash_key(seed, key, 7);
+            } else {
+                key[6] = (uchar)('0' + (ante / 10));
+                key[7] = (uchar)('0' + (ante % 10));
+                return pseudo_hash_key(seed, key, 8);
+            }
+        }
+
+        inline double pseudo_hash_edibuf(const uchar seed[8], int ante) {
+            uchar key[8];
+            key[0] = 'e'; key[1] = 'd'; key[2] = 'i'; key[3] = 'b'; key[4] = 'u'; key[5] = 'f';
+            if (ante < 10) {
+                key[6] = (uchar)('0' + ante);
+                return pseudo_hash_key(seed, key, 7);
+            } else {
+                key[6] = (uchar)('0' + (ante / 10));
+                key[7] = (uchar)('0' + (ante % 10));
+                return pseudo_hash_key(seed, key, 8);
+            }
+        }
+
+        inline double pseudo_hash_rarity_sho(const uchar seed[8], int ante) {
+            uchar key[11];
+            key[0] = 'r'; key[1] = 'a'; key[2] = 'r'; key[3] = 'i'; key[4] = 't'; key[5] = 'y';
+            if (ante < 10) {
+                key[6] = (uchar)('0' + ante);
+                key[7] = 's'; key[8] = 'h'; key[9] = 'o';
+                return pseudo_hash_key(seed, key, 10);
+            } else {
+                key[6] = (uchar)('0' + (ante / 10));
+                key[7] = (uchar)('0' + (ante % 10));
+                key[8] = 's'; key[9] = 'h'; key[10] = 'o';
+                return pseudo_hash_key(seed, key, 11);
+            }
+        }
+
+        inline double pseudo_hash_rarity_buf(const uchar seed[8], int ante) {
+            uchar key[11];
+            key[0] = 'r'; key[1] = 'a'; key[2] = 'r'; key[3] = 'i'; key[4] = 't'; key[5] = 'y';
+            if (ante < 10) {
+                key[6] = (uchar)('0' + ante);
+                key[7] = 'b'; key[8] = 'u'; key[9] = 'f';
+                return pseudo_hash_key(seed, key, 10);
+            } else {
+                key[6] = (uchar)('0' + (ante / 10));
+                key[7] = (uchar)('0' + (ante % 10));
+                key[8] = 'b'; key[9] = 'u'; key[10] = 'f';
+                return pseudo_hash_key(seed, key, 11);
+            }
+        }
+
         inline int draw_next_voucher(const uchar seed[8], double seed_hash_0, int ante, uint active_vouchers, double* main_state, double resample_states[16]) {
             int v = get_next_random_int(main_state, seed_hash_0, 0, 32);
             int resample = 0;
@@ -1316,6 +1481,64 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
                     bool ok = (match_count >= min_count) && (max_count < 0 || match_count <= max_count);
                     if (negate != 0) ok = !ok;
                     if (!ok) return;
+                }
+                else if (opcode == 8) { // OP_SHOP_JOKER
+                    int ante_mask = ops[pc++];
+                    int max_ante = ops[pc++];
+                    int max_slots = ops[pc++];
+                    int target_edition = ops[pc++];
+                    int target_rarity = ops[pc++];
+                    int min_count = ops[pc++];
+
+                    int total_hits = 0;
+                    for (int ante = 1; ante <= max_ante; ante++) {
+                        if (((ante_mask >> ante) & 1) == 0) continue;
+                        double st_edi = pseudo_hash_edisho(seed, ante);
+                        double st_rar = pseudo_hash_rarity_sho(seed, ante);
+
+                        for (int s = 0; s < max_slots; s++) {
+                            double epoll = lua_rng_random(get_next_pseudoseed(&st_edi, seed_hash_0));
+                            double rpoll = lua_rng_random(get_next_pseudoseed(&st_rar, seed_hash_0));
+
+                            int ed = (epoll > 0.997) ? 4 : (epoll > 0.994 ? 3 : (epoll > 0.98 ? 2 : (epoll > 0.96 ? 1 : 0)));
+                            int rar = (rpoll > 0.95) ? 3 : (rpoll > 0.70 ? 2 : 1);
+
+                            bool ed_ok = (target_edition == 0) || (ed == target_edition);
+                            bool rar_ok = (target_rarity == 0) || (rar == target_rarity);
+
+                            if (ed_ok && rar_ok) total_hits++;
+                        }
+                    }
+                    if (total_hits < min_count) return;
+                }
+                else if (opcode == 9) { // OP_BUFFOON_JOKER
+                    int ante_mask = ops[pc++];
+                    int max_ante = ops[pc++];
+                    int max_draws = ops[pc++];
+                    int target_edition = ops[pc++];
+                    int target_rarity = ops[pc++];
+                    int min_count = ops[pc++];
+
+                    int total_hits = 0;
+                    for (int ante = 1; ante <= max_ante; ante++) {
+                        if (((ante_mask >> ante) & 1) == 0) continue;
+                        double st_edi = pseudo_hash_edibuf(seed, ante);
+                        double st_rar = pseudo_hash_rarity_buf(seed, ante);
+
+                        for (int d = 0; d < max_draws; d++) {
+                            double epoll = lua_rng_random(get_next_pseudoseed(&st_edi, seed_hash_0));
+                            double rpoll = lua_rng_random(get_next_pseudoseed(&st_rar, seed_hash_0));
+
+                            int ed = (epoll > 0.997) ? 4 : (epoll > 0.994 ? 3 : (epoll > 0.98 ? 2 : (epoll > 0.96 ? 1 : 0)));
+                            int rar = (rpoll > 0.95) ? 3 : (rpoll > 0.70 ? 2 : 1);
+
+                            bool ed_ok = (target_edition == 0) || (ed == target_edition);
+                            bool rar_ok = (target_rarity == 0) || (rar == target_rarity);
+
+                            if (ed_ok && rar_ok) total_hits++;
+                        }
+                    }
+                    if (total_hits < min_count) return;
                 }
             }
 

@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Motely.CLI.Party;
+using Motely.Party;
 using Motely.MCP.Data;
 using Motely.MCP.Party;
 using Motely.MCP.Search;

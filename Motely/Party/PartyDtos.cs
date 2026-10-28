@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Motely.CLI.Party;
+namespace Motely.Party;
 
 // Wire shapes of the seedfinder.app Search Party coordinator (lib/party/PROTOCOL.md there):
 //   GET  /api/party/next?partyId=   -> {lease} | {done, reason} | {error}
@@ -62,7 +62,7 @@ public sealed class PartyReportResponse
     public string? Error { get; init; }
 }
 
-// Source-generated: Motely.CLI is NativeAOT-published, so no reflection-based JSON.
+// Source-generated: Motely is NativeAOT-ready, so no reflection-based JSON.
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

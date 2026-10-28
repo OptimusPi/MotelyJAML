@@ -116,6 +116,34 @@ public sealed class GpuSearchTests
         0,
         2
     )]
+    [InlineData(
+        """
+        name: ShopJokerParity
+        deck: Red
+        stake: White
+        must:
+          - rareJoker: []
+            edition: Foil
+            antes: [1, 2]
+        """,
+        0,
+        4
+    )]
+    [InlineData(
+        """
+        name: BuffoonJokerParity
+        deck: Red
+        stake: White
+        must:
+          - uncommonJoker: []
+            edition: Foil
+            antes: [1, 2]
+            sources:
+              boosterPacks: [0, 1]
+        """,
+        0,
+        4
+    )]
     public async Task Gpu_and_Cpu_sequential_sweeps_produce_bit_exact_identical_matches_and_scores(
         string jaml,
         long startBatch,

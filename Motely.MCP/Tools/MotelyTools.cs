@@ -10,6 +10,7 @@ using Motely.Gpu;
 using Motely.MCP.Data;
 using Motely.MCP.Party;
 using Motely.MCP.Search;
+using Motely.Lake;
 
 namespace Motely.MCP.Tools;
 
@@ -44,6 +45,9 @@ public enum SeedSearchMode
 
     [JsonStringEnumMemberName("sequential")]
     Sequential,
+
+    [JsonStringEnumMemberName("lake")]
+    Lake,
 }
 
 /// <summary>The structured result of a <c>seed_search</c> run, mirrored into the MCP tool result's
@@ -113,6 +117,12 @@ public sealed record GpuStatusResult(
     IReadOnlyList<GpuDeviceInfo> Devices,
     GpuBenchmarkResult Benchmark
 );
+
+/// <summary>The structured result of <c>lake_list</c>.</summary>
+public sealed record LakeListResult(int Count, IReadOnlyList<LakeMetadata> Lakes);
+
+/// <summary>The structured result of <c>lake_query</c>.</summary>
+public sealed record LakeQueryResult(int Count, string Category, string Partition, IReadOnlyList<string> Seeds);
 
 /// <summary>
 /// The MCP tools, bot-first: named, annotated, schema-validated entry points over the raw SIMD +
@@ -307,11 +317,25 @@ public static class MotelyTools
         [Range(1, 256)] int? threads = null,
         [Range(1, MaxSequentialBatches)] int? batchCount = null,
         bool useGpu = false,
-        bool saveToDb = true
+        bool saveToDb = true,
+        LakeCategory? lakeCategory = null,
+        string? lakePartition = null
     )
     {
+        string? effectiveSeeds = seeds;
+        if (mode == SeedSearchMode.Lake)
+        {
+            var cat = lakeCategory ?? LakeCategory.CuratedRanks;
+            var part = lakePartition ?? (cat == LakeCategory.NegativeUncommon ? "uncommonss" : "10");
+            var lakeService = new SeedLakeService();
+            var lakeSeeds = lakeService.ReadSeeds(cat, part, collect ?? 1000).ToList();
+            if (lakeSeeds.Count == 0)
+                throw new InvalidOperationException($"Error: seed lake category '{cat}' partition '{part}' produced 0 seeds.");
+            effectiveSeeds = string.Join(",", lakeSeeds);
+        }
+
         int? effectiveBatches = batchCount ?? batches;
-        var source = ValidateModeCombo(mode, seeds, keyword, randomCount, startBatch, effectiveBatches);
+        var source = ValidateModeCombo(mode, effectiveSeeds, keyword, randomCount, startBatch, effectiveBatches, lakeCategory, lakePartition);
         var (text, label) = ReadFilterText(filter, jaml);
         var config = LoadConfig(text, label);
 
@@ -586,6 +610,54 @@ public static class MotelyTools
     }
 
     [McpServerTool(
+        Name = "lake_list",
+        Title = "List available pre-computed seed lakes and partitions",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description(
+        """
+        List pre-computed Balatro seed lakes (ranks, suits, negative uncommons, negative rares) from dungmot,
+        returning category, partition, file path, format, and estimated seed count.
+        """
+    )]
+    public static LakeListResult LakeList()
+    {
+        var lakeService = new SeedLakeService();
+        var lakes = lakeService.GetAvailableLakes();
+        return new(lakes.Count, lakes);
+    }
+
+    [McpServerTool(
+        Name = "lake_query",
+        Title = "Query seeds from a pre-computed seed lake partition",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description(
+        """
+        Query seeds from a specific seed lake category and partition (e.g. category 'CuratedRanks' partition '10',
+        or category 'Ranks' partition 'little_10s', or category 'NegativeUncommon').
+        """
+    )]
+    public static LakeQueryResult LakeQuery(
+        LakeCategory category = LakeCategory.CuratedRanks,
+        string partition = "10",
+        [Range(1, 10_000)] int limit = 100
+    )
+    {
+        var lakeService = new SeedLakeService();
+        var seeds = lakeService.ReadSeeds(category, partition, limit).ToList();
+        return new(seeds.Count, category.ToString(), partition, seeds);
+    }
+
+    [McpServerTool(
         Name = "recent_finds",
         Title = "List recently discovered seeds from the database",
         ReadOnly = true,
@@ -852,9 +924,18 @@ public static class MotelyTools
         string? keyword,
         int? randomCount,
         long? startBatch = null,
-        int? batches = null
+        int? batches = null,
+        LakeCategory? lakeCategory = null,
+        string? lakePartition = null
     )
     {
+        if (mode == SeedSearchMode.Lake)
+        {
+            if (string.IsNullOrWhiteSpace(seeds))
+                throw new ArgumentException("Error: seed lake produced no seeds to search.");
+            return new SeedSource($"seeds {seeds}", null);
+        }
+
         var extras = new List<string>();
         if (seeds is not null)
             extras.Add("seeds");

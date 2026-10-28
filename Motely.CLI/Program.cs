@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using Motely;
 using Motely.Analysis;
 using Motely.CLI;
-using Motely.CLI.Party;
+using Motely.Party;
 using Motely.Enums;
 
 // motely: search a JAML filter, or analyze seeds.

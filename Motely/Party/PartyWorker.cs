@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 
-namespace Motely.CLI.Party;
+namespace Motely.Party;
 
 public sealed class PartyWorkerOptions
 {

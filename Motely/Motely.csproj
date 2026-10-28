@@ -25,5 +25,6 @@
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="YamlDotNet" />
     <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" />
+    <PackageReference Include="Parquet.Net" />
   </ItemGroup>
 </Project>

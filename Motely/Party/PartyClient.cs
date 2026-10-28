@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Motely.CLI.Party;
+namespace Motely.Party;
 
 /// <summary>A coordinator answer that was not a 2xx: the status and the server's error text.</summary>
 public sealed class PartyServerException(int statusCode, string message) : Exception(message)
