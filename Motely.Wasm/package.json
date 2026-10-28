@@ -27,8 +27,8 @@
   "files": ["bin/motely-wasm", "jaml"],
   "scripts": {
     "prepack": "npm run build",
-    "build": "dotnet publish -c Release",
-    "build:nofs": "dotnet publish -c Release -p:MotelyFileSystem=false",
+    "build": "dotnet publish -c Release && node scripts/patch-dist-base64-polyfill.mjs",
+    "build:nofs": "dotnet publish -c Release -p:MotelyFileSystem=false && node scripts/patch-dist-base64-polyfill.mjs",
     "test": "node --test \"tests/*.test.mjs\"",
     "cover": "node --test --experimental-test-coverage --test-coverage-include=bin/motely-wasm/index.mjs --test-coverage-include=bin/motely-wasm/generated/** --test-coverage-include=tests/** \"tests/*.test.mjs\""
   },
