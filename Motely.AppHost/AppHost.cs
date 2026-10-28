@@ -6,11 +6,14 @@
 //   search   `motely --jaml <filter>`, started by hand from the dashboard or with
 //            `aspire resource search start`. The `filter` parameter picks the filter; its progress
 //            is on the Metrics page (motely.search.*) and its seeds are in the console log.
+//   mcp      The MCP + AG-UI + Community Party Search server with /health probe and GPU/DB support.
 //   web      Motely.Web's Vite dev server: jaml-ui's SeedLab on the motely-wasm package (publish
 //            Motely.Wasm first; Motely.Web links it with file:../Motely.Wasm).
 //
 // Resources run in their own project directory, not the repo root, so each one that takes a
 // filter by name gets the repo's JamlFilters/ through MOTELY_FILTERS_DIR.
+
+using Microsoft.Extensions.Configuration;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -31,13 +34,24 @@ builder
     .WithEnvironment("MOTELY_FILTERS_DIR", filters)
     .WithExplicitStart();
 
-// The MCP + AG-UI server. Runs as an Aspire resource: its URL is on the dashboard, and it shares
-// the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI resources do. The web resource
-// references it so the Vite dev server learns the URL through service discovery and can proxy
-// /agui (the agent panel calls same-origin).
+// The MCP + AG-UI + Party Coordinator server. Runs as an Aspire resource: its URL is on the
+// dashboard, and it shares the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI
+// resources do. The web resource references it so the Vite dev server learns the URL through
+// service discovery and can proxy /agui (the agent panel calls same-origin).
 var mcp = builder
     .AddProject<Projects.Motely_MCP>("mcp")
-    .WithEnvironment("MOTELY_FILTERS_DIR", filters);
+    .WithEnvironment("MOTELY_FILTERS_DIR", filters)
+    .WithHttpHealthCheck("/health");
+
+if (builder.Configuration.GetValue<bool>("Motely:EnablePartyWorker"))
+{
+    builder
+        .AddProject<Projects.Motely_CLI>("party-worker")
+        .WithArgs("party", "--server", mcp.GetEndpoint("http"), "--party", "default", "--gpu")
+        .WithEnvironment("MOTELY_FILTERS_DIR", filters)
+        .WithReference(mcp)
+        .WithExplicitStart();
+}
 
 builder.AddViteApp("web", "../Motely.Web").WithReference(mcp);
 

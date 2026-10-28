@@ -1,13 +1,17 @@
 using System.Text;
-using Motely.MCP.Agui;
-using Motely.MCP.Agent;
-using Motely.MCP.Resources;
-using Motely.MCP.Tools;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.AspNetCore.Authentication;
 using ModelContextProtocol.Server;
+using Motely.Gpu;
+using Motely.MCP.Agent;
+using Motely.MCP.Agui;
+using Motely.MCP.Data;
+using Motely.MCP.Party;
+using Motely.MCP.Resources;
+using Motely.MCP.Search;
+using Motely.MCP.Tools;
 
 // The filters directory: MOTELY_FILTERS_DIR (Aspire sets it on the mcp resource), else the repo's
 // JamlFilters/. FilterCheck reads the variable, so it is set before any filter is resolved.
@@ -15,11 +19,31 @@ if (Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is not { Length: > 
     filtersDir = "JamlFilters";
 Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", filtersDir);
 
+using var telemetry = Motely.ServiceDefaults.Extensions.AddServiceDefaults(["Motely.MCP"], ["Motely.MCP"]);
+
 var builder = WebApplication.CreateBuilder(args);
 
+string dataDir =
+    builder.Configuration["Motely:DataDir"]
+    ?? Environment.GetEnvironmentVariable("MOTELY_DATA_DIR")
+    ?? Path.Combine(builder.Environment.ContentRootPath, ".motely-data");
+
+var fileStore = new FileMotelyStore(dataDir);
+var connStr = builder.Configuration.GetConnectionString("motelydb");
+IMotelyStore store = !string.IsNullOrWhiteSpace(connStr)
+    ? new PostgresMotelyStore(connStr, dataDir)
+    : fileStore;
+
+var partyCoordinator = new PartyCoordinator(store, filtersDir);
+var searchRunner = new SearchRunner(filtersDir, store);
+
+builder.Services.AddSingleton(store);
+builder.Services.AddSingleton(partyCoordinator);
+builder.Services.AddSingleton(searchRunner);
+
 // The MCP server over Streamable HTTP (stateless: no server-to-client requests, so no session
-// affinity), with tools from this assembly and the JAML guide + schema resources.
-builder.Services
+// affinity), with optional --stdio transport, tools from this assembly, and JAML resources.
+var mcpServerBuilder = builder.Services
     .AddMcpServer()
     .WithHttpTransport(options =>
     {
@@ -27,6 +51,11 @@ builder.Services
     })
     .WithToolsFromAssembly()
     .WithResources<MotelyResources>();
+
+if (args.Contains("--stdio", StringComparer.OrdinalIgnoreCase))
+{
+    mcpServerBuilder.WithStdioServerTransport();
+}
 
 // IHttpContextAccessor: the tools take a ClaimsPrincipal; the SDK's tool invoker resolves it from
 // HttpContext, which needs this registration.
@@ -38,7 +67,7 @@ builder.Services.Configure<McpServerOptions>(options =>
 {
     options.ServerInstructions =
         """
-        Motely: Balatro seed search over JAML filters.
+        Motely: Balatro seed search over JAML filters (SIMD CPU + OpenCL FP64 GPU + Community Party Search).
 
         Seeds are 1-8 characters from 1-9 and A-Z; 0 is never used (it reads as O).
 
@@ -48,16 +77,10 @@ builder.Services.Configure<McpServerOptions>(options =>
         2. seed_validate — check the filter: `filter` (a name from filter_list, or an absolute
            path) or `jaml` (your filter's JAML text; nothing needs saving).
         3. seed_search — find seeds. To find NEW seeds use mode random + randomCount, or
-           sequential + collect (continue a sweep with the returned nextBatch as startBatch).
-           replay runs the filter's saved seeds; seeds + seeds checks a list; keyword + keyword
-           searches a seed word's padded space. Exactly one mode with its matching field.
-        4. seed_analyze — read what a matched seed actually contains, ante by ante, before
-           describing it. Pass the filter's deck and stake. To answer "where is X" (which ante,
-           which shop card, pack, tag pull or Soul), call seed_locate instead of reading the
-           whole report.
-
-        Auth: a local server (Development, no Mcp:Authority) needs no token; just call the tools.
-        A deployed server requires a bearer token from its configured authority.
+           sequential + collect (with optional `useGpu: true`).
+        4. seed_analyze / seed_analyze_batch / seed_locate — read what matched seeds contain.
+        5. gpu_status, party_create, party_sweep_gpu, party_status, leaderboard, recent_finds —
+           inspect GPU hardware, run community party sweeps, and query persisted discoveries.
         """;
 
     options.Filters ??= new McpServerFilters();
@@ -70,17 +93,12 @@ builder.Services.AddAGUI();
 builder.Services.AddSingleton<IChatClient, MotelySearchAgent>();
 
 // EXT-Auth: JWT Bearer + RFC 9728 protected-resource metadata, following the SDK's
-// ProtectedMcpServer sample. With Mcp:Authority configured, tokens are validated against that
-// issuer (production). Without one, a local symmetric key stands in so the server runs out of the
-// box, and POST /dev/token mints a dev token.
+// ProtectedMcpServer sample.
 var mcpConfig = builder.Configuration.GetSection("Mcp");
 var authority = mcpConfig["Authority"];
 var audience = mcpConfig["Audience"] ?? "motely-mcp";
 var signingKey = mcpConfig["DevSigningKey"] ?? "motely-dev-signing-key-32-bytes!!";
 var allowDevToken = mcpConfig.GetValue<bool?>("AllowDevTokenIssuer") ?? builder.Environment.IsDevelopment();
-// Secure by default: require a token in Production, or whenever an authority is configured. In
-// Development with no authority, the server is open so the editor and web panel work out of the
-// box; POST /dev/token still mints a token if you want to exercise the auth flow.
 var requireAuth = !string.IsNullOrEmpty(authority) || !builder.Environment.IsDevelopment();
 
 builder.Services
@@ -142,9 +160,135 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+await store.InitializeAsync(filtersDir);
+await partyCoordinator.EnsureLoadedAsync();
+MotelyTools.Configure(store, partyCoordinator, searchRunner);
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/alive", () => Results.Ok(new { status = "healthy" }));
+
+app.MapGet(
+    "/",
+    () =>
+    {
+        var devices = GpuDeviceInfo.DiscoverDevices();
+        return Results.Ok(
+            new
+            {
+                service = "Motely.MCP",
+                gpu = new
+                {
+                    deviceCount = devices.Count,
+                    bestDevice = GpuDeviceInfo.GetBestDevice()?.Name,
+                    devices
+                },
+                database = store.GetType().Name,
+                endpoints = new[]
+                {
+                    "/mcp",
+                    "/agui",
+                    "/health",
+                    "/alive",
+                    "/api/party/create",
+                    "/api/party/list",
+                    "/api/party/{partyId}",
+                    "/api/party/next",
+                    "/api/party/report",
+                    "/api/party/{partyId}/sweep"
+                }
+            }
+        );
+    }
+);
+
+app.MapPost(
+    "/api/party/create",
+    async (
+        HttpContext httpContext,
+        PartyCoordinator coordinator,
+        string? filter,
+        string? name,
+        string? deck,
+        string? stake,
+        int? batchChars,
+        long? blockSize,
+        long? totalBlocks,
+        int? targetMatches,
+        CancellationToken ct
+    ) =>
+    {
+        CreatePartyRequest? req = null;
+        if (httpContext.Request.ContentLength is > 0 && httpContext.Request.HasJsonContentType())
+        {
+            req = await httpContext.Request.ReadFromJsonAsync<CreatePartyRequest>(ct).ConfigureAwait(false);
+        }
+
+        req = new CreatePartyRequest(
+            FilterOrJaml: req?.FilterOrJaml ?? filter ?? "",
+            Name: req?.Name ?? name,
+            Deck: req?.Deck ?? deck,
+            Stake: req?.Stake ?? stake,
+            BatchChars: req?.BatchChars is > 0 ? req.BatchChars : (batchChars ?? 3),
+            BlockSize: req?.BlockSize is > 0 ? req.BlockSize : (blockSize ?? 10),
+            TotalBlocks: req?.TotalBlocks ?? totalBlocks,
+            TargetMatches: req?.TargetMatches ?? targetMatches
+        );
+
+        if (string.IsNullOrWhiteSpace(req.FilterOrJaml))
+            return Results.BadRequest(new { error = "FilterOrJaml (or ?filter=...) is required." });
+        var status = await coordinator.CreatePartyAsync(req, ct).ConfigureAwait(false);
+        return Results.Ok(status);
+    }
+);
+
+app.MapGet(
+    "/api/party/list",
+    async (PartyCoordinator coordinator, CancellationToken ct) =>
+        Results.Ok(await coordinator.ListPartiesAsync(ct).ConfigureAwait(false))
+);
+
+app.MapGet(
+    "/api/party/{partyId}",
+    async (string partyId, PartyCoordinator coordinator, CancellationToken ct) =>
+    {
+        var status = await coordinator.GetPartyStatusAsync(partyId, ct).ConfigureAwait(false);
+        return status is not null ? Results.Ok(status) : Results.NotFound(new { error = $"Party '{partyId}' not found." });
+    }
+);
+
+app.MapGet(
+    "/api/party/next",
+    async (string? partyId, long? blocks, PartyCoordinator coordinator, CancellationToken ct) =>
+    {
+        var next = await coordinator.NextLeaseAsync(partyId, blocks, ct).ConfigureAwait(false);
+        return Results.Ok(next);
+    }
+);
+
+app.MapPost(
+    "/api/party/report",
+    async (PartyReportRequestDto payload, PartyCoordinator coordinator, CancellationToken ct) =>
+    {
+        var (statusCode, body) = await coordinator.ReportAsync(payload, ct).ConfigureAwait(false);
+        return Results.Json(body, statusCode: statusCode);
+    }
+);
+
+app.MapPost(
+    "/api/party/{partyId}/sweep",
+    async (string partyId, long? blocks, bool? gpu, int? threads, PartyCoordinator coordinator, CancellationToken ct) =>
+    {
+        var result = await coordinator
+            .SweepBlocksAsync(partyId, blocks ?? 10, gpu ?? true, threads, ct)
+            .ConfigureAwait(false);
+        return Results.Ok(result);
+    }
+);
+
 var mcp = app.MapMcp("/mcp");
 mcp.RequireCors("Web");
 if (requireAuth)

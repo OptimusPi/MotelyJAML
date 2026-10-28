@@ -5,7 +5,12 @@ namespace Motely.CLI.Party;
 
 public sealed class PartyWorkerOptions
 {
+    private readonly Func<PartyLease, int, CancellationToken, Task<PartySweepResult>>? _sweep;
+
     public int Threads { get; init; } = Environment.ProcessorCount;
+
+    /// <summary>Enable OpenCL FP64 GPU acceleration for each leased block range.</summary>
+    public bool UseGpu { get; init; }
 
     /// <summary>Stop after one lease is swept and reported.</summary>
     public bool Once { get; init; }
@@ -29,7 +34,11 @@ public sealed class PartyWorkerOptions
     public int? MaxFullyLeasedWaits { get; init; }
 
     /// <summary>Runs one lease; the engine sweep unless a test stands in for it.</summary>
-    public Func<PartyLease, int, CancellationToken, Task<PartySweepResult>> Sweep { get; init; } = PartySweep.RunAsync;
+    public Func<PartyLease, int, CancellationToken, Task<PartySweepResult>> Sweep
+    {
+        get => _sweep ?? ((lease, threads, ct) => PartySweep.RunAsync(lease, threads, UseGpu, ct));
+        init => _sweep = value;
+    }
 }
 
 public enum PartyWorkerOutcome

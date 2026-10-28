@@ -25,7 +25,7 @@ public static class PartySweep
     /// <c>cutoff:</c> nor the engine's default auto cutoff (which, once finds flood in, passes only
     /// seeds that tie or beat the best so far) may drop a seed here that it would confirm there.
     /// </summary>
-    public static IMotelySearchSettings CreateSettings(PartyLease lease, int threads)
+    public static IMotelySearchSettings CreateSettings(PartyLease lease, int threads, bool useGpu = false)
     {
         if (lease.BatchChars is < 1 or >= MotelyGlobals.MaxSeedLength)
             throw new PartyLeaseException($"batchChars {lease.BatchChars} is outside 1-{MotelyGlobals.MaxSeedLength - 1}.");
@@ -67,6 +67,7 @@ public static class PartySweep
             .WithStartBatchIndex(lease.StartBlock)
             .WithEndBatchIndex(lease.EndBlock)
             .WithAutoScoreCutoff(false)
+            .WithGpuSearch(useGpu)
             .WithQuietMode(true);
     }
 
@@ -74,9 +75,18 @@ public static class PartySweep
     /// Sweeps the lease's blocks. Cancellation stops the sweep; the result then says
     /// <see cref="PartySweepResult.Cancelled"/> and must not be reported (the range is half done).
     /// </summary>
-    public static async Task<PartySweepResult> RunAsync(PartyLease lease, int threads, CancellationToken cancellationToken)
+    public static Task<PartySweepResult> RunAsync(PartyLease lease, int threads, CancellationToken cancellationToken) =>
+        RunAsync(lease, threads, useGpu: false, cancellationToken);
+
+    /// <inheritdoc cref="RunAsync(PartyLease, int, CancellationToken)"/>
+    public static async Task<PartySweepResult> RunAsync(
+        PartyLease lease,
+        int threads,
+        bool useGpu,
+        CancellationToken cancellationToken
+    )
     {
-        var settings = CreateSettings(lease, threads);
+        var settings = CreateSettings(lease, threads, useGpu);
         var found = new Dictionary<string, int>(StringComparer.Ordinal);
 
         void Add(string seed, int score)

@@ -192,6 +192,8 @@ public interface IMotelySearchSettings
     /// </summary>
     IMotelySearchSettings WithBatchBoundaryCallback(Action callback);
     IMotelySearchSettings WithAutoScoreCutoff(bool enabled = true);
+    IMotelySearchSettings WithGpuSearch(bool enabled = true);
+    IMotelySearchSettings WithSourceConfig(Filters.JamlConfig? config);
     IMotelySearchSettings StopAfter(long matchCount);
 
     /// <summary>
@@ -264,6 +266,8 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     public bool CsvOutput { get; set; } = false;
     public bool QuietMode { get; set; } = false;
     public bool AutoScoreCutoff { get; set; } = true;
+    public bool UseGpu { get; set; } = false;
+    public Filters.JamlConfig? SourceConfig { get; set; } = null;
 
     /// <summary>
     /// Stop searching once AT LEAST this many seeds have matched; 0 (the default) searches the
@@ -578,6 +582,12 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     IMotelySearchSettings IMotelySearchSettings.WithAutoScoreCutoff(bool enabled) =>
         WithAutoScoreCutoff(enabled);
 
+    IMotelySearchSettings IMotelySearchSettings.WithGpuSearch(bool enabled) =>
+        WithGpuSearch(enabled);
+
+    IMotelySearchSettings IMotelySearchSettings.WithSourceConfig(Filters.JamlConfig? config) =>
+        WithSourceConfig(config);
+
     IMotelySearchSettings IMotelySearchSettings.StopAfter(long matchCount) =>
         StopAfter(matchCount);
 
@@ -651,6 +661,18 @@ public sealed class MotelySearchSettings<TBaseFilter>(
     public MotelySearchSettings<TBaseFilter> WithAutoScoreCutoff(bool enabled = true)
     {
         AutoScoreCutoff = enabled;
+        return this;
+    }
+
+    public MotelySearchSettings<TBaseFilter> WithGpuSearch(bool enabled = true)
+    {
+        UseGpu = enabled;
+        return this;
+    }
+
+    public MotelySearchSettings<TBaseFilter> WithSourceConfig(Filters.JamlConfig? config)
+    {
+        SourceConfig = config;
         return this;
     }
 
@@ -1072,6 +1094,11 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
         _startBatchIndex = settings.StartBatchIndex;
         _endBatchIndex = settings.EndBatchIndex;
 
+        if (settings.UseGpu && !_isProviderMode && !OperatingSystem.IsBrowser())
+        {
+            _gpuSearcher = Gpu.GpuSeedSearcher.TryCreate(settings.SourceConfig);
+        }
+
         int[] pseudohashKeyLengths = [.. filterCreationContext.CachedPseudohashKeyLengths];
         _pseudoHashKeyLengthCount = pseudohashKeyLengths.Length;
 
@@ -1105,6 +1132,8 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             };
         }
     }
+
+    private readonly Gpu.GpuSeedSearcher? _gpuSearcher;
 
     private void RunWorkerBody(MotelySearchPlan plan)
     {
@@ -1560,6 +1589,7 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
             for (int i = 0; i < _plans.Length; i++)
                 _plans[i]?.Dispose();
         Marshal.FreeHGlobal((nint)_pseudoHashKeyLengths);
+        _gpuSearcher?.Dispose();
     }
 
     ~MotelySearch()
@@ -2610,6 +2640,8 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
         private readonly int _batchCharCount;
         private readonly int _nonBatchCharCount;
+        private readonly int _seedsPerBatch;
+        private readonly int[]? _gpuCandidates;
 
         private readonly char* _digits;
         private readonly Vector512<double>* _hashes;
@@ -2628,6 +2660,16 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
             _nonBatchCharCount = MotelyGlobals.MaxSeedLength - _batchCharCount;
             MaxBatch = MotelyGlobals.SequentialBatchCount(_batchCharCount);
+
+            int seedsPerBatch = 1;
+            for (int i = 0; i < _batchCharCount; i++)
+                seedsPerBatch *= MotelyGlobals.SeedDigits.Length;
+            _seedsPerBatch = seedsPerBatch;
+
+            if (search._gpuSearcher is not null)
+            {
+                _gpuCandidates = new int[Math.Min(_seedsPerBatch, 65536)];
+            }
 
             // Safety check for pseudoHashKeyLengthCount to prevent null pointer issues
             if (Search._pseudoHashKeyLengthCount <= 0)
@@ -2650,6 +2692,8 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
 
         internal override void SearchSequentialBatch(long batchIdx)
         {
+            long originalBatchIdx = batchIdx;
+
             // Figure out which digits this search is doing
             for (int i = _nonBatchCharCount - 1; i >= 0; i--)
             {
@@ -2686,11 +2730,89 @@ public sealed unsafe partial class MotelySearch<TBaseFilter> : IInternalMotelySe
                 *(double*)&hashes[pseudohashKeyIdx] = num;
             }
 
+            if (Search._gpuSearcher is { FilterProgram.HasSelectiveOps: true } gpu && _gpuCandidates is not null)
+            {
+                int candCount = gpu.FilterBatchRange(originalBatchIdx, 1, _batchCharCount, _gpuCandidates);
+                if (candCount >= 0)
+                {
+                    int prevIntra = 0;
+                    for (int c = 0; c < candCount; c++)
+                    {
+                        if (
+                            Volatile.Read(ref Search._isDisposed) != 0
+                            || Search._cancellationToken.IsCancellationRequested
+                        )
+                        {
+                            FlushFilterBatches();
+                            return;
+                        }
+
+                        int intraIdx = _gpuCandidates[c];
+                        _localSeedsSearched += (intraIdx + 1) - prevIntra;
+                        prevIntra = intraIdx + 1;
+
+                        SearchSingleGpuCandidate(intraIdx, hashes);
+                    }
+
+                    FlushFilterBatches();
+
+                    if (
+                        Volatile.Read(ref Search._isDisposed) == 0
+                        && !Search._cancellationToken.IsCancellationRequested
+                    )
+                    {
+                        _localSeedsSearched += _seedsPerBatch - prevIntra;
+                    }
+                    return;
+                }
+            }
+
             // Start searching
             for (int vectorIndex = 0; vectorIndex < SeedDigitVectors.Length; vectorIndex++)
             {
                 SearchVector(_batchCharCount - 1, SeedDigitVectors[vectorIndex], hashes, 0);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SearchSingleGpuCandidate(int intraIdx, Vector512<double>* tailHashes)
+        {
+            int tmpIntra = intraIdx;
+            for (int p = 0; p < _batchCharCount; p++)
+            {
+                _digits[p] = MotelyGlobals.SeedDigits[tmpIntra % MotelyGlobals.SeedDigits.Length];
+                tmpIntra /= MotelyGlobals.SeedDigits.Length;
+            }
+
+            for (
+                int pseudohashKeyIdx = 0;
+                pseudohashKeyIdx < Search._pseudoHashKeyLengthCount;
+                pseudohashKeyIdx++
+            )
+            {
+                int pseudohashKeyLength = Search._pseudoHashKeyLengths[pseudohashKeyIdx];
+                double num = *(double*)&tailHashes[pseudohashKeyIdx];
+
+                for (int i = _batchCharCount - 1; i >= 0; i--)
+                {
+                    double inv = 1.1239285023 / num;
+                    double calc = inv * (double)_digits[i] * Math.PI + (i + pseudohashKeyLength + 1) * Math.PI;
+                    num = calc - Math.Floor(calc);
+                }
+
+                _hashes[pseudohashKeyIdx] = Vector512.Create(num);
+            }
+
+            Vector512<double> firstCharacterVector = Vector512.CreateScalar((double)_digits[0]);
+            SearchSeeds(
+                new MotelySearchContextParams(
+                    _hashCache,
+                    MotelyGlobals.MaxSeedLength,
+                    MotelyGlobals.MaxSeedLength - 1,
+                    &_digits[1],
+                    &firstCharacterVector
+                )
+            );
         }
 
         internal override void SearchProviderBatch()

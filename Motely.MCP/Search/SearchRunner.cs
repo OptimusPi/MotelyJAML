@@ -1,9 +1,31 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Motely;
+using Motely.Analysis;
+using Motely.Enums;
 using Motely.Filters;
+using Motely.Gpu;
+using Motely.MCP.Data;
 
 namespace Motely.MCP.Search;
+
+/// <summary>Structured scored match from a search run.</summary>
+public sealed record SeedMatch(string Seed, int Score, int[] Tallies);
+
+/// <summary>Structured summary of one seed in a batch analysis.</summary>
+public sealed record BatchSeedSummary(
+    string Seed,
+    string Deck,
+    string Stake,
+    IReadOnlyList<string> Bosses,
+    IReadOnlyList<string> Vouchers,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> SoulJokers,
+    string? Error = null
+);
+
+/// <summary>Structured result of <see cref="SearchRunner.AnalyzeBatch"/>.</summary>
+public sealed record BatchAnalyzeSummary(int Count, IReadOnlyList<BatchSeedSummary> Seeds);
 
 /// <summary>
 /// What a search yields as it runs: live progress, each matched seed, a terminal summary, or an
@@ -16,7 +38,7 @@ public abstract record SearchEvent
 
     public sealed record Progress(int Percent, long Searched, long Matched, double Rate) : SearchEvent;
 
-    public sealed record Match(string Seed, double Score) : SearchEvent;
+    public sealed record Match(string Seed, double Score, int[]? Tallies = null) : SearchEvent;
 
     public sealed record Done(
         long TotalSearched,
@@ -24,7 +46,11 @@ public abstract record SearchEvent
         TimeSpan Elapsed,
         double Rate,
         bool StoppedOnLimit,
-        IReadOnlyList<string> Matches
+        IReadOnlyList<string> Matches,
+        IReadOnlyList<SeedMatch>? TopMatches = null,
+        IReadOnlyList<string>? TallyLabels = null,
+        bool GpuUsed = false,
+        string? DeviceName = null
     ) : SearchEvent;
 
     public sealed record Error(string Message) : SearchEvent;
@@ -36,6 +62,15 @@ public abstract record SearchEvent
 /// </summary>
 public sealed class SearchRunner
 {
+    private readonly string? _filtersDir;
+    private readonly IMotelyStore? _store;
+
+    public SearchRunner(string? filtersDir = null, IMotelyStore? store = null)
+    {
+        _filtersDir = filtersDir;
+        _store = store;
+    }
+
     /// <summary>Matches a run stops after when the caller gives no <c>collect</c>.</summary>
     public const int DefaultCollect = 100;
 
@@ -56,20 +91,44 @@ public sealed class SearchRunner
     )
     {
         var path = FilterCheck.ResolvePath(filter);
-        if (!File.Exists(path))
+        JamlConfig? config = null;
+        string label = path;
+
+        if (File.Exists(path))
+        {
+            if (!TryLoadConfig(path, out config, out var loadError))
+            {
+                yield return new SearchEvent.Error(loadError);
+                yield break;
+            }
+        }
+        else if (_store is not null)
+        {
+            var stored = await _store.GetFilterAsync(filter, cancellationToken).ConfigureAwait(false);
+            if (stored is not null)
+            {
+                if (!JamlConfigLoader.TryLoad(stored.JamlContent, out config, out var loadError) || config is null)
+                {
+                    yield return new SearchEvent.Error(loadError ?? $"invalid stored filter '{filter}'");
+                    yield break;
+                }
+                label = stored.Name;
+            }
+        }
+
+        if (config is null)
         {
             yield return new SearchEvent.Error($"no filter at {path}");
             yield break;
         }
 
-        if (!TryLoadConfig(path, out var config, out var loadError))
+        await foreach (
+            var evt in RunAsync(config, label, mode, collect, null, null, cancellationToken, filterName: filter)
+                .ConfigureAwait(false)
+        )
         {
-            yield return new SearchEvent.Error(loadError);
-            yield break;
-        }
-
-        await foreach (var evt in RunAsync(config, path, mode, collect, null, null, cancellationToken).ConfigureAwait(false))
             yield return evt;
+        }
     }
 
     /// <summary>
@@ -85,10 +144,22 @@ public sealed class SearchRunner
         int? collect,
         long? startBatch,
         long? endBatch,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        string? deck = null,
+        string? stake = null,
+        int? minScore = null,
+        bool useGpu = false,
+        bool saveToDb = true,
+        string? foundBy = null,
+        string? filterName = null
     )
     {
-        if (!TryCreatePlan(config, out var plan, out var planError))
+        if (!string.IsNullOrWhiteSpace(deck) && Enum.TryParse<MotelyDeck>(deck.Trim(), true, out var parsedDeck))
+            config.Deck = parsedDeck;
+        if (!string.IsNullOrWhiteSpace(stake) && Enum.TryParse<MotelyStake>(stake.Trim(), true, out var parsedStake))
+            config.Stake = parsedStake;
+
+        if (!TryCreatePlan(config, minScore, out var plan, out var planError))
         {
             yield return new SearchEvent.Error(planError);
             yield break;
@@ -119,7 +190,9 @@ public sealed class SearchRunner
             BatchCharacterCount: null
         );
 
-        if (!CliSearchMode.TryApplySearchMode(plan.Settings, input, out var applyError, out var settings))
+        var baseSettings = plan.Settings.WithSourceConfig(config).WithGpuSearch(useGpu);
+
+        if (!CliSearchMode.TryApplySearchMode(baseSettings, input, out var applyError, out var settings))
         {
             yield return new SearchEvent.Error(applyError);
             yield break;
@@ -134,6 +207,7 @@ public sealed class SearchRunner
 
         var channel = Channel.CreateUnbounded<SearchEvent>();
         var matches = new List<string>();
+        var scoredMatches = new List<SeedMatch>();
 
         settings = settings.WithProgressCallback(p =>
             channel.Writer.TryWrite(
@@ -151,11 +225,13 @@ public sealed class SearchRunner
         if (settings.SeedScoreDesc is not null)
             settings = settings.WithScoredResultCallback(r =>
             {
+                int[] tallies = r.Tallies is { Length: > 0 } ? [.. r.Tallies] : [];
                 lock (matches)
                 {
                     matches.Add(r.Seed);
+                    scoredMatches.Add(new SeedMatch(r.Seed, r.Score, tallies));
                 }
-                channel.Writer.TryWrite(new SearchEvent.Match(r.Seed, r.Score));
+                channel.Writer.TryWrite(new SearchEvent.Match(r.Seed, r.Score, tallies));
             });
         else
             settings = settings.WithSeedMatchCallback(line =>
@@ -163,9 +239,22 @@ public sealed class SearchRunner
                 lock (matches)
                 {
                     matches.Add(line);
+                    scoredMatches.Add(new SeedMatch(line, 0, []));
                 }
-                channel.Writer.TryWrite(new SearchEvent.Match(line, 0));
+                channel.Writer.TryWrite(new SearchEvent.Match(line, 0, []));
             });
+
+        bool gpuUsed = false;
+        string? deviceName = null;
+        if (useGpu && endBatch is not null)
+        {
+            var dev = GpuDeviceInfo.GetBestDevice();
+            if (dev is not null && GpuFilterProgram.Compile(config).HasSelectiveOps)
+            {
+                gpuUsed = true;
+                deviceName = dev.Name;
+            }
+        }
 
         using var search = settings.Start(cancellationToken);
         _ = search
@@ -189,14 +278,119 @@ public sealed class SearchRunner
         await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             yield return evt;
 
+        List<SeedMatch> topSnapshot;
+        lock (matches)
+        {
+            topSnapshot = [.. scoredMatches.OrderByDescending(m => m.Score).ThenBy(m => m.Seed, StringComparer.Ordinal)];
+        }
+
+        if (_store is not null && saveToDb && topSnapshot.Count > 0)
+        {
+            string resolvedFilterName = filterName ?? config.Name ?? label;
+            string resolvedFoundBy = string.IsNullOrWhiteSpace(foundBy) ? "anonymous" : foundBy;
+            var now = DateTimeOffset.UtcNow;
+            var records = topSnapshot
+                .Take(MaxCollect)
+                .Select(m => new DiscoveredSeedRecord(
+                    Seed: m.Seed,
+                    FilterSlug: resolvedFilterName,
+                    FilterName: config.Name ?? resolvedFilterName,
+                    Score: m.Score,
+                    Tallies: m.Tallies,
+                    Deck: config.Deck.ToString(),
+                    Stake: config.Stake.ToString(),
+                    PartyId: null,
+                    WorkerId: resolvedFoundBy,
+                    FoundAtUtc: now
+                ));
+            await _store.RecordSeedsAsync(records, cancellationToken).ConfigureAwait(false);
+        }
+
         yield return new SearchEvent.Done(
             search.TotalSeedsSearched,
             search.MatchingSeeds,
             TimeSpan.FromMilliseconds(search.ElapsedMs),
             search.SeedsPerSecond,
             search.StoppedOnMatchLimit,
-            [.. matches]
+            [.. matches],
+            topSnapshot,
+            plan.TallyLabels,
+            gpuUsed,
+            deviceName
         );
+    }
+
+    /// <summary>
+    /// Analyzes a batch of seeds (up to 50) and returns structured summaries of bosses, vouchers,
+    /// tags, and Soul jokers across Antes 1-8.
+    /// </summary>
+    public BatchAnalyzeSummary AnalyzeBatch(string seedsCsvOrLines, string? deck = null, string? stake = null)
+    {
+        var motelyDeck = Enum.TryParse<MotelyDeck>(deck?.Trim(), true, out var d) ? d : MotelyDeck.Red;
+        var motelyStake = Enum.TryParse<MotelyStake>(stake?.Trim(), true, out var s) ? s : MotelyStake.White;
+
+        var rawList = seedsCsvOrLines
+            .Split([',', '\n', '\r', ';', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !x.Equals("seed", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(50)
+            .ToArray();
+
+        var results = new List<BatchSeedSummary>(rawList.Length);
+        foreach (var raw in rawList)
+        {
+            if (!CliSearchMode.TryNormalizeSeed(raw, out var seed))
+            {
+                results.Add(
+                    new BatchSeedSummary(raw, motelyDeck.ToString(), motelyStake.ToString(), [], [], [], [], $"Invalid seed '{raw}'")
+                );
+                continue;
+            }
+
+            var analysis = MotelyUnitTestAnalyzer.Analyze(new(seed, motelyDeck, motelyStake));
+            if (!string.IsNullOrEmpty(analysis.Error))
+            {
+                results.Add(
+                    new BatchSeedSummary(seed, motelyDeck.ToString(), motelyStake.ToString(), [], [], [], [], analysis.Error)
+                );
+                continue;
+            }
+
+            var bosses = new List<string>();
+            var vouchers = new List<string>();
+            var tags = new List<string>();
+            foreach (var ante in analysis.Antes.OrderBy(a => a.Ante))
+            {
+                bosses.Add($"A{ante.Ante}:{ante.Boss}");
+                vouchers.Add($"A{ante.Ante}:{ante.Voucher}");
+                tags.Add($"A{ante.Ante}:{ante.SmallBlindTag}/{ante.BigBlindTag}");
+            }
+
+            var soulJokers = new List<string>();
+            foreach (var legendary in Enum.GetNames<MotelyJokerLegendary>())
+            {
+                var loc = MotelySeedLocator.Locate(seed, motelyDeck, motelyStake, legendary, 1, 8, 5);
+                foreach (var hit in loc.Hits.Where(h => h.Source == MotelyLocateSource.Soul))
+                {
+                    soulJokers.Add($"A{hit.Ante}:{hit.Item}");
+                }
+            }
+
+            results.Add(
+                new BatchSeedSummary(
+                    seed,
+                    motelyDeck.ToString(),
+                    motelyStake.ToString(),
+                    bosses,
+                    vouchers,
+                    tags,
+                    soulJokers,
+                    null
+                )
+            );
+        }
+
+        return new BatchAnalyzeSummary(results.Count, results);
     }
 
     private static bool TryLoadConfig(
@@ -221,6 +415,7 @@ public sealed class SearchRunner
 
     private static bool TryCreatePlan(
         JamlConfig config,
+        int? engineCutoff,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JamlSearchPlan? plan,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? error
     )
@@ -229,7 +424,7 @@ public sealed class SearchRunner
         error = null;
         try
         {
-            plan = MotelySearchBuilder.CreatePlan(config);
+            plan = MotelySearchBuilder.CreatePlan(config, engineCutoff);
             return true;
         }
         catch (InvalidOperationException ex)

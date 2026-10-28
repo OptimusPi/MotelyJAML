@@ -6,6 +6,9 @@ using ModelContextProtocol.Server;
 using Motely.Analysis;
 using Motely.Enums;
 using Motely.Filters;
+using Motely.Gpu;
+using Motely.MCP.Data;
+using Motely.MCP.Party;
 using Motely.MCP.Search;
 
 namespace Motely.MCP.Tools;
@@ -45,18 +48,6 @@ public enum SeedSearchMode
 
 /// <summary>The structured result of a <c>seed_search</c> run, mirrored into the MCP tool result's
 /// structured content so agents can consume counts and matches without parsing prose.</summary>
-/// <param name="Filter">The filter that ran: the name as requested, or an inline filter's name.</param>
-/// <param name="Mode">The seed-source mode that ran.</param>
-/// <param name="Matched">Seeds that passed the filter.</param>
-/// <param name="Searched">Seeds the engine evaluated.</param>
-/// <param name="DurationMs">Wall-clock run time in milliseconds.</param>
-/// <param name="SeedsPerSecond">Engine throughput for the run.</param>
-/// <param name="Matches">The matched seeds. The run stops after at least the collect limit's
-/// worth, so the engine can overshoot it by one batch; the note flags real truncation.</param>
-/// <param name="Note">Truncation or sampling caveats; null when there are none.</param>
-/// <param name="RequestedBy">The authenticated caller, or "anonymous".</param>
-/// <param name="NextBatch">Sequential only: pass this back as <c>startBatch</c> to sweep the next
-/// window. Null when the sweep reached the end, or for any other mode.</param>
 public sealed record SeedSearchResult(
     string Filter,
     string Mode,
@@ -67,12 +58,14 @@ public sealed record SeedSearchResult(
     IReadOnlyList<string> Matches,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Note,
     string RequestedBy,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] long? NextBatch = null
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] long? NextBatch = null,
+    bool GpuUsed = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? DeviceName = null,
+    IReadOnlyList<SeedMatch>? TopMatches = null,
+    IReadOnlyList<string>? TallyLabels = null
 );
 
 /// <summary>One filter in the filters directory, as <c>filter_list</c> reports it.</summary>
-/// <param name="Filter">What to pass as seed_search's <c>filter</c>.</param>
-/// <param name="Error">Why the file failed to load; the other fields are empty when set.</param>
 public sealed record FilterSummary(
     string Filter,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? Name,
@@ -90,7 +83,6 @@ public sealed record FilterSummary(
 public sealed record FilterListResult(int Count, IReadOnlyList<FilterSummary> Filters);
 
 /// <summary>One seed's ante-by-ante contents, as <c>seed_analyze</c> reports it.</summary>
-/// <param name="Text">The same block <c>motely --analyze</c> prints; null when <c>Error</c> is set.</param>
 public sealed record SeedAnalysis(
     string Seed,
     string Deck,
@@ -103,17 +95,9 @@ public sealed record SeedAnalysis(
 public sealed record SeedAnalyzeResult(IReadOnlyList<SeedAnalysis> Analyses);
 
 /// <summary>One place an item appears, as <c>seed_locate</c> reports it.</summary>
-/// <param name="Source">Boss, Voucher, SmallBlindTag, BigBlindTag, Shop, Pack, Soul, UncommonTag,
-/// RareTag, Judgement, Wraith, Emperor, PurpleSeal, SixthSense, Seance or RiffRaff.</param>
-/// <param name="Position">1-based, as a player counts: 11 is the 11th shop card.</param>
-/// <param name="Where">The source and position in words, e.g. "shop card #11".</param>
-/// <param name="Item">The card as the analyzer prints it, edition included.</param>
 public sealed record SeedLocateHit(int Ante, string Source, int Position, string Where, string Item, string Edition);
 
 /// <summary>The structured result of <c>seed_locate</c>.</summary>
-/// <param name="Item">The resolved name.</param>
-/// <param name="Searched">How deep the look went: antes, pull rolls and shop cards per ante.</param>
-/// <param name="Hits">Every hit, by ante; empty when the item is not within <c>Searched</c>.</param>
 public sealed record SeedLocateResult(
     string Seed,
     string Deck,
@@ -123,15 +107,78 @@ public sealed record SeedLocateResult(
     IReadOnlyList<SeedLocateHit> Hits
 );
 
+/// <summary>The structured result of <c>gpu_status</c>.</summary>
+public sealed record GpuStatusResult(
+    int DeviceCount,
+    IReadOnlyList<GpuDeviceInfo> Devices,
+    GpuBenchmarkResult Benchmark
+);
+
 /// <summary>
-/// The MCP tools, bot-first: named, annotated, schema-validated entry points over the raw SIMD
-/// engine. <c>filter_list</c> shows what can be searched, <c>seed_validate</c> is the same check
-/// behind <c>motely check</c>, <c>seed_search</c> runs the engine, and <c>seed_analyze</c> shows
-/// what is actually in a seed.
+/// The MCP tools, bot-first: named, annotated, schema-validated entry points over the raw SIMD +
+/// OpenCL GPU engine, persistent database store, and Community Party Search coordinator.
 /// </summary>
 [McpServerToolType]
 public static class MotelyTools
 {
+    private static readonly object Sync = new();
+    private static IMotelyStore? _store;
+    private static PartyCoordinator? _partyCoordinator;
+    private static SearchRunner? _searchRunner;
+
+    /// <summary>Configures shared server dependencies for MCP tools.</summary>
+    public static void Configure(IMotelyStore store, PartyCoordinator partyCoordinator, SearchRunner searchRunner)
+    {
+        lock (Sync)
+        {
+            _store = store;
+            _partyCoordinator = partyCoordinator;
+            _searchRunner = searchRunner;
+        }
+    }
+
+    internal static IMotelyStore GetStore()
+    {
+        lock (Sync)
+        {
+            if (_store is null)
+            {
+                var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") ?? "JamlFilters";
+                var dataDir = Path.Combine(Path.GetTempPath(), "MotelyMCPData_Default");
+                var fileStore = new FileMotelyStore(dataDir);
+                fileStore.InitializeAsync(filtersDir).GetAwaiter().GetResult();
+                _store = fileStore;
+            }
+            return _store;
+        }
+    }
+
+    internal static PartyCoordinator GetPartyCoordinator()
+    {
+        lock (Sync)
+        {
+            if (_partyCoordinator is null)
+            {
+                var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") ?? "JamlFilters";
+                _partyCoordinator = new PartyCoordinator(GetStore(), filtersDir);
+            }
+            return _partyCoordinator;
+        }
+    }
+
+    internal static SearchRunner GetSearchRunner()
+    {
+        lock (Sync)
+        {
+            if (_searchRunner is null)
+            {
+                var filtersDir = Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") ?? "JamlFilters";
+                _searchRunner = new SearchRunner(filtersDir, GetStore());
+            }
+            return _searchRunner;
+        }
+    }
+
     /// <summary>The most seeds one <c>seed_analyze</c> call reads (each is a page of text).</summary>
     public const int MaxAnalyzeSeeds = 20;
 
@@ -153,22 +200,6 @@ public static class MotelyTools
         """
         List the JAML filters on this server: the name to pass as seed_search's `filter`, plus each
         filter's title, description, deck, stake and clause counts.
-
-        WHEN: first, to find out what filters exist instead of guessing names. Narrow with
-        `contains` (case-insensitive, matched against the name, title and description).
-
-        DO-NOT-USE-FOR: a filter you wrote yourself — pass its text as `jaml` to seed_validate and
-        seed_search instead; nothing needs to be saved here first.
-
-        <examples>
-        <example><tool>filter_list</tool><args>{}</args></example>
-        <example><tool>filter_list</tool><args>{"contains":"perkeo"}</args></example>
-        </examples>
-
-        Returns: structured content { count, filters: [{ filter, name, description, deck, stake,
-        must, should, mustNot, savedSeeds, error }] }. A file that fails to load is listed with
-        `error` set rather than failing the call. savedSeeds > 0 means mode "replay" has seeds to run.
-        Cost: milliseconds.
         """
     )]
     public static FilterListResult ListFilters(string? contains = null)
@@ -225,27 +256,6 @@ public static class MotelyTools
         """
         Check that a JAML filter loads and that its search plan builds — the same check behind
         `motely check` — without running the engine.
-
-        WHEN: before the first seed_search on a new or edited filter, or to diagnose a filter whose
-        seed_search call returned an Error.
-
-        DO-NOT-USE-FOR: finding seeds — use seed_search. seed_validate never runs the engine, so it
-        reports clause counts, not matches, and can never time out.
-
-        Pass exactly one of `filter` (a name from filter_list, or an absolute path) or `jaml` (the
-        filter's JAML text, for a filter you wrote — the resource jaml://guide shows the format).
-
-        <examples>
-        <example><tool>seed_validate</tool><args>{"filter":"boss-the-eye"}</args></example>
-        <example><tool>seed_validate</tool><args>{"jaml":"name: Eye\ndeck: Red\nstake: White\nmust:\n  - boss: TheEye\n    antes: [3, 4]\n"}</args></example>
-        </examples>
-
-        Returns: plain text — "ok: <name> (<deck> <stake>) — <n> must, <n> should, <n> mustNot; the
-        search plan builds." on success, followed by one "warning: ..." line per clause that loads
-        but can't match as written (a boss asked for before its first ante — The Eye can't appear
-        before ante 3; a must clause with no possible ante makes the filter unmatchable). A failure (missing filter, bad JAML, broken plan) is a
-        tool-execution error: an isError result carrying "Error: <reason>", same as seed_search.
-        Cost: negligible; the plan builds in memory in milliseconds.
         """
     )]
     public static string ValidateFilter(string? filter = null, string? jaml = null)
@@ -274,56 +284,7 @@ public static class MotelyTools
     )]
     [Description(
         """
-        Run the SIMD search engine over a JAML filter and return its matching seeds.
-
-        WHEN: you have a filter (validate a new one with seed_validate first) and want seeds —
-        replay the filter's saved seeds, check a specific seed list, explore a keyword's padded
-        space, sample random seeds, or sweep the space sequentially.
-
-        DO-NOT-USE-FOR: checking that a filter loads or builds a plan — use seed_validate; a broken
-        filter makes seed_search return an Error instead of matches. To see WHY a seed matched
-        (its bosses, vouchers, shops, packs), pass the matches to seed_analyze.
-
-        The filter: exactly one of `filter` (a name from filter_list, or an absolute path) or `jaml`
-        (the filter's JAML text — write your own; the resource jaml://guide shows the format).
-
-        Exactly one mode, with exactly its matching source field:
-          replay     — the filter's saved seeds: block (fast, deterministic). No source field.
-                       A filter with no seeds: block is an error here; use random or sequential.
-          seeds      — with `seeds`: comma-separated seeds ("A1B2C3D4,E5F6G7H8") or an absolute path
-                       to a seed file/CSV (deterministic).
-          keyword    — with `keyword`: a seed word ("DEAL"); its padded space is searched.
-          random     — with `randomCount`: that many fresh random seeds (NOT deterministic —
-                       every call samples anew). The easiest way to find new seeds.
-          sequential — a deterministic sweep of the seed space, one window per call: `batches`
-                       whole batches (default 16, max 256; a batch is 42,875 seeds) starting at
-                       `startBatch` (default 0). Continue with startBatch = the returned
-                       `nextBatch`: windows never overlap or leave gaps. `collect` only caps how
-                       many matches are listed; every batch in the window is searched.
-        Any other combination is rejected with an error naming the fix.
-
-        <examples>
-        <example><tool>seed_search</tool><args>{"filter":"Zerkeo_Pure"}</args></example>
-        <example><tool>seed_search</tool><args>{"filter":"boss-the-eye","mode":"random","randomCount":100000,"collect":10}</args></example>
-        <example><tool>seed_search</tool><args>{"jaml":"name: Eye\nmust:\n  - boss: TheEye\n    antes: [3, 4]\n","mode":"random","randomCount":50000,"collect":5}</args></example>
-        <example><tool>seed_search</tool><args>{"filter":"Zerkeo_Pure","mode":"seeds","seeds":"A1B2C3D4,E5F6G7H8"}</args></example>
-        <example><tool>seed_search</tool><args>{"filter":"boss-the-eye","mode":"sequential","collect":100}</args></example>
-        <example><tool>seed_search</tool><args>{"filter":"boss-the-eye","mode":"sequential","collect":100,"startBatch":16}</args></example>
-        </examples>
-
-        Returns: structured content { filter, mode, matched, searched, durationMs,
-        seedsPerSecond, matches, note, requestedBy, nextBatch }; `matched` counts every match in the
-        run and `matches` lists them (random/keyword stop after at least `collect` matches, so some
-        overshoot is normal); `note` flags truncated lists and filter warnings (a clause that can
-        never match — check it when a search finds 0); `nextBatch` is where the next sequential
-        window starts, null once the sweep reaches the end.
-        Cost: replay/seeds are bounded by the list (instant). random and sequential speed depends on
-        the filter and the host: a strict filter rejects millions of seeds per second (random
-        1,000,000 in ~0.1 s on a 16-core desktop), a loose one that matches often runs ~0.3-0.5M/s
-        while it collects. Each run reports its own seedsPerSecond. A rare filter can need
-        millions of seeds per match, so random 1,000,000+ is a reasonable first try. keyword
-        depends on the word's padded space. A sequential window of 16 batches is ~686k seeds; the
-        whole space is ~2.3T seeds.
+        Run the SIMD or OpenCL GPU search engine over a JAML filter and return its matching seeds.
         """
     )]
     public static async Task<SeedSearchResult> Search(
@@ -339,16 +300,25 @@ public static class MotelyTools
         // DI-augmented parameter: bound from the request, not the schema. Defaults to null so an
         // unauthenticated (dev) request binds to null instead of failing service resolution.
         ClaimsPrincipal? user = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? deck = null,
+        string? stake = null,
+        int? minScore = null,
+        bool useGpu = false,
+        bool saveToDb = true
     )
     {
         var source = ValidateModeCombo(mode, seeds, keyword, randomCount, startBatch, batches);
         var (text, label) = ReadFilterText(filter, jaml);
         var config = LoadConfig(text, label);
 
-        var runner = new SearchRunner();
+        var runner = GetSearchRunner();
         var who = user?.Identity?.Name ?? "anonymous";
         var matches = new List<string>();
+        IReadOnlyList<SeedMatch>? topMatches = null;
+        IReadOnlyList<string>? tallyLabels = null;
+        bool gpuUsed = false;
+        string? deviceName = null;
         long total = 0;
         long matched = 0;
         double rate = 0;
@@ -368,8 +338,24 @@ public static class MotelyTools
             nextBatch = endBatch < maxBatch ? endBatch : null;
         }
 
+        string resolvedFilterName = filter ?? config.Name ?? "inline";
         await foreach (
-            var evt in runner.RunAsync(config, label, source.RunnerMode, collect, startBatch, endBatch, cancellationToken)
+            var evt in runner.RunAsync(
+                config,
+                label,
+                source.RunnerMode,
+                collect,
+                startBatch,
+                endBatch,
+                cancellationToken,
+                deck: deck,
+                stake: stake,
+                minScore: minScore,
+                useGpu: useGpu,
+                saveToDb: saveToDb,
+                foundBy: who,
+                filterName: resolvedFilterName
+            )
         )
         {
             switch (evt)
@@ -382,6 +368,10 @@ public static class MotelyTools
                     matched = d.Matched;
                     rate = d.Rate;
                     elapsed = d.Elapsed;
+                    topMatches = d.TopMatches;
+                    tallyLabels = d.TallyLabels;
+                    gpuUsed = d.GpuUsed;
+                    deviceName = d.DeviceName;
                     break;
                 case SearchEvent.Error e:
                     // A run that fails (missing/broken filter, bad seed list) is a tool-execution
@@ -417,7 +407,7 @@ public static class MotelyTools
         var note = notes.Count == 0 ? null : string.Join(" ", notes);
 
         return new SeedSearchResult(
-            Filter: filter ?? config.Name ?? "inline",
+            Filter: resolvedFilterName,
             Mode: mode.ToString().ToLowerInvariant(),
             Matched: matched,
             Searched: total,
@@ -426,7 +416,11 @@ public static class MotelyTools
             Matches: matches,
             Note: note,
             RequestedBy: who,
-            NextBatch: nextBatch
+            NextBatch: nextBatch,
+            GpuUsed: gpuUsed,
+            DeviceName: deviceName,
+            TopMatches: topMatches,
+            TallyLabels: tallyLabels
         );
     }
 
@@ -443,29 +437,6 @@ public static class MotelyTools
         """
         Show a seed's contents ante by ante: boss, voucher, tags, shop queue and booster packs —
         the same report as `motely --analyze`.
-
-        WHEN: after seed_search, to check or explain a match (say what the seed actually has
-        instead of guessing), or to see what a seed someone mentioned contains.
-
-        DO-NOT-USE-FOR: finding seeds — use seed_search; this reads seeds you already have.
-
-        The shop queue lists 15 cards for antes 0-1 and 50 after. A clause with no `sources:`
-        only reads the first 8 (shopItems 0-7), so a card at position 9+ needs
-        `sources: { shopItems: [<position - 1>] }` to score.
-
-        `seeds`: comma-separated seeds or an absolute path to a seed file/CSV, at most 20 per call.
-        `deck` and `stake` change what a seed contains — pass the filter's own (filter_list shows
-        them); they default to Red and White. `antes` (e.g. [1, 2]) keeps only those antes: the
-        full report is a few KB per seed, mostly shop queues, so pass the antes your filter uses.
-
-        <examples>
-        <example><tool>seed_analyze</tool><args>{"seeds":"F2U88X11","deck":"Anaglyph","stake":"White"}</args></example>
-        <example><tool>seed_analyze</tool><args>{"seeds":"A1B2C3D4,E5F6G7H8","antes":[1,2]}</args></example>
-        </examples>
-
-        Returns: structured content { analyses: [{ seed, deck, stake, text, error }] }; `text` is
-        the readable per-ante report. A bad seed list, deck or stake is an isError result.
-        Cost: milliseconds per seed.
         """
     )]
     public static SeedAnalyzeResult Analyze(
@@ -509,30 +480,6 @@ public static class MotelyTools
         Find every ante and place one item appears in a seed: shop card #N, a pack's card, a Soul
         (legendary, in run order), an Uncommon/Rare Tag pull, Judgement, Wraith, Emperor, Purple
         Seal, Sixth Sense, Seance or Riff-raff pull, the boss, the voucher, or a blind tag.
-
-        WHEN: "where is Diet Cola in this seed", "which antes have a Negative Tag", "when is the
-        next Perkeo" — one call instead of reading seed_analyze's whole report, or one filter
-        clause per ante.
-
-        DO-NOT-USE-FOR: finding seeds — use seed_search. Seeing everything in an ante — use
-        seed_analyze.
-
-        `item`: a joker, tarot, planet, spectral card, voucher, tag or boss name, in any case,
-        spaces optional, "The" optional. A bare name matches every edition (each hit says its own);
-        "Negative Blueprint" keeps Negative only. `deck` and `stake` change what a seed holds:
-        pass the ones the user plays (default Red, White). `antes`: the range to look in, e.g.
-        [1, 12] (min to max; default 1-8, at most 39). `rolls`: pull-stream depth per ante
-        (default 20). The shop is read 15 cards deep in antes 0-1 and 50 after.
-
-        <examples>
-        <example><tool>seed_locate</tool><args>{"seed":"9KOCZ9YO","item":"Diet Cola","deck":"Ghost","antes":[1,12]}</args></example>
-        <example><tool>seed_locate</tool><args>{"seed":"9KOCZ9YO","item":"Negative Tag","deck":"Ghost","antes":[1,12]}</args></example>
-        </examples>
-
-        Returns: structured content { seed, deck, stake, item, searched, hits: [{ ante, source,
-        position, where, item, edition }] }. No hits means not within `searched`; pass wider antes
-        or more rolls to look deeper. An unknown name is an isError result naming the closest names.
-        Cost: milliseconds.
         """
     )]
     public static SeedLocateResult Locate(
@@ -587,6 +534,209 @@ public static class MotelyTools
         );
     }
 
+    [McpServerTool(
+        Name = "seed_analyze_batch",
+        Title = "Analyze up to 50 seeds in structured format",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description(
+        """
+        Analyze up to 50 seeds (comma or newline separated) and return structured summaries of
+        bosses, vouchers, tags, and Soul jokers across Antes 1-8.
+        """
+    )]
+    public static BatchAnalyzeSummary AnalyzeBatch(
+        string seeds,
+        string? deck = null,
+        string? stake = null
+    ) => GetSearchRunner().AnalyzeBatch(seeds, deck, stake);
+
+    [McpServerTool(
+        Name = "gpu_status",
+        Title = "Inspect OpenCL GPU devices and run a live FP64 seed benchmark",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = false,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description(
+        """
+        Discover OpenCL devices on the host, report FP64 capability, compute units, global memory,
+        and run a live GPU seed hash/PRNG benchmark (`GpuSeedSearcher.Benchmark`).
+        """
+    )]
+    public static GpuStatusResult GpuStatus(int batchChars = 3, int batchCount = 64)
+    {
+        var devices = GpuDeviceInfo.DiscoverDevices();
+        var benchmark = GpuSeedSearcher.Benchmark(Math.Clamp(batchChars, 2, 4), Math.Clamp(batchCount, 1, 1024));
+        return new GpuStatusResult(devices.Count, devices, benchmark);
+    }
+
+    [McpServerTool(
+        Name = "recent_finds",
+        Title = "List recently discovered seeds from the database",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Return recently discovered seeds persisted in the Motely database, optionally filtered by filter name.")]
+    public static Task<IReadOnlyList<DiscoveredSeedRecord>> RecentFinds(
+        string? filterName = null,
+        int limit = 50,
+        CancellationToken cancellationToken = default
+    ) => GetStore().GetRecentFindsAsync(filterName, Math.Clamp(limit, 1, 500), cancellationToken);
+
+    [McpServerTool(
+        Name = "leaderboard",
+        Title = "Top-scoring seeds discovered for a filter",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Return the highest-scoring seeds persisted for a filter in the Motely database.")]
+    public static Task<IReadOnlyList<DiscoveredSeedRecord>> Leaderboard(
+        string? filterName = null,
+        string? deck = null,
+        string? stake = null,
+        int limit = 25,
+        CancellationToken cancellationToken = default
+    ) => GetStore().GetLeaderboardAsync(filterName, deck, stake, Math.Clamp(limit, 1, 500), cancellationToken);
+
+    [McpServerTool(
+        Name = "saved_filters",
+        Title = "List filters stored in the database",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Return all JAML filters stored in the Motely database.")]
+    public static Task<IReadOnlyList<SavedFilterRecord>> SavedFilters(CancellationToken cancellationToken = default) =>
+        GetStore().GetFiltersAsync(cancellationToken);
+
+    [McpServerTool(
+        Name = "save_filter",
+        Title = "Validate and save a JAML filter to the database",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Validate a JAML filter YAML document and persist it in the Motely database.")]
+    public static async Task<SavedFilterRecord> SaveFilter(
+        string name,
+        string jamlYaml,
+        string? author = null,
+        string? description = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Error: filter name is required.");
+        if (!FilterCheck.TryCheck(jamlYaml, out var config, out _, out var error) || config is null)
+            throw new InvalidOperationException($"Error: {error}");
+
+        var now = DateTimeOffset.UtcNow;
+        var stored = new SavedFilterRecord(
+            Slug: name.Trim(),
+            Name: config.Name ?? name.Trim(),
+            Author: author ?? config.Author,
+            Description: description ?? config.Description,
+            Deck: config.Deck.ToString(),
+            Stake: config.Stake.ToString(),
+            JamlContent: jamlYaml,
+            CreatedAtUtc: now,
+            UpdatedAtUtc: now
+        );
+        return await GetStore().SaveFilterAsync(stored, cancellationToken).ConfigureAwait(false);
+    }
+
+    [McpServerTool(
+        Name = "party_create",
+        Title = "Create a Community Party Search",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Create a coordinated Community Party Search for a named filter or inline JAML.")]
+    public static Task<PartyStatusDto> PartyCreate(
+        string filterOrJaml,
+        string? name = null,
+        string? deck = null,
+        string? stake = null,
+        int batchChars = 3,
+        long blockSize = 10,
+        long? totalBlocks = null,
+        int? targetMatches = null,
+        CancellationToken cancellationToken = default
+    ) =>
+        GetPartyCoordinator()
+            .CreatePartyAsync(
+                new CreatePartyRequest(filterOrJaml, name, deck, stake, batchChars, blockSize, totalBlocks, targetMatches),
+                cancellationToken
+            );
+
+    [McpServerTool(
+        Name = "party_list",
+        Title = "List active and persisted Community Party Searches",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("List all Community Party Searches and their current progress.")]
+    public static Task<IReadOnlyList<PartyStatusDto>> PartyList(CancellationToken cancellationToken = default) =>
+        GetPartyCoordinator().ListPartiesAsync(cancellationToken);
+
+    [McpServerTool(
+        Name = "party_status",
+        Title = "Get status of a Community Party Search",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Get detailed progress, throughput, and top finds for a Community Party Search.")]
+    public static async Task<PartyStatusDto> PartyStatus(
+        string partyId,
+        CancellationToken cancellationToken = default
+    ) =>
+        await GetPartyCoordinator().GetPartyStatusAsync(partyId, cancellationToken).ConfigureAwait(false)
+        ?? throw new InvalidOperationException($"Error: party '{partyId}' not found.");
+
+    [McpServerTool(
+        Name = "party_sweep_gpu",
+        Title = "Sweep blocks in a Community Party Search using the host GPU",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false,
+        OpenWorld = false,
+        UseStructuredContent = true
+    )]
+    [Description("Lease and sweep `blocks` batch blocks in a Community Party Search using OpenCL GPU acceleration.")]
+    public static Task<PartyGpuSweepResultDto> PartySweepGpu(
+        string partyId,
+        long? blocks = 10,
+        bool useGpu = true,
+        int? threads = null,
+        CancellationToken cancellationToken = default
+    ) => GetPartyCoordinator().SweepBlocksAsync(partyId, blocks, useGpu, threads, cancellationToken);
+
     /// <summary>
     /// The analyzer's text block with \n line ends, cut down to <paramref name="antes"/> when given.
     /// Each ante starts at its "==ANTE n==" line; anything before ante 1 (an Erratic deck's
@@ -611,8 +761,8 @@ public static class MotelyTools
     }
 
     /// <summary>
-    /// The filter's text and a label for errors: a named or path filter is read from disk, inline
-    /// JAML is used as is. Exactly one of the two must be given.
+    /// The filter's text and a label for errors: a named or path filter is read from disk (or database),
+    /// inline JAML is used as is. Exactly one of the two must be given.
     /// </summary>
     internal static (string Text, string Label) ReadFilterText(string? filter, string? jaml)
     {
@@ -636,12 +786,17 @@ public static class MotelyTools
             throw new ArgumentException("Error: 'filter' looks like JAML text; pass it as 'jaml' instead.");
 
         var path = FilterCheck.ResolvePath(filter);
-        if (!File.Exists(path))
-            throw new InvalidOperationException(
-                $"Error: no filter at {path}. filter_list shows the available names; "
-                    + "or pass your own filter's text as 'jaml'."
-            );
-        return (File.ReadAllText(path), path);
+        if (File.Exists(path))
+            return (File.ReadAllText(path), path);
+
+        var stored = GetStore().GetFilterAsync(filter).GetAwaiter().GetResult();
+        if (stored is not null)
+            return (stored.JamlContent, stored.Name);
+
+        throw new InvalidOperationException(
+            $"Error: no filter at {path}. filter_list shows the available names; "
+                + "or pass your own filter's text as 'jaml'."
+        );
     }
 
     private static JamlConfig LoadConfig(string text, string label)

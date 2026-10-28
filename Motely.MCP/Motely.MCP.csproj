@@ -22,6 +22,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <!-- The filter schema, served as the jaml://schema resource. -->

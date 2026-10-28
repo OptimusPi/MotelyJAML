@@ -57,6 +57,7 @@ desktop.ini
 # --- Motely runtime outputs ---
 /Seeds/
 .seeds/
+.motely-data/
 /analysis.json
 nuget.config.local
 

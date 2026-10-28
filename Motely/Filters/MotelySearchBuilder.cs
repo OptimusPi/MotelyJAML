@@ -54,7 +54,7 @@ public static class MotelySearchBuilder
         // The JAML document names its own deck and stake; the settings carry them from here so
         // every caller searches what the filter says. Callers may still override afterwards
         // (the CLI applies --deck/--stake on top).
-        settings = settings.WithDeck(config.Deck).WithStake(config.Stake);
+        settings = settings.WithDeck(config.Deck).WithStake(config.Stake).WithSourceConfig(config);
 
         // A mustNot may only be negated in SIMD when its prefilter is the exact match law: a
         // coarse prefilter passes every lane that might hold the item, so its negation would

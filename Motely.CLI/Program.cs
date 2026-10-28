@@ -118,6 +118,10 @@ Option<bool> saveOption = new("--save")
     Description = "Merge the printed seeds into the filter file's seeds: block (its existing seeds stay first).",
 };
 Option<bool> quietOption = new("--quiet", "-q") { Description = "No startup line and no progress line on stderr." };
+Option<bool> gpuOption = new("--gpu")
+{
+    Description = "Accelerate sequential batch search using OpenCL FP64 GPU hardware when available.",
+};
 
 Argument<string[]> checkFiltersArgument = new("filters")
 {
@@ -133,10 +137,9 @@ Command hookCommand = new(
 );
 hookCommand.SetAction(_ => AgentHook.Run());
 
-Option<string> partyServerOption = new("--server")
+Option<string?> partyServerOption = new("--server")
 {
-    Description = "The coordinator's base URL, e.g. https://www.seedfinder.app.",
-    Required = true,
+    Description = "The coordinator's base URL, e.g. https://www.seedfinder.app or MOTELY_PARTY_SERVER.",
 };
 Option<string> partyIdOption = new("--party")
 {
@@ -145,6 +148,10 @@ Option<string> partyIdOption = new("--party")
 };
 Option<int?> partyThreadsOption = new("--threads") { Description = "Worker threads (default: every core)." };
 Option<bool> partyOnceOption = new("--once") { Description = "Sweep and report one lease, then stop (for testing)." };
+Option<bool> partyGpuOption = new("--gpu")
+{
+    Description = "Accelerate lease sweeps using OpenCL FP64 GPU hardware when available.",
+};
 Command partyCommand = new(
     "party",
     "Join a seedfinder.app Search Party as a worker: lease a block range, sweep it, report the matches, repeat"
@@ -156,11 +163,15 @@ Command partyCommand = new(
     partyIdOption,
     partyThreadsOption,
     partyOnceOption,
+    partyGpuOption,
 };
 partyCommand.SetAction(
     async (parseResult, cancellationToken) =>
     {
-        string server = parseResult.GetValue(partyServerOption)!;
+        string server =
+            parseResult.GetValue(partyServerOption)
+            ?? Environment.GetEnvironmentVariable("MOTELY_PARTY_SERVER")
+            ?? "http://localhost:5200";
         string partyId = parseResult.GetValue(partyIdOption)!;
         if (!Uri.TryCreate(server, UriKind.Absolute, out var serverUri) || serverUri.Scheme is not ("http" or "https"))
         {
@@ -173,16 +184,25 @@ partyCommand.SetAction(
             Console.Error.WriteLine("Error: --threads must be at least 1.");
             return 1;
         }
+        bool useGpu = parseResult.GetValue(partyGpuOption);
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd($"motely/{typeof(MotelyGlobals).Assembly.GetName().Version?.ToString(3)}");
         var worker = new PartyWorker(
             new PartyClient(http, serverUri),
             partyId,
-            new PartyWorkerOptions { Threads = threads, Once = parseResult.GetValue(partyOnceOption) },
+            new PartyWorkerOptions
+            {
+                Threads = threads,
+                UseGpu = useGpu,
+                Once = parseResult.GetValue(partyOnceOption),
+            },
             Console.Error
         );
-        Console.Error.WriteLine($"motely party {partyId} at {serverUri.GetLeftPart(UriPartial.Path).TrimEnd('/')} | threads {threads}");
+        string gpuTag = useGpu && Motely.Gpu.GpuDeviceInfo.GetBestDevice() is { } gpuDev
+            ? $" | gpu {gpuDev.Name}"
+            : "";
+        Console.Error.WriteLine($"motely party {partyId} at {serverUri.GetLeftPart(UriPartial.Path).TrimEnd('/')} | threads {threads}{gpuTag}");
         var summary = await worker.RunAsync(cancellationToken);
         PartyWorker.WriteSummary(Console.Error, partyId, summary);
         return PartyWorker.ExitCode(summary);
@@ -220,6 +240,7 @@ RootCommand rootCommand = new("Balatro seed search.")
     cutoffOption,
     saveOption,
     quietOption,
+    gpuOption,
 };
 
 rootCommand.SetAction(
@@ -493,6 +514,10 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
     if (collect is { } limit)
         settings = settings.StopAfter(limit);
 
+    bool useGpu = parseResult.GetValue(gpuOption);
+    if (useGpu)
+        settings = settings.WithGpuSearch(true);
+
     if (!quiet)
     {
         string input =
@@ -502,8 +527,11 @@ async Task<int> SearchAsync(ParseResult parseResult, string filterPath, Cancella
             : randomCount is { } random ? $"{random:N0} random seeds"
             : aestheticName is not null ? $"aesthetic {aestheticName.Trim().ToLowerInvariant()}"
             : $"sequential, batchCharCount {batchCharCount}";
+        string gpuTag = useGpu && Motely.Gpu.GpuDeviceInfo.GetBestDevice() is { } gpuDev
+            ? $" | gpu {gpuDev.Name}"
+            : "";
         Console.Error.WriteLine(
-            $"motely: {config.Name ?? path} | {deck} {stake} | threads {threads} | {input} | cutoff {cutoffText}"
+            $"motely: {config.Name ?? path} | {deck} {stake} | threads {threads}{gpuTag} | {input} | cutoff {cutoffText}"
                 + (collect is { } n ? $" | stop after {n:N0}" : "")
         );
     }
