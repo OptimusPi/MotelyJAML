@@ -304,11 +304,14 @@ public static class MotelyTools
         string? deck = null,
         string? stake = null,
         int? minScore = null,
+        [Range(1, 256)] int? threads = null,
+        [Range(1, MaxSequentialBatches)] int? batchCount = null,
         bool useGpu = false,
         bool saveToDb = true
     )
     {
-        var source = ValidateModeCombo(mode, seeds, keyword, randomCount, startBatch, batches);
+        int? effectiveBatches = batchCount ?? batches;
+        var source = ValidateModeCombo(mode, seeds, keyword, randomCount, startBatch, effectiveBatches);
         var (text, label) = ReadFilterText(filter, jaml);
         var config = LoadConfig(text, label);
 
@@ -334,7 +337,7 @@ public static class MotelyTools
             long start = startBatch ?? 0;
             if (start >= maxBatch)
                 throw new ArgumentException($"Error: startBatch must be 0..{maxBatch - 1}; the sweep has {maxBatch:N0} batches.");
-            endBatch = Math.Min(start + (batches ?? DefaultSequentialBatches), maxBatch);
+            endBatch = Math.Min(start + (effectiveBatches ?? DefaultSequentialBatches), maxBatch);
             nextBatch = endBatch < maxBatch ? endBatch : null;
         }
 
@@ -354,7 +357,9 @@ public static class MotelyTools
                 useGpu: useGpu,
                 saveToDb: saveToDb,
                 foundBy: who,
-                filterName: resolvedFilterName
+                filterName: resolvedFilterName,
+                threads: threads,
+                batchCount: effectiveBatches
             )
         )
         {
@@ -536,7 +541,7 @@ public static class MotelyTools
 
     [McpServerTool(
         Name = "seed_analyze_batch",
-        Title = "Analyze up to 50 seeds in structured format",
+        Title = "Analyze and optionally score up to 50 seeds in structured format",
         ReadOnly = true,
         Destructive = false,
         Idempotent = true,
@@ -546,14 +551,17 @@ public static class MotelyTools
     [Description(
         """
         Analyze up to 50 seeds (comma or newline separated) and return structured summaries of
-        bosses, vouchers, tags, and Soul jokers across Antes 1-8.
+        bosses, vouchers, tags, and Soul jokers across Antes 1-8, optionally scoring and comparing
+        them against a JAML filter (`filter` or `jaml`).
         """
     )]
     public static BatchAnalyzeSummary AnalyzeBatch(
         string seeds,
         string? deck = null,
-        string? stake = null
-    ) => GetSearchRunner().AnalyzeBatch(seeds, deck, stake);
+        string? stake = null,
+        string? filter = null,
+        string? jaml = null
+    ) => GetSearchRunner().AnalyzeBatch(seeds, deck, stake, filter, jaml);
 
     [McpServerTool(
         Name = "gpu_status",

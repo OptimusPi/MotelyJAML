@@ -14,6 +14,8 @@ namespace Motely;
 public sealed class SearchTelemetry : IDisposable
 {
     public const string Name = "Motely";
+    public const string ActivitySourceName = Name;
+    public const string MeterName = Name;
 
     /// <summary>The MCP SDK's own spans and metrics: one per request, tool calls included.</summary>
     private const string McpSdk = "Experimental.ModelContextProtocol";

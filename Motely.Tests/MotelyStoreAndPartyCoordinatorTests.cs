@@ -143,20 +143,42 @@ public sealed class MotelyStoreAndPartyCoordinatorTests
                 )
             );
 
-            // 1. Lease block 0 and let it expire, then verify block 0 is reclaimed and re-issued
+            // 1. Lease block 0 and verify active lease is persisted across coordinator restart
             var lease1 = await coordinator.NextLeaseAsync(party.PartyId);
             Assert.NotNull(lease1.Lease);
             Assert.Equal(0, lease1.Lease.StartBlock);
 
-            await Task.Delay(100);
-            coordinator.LeaseTtl = TimeSpan.FromSeconds(60);
+            var persistedParty = await store.GetPartyAsync(party.PartyId);
+            Assert.NotNull(persistedParty?.ActiveLeases);
+            Assert.Single(persistedParty!.ActiveLeases!);
+            Assert.Equal(lease1.Lease.WorkerToken, persistedParty.ActiveLeases![0].WorkerToken);
 
-            var reclaimedLease = await coordinator.NextLeaseAsync(party.PartyId);
+            // Simulate server restart by creating a new PartyCoordinator over the same store
+            var restartedCoordinator = new PartyCoordinator(store, "JamlFilters")
+            {
+                LeaseTtl = TimeSpan.FromSeconds(60)
+            };
+            await Task.Delay(100);
+
+            // Expired heartbeat on the restarted coordinator must return 200 OK with Ok: false (not 400)
+            var (hbCode, hbBody) = await restartedCoordinator.ReportAsync(
+                new PartyReportRequestDto(
+                    PartyId: party.PartyId,
+                    WorkerToken: lease1.Lease.WorkerToken,
+                    StartBlock: 0,
+                    HeartbeatOnly: true
+                )
+            );
+            Assert.Equal(200, hbCode);
+            Assert.False(hbBody.Ok);
+
+            // And block 0 must be reclaimed and re-issued by the restarted coordinator
+            var reclaimedLease = await restartedCoordinator.NextLeaseAsync(party.PartyId);
             Assert.NotNull(reclaimedLease.Lease);
             Assert.Equal(0, reclaimedLease.Lease.StartBlock);
 
             // 2. Verify bogus seeds are rejected by server-side confirmation
-            var (statusCode, fakeReport) = await coordinator.ReportAsync(
+            var (statusCode, fakeReport) = await restartedCoordinator.ReportAsync(
                 new PartyReportRequestDto(
                     PartyId: party.PartyId,
                     WorkerToken: reclaimedLease.Lease.WorkerToken,
@@ -171,7 +193,7 @@ public sealed class MotelyStoreAndPartyCoordinatorTests
             Assert.Equal(2, (fakeReport.Rejected ?? []).Count);
 
             // 3. Connect PartyWorker with UseGpu = true over in-memory HttpClient to sweep remaining block 1
-            using var httpClient = new HttpClient(new CoordinatorHttpHandler(coordinator))
+            using var httpClient = new HttpClient(new CoordinatorHttpHandler(restartedCoordinator))
             {
                 BaseAddress = new Uri("http://localhost:5200")
             };
@@ -193,7 +215,7 @@ public sealed class MotelyStoreAndPartyCoordinatorTests
             Assert.Equal(PartyWorkerOutcome.Stopped, summary.Outcome);
             Assert.Equal(0, PartyWorker.ExitCode(summary));
 
-            var finalStatus = await coordinator.GetPartyStatusAsync(party.PartyId);
+            var finalStatus = await restartedCoordinator.GetPartyStatusAsync(party.PartyId);
             Assert.NotNull(finalStatus);
             Assert.Equal("exhausted", finalStatus.Status);
             Assert.Equal(2, finalStatus.CompletedBlocks);
@@ -224,7 +246,7 @@ public sealed class MotelyStoreAndPartyCoordinatorTests
 
             var saved = await MotelyTools.SaveFilter(
                 "mcp-gpu-test",
-                "name: MCP GPU Test\ndeck: Red\nstake: White\nmust:\n  - boss: TheEye\n    antes: [3, 4]\n"
+                "name: MCP GPU Test\ndeck: Red\nstake: White\nmust:\n  - boss: TheEye\n    antes: [3, 4]\nshould:\n  - voucher: Telescope\n    antes: [1, 2]\n    score: 5\n"
             );
             Assert.Equal("mcp-gpu-test", saved.Slug);
 
@@ -236,16 +258,26 @@ public sealed class MotelyStoreAndPartyCoordinatorTests
                 mode: SeedSearchMode.Sequential,
                 collect: 25,
                 startBatch: 0,
-                batches: 1,
+                batchCount: 1,
                 useGpu: true,
                 saveToDb: true
             );
             Assert.True(searchRes.GpuUsed);
             Assert.True(searchRes.Matched > 0);
 
-            var batchAnalysis = MotelyTools.AnalyzeBatch(string.Join(",", searchRes.Matches.Take(3)));
+            var batchAnalysis = MotelyTools.AnalyzeBatch(
+                string.Join(",", searchRes.Matches.Take(3)),
+                filter: "mcp-gpu-test"
+            );
             Assert.Equal(3, batchAnalysis.Count);
-            Assert.All(batchAnalysis.Seeds, s => Assert.Null(s.Error));
+            Assert.Equal("MCP GPU Test", batchAnalysis.Filter);
+            Assert.All(batchAnalysis.Seeds, s =>
+            {
+                Assert.Null(s.Error);
+                Assert.True(s.Matched);
+                Assert.NotNull(s.Score);
+                Assert.NotNull(s.Tallies);
+            });
 
             var party = await MotelyTools.PartyCreate("mcp-gpu-test", name: "MCP Party", batchChars: 3, blockSize: 1, totalBlocks: 2);
             var sweep = await MotelyTools.PartySweepGpu(party.PartyId, blocks: 1, useGpu: true);

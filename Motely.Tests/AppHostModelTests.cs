@@ -56,7 +56,7 @@ public sealed class AppHostModelTests
         await using var appHost = await CreateAsync();
         var projects = appHost.Resources.OfType<ProjectResource>().Select(static r => r.Name).Order().ToArray();
 
-        Assert.Equal(["check", "mcp", "search"], projects);
+        Assert.Equal(["check", "mcp", "party-worker", "search"], projects);
         Assert.Contains(appHost.Resources, static r => r is ParameterResource { Name: "filter" });
     }
 
@@ -105,5 +105,20 @@ public sealed class AppHostModelTests
         var mcp = appHost.Resources.Single(static r => r.Name == "mcp");
 
         Assert.Equal(RepoFilters(), await EnvOf(mcp, "MOTELY_FILTERS_DIR"));
+        Assert.NotEmpty(mcp.Annotations.OfType<HealthCheckAnnotation>());
+        Assert.Contains(mcp.Annotations, static a => a.GetType().Name.Contains("Mcp", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Party_worker_waits_to_be_started_and_runs_party_gpu_against_mcp()
+    {
+        await using var appHost = await CreateAsync();
+        var worker = appHost.Resources.Single(static r => r.Name == "party-worker");
+
+        Assert.NotEmpty(worker.Annotations.OfType<ExplicitStartupAnnotation>());
+        var args = await ArgsOf(worker);
+        Assert.Contains("party", args);
+        Assert.Contains("--gpu", args);
+        Assert.Equal(RepoFilters(), await EnvOf(worker, "MOTELY_FILTERS_DIR"));
     }
 }

@@ -101,6 +101,21 @@ public sealed class GpuSearchTests
         0,
         3
     )]
+    [InlineData(
+        """
+        name: ErraticDeckAndLogicParity
+        deck: Erratic
+        stake: White
+        must:
+          - and:
+              - erraticRank: Ace
+                min: 8
+              - erraticSuit: Spades
+                min: 16
+        """,
+        0,
+        2
+    )]
     public async Task Gpu_and_Cpu_sequential_sweeps_produce_bit_exact_identical_matches_and_scores(
         string jaml,
         long startBatch,
@@ -112,6 +127,32 @@ public sealed class GpuSearchTests
 
         var cpuMatches = await SweepAsync(config, startBatch, endBatch, useGpu: false);
         var gpuMatches = await SweepAsync(config, startBatch, endBatch, useGpu: true);
+
+        Assert.NotEmpty(cpuMatches);
+        Assert.Equal(cpuMatches, gpuMatches);
+    }
+
+    [Fact]
+    public async Task Gpu_mixed_special_spectral_and_mustNot_voucher_roll1_have_zero_false_negatives()
+    {
+        string jaml = """
+            name: MixedSpectralAndVoucherRoll1
+            deck: Red
+            stake: White
+            must:
+              - boss: TheEye
+                antes: [3, 4]
+              - spectralCard: [TheSoul, Immolate]
+                antes: [1, 2]
+            mustNot:
+              - voucher: Hieroglyph
+                antes: [1]
+                rolls: [1]
+            """;
+
+        var config = JamlConfigLoader.FromJaml(jaml);
+        var cpuMatches = await SweepAsync(config, 0, 1, useGpu: false);
+        var gpuMatches = await SweepAsync(config, 0, 1, useGpu: true);
 
         Assert.NotEmpty(cpuMatches);
         Assert.Equal(cpuMatches, gpuMatches);

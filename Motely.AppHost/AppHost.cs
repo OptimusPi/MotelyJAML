@@ -38,20 +38,20 @@ builder
 // dashboard, and it shares the repo's JamlFilters/ through MOTELY_FILTERS_DIR like the CLI
 // resources do. The web resource references it so the Vite dev server learns the URL through
 // service discovery and can proxy /agui (the agent panel calls same-origin).
+#pragma warning disable ASPIREMCP001
 var mcp = builder
     .AddProject<Projects.Motely_MCP>("mcp")
     .WithEnvironment("MOTELY_FILTERS_DIR", filters)
+    .WithMcpServer("/mcp")
     .WithHttpHealthCheck("/health");
+#pragma warning restore ASPIREMCP001
 
-if (builder.Configuration.GetValue<bool>("Motely:EnablePartyWorker"))
-{
-    builder
-        .AddProject<Projects.Motely_CLI>("party-worker")
-        .WithArgs("party", "--server", mcp.GetEndpoint("http"), "--party", "default", "--gpu")
-        .WithEnvironment("MOTELY_FILTERS_DIR", filters)
-        .WithReference(mcp)
-        .WithExplicitStart();
-}
+builder
+    .AddProject<Projects.Motely_CLI>("party-worker")
+    .WithArgs("party", "--server", mcp.GetEndpoint("http"), "--party", "default", "--gpu")
+    .WithEnvironment("MOTELY_FILTERS_DIR", filters)
+    .WithReference(mcp)
+    .WithExplicitStart();
 
 builder.AddViteApp("web", "../Motely.Web").WithReference(mcp);
 

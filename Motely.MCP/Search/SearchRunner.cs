@@ -21,11 +21,19 @@ public sealed record BatchSeedSummary(
     IReadOnlyList<string> Vouchers,
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> SoulJokers,
-    string? Error = null
+    string? Error = null,
+    bool? Matched = null,
+    int? Score = null,
+    IReadOnlyList<int>? Tallies = null
 );
 
 /// <summary>Structured result of <see cref="SearchRunner.AnalyzeBatch"/>.</summary>
-public sealed record BatchAnalyzeSummary(int Count, IReadOnlyList<BatchSeedSummary> Seeds);
+public sealed record BatchAnalyzeSummary(
+    int Count,
+    IReadOnlyList<BatchSeedSummary> Seeds,
+    string? Filter = null,
+    IReadOnlyList<string>? TallyLabels = null
+);
 
 /// <summary>
 /// What a search yields as it runs: live progress, each matched seed, a terminal summary, or an
@@ -87,7 +95,8 @@ public sealed class SearchRunner
         string filter,
         string? mode,
         int? collect,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        bool useGpu = false
     )
     {
         var path = FilterCheck.ResolvePath(filter);
@@ -122,9 +131,21 @@ public sealed class SearchRunner
             yield break;
         }
 
+        long? startBatch = useGpu && string.Equals(mode, "sequential", StringComparison.OrdinalIgnoreCase) ? 0 : null;
+        long? endBatch = useGpu && string.Equals(mode, "sequential", StringComparison.OrdinalIgnoreCase) ? 16 : null;
+
         await foreach (
-            var evt in RunAsync(config, label, mode, collect, null, null, cancellationToken, filterName: filter)
-                .ConfigureAwait(false)
+            var evt in RunAsync(
+                config,
+                label,
+                mode,
+                collect,
+                startBatch,
+                endBatch,
+                cancellationToken,
+                useGpu: useGpu,
+                filterName: filter
+            ).ConfigureAwait(false)
         )
         {
             yield return evt;
@@ -151,7 +172,9 @@ public sealed class SearchRunner
         bool useGpu = false,
         bool saveToDb = true,
         string? foundBy = null,
-        string? filterName = null
+        string? filterName = null,
+        int? threads = null,
+        long? batchCount = null
     )
     {
         if (!string.IsNullOrWhiteSpace(deck) && Enum.TryParse<MotelyDeck>(deck.Trim(), true, out var parsedDeck))
@@ -172,6 +195,8 @@ public sealed class SearchRunner
             yield break;
         }
 
+        long? effectiveEndBatch = endBatch ?? (batchCount is > 0 ? (startBatch ?? 0) + batchCount.Value : null);
+
         var input = new CliSearchMode.Input(
             SeedsArgument: seeds,
             Replay: replay,
@@ -183,7 +208,7 @@ public sealed class SearchRunner
             RandomCount: random,
             AestheticName: null,
             StartBatch: startBatch,
-            EndBatch: endBatch,
+            EndBatch: effectiveEndBatch,
             StartPercent: null,
             StartSeed: null,
             StopSeed: null,
@@ -191,6 +216,8 @@ public sealed class SearchRunner
         );
 
         var baseSettings = plan.Settings.WithSourceConfig(config).WithGpuSearch(useGpu);
+        if (threads is > 0)
+            baseSettings = baseSettings.WithThreadCount(threads.Value);
 
         if (!CliSearchMode.TryApplySearchMode(baseSettings, input, out var applyError, out var settings))
         {
@@ -202,14 +229,28 @@ public sealed class SearchRunner
         // space (~2.3 trillion seeds) and would hold the request, and the match list, forever.
         // A replay or seed list is finite, so by default it runs to the end of the list.
         bool finite = replay || seeds is not null;
-        if (endBatch is null)
+        if (effectiveEndBatch is null)
             settings = settings.StopAfter(Math.Clamp(collect ?? (finite ? MaxCollect : DefaultCollect), 1, MaxCollect));
 
         var channel = Channel.CreateUnbounded<SearchEvent>();
         var matches = new List<string>();
         var scoredMatches = new List<SeedMatch>();
 
+        string resolvedFilterName = filterName ?? config.Name ?? label;
+        string telemetryInput = replay
+            ? "replay"
+            : seeds is not null
+                ? "seeds"
+                : keyword is not null
+                    ? "keywords"
+                    : random is not null
+                        ? "random"
+                        : "sequential";
+        using var telemetry = SearchTelemetry.Start(resolvedFilterName, config.Deck, config.Stake, telemetryInput);
+
         settings = settings.WithProgressCallback(p =>
+        {
+            telemetry.Report(p);
             channel.Writer.TryWrite(
                 new SearchEvent.Progress(
                     (int)p.PercentComplete,
@@ -217,8 +258,8 @@ public sealed class SearchRunner
                     p.MatchingSeeds,
                     p.SeedsPerMillisecond * 1000.0
                 )
-            )
-        );
+            );
+        });
 
         // A filter with no clauses has no score provider, and then finds arrive only on the
         // seed-match channel. With a provider they arrive on both, so listen to exactly one.
@@ -246,7 +287,7 @@ public sealed class SearchRunner
 
         bool gpuUsed = false;
         string? deviceName = null;
-        if (useGpu && endBatch is not null)
+        if (useGpu && effectiveEndBatch is not null)
         {
             var dev = GpuDeviceInfo.GetBestDevice();
             if (dev is not null && GpuFilterProgram.Compile(config).HasSelectiveOps)
@@ -263,11 +304,16 @@ public sealed class SearchRunner
                 t =>
                 {
                     if (t.IsFaulted && t.Exception is not null && !cancellationToken.IsCancellationRequested)
+                    {
+                        var inner = t.Exception.Flatten().InnerException;
+                        if (inner is not null)
+                            telemetry.Fail(inner);
                         channel.Writer.TryWrite(
                             new SearchEvent.Error(
-                                t.Exception.Flatten().InnerException?.Message ?? "the search failed."
+                                inner?.Message ?? "the search failed."
                             )
                         );
+                    }
                     channel.Writer.TryComplete();
                 },
                 CancellationToken.None,
@@ -278,6 +324,8 @@ public sealed class SearchRunner
         await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             yield return evt;
 
+        telemetry.Finish(search, search.StoppedOnMatchLimit ? "stopped" : "finished");
+
         List<SeedMatch> topSnapshot;
         lock (matches)
         {
@@ -286,7 +334,6 @@ public sealed class SearchRunner
 
         if (_store is not null && saveToDb && topSnapshot.Count > 0)
         {
-            string resolvedFilterName = filterName ?? config.Name ?? label;
             string resolvedFoundBy = string.IsNullOrWhiteSpace(foundBy) ? "anonymous" : foundBy;
             var now = DateTimeOffset.UtcNow;
             var records = topSnapshot
@@ -322,12 +369,55 @@ public sealed class SearchRunner
 
     /// <summary>
     /// Analyzes a batch of seeds (up to 50) and returns structured summaries of bosses, vouchers,
-    /// tags, and Soul jokers across Antes 1-8.
+    /// tags, and Soul jokers across Antes 1-8, optionally scoring and comparing each seed against
+    /// a JAML filter (<paramref name="filter"/> or <paramref name="jaml"/>).
     /// </summary>
-    public BatchAnalyzeSummary AnalyzeBatch(string seedsCsvOrLines, string? deck = null, string? stake = null)
+    public BatchAnalyzeSummary AnalyzeBatch(
+        string seedsCsvOrLines,
+        string? deck = null,
+        string? stake = null,
+        string? filter = null,
+        string? jaml = null
+    )
     {
-        var motelyDeck = Enum.TryParse<MotelyDeck>(deck?.Trim(), true, out var d) ? d : MotelyDeck.Red;
-        var motelyStake = Enum.TryParse<MotelyStake>(stake?.Trim(), true, out var s) ? s : MotelyStake.White;
+        JamlConfig? filterConfig = null;
+        string? filterLabel = null;
+        IReadOnlyList<string>? tallyLabels = null;
+        int tallyCols = 0;
+
+        if (!string.IsNullOrWhiteSpace(jaml))
+        {
+            filterConfig = JamlConfigLoader.FromJaml(jaml);
+            filterLabel = filterConfig.Name ?? "inline";
+        }
+        else if (!string.IsNullOrWhiteSpace(filter))
+        {
+            var path = FilterCheck.ResolvePath(filter);
+            if (File.Exists(path))
+            {
+                filterConfig = JamlConfigLoader.FromFile(path);
+                filterLabel = filter;
+            }
+            else if (_store is not null)
+            {
+                var stored = _store.GetFilterAsync(filter).GetAwaiter().GetResult();
+                if (stored is not null)
+                {
+                    filterConfig = JamlConfigLoader.FromJaml(stored.JamlContent);
+                    filterLabel = stored.Name;
+                }
+            }
+
+            if (filterConfig is null)
+                throw new InvalidOperationException($"Error: no filter at {path}.");
+        }
+
+        var motelyDeck = Enum.TryParse<MotelyDeck>(deck?.Trim(), true, out var d)
+            ? d
+            : (filterConfig?.Deck ?? MotelyDeck.Red);
+        var motelyStake = Enum.TryParse<MotelyStake>(stake?.Trim(), true, out var s)
+            ? s
+            : (filterConfig?.Stake ?? MotelyStake.White);
 
         var rawList = seedsCsvOrLines
             .Split([',', '\n', '\r', ';', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -335,6 +425,59 @@ public sealed class SearchRunner
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(50)
             .ToArray();
+
+        Dictionary<string, (int Score, int[] Tallies)>? scoredBySeed = null;
+        if (filterConfig is not null)
+        {
+            filterConfig.Deck = motelyDeck;
+            filterConfig.Stake = motelyStake;
+            var plan = MotelySearchBuilder.CreatePlan(filterConfig, int.MinValue);
+            tallyLabels = plan.TallyLabels;
+            tallyCols = plan.ScoreTallyColumnCount;
+            scoredBySeed = new Dictionary<string, (int Score, int[] Tallies)>(StringComparer.Ordinal);
+
+            var validSeeds = rawList
+                .Select(r => CliSearchMode.TryNormalizeSeed(r, out var norm) ? norm : null)
+                .Where(s => s is not null)
+                .Select(s => s!)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
+            if (validSeeds.Length > 0)
+            {
+                var evalSettings = plan.Settings
+                    .WithDeck(motelyDeck)
+                    .WithStake(motelyStake)
+                    .WithThreadCount(1)
+                    .WithSeedList(validSeeds)
+                    .WithAutoScoreCutoff(false)
+                    .WithQuietMode(true);
+
+                evalSettings = evalSettings.SeedScoreDesc is not null
+                    ? evalSettings.WithScoredResultCallback(r =>
+                    {
+                        var tallies = new int[tallyCols];
+                        for (int i = 0; i < tallyCols; i++)
+                            tallies[i] = r.Tally[i];
+                        lock (scoredBySeed)
+                        {
+                            scoredBySeed[r.Seed] = (r.Score, tallies);
+                        }
+                    })
+                    : evalSettings.WithSeedMatchCallback(line =>
+                    {
+                        int comma = line.IndexOf(',');
+                        string sName = comma < 0 ? line : line[..comma];
+                        lock (scoredBySeed)
+                        {
+                            scoredBySeed[sName] = (0, []);
+                        }
+                    });
+
+                using var evalSearch = evalSettings.Start();
+                evalSearch.AwaitCompletion();
+            }
+        }
 
         var results = new List<BatchSeedSummary>(rawList.Length);
         foreach (var raw in rawList)
@@ -376,6 +519,25 @@ public sealed class SearchRunner
                 }
             }
 
+            bool? matched = null;
+            int? score = null;
+            IReadOnlyList<int>? tallies = null;
+            if (scoredBySeed is not null)
+            {
+                if (scoredBySeed.TryGetValue(seed, out var hit))
+                {
+                    matched = true;
+                    score = hit.Score;
+                    tallies = hit.Tallies;
+                }
+                else
+                {
+                    matched = false;
+                    score = 0;
+                    tallies = new int[tallyCols];
+                }
+            }
+
             results.Add(
                 new BatchSeedSummary(
                     seed,
@@ -385,12 +547,15 @@ public sealed class SearchRunner
                     vouchers,
                     tags,
                     soulJokers,
-                    null
+                    null,
+                    matched,
+                    score,
+                    tallies
                 )
             );
         }
 
-        return new BatchAnalyzeSummary(results.Count, results);
+        return new BatchAnalyzeSummary(results.Count, results, filterLabel, tallyLabels);
     }
 
     private static bool TryLoadConfig(

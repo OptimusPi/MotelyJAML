@@ -15,8 +15,10 @@ namespace Motely.MCP.Agent;
 /// feed. No model in the loop, so a given request always produces the same run — which makes the
 /// endpoint testable end to end.
 /// </summary>
-public sealed class MotelySearchAgent : IChatClient
+public sealed class MotelySearchAgent(SearchRunner? runner = null) : IChatClient
 {
+    private readonly SearchRunner _runner = runner ?? new SearchRunner();
+
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -24,7 +26,7 @@ public sealed class MotelySearchAgent : IChatClient
     )
     {
         var text = messages.LastOrDefault(static m => m.Role == ChatRole.User)?.Text ?? "";
-        var (filter, mode, parseError) = ParseMessage(text);
+        var (filter, mode, useGpu, parseError) = ParseMessage(text);
 
         if (parseError is not null)
         {
@@ -37,11 +39,12 @@ public sealed class MotelySearchAgent : IChatClient
             yield break;
         }
 
-        yield return Text($"Searching {filter} ({mode ?? "replay"})…");
+        string modeLabel = mode ?? "replay";
+        if (useGpu)
+            modeLabel += ", gpu";
+        yield return Text($"Searching {filter} ({modeLabel})…");
 
-        var runner = new SearchRunner();
-
-        await foreach (var evt in runner.RunAsync(filter, mode, null, cancellationToken).ConfigureAwait(false))
+        await foreach (var evt in _runner.RunAsync(filter, mode, null, cancellationToken, useGpu: useGpu).ConfigureAwait(false))
         {
             switch (evt)
             {
@@ -81,6 +84,8 @@ public sealed class MotelySearchAgent : IChatClient
                                     matched = d.Matched,
                                     rate = d.Rate,
                                     elapsed = FormatDuration(d.Elapsed),
+                                    gpuUsed = d.GpuUsed,
+                                    deviceName = d.DeviceName,
                                 }
                             ),
                         },
@@ -123,12 +128,12 @@ public sealed class MotelySearchAgent : IChatClient
     /// <summary>One line of the run: each update ends in a newline, so streamed seeds don't run together.</summary>
     private static ChatResponseUpdate Text(string text) => new() { Contents = [new TextContent(text + "\n")] };
 
-    /// <summary>Pulls a filter name and an optional mode out of the user's message.</summary>
-    private static (string? filter, string? mode, string? error) ParseMessage(string text)
+    /// <summary>Pulls a filter name, an optional mode, and an optional GPU flag out of the user's message.</summary>
+    private static (string? filter, string? mode, bool useGpu, string? error) ParseMessage(string text)
     {
         var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
-            return (null, null, null);
+            return (null, null, false, null);
 
         // A leading command word ("search", "run", "find") is skipped: both "Zerkeo_Pure" and
         // "search Zerkeo_Pure" name the filter.
@@ -140,9 +145,10 @@ public sealed class MotelySearchAgent : IChatClient
         )
             start = 1;
         if (start >= parts.Length)
-            return (null, null, null);
+            return (null, null, false, null);
 
         string? mode = null;
+        bool useGpu = false;
         for (int i = start + 1; i < parts.Length; i++)
         {
             if (parts[i].Equals("keyword", StringComparison.OrdinalIgnoreCase) && i + 1 < parts.Length)
@@ -153,9 +159,14 @@ public sealed class MotelySearchAgent : IChatClient
                 mode = "replay";
             else if (parts[i].Equals("sequential", StringComparison.OrdinalIgnoreCase))
                 mode = "sequential";
+            else if (parts[i].Equals("gpu", StringComparison.OrdinalIgnoreCase) || parts[i].Equals("--gpu", StringComparison.OrdinalIgnoreCase))
+                useGpu = true;
         }
 
-        return (parts[start], mode, null);
+        if (useGpu && mode is null)
+            mode = "sequential";
+
+        return (parts[start], mode, useGpu, null);
     }
 
     private static string FormatDuration(TimeSpan span) =>

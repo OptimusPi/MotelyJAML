@@ -19,7 +19,10 @@ if (Environment.GetEnvironmentVariable("MOTELY_FILTERS_DIR") is not { Length: > 
     filtersDir = "JamlFilters";
 Environment.SetEnvironmentVariable("MOTELY_FILTERS_DIR", filtersDir);
 
-using var telemetry = Motely.ServiceDefaults.Extensions.AddServiceDefaults(["Motely.MCP"], ["Motely.MCP"]);
+using var telemetry = Motely.ServiceDefaults.Extensions.AddServiceDefaults(
+    [.. Motely.SearchTelemetry.Sources, Motely.SearchTelemetry.ActivitySourceName],
+    [.. Motely.SearchTelemetry.Sources, Motely.SearchTelemetry.MeterName]
+);
 
 var builder = WebApplication.CreateBuilder(args);
 

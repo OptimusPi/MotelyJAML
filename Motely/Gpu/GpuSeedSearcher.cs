@@ -37,6 +37,8 @@ public sealed class GpuFilterProgram
     public const int OpBoss = 3;
     public const int OpSoulEdition = 4;
     public const int OpSoulPack = 5;
+    public const int OpErraticRank = 6;
+    public const int OpErraticSuit = 7;
 
     public int[] Instructions { get; }
     public int InstructionGroupCount { get; }
@@ -53,7 +55,8 @@ public sealed class GpuFilterProgram
     /// <summary>
     /// Compiles the <c>must</c> and exact <c>mustNot</c> clauses of a <see cref="JamlConfig"/> into
     /// GPU opcodes. Every emitted opcode is either 100% bit-exact with CPU (Voucher, Tag, Boss,
-    /// SoulEdition) or a mathematically sound necessary condition with zero false negatives (SoulPack).
+    /// SoulEdition, ErraticRank, ErraticSuit) or a mathematically sound necessary condition with
+    /// zero false negatives (SoulPack + Joker4 draw-0 check).
     /// Surviving candidates are always confirmed and scored by the CPU pipeline.
     /// </summary>
     public static GpuFilterProgram Compile(JamlConfig? config)
@@ -86,6 +89,17 @@ public sealed class GpuFilterProgram
     {
         switch (clause)
         {
+            case AndClause ac when !negate && ac.Clauses.Length > 0:
+            {
+                bool any = false;
+                foreach (var sub in ac.Clauses)
+                {
+                    if (TryEmitClause(ops, sub, negate: false, ref opCount))
+                        any = true;
+                }
+                return any;
+            }
+
             case VoucherClause vc when vc.Antes.Length > 0 && vc.Rolls.Length > 0:
             {
                 int anteMask = 0;
@@ -110,7 +124,10 @@ public sealed class GpuFilterProgram
                         maxRoll = r;
                 }
 
-                // Only roll 0 is stateless across voucher stream draws; for roll >= 1 we also support up to roll 7.
+                // For mustNot (negate), only roll 0 is guaranteed to match both VoucherFilterDesc and ClauseScoring
+                if (negate && maxRoll > 0)
+                    return false;
+
                 uint voucherMask = vc.Vouchers.Length == 0 ? 0xFFFFFFFFu : 0u;
                 foreach (var v in vc.Vouchers)
                     voucherMask |= 1u << (int)v;
@@ -118,7 +135,7 @@ public sealed class GpuFilterProgram
                 ops.Add(OpVoucher);
                 ops.Add(anteMask);
                 ops.Add(maxAnte);
-                ops.Add( unchecked((int)voucherMask) );
+                ops.Add(unchecked((int)voucherMask));
                 ops.Add(rollMask);
                 ops.Add(maxRoll);
                 ops.Add(vc.Min);
@@ -224,13 +241,21 @@ public sealed class GpuFilterProgram
                     emitted = true;
                 }
 
-                // Every LegendaryJokerClause requires The Soul to appear in at least one Arcana or Spectral pack
-                // in the targeted antes. Checking soul_Tarot{ante} and soul_Spectral{ante} (> 0.997) is a 100%
-                // sound superset check with zero false negatives.
                 var src = ljc.Sources ?? LegendaryJokerFilterDesc.DefaultSources;
                 int maxSlot = Math.Max(5, src.MaxReferencedBoosterSlot());
                 int maxTarotDraws = (maxSlot + 1 + src.TagPacks.Length) * 5;
                 int maxSpectralDraws = (maxSlot + 1) * 8;
+
+                int jokerMask = 0;
+                if (!ljc.SoulCardOnly && ljc.Jokers.Length > 0 && ljc.With.Jokers.Length == 0)
+                {
+                    foreach (var j in ljc.Jokers)
+                    {
+                        int idx = (int)j & 0x7;
+                        if (idx is >= 0 and < 5)
+                            jokerMask |= 1 << idx;
+                    }
+                }
 
                 ops.Add(OpSoulPack);
                 ops.Add(anteMask);
@@ -240,14 +265,25 @@ public sealed class GpuFilterProgram
                 ops.Add(maxSpectralDraws);
                 ops.Add(0); // checkPlanet
                 ops.Add(0);
+                ops.Add(jokerMask);
                 opCount++;
                 return emitted || true;
             }
 
-            case SpectralCardClause scc when !negate && SpecialSpectralCardFilterDesc.Handles(scc) && scc.Antes.Length > 0:
+            case SpectralCardClause scc
+                when !negate
+                    && scc.Antes.Length > 0
+                    && scc.Spectrals.Length > 0
+                    && scc.Spectrals.All(s => s is MotelySpectralCard.TheSoul or MotelySpectralCard.BlackHole):
             {
                 var sources = SpectralCardFilterDesc.ResolveSources(scc);
-                if (sources.ShopItems.Length > 0 || sources.SixthSense.Length > 0 || sources.Seance.Length > 0)
+                if (
+                    sources.ShopItems.Length > 0
+                    || sources.SixthSense.Length > 0
+                    || sources.Seance.Length > 0
+                    || sources.EtherealTag
+                    || sources.OmenGlobe
+                )
                     return false;
 
                 int anteMask = 0;
@@ -258,17 +294,43 @@ public sealed class GpuFilterProgram
                     anteMask |= 1 << a;
                 }
 
-                bool wantsSoul = scc.Spectrals.Length == 0 || scc.Spectrals.Contains(MotelySpectralCard.TheSoul);
-                bool wantsBlackHole = scc.Spectrals.Length == 0 || scc.Spectrals.Contains(MotelySpectralCard.BlackHole);
+                int maxSlot = sources.BoosterPacks.Length > 0 ? Math.Max(5, sources.BoosterPacks.Max()) : 5;
+                int maxDraws = (maxSlot + 1) * 8;
+
+                bool wantsSoul = scc.Spectrals.Contains(MotelySpectralCard.TheSoul);
+                bool wantsBlackHole = scc.Spectrals.Contains(MotelySpectralCard.BlackHole);
 
                 ops.Add(OpSoulPack);
                 ops.Add(anteMask);
                 ops.Add(wantsSoul ? 1 : 0);
-                ops.Add(35);
+                ops.Add(maxDraws);
                 ops.Add(1); // Spectral packs can hold both Soul and BlackHole
-                ops.Add(36);
+                ops.Add(maxDraws);
                 ops.Add(wantsBlackHole ? 1 : 0);
-                ops.Add(35);
+                ops.Add(maxDraws);
+                ops.Add(0); // jokerMask
+                opCount++;
+                return true;
+            }
+
+            case ErraticRankClause erc:
+            {
+                ops.Add(OpErraticRank);
+                ops.Add((int)erc.Rank);
+                ops.Add(erc.Min);
+                ops.Add(erc.Max ?? -1);
+                ops.Add(negate ? 1 : 0);
+                opCount++;
+                return true;
+            }
+
+            case ErraticSuitClause esc:
+            {
+                ops.Add(OpErraticSuit);
+                ops.Add(esc.Suit.GetOrdinal());
+                ops.Add(esc.Min);
+                ops.Add(esc.Max ?? -1);
+                ops.Add(negate ? 1 : 0);
                 opCount++;
                 return true;
             }
@@ -443,21 +505,25 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
 
         lock (_ctx.QueueLock)
         {
-            fixed (int* opsPtr = _program.Instructions)
+            if (!ReferenceEquals(_ctx.LastProgram, _program))
             {
-                int writeOpsErr = OpenClNative.clEnqueueWriteBuffer(
-                    _ctx.Queue,
-                    _ctx.OpsBuffer,
-                    OpenClNative.CL_TRUE,
-                    0,
-                    (nuint)(opsLen * sizeof(int)),
-                    opsPtr,
-                    0,
-                    null,
-                    null
-                );
-                if (writeOpsErr != OpenClNative.CL_SUCCESS)
-                    return -1;
+                fixed (int* opsPtr = _program.Instructions)
+                {
+                    int writeOpsErr = OpenClNative.clEnqueueWriteBuffer(
+                        _ctx.Queue,
+                        _ctx.OpsBuffer,
+                        OpenClNative.CL_TRUE,
+                        0,
+                        (nuint)(opsLen * sizeof(int)),
+                        opsPtr,
+                        0,
+                        null,
+                        null
+                    );
+                    if (writeOpsErr != OpenClNative.CL_SUCCESS)
+                        return -1;
+                }
+                _ctx.LastProgram = _program;
             }
 
             int zero = 0;
@@ -758,6 +824,7 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
         public nint CandidatesBuffer { get; } = candidatesBuffer;
         public nint CountBuffer { get; } = countBuffer;
         public object QueueLock { get; } = new();
+        public GpuFilterProgram? LastProgram { get; set; }
     }
 
     private const string OpenClKernelSource = """
@@ -933,6 +1000,16 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
         inline double pseudo_hash_soul_planet(const uchar seed[8], int ante) {
             uchar key[12] = { 's','o','u','l','_','P','l','a','n','e','t', (uchar)('0' + ante) };
             return pseudo_hash_key(seed, key, 12);
+        }
+
+        inline double pseudo_hash_joker4(const uchar seed[8]) {
+            uchar key[6] = { 'J','o','k','e','r','4' };
+            return pseudo_hash_key(seed, key, 6);
+        }
+
+        inline double pseudo_hash_erratic(const uchar seed[8]) {
+            uchar key[7] = { 'e','r','r','a','t','i','c' };
+            return pseudo_hash_key(seed, key, 7);
         }
 
         inline int draw_next_voucher(const uchar seed[8], double seed_hash_0, int ante, uint active_vouchers, double* main_state, double resample_states[16]) {
@@ -1170,40 +1247,75 @@ public sealed unsafe class GpuSeedSearcher : IDisposable
                     int max_spectral_draws = ops[pc++];
                     int check_planet = ops[pc++];
                     int max_planet_draws = ops[pc++];
+                    int joker_mask = ops[pc++];
 
-                    bool soul_ok = false;
-                    for (int ante = 0; ante <= 8 && !soul_ok; ante++) {
+                    int soul_hits = 0;
+                    for (int ante = 0; ante <= 8; ante++) {
                         if (((ante_mask >> ante) & 1) == 0) continue;
 
                         if (check_tarot != 0) {
                             double st = pseudo_hash_soul_tarot(seed, ante);
                             for (int d = 0; d < max_tarot_draws; d++) {
                                 if (lua_rng_random(get_next_pseudoseed(&st, seed_hash_0)) > 0.997) {
-                                    soul_ok = true;
-                                    break;
+                                    soul_hits++;
                                 }
                             }
                         }
-                        if (!soul_ok && check_spectral != 0) {
+                        if (check_spectral != 0) {
                             double st = pseudo_hash_soul_spectral(seed, ante);
                             for (int d = 0; d < max_spectral_draws; d++) {
                                 if (lua_rng_random(get_next_pseudoseed(&st, seed_hash_0)) > 0.997) {
-                                    soul_ok = true;
-                                    break;
+                                    soul_hits++;
                                 }
                             }
                         }
-                        if (!soul_ok && check_planet != 0) {
+                        if (check_planet != 0) {
                             double st = pseudo_hash_soul_planet(seed, ante);
                             for (int d = 0; d < max_planet_draws; d++) {
                                 if (lua_rng_random(get_next_pseudoseed(&st, seed_hash_0)) > 0.997) {
-                                    soul_ok = true;
-                                    break;
+                                    soul_hits++;
                                 }
                             }
                         }
                     }
-                    if (!soul_ok) return;
+                    if (soul_hits == 0) return;
+                    if (joker_mask != 0 && soul_hits == 1) {
+                        double jst = pseudo_hash_joker4(seed);
+                        int j = get_next_random_int(&jst, seed_hash_0, 0, 5);
+                        if (((joker_mask >> j) & 1) == 0) return;
+                    }
+                }
+                else if (opcode == 6) { // OP_ERRATIC_RANK
+                    int target_rank = ops[pc++];
+                    int min_count = ops[pc++];
+                    int max_count = ops[pc++];
+                    int negate = ops[pc++];
+
+                    double st = pseudo_hash_erratic(seed);
+                    int match_count = 0;
+                    for (int c = 0; c < 52; c++) {
+                        int card = get_next_random_int(&st, seed_hash_0, 0, 52);
+                        if ((card % 13) == target_rank) match_count++;
+                    }
+                    bool ok = (match_count >= min_count) && (max_count < 0 || match_count <= max_count);
+                    if (negate != 0) ok = !ok;
+                    if (!ok) return;
+                }
+                else if (opcode == 7) { // OP_ERRATIC_SUIT
+                    int target_suit = ops[pc++];
+                    int min_count = ops[pc++];
+                    int max_count = ops[pc++];
+                    int negate = ops[pc++];
+
+                    double st = pseudo_hash_erratic(seed);
+                    int match_count = 0;
+                    for (int c = 0; c < 52; c++) {
+                        int card = get_next_random_int(&st, seed_hash_0, 0, 52);
+                        if ((card / 13) == target_suit) match_count++;
+                    }
+                    bool ok = (match_count >= min_count) && (max_count < 0 || match_count <= max_count);
+                    if (negate != 0) ok = !ok;
+                    if (!ok) return;
                 }
             }
 

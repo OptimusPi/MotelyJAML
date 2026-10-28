@@ -280,7 +280,11 @@ public sealed class PartyCoordinator
             if (!_parties.TryGetValue(partyId, out var state))
                 return null;
 
-            ReclaimExpiredLeasesUnlocked(state, DateTimeOffset.UtcNow);
+            if ( ReclaimExpiredLeasesUnlocked(state, DateTimeOffset.UtcNow) )
+            {
+                state.SyncToRecord();
+                state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+            }
             record = state.Record;
             activeLeases = state.ActiveLeases.Count;
         }
@@ -337,22 +341,31 @@ public sealed class PartyCoordinator
                 return new PartyNextResponseDto(Done: true, Reason: "unknown party");
 
             var now = DateTimeOffset.UtcNow;
-            ReclaimExpiredLeasesUnlocked(state, now);
+            bool reclaimedAny = ReclaimExpiredLeasesUnlocked(state, now);
 
             if (state.Record.Status != "active")
+            {
+                if (reclaimedAny)
+                {
+                    state.SyncToRecord();
+                    state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                }
                 return new PartyNextResponseDto(Done: true, Reason: state.Record.Status);
+            }
 
             if (state.Record.TargetMatches is { } target && state.Record.MatchesFound >= target)
             {
                 state.Record = state.Record with { Status = "complete" };
-                await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                state.SyncToRecord();
+                state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
                 return new PartyNextResponseDto(Done: true, Reason: "complete");
             }
 
             if (state.Record.CompletedBlocks >= state.Record.TotalBlocks)
             {
                 state.Record = state.Record with { Status = "exhausted" };
-                await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                state.SyncToRecord();
+                state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
                 return new PartyNextResponseDto(Done: true, Reason: "exhausted");
             }
 
@@ -374,16 +387,22 @@ public sealed class PartyCoordinator
                 {
                     NextUnassignedBlock = startBlock + blockCount,
                 };
-                await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
             }
             else
             {
+                if (reclaimedAny)
+                {
+                    state.SyncToRecord();
+                    state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                }
                 return new PartyNextResponseDto(Done: true, Reason: "fully leased");
             }
 
             string token = $"wrk-{Guid.NewGuid():N}"[..16];
             var expiresAt = now.Add(LeaseTtl);
-            state.ActiveLeases[token] = new ActiveLease(token, startBlock, blockCount, expiresAt);
+            state.ActiveLeases[token] = new ActiveLease(token, startBlock, blockCount, expiresAt, now);
+            state.SyncToRecord();
+            state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
 
             return new PartyNextResponseDto(
                 Lease: new PartyLeaseDto(
@@ -433,15 +452,23 @@ public sealed class PartyCoordinator
                 return (404, new PartyReportResponseDto(Ok: false, Error: "unknown party"));
 
             var now = DateTimeOffset.UtcNow;
-            ReclaimExpiredLeasesUnlocked(state, now);
+            bool reclaimedAny = ReclaimExpiredLeasesUnlocked(state, now);
 
             if (
                 !state.ActiveLeases.TryGetValue(request.WorkerToken, out var active)
                 || active.StartBlock != request.StartBlock
             )
             {
+                if (reclaimedAny)
+                {
+                    state.SyncToRecord();
+                    state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                }
+
+                // PartyClient.HeartbeatAsync expects 200 OK with {"ok": false} when the lease expired
+                int missingStatus = request.HeartbeatOnly ? 200 : 400;
                 return (
-                    400,
+                    missingStatus,
                     new PartyReportResponseDto(
                         Ok: false,
                         Error: "no matching lease for this worker token and block"
@@ -451,7 +478,13 @@ public sealed class PartyCoordinator
 
             if (request.HeartbeatOnly)
             {
-                state.ActiveLeases[request.WorkerToken] = active with { ExpiresAt = now.Add(LeaseTtl) };
+                state.ActiveLeases[request.WorkerToken] = active with
+                {
+                    ExpiresAt = now.Add(LeaseTtl),
+                    LastHeartbeat = now,
+                };
+                state.SyncToRecord();
+                state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
                 return (200, new PartyReportResponseDto(Ok: true));
             }
 
@@ -518,7 +551,8 @@ public sealed class PartyCoordinator
                     Status = status,
                     CompletedRanges = ranges,
                 };
-                await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
+                state.SyncToRecord();
+                state.Record = await _store.SavePartyAsync(state.Record, cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -574,13 +608,19 @@ public sealed class PartyCoordinator
         var plan = MotelySearchBuilder.CreatePlan(config, int.MinValue);
         var settings = plan.Settings.WithSourceConfig(config);
 
-        if (!string.IsNullOrWhiteSpace(lease.Deck))
-            settings = settings.WithDeck(ParseEnum<MotelyDeck>(lease.Deck));
-        if (!string.IsNullOrWhiteSpace(lease.Stake))
-            settings = settings.WithStake(ParseEnum<MotelyStake>(lease.Stake));
+        var deck = !string.IsNullOrWhiteSpace(lease.Deck)
+            ? ParseEnum<MotelyDeck>(lease.Deck)
+            : config.Deck;
+        var stake = !string.IsNullOrWhiteSpace(lease.Stake)
+            ? ParseEnum<MotelyStake>(lease.Stake)
+            : config.Stake;
+
+        settings = settings.WithDeck(deck).WithStake(stake);
 
         var gpuDevice = useGpu ? GpuDeviceInfo.GetBestDevice() : null;
         bool gpuActive = useGpu && gpuDevice is { SupportsFp64: true } && GpuFilterProgram.Compile(config).HasSelectiveOps;
+
+        using var telemetry = SearchTelemetry.Start(partyId, deck, stake, "party");
 
         settings = settings
             .WithThreadCount(Math.Max(1, threads ?? Environment.ProcessorCount))
@@ -590,7 +630,8 @@ public sealed class PartyCoordinator
             .WithEndBatchIndex(lease.StartBlock + lease.BlockCount)
             .WithAutoScoreCutoff(false)
             .WithGpuSearch(gpuActive)
-            .WithQuietMode(true);
+            .WithQuietMode(true)
+            .WithProgressCallback(telemetry.Report);
 
         var found = new Dictionary<string, int>(StringComparer.Ordinal);
         void Add(string seed, int score)
@@ -613,6 +654,7 @@ public sealed class PartyCoordinator
         var sw = Stopwatch.StartNew();
         using var search = settings.Start(cancellationToken);
         await search.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
+        telemetry.Finish(search, "finished");
         sw.Stop();
 
         string[] bestSeeds;
@@ -793,7 +835,7 @@ public sealed class PartyCoordinator
         return true;
     }
 
-    private static void ReclaimExpiredLeasesUnlocked(PartyRuntimeState state, DateTimeOffset now)
+    private static bool ReclaimExpiredLeasesUnlocked(PartyRuntimeState state, DateTimeOffset now)
     {
         var expired = state
             .ActiveLeases.Where(kv => kv.Value.ExpiresAt <= now)
@@ -806,6 +848,8 @@ public sealed class PartyCoordinator
             state.ActiveLeases.Remove(token);
             state.ReclaimedRanges.Enqueue(new BlockRangeRecord(lease.StartBlock, lease.BlockCount));
         }
+
+        return expired.Count > 0;
     }
 
     private async Task<(JamlConfig Config, string JamlText, string DisplayName)> ResolveFilterAsync(
@@ -871,13 +915,57 @@ public sealed class PartyCoordinator
         string WorkerToken,
         long StartBlock,
         long BlockCount,
-        DateTimeOffset ExpiresAt
+        DateTimeOffset ExpiresAt,
+        DateTimeOffset LastHeartbeat
     );
 
-    private sealed class PartyRuntimeState(PartyRecord record)
+    private sealed class PartyRuntimeState
     {
-        public PartyRecord Record { get; set; } = record;
+        public PartyRecord Record { get; set; }
         public Dictionary<string, ActiveLease> ActiveLeases { get; } = new(StringComparer.Ordinal);
         public Queue<BlockRangeRecord> ReclaimedRanges { get; } = new();
+
+        public PartyRuntimeState(PartyRecord record)
+        {
+            Record = record;
+            if (record.ActiveLeases is { Count: > 0 })
+            {
+                foreach (var l in record.ActiveLeases)
+                {
+                    ActiveLeases[l.WorkerToken] = new ActiveLease(
+                        l.WorkerToken,
+                        l.StartBlock,
+                        l.BlockCount,
+                        l.ExpiresAtUtc,
+                        l.LastHeartbeatUtc == default ? record.UpdatedAtUtc : l.LastHeartbeatUtc
+                    );
+                }
+            }
+            if (record.ReclaimedRanges is { Count: > 0 })
+            {
+                foreach (var r in record.ReclaimedRanges)
+                {
+                    ReclaimedRanges.Enqueue(r);
+                }
+            }
+        }
+
+        public void SyncToRecord()
+        {
+            Record = Record with
+            {
+                ActiveLeases =
+                [
+                    .. ActiveLeases.Values.Select(l => new PartyLeaseRecord(
+                        l.WorkerToken,
+                        l.StartBlock,
+                        l.BlockCount,
+                        l.ExpiresAt,
+                        l.LastHeartbeat
+                    )),
+                ],
+                ReclaimedRanges = [.. ReclaimedRanges],
+            };
+        }
     }
 }

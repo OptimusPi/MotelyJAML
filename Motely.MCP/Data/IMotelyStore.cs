@@ -32,6 +32,14 @@ public sealed record DiscoveredSeedRecord(
 
 public sealed record BlockRangeRecord(long StartBlock, long BlockCount);
 
+public sealed record PartyLeaseRecord(
+    string WorkerToken,
+    long StartBlock,
+    long BlockCount,
+    DateTimeOffset ExpiresAtUtc,
+    DateTimeOffset LastHeartbeatUtc = default
+);
+
 public sealed record PartyRecord(
     string PartyId,
     string Name,
@@ -48,7 +56,9 @@ public sealed record PartyRecord(
     string Status,
     IReadOnlyList<BlockRangeRecord> CompletedRanges,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc
+    DateTimeOffset UpdatedAtUtc,
+    IReadOnlyList<PartyLeaseRecord>? ActiveLeases = null,
+    IReadOnlyList<BlockRangeRecord>? ReclaimedRanges = null
 );
 
 /// <summary>
